@@ -168,7 +168,7 @@ def test_unicode_assertion_text_does_not_crash_the_checkers(project, capsys, lab
     path = project.entry(f"A0001-unicode-{label.replace('_', '-')}.md")
     project.write_full_entry(path)
     text = path.read_text(encoding="utf-8")
-    from tests.conftest import ASSERTION
+    from conftest import ASSERTION
 
     text = text.replace(ASSERTION, assertion)
     path.write_text(text, encoding="utf-8")
@@ -351,7 +351,7 @@ def test_a_very_long_assertion_line_does_not_crash(project, capsys):
     project.cl("new", "long-line")
     path = project.write_full_entry(project.entry("A0001-long-line.md"))
     text = path.read_text(encoding="utf-8")
-    from tests.conftest import ASSERTION
+    from conftest import ASSERTION
 
     huge = ("word " * 700_000).strip()  # ~3.5MB, one line, no quote marks
     text = text.replace(ASSERTION, huge)

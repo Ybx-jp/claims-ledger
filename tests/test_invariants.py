@@ -20,6 +20,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import LAB_NOTE, QUOTE, SOURCE_TEXT, Project
 
 from claims_ledger import authoring, cli, propagate, references, resolve, validate
 from claims_ledger.corpus import run as corpus_run
@@ -31,7 +32,6 @@ from claims_ledger.schema import (
     load_entries,
     open_ledger,
 )
-from tests.conftest import LAB_NOTE, QUOTE, SOURCE_TEXT, Project
 
 CORPUS = corpus_run.CORPUS
 ALL_SEEDS = sorted(p for p in (CORPUS / "seeds").iterdir() if p.is_dir())
