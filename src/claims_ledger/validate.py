@@ -14,6 +14,7 @@ seed there is not a rule this file is trusted to enforce.
 
 from __future__ import annotations
 
+import itertools
 import os
 import re
 
@@ -48,7 +49,7 @@ NO_FOLLOWERS = {"has", "have", "was", "were", "report", "reports"}
 
 # The falsifier rule is a heuristic on the Warrant's wording, stated so a checker author
 # implements what the seeds test: any word beginning `falsif`.
-FALSIFIER_RE = re.compile(r"\bfalsif", re.I)
+FALSIFIER_RE = re.compile(r"\bfalsif", re.IGNORECASE)
 
 
 def is_absence_claim(text):
@@ -310,12 +311,14 @@ def check_verdicts(e, entries, config):
                         fail(
                             part,
                             f"names successor `{p.target}`, whose supersedes: is "
-                            f"`{successor.front.get('supersedes')}`; discoverability runs both ways",
+                            f"`{successor.front.get('supersedes')}`; "
+                            "discoverability runs both ways",
                         )
             if v.status == "corroborated" and normalize(v.evidence) in ground_keys:
                 fail(
                     part,
-                    "a corroborating verdict must point at a ground the entry does not already cite",
+                    "a corroborating verdict must point at a ground the entry does not "
+                    "already cite",
                 )
         if v.status == "non-comparable" and e.grade not in MEASURED_AND_ABOVE:
             fail(
@@ -451,7 +454,7 @@ def check_history(ledger, entries):
                 )
         states = [(h, git(ledger.repo, "show", f"{h}:{rel}")) for h in revisions]
         states.append(("working tree", e.text))
-        for (h_old, t_old), (h_new, t_new) in zip(states, states[1:]):
+        for (h_old, t_old), (h_new, t_new) in itertools.pairwise(states):
             if t_old is None or t_new is None or t_old == t_new:
                 continue
             old = [v.raw.rstrip() for v in parse_entry("x.md", t_old).verdicts]

@@ -88,7 +88,7 @@ def resolve_pointer(p, e, part, index, sources, ledger):
             text = git(ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:
             fail(f"{p.type}: {p.target} @{p.pin} does not resolve")
-        elif p.section and not re.search(rf"^#+\s*{re.escape(p.section)}\s*$", text, re.M):
+        elif p.section and not re.search(rf"^#+\s*{re.escape(p.section)}\s*$", text, re.MULTILINE):
             fail(f"{p.target} @{p.pin} has no section {p.section!r}")
     elif p.type == "entry":
         if p.target not in index:
@@ -160,9 +160,16 @@ def check_quote(e, b, sources, quiet=False):
         before = nfc[:first_start]
         gap = before[len(before.rstrip()) :]
         prev = before.rstrip()[-1:] if before.strip() else ""
-        if prev and prev not in SENTENCE_END and "\n\n" not in gap and prev not in '"“':
-            if not (prev in '"”)' and before.rstrip()[-2:-1] in SENTENCE_END):
-                fail("the quote starts inside a sentence with no elision mark on that side")
+        # The closing-quote case is the exception: `… said."` ends a sentence even though
+        # the last character is the quotation mark rather than the stop.
+        if (
+            prev
+            and prev not in SENTENCE_END
+            and "\n\n" not in gap
+            and prev not in '"“'
+            and not (prev in '"”)' and before.rstrip()[-2:-1] in SENTENCE_END)
+        ):
+            fail("the quote starts inside a sentence with no elision mark on that side")
     if not quote.trail_elided:
         last_char = quote.spans[-1].rstrip()[-1:]
         after = nfc[last_end:]

@@ -32,6 +32,10 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
+      - name: Type check
+        # Configured in pyproject to check src and tests against the 3.11 floor, so a
+        # construct that only exists on a newer interpreter cannot pass here.
+        run: ty check
       - run: pytest -q
       - name: The corpus proves the checkers
         run: claims-ledger corpus

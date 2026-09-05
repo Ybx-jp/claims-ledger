@@ -28,7 +28,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+dev = ["pytest>=8.0", "ruff>=0.14", "ty>=0.0.78"]
 
 [project.scripts]
 claims-ledger = "claims_ledger.cli:main"
@@ -58,12 +58,36 @@ include = ["src", "tests", "docs", "README.md", "LICENSE"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.ty.environment]
+# Checked against the floor rather than the newest interpreter: the package promises
+# 3.11, and a 3.12-only construct would otherwise pass here and fail for a user.
+python-version = "3.11"
+
+[tool.ty.src]
+include = ["src", "tests"]
+# The red-team seeds are ledger fixtures, deliberately malformed; they contain no Python.
+exclude = ["src/claims_ledger/corpus/seeds"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-# Pinned explicitly rather than extending ruff's default select, which grows between
+# Pinned explicitly rather than tracking ruff's default select, which grows between
 # releases: CI has to fail on this project's rules, not on whatever the newest ruff
-# decided to enable. `I` is import sorting.
-select = ["E4", "E7", "E9", "F", "I"]
+# turned on. These are every family ruff raised against this code, kept rather than
+# narrowed. E731 comes in with E, which is what the deliberate `fail = lambda …`
+# suppressions in the checkers were written against.
+select = ["E", "F", "I", "B", "SIM", "UP", "RUF", "ISC", "BLE", "PLW", "FURB"]
+
+# The prose here uses real typography, and the pointer syntax the schema defines is
+# written with them: `source: fx-paper · whole text`, `lab: notes/001.md § "Observation"`.
+# These are the characters the schema means, not homoglyphs slipped in by an editor.
+allowed-confusables = ["–", "—", "·", "§", "×", "≤", "≥"]
+
+[tool.ruff.lint.pycodestyle]
+# ruff format wraps code at line-length; these are the prose lines it cannot break.
+max-line-length = 100
+
+[tool.ruff.lint.flake8-implicit-str-concat]
+allow-multiline = true

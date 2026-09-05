@@ -70,19 +70,25 @@ class Project:
             ("condition: TODO", "condition: mean aggregation, one layer"),
             (
                 "- TODO: one typed pointer per line",
-                '- lab: docs/note-001.md § "Observation" @working\n'
-                "- source: fx-source · whole text",
+                (
+                    '- lab: docs/note-001.md § "Observation" @working\n'
+                    "- source: fx-source · whole text"
+                ),
             ),
             (
                 "TODO: the rule by which the grounds support the assertion.",
-                "A measured error at a known stale fraction, with the source stating the same "
-                "rule, supports the assertion over this cohort.",
+                (
+                    "A measured error at a known stale fraction, with the source stating "
+                    "the same rule, supports the assertion over this cohort."
+                ),
             ),
             (
                 "## Backing\n\nnone",
-                "## Backing\n\n- source: fx-source · whole text\n"
-                "  speaker: Okafor\n"
-                f'  quote: "{QUOTE}"',
+                (
+                    "## Backing\n\n- source: fx-source · whole text\n"
+                    "  speaker: Okafor\n"
+                    f'  quote: "{QUOTE}"'
+                ),
             ),
         ):
             assert old in text, old

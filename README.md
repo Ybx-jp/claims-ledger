@@ -248,6 +248,29 @@ entry that passes every check is not thereby right.
 Both heuristics it does apply (the absence-claim trigger words and the relayed-quotation
 flag) are documented with the cases they are known to miss, in `docs/SCHEMA.md`.
 
+## Working on it
+
+```console
+$ pip install -e ".[dev]"
+$ ruff check . && ruff format --check .
+$ ty check
+$ pytest -q
+$ claims-ledger corpus
+```
+
+All five are what CI runs, over Python 3.11, 3.12 and 3.13 on Linux and macOS, plus a
+job that builds the wheel, installs it into a clean environment and runs the corpus from
+a directory that is not the checkout — because the claim that an installed copy can prove
+itself is only worth anything if it is tested that way.
+
+`ty` is pointed at the 3.11 floor rather than the newest interpreter, so a construct that
+only exists on a newer Python cannot pass here and fail for a user. The ruff rule set is
+listed explicitly in `pyproject.toml` rather than inherited from ruff's defaults, which
+grow between releases.
+
+A change that moves a corpus seed's expected outcome is a methodology change, not a bug
+fix: record it in `CHANGELOG.md` with the seed named.
+
 ## Provenance
 
 Extracted from the claims ledger built for a research project on dynamic graph embedding

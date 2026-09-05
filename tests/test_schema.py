@@ -5,6 +5,7 @@ the fingerprint, the status derivation and the citation acts are not.
 """
 
 import dataclasses
+from datetime import timedelta
 
 import pytest
 
@@ -16,6 +17,7 @@ from claims_ledger.schema import (
     open_ledger,
     parse_pointer,
     parse_quote,
+    parse_timestamp,
 )
 from claims_ledger.validate import is_absence_claim
 from claims_ledger.validate import run as validate_run
@@ -177,3 +179,25 @@ def test_the_ledger_reads_its_paths_from_the_configuration(tmp_path):
     assert dataclasses.replace(config, root=tmp_path / "elsewhere").entries_dir == (
         tmp_path / "record" / "claims"
     )
+
+
+@pytest.mark.parametrize(
+    ("value", "offset_hours"),
+    [
+        ("2026-09-05T12:00:00Z", 0),
+        ("2026-09-05T12:00:00+00:00", 0),
+        ("2026-09-05T12:00:00-07:00", -7),
+    ],
+)
+def test_timestamps_carry_their_offset_including_a_bare_z(value, offset_hours):
+    """`Z` is parsed by fromisoformat itself from 3.11, which is the floor, so the
+    checkers no longer rewrite it to `+00:00` first. Nothing covered `Z` when that
+    rewrite was removed, so it is covered here."""
+    parsed = parse_timestamp(value)
+    assert parsed is not None
+    assert parsed.utcoffset() == timedelta(hours=offset_hours)
+
+
+@pytest.mark.parametrize("value", ["", "not a time", "2026-09-05", "2026-09-05T12:00:00"])
+def test_a_timestamp_without_an_offset_is_not_a_timestamp(value):
+    assert parse_timestamp(value) is None

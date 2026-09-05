@@ -8,6 +8,7 @@ commands and a flag is a report a human judges rather than a gate.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shlex
 import sys
@@ -77,8 +78,8 @@ roster = "ROSTER.md"
 archived-prefixes = []
 """
 
-CACHE_IGNORE = """# Source bytes, keyed by sha256. The registry row is committed and the bytes are not:
-# they are regenerated from the row's url and extraction method.
+CACHE_IGNORE = """# Source bytes, keyed by sha256. The registry row is committed and
+# the bytes are not: they are regenerated from the row's url and extraction method.
 *
 !.gitignore
 """
@@ -347,7 +348,7 @@ def cmd_source(args, ledger):
         worst = 0
         for source_id, row in rows.items():
             _, problem = source_bytes(row, ledger)
-            state = "bytes present" if not problem else problem
+            state = problem or "bytes present"
             print(f"{source_id}  {row.get('type', '?')}  {state}")
             worst = max(worst, 1 if problem else 0)
         return worst
@@ -365,7 +366,8 @@ def cmd_source(args, ledger):
         keep_path=args.keep_path,
     )
     print(
-        f"registered {row['id']} ({row['sha256'][:12]}…) in {ledger.config.relative(ledger.registry)}"
+        f"registered {row['id']} ({row['sha256'][:12]}…) in "
+        f"{ledger.config.relative(ledger.registry)}"
     )
     print(f"bytes at {ledger.config.relative(stored)}")
     return 0
@@ -456,10 +458,8 @@ def main(argv=None):
     except BrokenPipeError:
         # `claims-ledger status | head`. Point stdout at devnull so the interpreter's
         # own shutdown flush cannot raise a second time and print over the reader.
-        try:
+        with contextlib.suppress(OSError):
             os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
-        except OSError:
-            pass
         return 141  # 128 + SIGPIPE, what a shell reports for the same thing
     except KeyboardInterrupt:
         print("claims-ledger: interrupted", file=sys.stderr)

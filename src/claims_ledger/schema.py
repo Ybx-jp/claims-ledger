@@ -65,9 +65,9 @@ ID_RE = re.compile(r"^([A-Z])(\d{4})-[a-z0-9][a-z0-9-]*$")
 PREFIX_RE = re.compile(r"^([A-Z]\d+)")
 TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)$")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
-HEADING_RE = re.compile(r"^## (.+?)\s*$", re.M)
+HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
-BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.M)
+BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-slug, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z]\d{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
@@ -442,8 +442,8 @@ def _split_sections(body):
 def _parse_verdicts(text):
     verdicts = []
     blocks = re.split(r"\n(?=- )", "\n" + text.strip("\n"))
-    for block in blocks:
-        block = block.strip("\n")
+    for raw_block in blocks:
+        block = raw_block.strip("\n")
         if not block.strip():
             continue
         v = Verdict(index=len(verdicts) + 1, raw=block.rstrip())
@@ -579,7 +579,7 @@ def parse_timestamp(value):
     if not value or not TIMESTAMP_RE.match(value):
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return datetime.fromisoformat(value)
     except ValueError:
         return None
 

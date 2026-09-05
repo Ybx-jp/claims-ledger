@@ -76,7 +76,7 @@ def test_registry_hashes_match_fixture_bytes():
 
 
 def section(text, name):
-    m = re.search(rf"^## {name}\n(.*?)(?=^## |^<!-- APPEND|\Z)", text, re.M | re.S)
+    m = re.search(rf"^## {name}\n(.*?)(?=^## |^<!-- APPEND|\Z)", text, re.MULTILINE | re.DOTALL)
     assert m, name
     return m.group(1)
 
@@ -90,7 +90,9 @@ def norm(text):
 def canonical_sha(text):
     scope = [norm(ln) for ln in section(text, "Scope").splitlines() if ln.strip()]
     backing = section(text, "Backing")
-    blocks = re.findall(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", backing, re.M)
+    blocks = re.findall(
+        r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", backing, re.MULTILINE
+    )
     lines = sorted(f"{norm(s)} | {norm(sp)} | {norm(q)}" for s, sp, q in blocks)
     payload = "\n".join(scope) + "\n\n" + "\n".join(lines)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -109,7 +111,7 @@ ENTRIES = [p for s in SEEDS for p in creation_states(s) if not s.name.startswith
 @pytest.mark.parametrize("path", ENTRIES, ids=lambda p: f"{p.relative_to(CORPUS / 'seeds')}")
 def test_verbatim_sha_follows_the_documented_canonicalization(path):
     text = path.read_text(encoding="utf-8")
-    declared = re.search(r"^verbatim_sha: ([0-9a-f]{64})$", text, re.M)
+    declared = re.search(r"^verbatim_sha: ([0-9a-f]{64})$", text, re.MULTILINE)
     assert declared, "no verbatim_sha"
     assert declared.group(1) == canonical_sha(text)
     assert "<!-- APPEND BELOW THIS LINE ONLY -->" in text
@@ -118,7 +120,7 @@ def test_verbatim_sha_follows_the_documented_canonicalization(path):
 def test_the_mismatch_seed_really_mismatches():
     (path,) = entry_files(CORPUS / "seeds" / "D30-verbatim-sha-mismatch")
     text = path.read_text(encoding="utf-8")
-    assert re.search(r"^verbatim_sha: (0{64})$", text, re.M)
+    assert re.search(r"^verbatim_sha: (0{64})$", text, re.MULTILINE)
     assert canonical_sha(text) != "0" * 64
 
 

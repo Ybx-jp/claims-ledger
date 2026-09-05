@@ -112,7 +112,8 @@ def run(ledger, write=False):
                                 fv.grade if fv else target.grade,
                                 target.id,
                                 "fallen",
-                                f"{target.id} {status[target.id]} (verdict {fv.index if fv else '?'}, "
+                                f"{target.id} {status[target.id]} "
+                                f"(verdict {fv.index if fv else '?'}, "
                                 f"{fv.timestamp if fv else 'unknown'})",
                                 author,
                             ),

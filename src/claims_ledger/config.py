@@ -66,7 +66,7 @@ class Config:
 
     @property
     def ground_types(self):
-        return self.evidence_types + ("entry", "source", "search")
+        return (*self.evidence_types, "entry", "source", "search")
 
     def is_sectioned(self, type_name):
         return type_name in self.evidence_sectioned

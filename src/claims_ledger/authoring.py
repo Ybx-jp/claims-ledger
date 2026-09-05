@@ -211,7 +211,7 @@ def restamp(ledger, path, write=False, force=False):
         f"verbatim_sha: {computed}",
         text,
         count=1,
-        flags=re.M,
+        flags=re.MULTILINE,
     )
     if not n:
         raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")

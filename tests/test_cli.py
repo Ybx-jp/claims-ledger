@@ -188,5 +188,6 @@ def test_the_hook_does_not_depend_on_the_console_script_being_on_path(project):
         env={"PATH": "/usr/bin:/bin", "HOME": str(project.root)},
         capture_output=True,
         text=True,
+        check=False,
     )
     assert "not found" not in proc.stderr, proc.stderr

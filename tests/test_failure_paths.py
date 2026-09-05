@@ -170,5 +170,6 @@ def test_the_package_is_runnable_with_dash_m(project):
         [sys.executable, "-m", "claims_ledger", "--root", str(project.root), "status"],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr

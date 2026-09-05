@@ -71,6 +71,22 @@ Found by walking the package as a first-time user would, from a clean install.
   `claims_ledger.__version__` instead of repeating the literal.
 - `1 entries` reads `1 entry`.
 
+### Development
+
+- **`ruff check` and `ruff format` are clean**, against an explicit rule set —
+  `E, F, I, B, SIM, UP, RUF, ISC, BLE, PLW, FURB` — pinned in `pyproject.toml` rather
+  than tracking ruff's default select, which grows between releases. The set is every
+  family ruff raised against this code, kept rather than narrowed. `E731` is in it
+  because the `fail = lambda …` suppressions in the checkers were written against it,
+  and the schema's own typography (`·`, `§`, en dashes) is declared in
+  `allowed-confusables` rather than rewritten.
+- **`ty check` runs in CI**, over `src` and `tests`, against the 3.11 floor rather than
+  the newest interpreter, so a construct that only exists on a newer Python cannot pass
+  here and fail for a user.
+- One behaviour change fell out of the ruff pass: `parse_timestamp` no longer rewrites a
+  trailing `Z` to `+00:00` before `datetime.fromisoformat`, which has handled `Z` itself
+  since 3.11. Nothing covered a `Z` timestamp, so it is covered now.
+
 ### Known limits
 
 - Tested on Linux and macOS. Windows is neither tested nor claimed: the installed hook is

@@ -22,6 +22,7 @@ Exit 1 if any seed fails.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -39,10 +40,11 @@ from ..schema import Ledger
 CORPUS = Path(__file__).resolve().parent
 
 CHECKERS = {
-    "validate": lambda ledger: validate.run(ledger),
-    "resolve": lambda ledger: resolve.run(ledger),
-    "references": lambda ledger: references.run(ledger),
-    "propagate": lambda ledger: propagate.run(ledger, write=False),
+    "validate": validate.run,
+    "resolve": resolve.run,
+    "references": references.run,
+    # The one that needs an argument bound: here propagate only reports, never writes.
+    "propagate": functools.partial(propagate.run, write=False),
 }
 WHERE_RE = re.compile(r"^(?:commit (\d+),?\s*)?(.*)$")
 ENTRY_RE = re.compile(r"^([A-Z]\d+)\s*(.*)$")
@@ -71,6 +73,8 @@ def corpus_config(root, entries_dir):
 def parse_where(where):
     """(commit, entry prefix, part) from an expectation row's `where`."""
     m = WHERE_RE.match(where.strip())
+    if m is None:  # every group in the pattern is optional, so this cannot happen today
+        raise ValueError(f"expectation row has an unparseable `where`: {where!r}")
     commit, rest = m.group(1), m.group(2).strip()
     em = ENTRY_RE.match(rest)
     if em:
@@ -131,7 +135,8 @@ def run_checkers(ledger, commit=None):
             for r in reports:
                 r.commit = commit
             produced[name] = reports
-        except Exception as exc:  # a crashing checker is a failing checker
+        except Exception as exc:  # noqa: BLE001 — a crashing checker is a failing
+            # checker, and the runner has to survive it to report which seed did it.
             produced[name] = exc
     return produced
 
@@ -146,8 +151,8 @@ def run_seed(seed, root):
     ]
     produced = {name: [] for name in CHECKERS}
     crashes = []
-    with tempfile.TemporaryDirectory(prefix="corpus-") as tmp:
-        tmp = Path(tmp)
+    with tempfile.TemporaryDirectory(prefix="corpus-") as tmpdir:
+        tmp = Path(tmpdir)
         if (seed / "commits").is_dir():
             git(tmp, "init", "-q")
             for state in sorted(p for p in (seed / "commits").iterdir() if p.is_dir()):
@@ -182,7 +187,9 @@ def run_seed(seed, root):
             hits = [r for r in reports if matches(r, commit, entry, part)]
             if not any(r.outcome == outcome for r in hits):
                 got = "; ".join(f"{r.outcome} {r.message}" for r in hits) or "nothing there"
-                place = f"{'commit ' + commit + ', ' if commit else ''}{entry + ' ' if entry else ''}{part}"
+                at_commit = f"commit {commit}, " if commit else ""
+                at_entry = f"{entry} " if entry else ""
+                place = f"{at_commit}{at_entry}{part}"
                 lines.append(f"expected {name} {outcome} at {place} ({why}) — got {got}")
         for r in reports:
             if not any(

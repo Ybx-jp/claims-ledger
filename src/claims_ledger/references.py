@@ -133,7 +133,7 @@ def run(ledger):
             # live-cited ground fell is superseded, and the successor's acts are what is
             # held to the targets' current statuses.
             continue
-        for raw, p in e.grounds:
+        for _raw, p in e.grounds:
             if p is None or p.type != "entry" or p.act not in ACT_ALLOWS:
                 continue
             target = index.get(p.target)
@@ -218,7 +218,7 @@ def run(ledger):
     reports += check_roster(entries, index, status, ledger)
 
     for e in entries:
-        for raw, r in e.references:
+        for _raw, r in e.references:
             if r is None:
                 continue
             if r.path not in cited:
