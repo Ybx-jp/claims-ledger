@@ -19,8 +19,10 @@ signal, not a pass, and is recorded with `xfail(strict=True)` rather than accept
 from __future__ import annotations
 
 import os
+import pathlib
 import subprocess
 import sys
+import tempfile
 import unicodedata
 
 import pytest
@@ -406,17 +408,36 @@ def test_a_unicode_filename_is_reported_cleanly_when_its_id_does_not_match(proje
     assert rc == 1
 
 
+def _filesystem_allows_newlines_in_filenames() -> bool:
+    """Probed once at import rather than skipped from inside the test.
+
+    A runtime `pytest.skip` here needed a version-specific `ty: ignore`, since older
+    and newer ty disagree about the signature of pytest's `@_with_exception`-wrapped
+    helpers, and an ignore that one version needs the other reports as unused. A
+    module-level probe behind `skipif` needs no ignore on either.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            (pathlib.Path(tmp) / "a\nb").touch()
+        except OSError:
+            return False
+        return True
+
+
+FILENAMES_MAY_CONTAIN_NEWLINES = _filesystem_allows_newlines_in_filenames()
+
+
+@pytest.mark.skipif(
+    not FILENAMES_MAY_CONTAIN_NEWLINES,
+    reason="this filesystem does not allow newlines in filenames",
+)
 def test_a_filename_containing_a_newline_does_not_crash(project, capsys):
     """A newline is legal in a POSIX filename. It must not be legal in an id, but the
     tool has to say so instead of falling over on the byte."""
     project.cl("new", "newline-victim")
     src = project.entry("A0001-newline-victim.md")
-    weird_name = "A0001-new\nline.md"
-    try:
-        dest = project.entries / weird_name
-        src.rename(dest)
-    except OSError:
-        pytest.skip("this filesystem does not allow newlines in filenames")  # ty: ignore[too-many-positional-arguments]
+    dest = project.entries / "A0001-new\nline.md"
+    src.rename(dest)
     capsys.readouterr()
     rc = project.cl("check")
     err = capsys.readouterr().err
