@@ -14,6 +14,7 @@ apply and the ledger is expected at `<root>/ledger`.
 from __future__ import annotations
 
 import dataclasses
+import os
 import tomllib
 from pathlib import Path
 
@@ -75,20 +76,27 @@ class Config:
         """`path` as the project sees it, for a message a reader has to act on."""
         try:
             return str(Path(path).resolve().relative_to(self.root.resolve()))
-        except ValueError:
+        except (ValueError, OSError, RuntimeError):
+            # OSError/RuntimeError: resolving a symlink loop. A message about a path we
+            # cannot resolve still has to print, so fall back to the path as written.
             return str(path)
 
 
 def default_config(root):
-    """The configuration of a project that has not written one down."""
+    """The configuration of a project that has not written one down.
+
+    The default layout is confined the same way a configured one is: a project with no
+    `claims-ledger.toml` at all can still have a `ledger` that is a symlink out of the
+    tree, and the containment is a property of the tool rather than of the file.
+    """
     root = Path(root).resolve()
-    ledger = root / "ledger"
+    ledger = confined(root, "ledger", "ledger")
     return Config(
         root=root,
         ledger_dir=ledger,
-        entries_dir=ledger / "entries",
-        registry=ledger / "sources.jsonl",
-        cache=ledger / "cache",
+        entries_dir=confined(root, "entries", ledger / "entries"),
+        registry=confined(root, "registry", ledger / "sources.jsonl"),
+        cache=confined(root, "cache", ledger / "cache"),
     )
 
 
@@ -147,6 +155,71 @@ KEYS = {
 }
 
 
+def _escapes(root, path):
+    """Whether `path` lands outside `root`, comparing the two as written."""
+    return path != root and root not in path.parents
+
+
+def _followed(path):
+    """`path` with its symlinks followed, or `path` itself when they cannot be. A loop
+    reaches us as an OSError or a RuntimeError depending on the interpreter, and a path
+    we cannot resolve is not evidence that it escapes."""
+    try:
+        return Path(path).resolve()
+    except (OSError, RuntimeError):
+        return Path(path)
+
+
+def confined(root, key, value):
+    """`root / value` for a path a configuration file names, refused if it leaves `root`.
+
+    An absolute value discards `root` outright — that is what `Path("/a") / "/b"` means —
+    and a `..` value walks out of it. For a tool whose subject is confinement, a cloned
+    repository's own `claims-ledger.toml` writing entries into /tmp is a hole, so both are
+    a ConfigError naming the key rather than a path we quietly honour.
+
+    A symlink is the same hole with a different spelling: a clone carries `ledger ->
+    /tmp/outside` as readily as it carries a configuration file, and a lexical check alone
+    says yes to it. So the path is checked twice — as written, and with its symlinks
+    followed — and the value returned is the one as written, so a ledger reached through a
+    symlink that stays inside the root goes on working.
+    """
+    lexical = Path(os.path.normpath(root / value))
+    if _escapes(root, lexical):
+        raise ConfigError(
+            f"{key} path `{value}` resolves to {lexical}, outside the project root "
+            f"{root}; every path a configuration names must stay under the root"
+        )
+    followed = _followed(lexical)
+    if _escapes(_followed(root), followed):
+        # Phrased without "a configuration": the default layout is confined too, and a
+        # project that never wrote a configuration file can still carry this symlink.
+        raise ConfigError(
+            f"{key} path `{value}` is a symlink to {followed}, outside the project root "
+            f"{root}; a ledger outside the root is not one this tool will write to"
+        )
+    return lexical
+
+
+def confined_pattern(root, key, value):
+    """A glob pattern a configuration names, refused if it addresses outside `root`.
+
+    Lexical, and only lexical: a pattern is not a path — there is no `*` on disk to
+    follow — and what is being closed here is a configuration that points the checkers at
+    a file the project does not contain, printing its path and its citations into a
+    report. Where a symlink inside the tree leads is the document's own business.
+    """
+    if not isinstance(value, str):
+        raise ConfigError(f"{key} pattern `{value}` is {type(value).__name__}, expected str")
+    lexical = Path(os.path.normpath(root / value))
+    if _escapes(root, lexical):
+        raise ConfigError(
+            f"{key} pattern `{value}` addresses {lexical}, outside the project root "
+            f"{root}; every path a configuration names must stay under the root"
+        )
+    return value
+
+
 def from_table(table, root, source=None):
     """A Config from a parsed table. Unknown keys are an error, not a silent no-op: a
     misspelled key that changes nothing is how a project ends up unchecked."""
@@ -162,7 +235,10 @@ def from_table(table, root, source=None):
             )
 
     root = Path(root).resolve()
-    ledger = root / table.get("ledger", "ledger")
+    ledger = confined(root, "ledger", table.get("ledger", "ledger"))
+    documents = tuple(table.get("documents", DEFAULT_DOCUMENTS))
+    for pattern in documents:
+        confined_pattern(root, "documents", pattern)
     cache = table.get("cache", "cache")
     sectioned = tuple(table.get("evidence-sectioned", DEFAULT_EVIDENCE_SECTIONED))
     plain = tuple(table.get("evidence-plain", DEFAULT_EVIDENCE_PLAIN))
@@ -191,10 +267,10 @@ def from_table(table, root, source=None):
     return Config(
         root=root,
         ledger_dir=ledger,
-        entries_dir=ledger / table.get("entries", "entries"),
-        registry=ledger / table.get("registry", "sources.jsonl"),
-        cache=(ledger / cache) if cache else None,
-        documents=tuple(table.get("documents", DEFAULT_DOCUMENTS)),
+        entries_dir=confined(root, "entries", ledger / table.get("entries", "entries")),
+        registry=confined(root, "registry", ledger / table.get("registry", "sources.jsonl")),
+        cache=confined(root, "cache", ledger / cache) if cache else None,
+        documents=documents,
         document_excludes=tuple(table.get("document-excludes", DEFAULT_DOCUMENT_EXCLUDES)),
         roster=table.get("roster", DEFAULT_ROSTER),
         archived_prefixes=tuple(table.get("archived-prefixes", ())),
@@ -213,6 +289,8 @@ def load_config(root=None, config_path=None):
     resolve against. With neither, the nearest configuration file at or above the
     current directory is used, and the defaults apply when there is none.
     """
+    if root is not None and not str(root).strip():
+        raise ConfigError("root is empty; give a directory or omit --root")
     if config_path is not None:
         path = Path(config_path).resolve()
         if not path.is_file():

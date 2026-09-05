@@ -26,6 +26,7 @@ from datetime import datetime
 from .schema import (
     FALLEN,
     TERMINAL,
+    LedgerError,
     Report,
     by_id,
     load_entries,
@@ -71,7 +72,12 @@ def append_verdict(entry, block):
         text = head + block + marker + tail
     else:
         text = text.rstrip("\n") + "\n" + block
-    entry.path.write_text(text, encoding="utf-8")
+    try:
+        entry.path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise LedgerError(
+            f"{entry.path}: cannot append the verdict ({exc.strerror or exc})"
+        ) from exc
 
 
 def run(ledger, write=False):

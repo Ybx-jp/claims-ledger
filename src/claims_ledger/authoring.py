@@ -31,6 +31,10 @@ from .schema import (
 )
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# POSIX NAME_MAX. A slug long enough to overrun it used to reach write_text() and come
+# back as `unexpected OSError: File name too long`, which is a bug report asked of a user
+# who mistyped a slug.
+NAME_MAX = 255
 
 TEMPLATE = """---
 id: {id}
@@ -165,11 +169,20 @@ def create_entry(ledger, slug, **kwargs):
     name = f"{ident}-{slug}"
     if not ID_RE.match(name):
         raise AuthoringError(f"`{name}` is not <letter><four digits>-<slug>")
-    path = ledger.entries_dir / f"{name}.md"
+    filename = f"{name}.md"
+    if len(filename.encode("utf-8")) > NAME_MAX:
+        raise AuthoringError(
+            f"`{slug[:32]}…` is too long: the entry would be named {filename[:38]}…, "
+            f"{len(filename.encode('utf-8'))} bytes, over the {NAME_MAX} a filename holds"
+        )
+    path = ledger.entries_dir / filename
     if path.exists():
         raise AuthoringError(f"{path} already exists")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_entry(ident, slug, **kwargs), encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(render_entry(ident, slug, **kwargs), encoding="utf-8")
+    except OSError as exc:
+        raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return path
 
 
@@ -215,7 +228,10 @@ def restamp(ledger, path, write=False, force=False):
     )
     if not n:
         raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
-    path.write_text(new, encoding="utf-8")
+    try:
+        path.write_text(new, encoding="utf-8")
+    except OSError as exc:
+        raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return declared, computed, True
 
 
@@ -241,6 +257,15 @@ def register_source(
     bytes_path = Path(bytes_path)
     if not bytes_path.is_file():
         raise AuthoringError(f"no file at {bytes_path}")
+    # Checked before anything is written, and before the append that would otherwise meet
+    # it: open("a") on a FIFO with no reader blocks forever, which in a hook is a wedged
+    # commit with no output, and a directory there is an IsADirectoryError asking the user
+    # to file a bug. The reads already refuse a registry that is not a regular file.
+    if ledger.registry.exists() and not ledger.registry.is_file():
+        raise AuthoringError(
+            f"{ledger.config.relative(ledger.registry)} is not a regular file; "
+            "the source registry is a JSON-lines file this command appends to"
+        )
     rows = load_registry(ledger.registry)
     if source_id in rows:
         raise AuthoringError(f"source id `{source_id}` is already registered")
@@ -269,12 +294,25 @@ def register_source(
     else:
         if not ledger.cache:
             raise AuthoringError("this ledger has no cache; register with --keep-path instead")
-        ledger.cache.mkdir(parents=True, exist_ok=True)
         stored = ledger.cache / digest
-        if not stored.exists():
-            shutil.copyfile(bytes_path, stored)
+        try:
+            ledger.cache.mkdir(parents=True, exist_ok=True)
+            if not stored.exists():
+                shutil.copyfile(bytes_path, stored)
+        except OSError as exc:
+            raise AuthoringError(
+                f"cannot store the bytes at {ledger.config.relative(stored)} "
+                f"({exc.strerror or exc})"
+            ) from exc
 
-    ledger.registry.parent.mkdir(parents=True, exist_ok=True)
-    with ledger.registry.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    # A read-only ledger directory is an ordinary condition — a shared checkout, a
+    # directory owned by someone else — and not one to ask for a bug report over.
+    try:
+        ledger.registry.parent.mkdir(parents=True, exist_ok=True)
+        with ledger.registry.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        raise AuthoringError(
+            f"cannot append to {ledger.config.relative(ledger.registry)} ({exc.strerror or exc})"
+        ) from exc
     return row, stored

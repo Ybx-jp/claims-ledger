@@ -18,8 +18,10 @@ from . import __version__, authoring, propagate, references, resolve, validate
 from .config import ConfigError
 from .schema import (
     LedgerError,
+    entries_dir_listing_error,
     exit_code,
     git_available,
+    list_entry_files,
     load_entries,
     load_registry,
     open_ledger,
@@ -123,7 +125,7 @@ def build_parser():
         default="measured",
         choices=("asserted", "argued", "measured", "controlled", "preregistered"),
         help="the strength of the grounds, from asserted (none) to preregistered; "
-        "measured and above require a lab or experiment ground. See docs/SCHEMA.md",
+        "measured and above require a lab or experiment ground. See https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md",
     )
     n.add_argument("--author", default="main", help="who states it; a lowercase author name")
     n.add_argument("--supersedes", default="none", help="the id this entry replaces, or `none`")
@@ -199,6 +201,8 @@ def skipped_checks(ledger, cached=False):
         notes.append("git is not on PATH, so the frozen-region and append-only checks did not run")
     if cached and not ledger.repo:
         notes.append("--cached had no effect: there is no git index to read")
+    for name, problem in ledger.unreadable_docs:
+        notes.append(f"{name} {problem}, so its citations were not checked")
     return notes
 
 
@@ -209,18 +213,32 @@ def guard(ledger, cached=False):
     file moved away from its ledger — and stops the command at 2 rather than reporting a
     clean run over nothing. An entries directory that exists and is empty is a real
     ledger with nothing in it yet, which is a fine thing to be, so it only warns.
+
+    A directory that exists and cannot be listed is neither: it is a ledger whose entries
+    we have no way to see, and `is_dir()` says yes to it while `glob()` says it is empty.
+    That combination is how a checker comes to print `0 failure(s)` over a ledger full of
+    failures, so listability is established here rather than assumed.
     """
     where = ledger.config.relative(ledger.entries_dir)
-    if not ledger.entries_dir.is_dir():
+    error = entries_dir_listing_error(ledger.entries_dir)
+    if isinstance(error, (FileNotFoundError, NotADirectoryError)):
         print(
             f"claims-ledger: no entries directory at {where}; nothing was checked. "
             "Is --root right, or has the ledger not been created with `claims-ledger init`?",
             file=sys.stderr,
         )
         return 2
+    if error is not None:
+        print(
+            f"claims-ledger: the entries directory at {where} cannot be listed "
+            f"({getattr(error, 'strerror', None) or error}); nothing was checked. "
+            "A ledger this command cannot read is not a ledger it can report on.",
+            file=sys.stderr,
+        )
+        return 2
     for note in skipped_checks(ledger, cached=cached):
         print(f"claims-ledger: {note}", file=sys.stderr)
-    if not any(ledger.entries_dir.glob("*.md")):
+    if not list_entry_files(ledger.entries_dir):
         print(f"claims-ledger: no entries under {where}", file=sys.stderr)
     return None
 
@@ -288,6 +306,9 @@ def cmd_check(args, ledger):
 
 
 def cmd_status(args, ledger):
+    stop = guard(ledger)
+    if stop is not None:
+        return stop
     entries = load_entries(ledger)
     if not entries:
         print(f"no entries under {ledger.config.relative(ledger.entries_dir)}")
@@ -380,14 +401,25 @@ def cmd_init(args, _ledger):
     if config_path.exists() and not args.force:
         print(f"{config_path} already exists; pass --force to write over it", file=sys.stderr)
         return 1
-    (ledger_dir / "entries").mkdir(parents=True, exist_ok=True)
-    cache = ledger_dir / "cache"
-    cache.mkdir(parents=True, exist_ok=True)
-    (cache / ".gitignore").write_text(CACHE_IGNORE, encoding="utf-8")
     registry = ledger_dir / "sources.jsonl"
-    if not registry.exists():
-        registry.write_text("", encoding="utf-8")
-    config_path.write_text(CONFIG_TEMPLATE.format(ledger=args.ledger), encoding="utf-8")
+    try:
+        # A regular file already at `ledger/entries`, a read-only project directory: a
+        # scaffolder run in the wrong place fails in ordinary ways, and none of them is a
+        # bug in this package to be reported.
+        (ledger_dir / "entries").mkdir(parents=True, exist_ok=True)
+        cache = ledger_dir / "cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / ".gitignore").write_text(CACHE_IGNORE, encoding="utf-8")
+        if not registry.exists():
+            registry.write_text("", encoding="utf-8")
+        config_path.write_text(CONFIG_TEMPLATE.format(ledger=args.ledger), encoding="utf-8")
+    except OSError as exc:
+        print(
+            f"claims-ledger: cannot scaffold the ledger under {ledger_dir} "
+            f"({exc.strerror or exc}: {exc.filename or ledger_dir})",
+            file=sys.stderr,
+        )
+        return 2
     print(f"wrote {config_path}")
     print(f"created {ledger_dir}/entries, {ledger_dir}/cache and {registry}")
     print("Next: `claims-ledger new <slug>`, then `claims-ledger check`.")
@@ -402,19 +434,35 @@ def cmd_hook(args, ledger):
         print("not a git repository; nothing to install into", file=sys.stderr)
         return 1
     hooks = Path(ledger.repo) / ".git" / "hooks"
-    hooks.mkdir(parents=True, exist_ok=True)
     path = hooks / "pre-commit"
-    if path.exists():
-        print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
-        print(hook_text(), end="")
-        return 1
-    path.write_text(hook_text(), encoding="utf-8")
-    path.chmod(0o755)
+    try:
+        hooks.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
+            print(hook_text(), end="")
+            return 1
+        path.write_text(hook_text(), encoding="utf-8")
+        path.chmod(0o755)
+    except OSError as exc:
+        # A read-only .git/hooks is an ordinary thing in a locked-down or shared checkout.
+        print(
+            f"claims-ledger: cannot install the hook at {path} ({exc.strerror or exc})",
+            file=sys.stderr,
+        )
+        return 2
     print(f"installed {path}")
     return 0
 
 
 def cmd_corpus(args, _ledger):
+    if not git_available():
+        print(
+            "claims-ledger: git is not on PATH, and the corpus cannot run without it: "
+            "its history seeds are applied as commits in a temporary repository. "
+            "Nothing was checked.",
+            file=sys.stderr,
+        )
+        return 2
     from .corpus import run as corpus_run
 
     argv = list(args.seeds)
@@ -445,7 +493,24 @@ COMMANDS = {
 }
 
 
+def soften_output_encoding():
+    """Make the output streams tolerate what they cannot encode.
+
+    Under an ASCII locale, printing the schema's own `·` separator raises
+    UnicodeEncodeError — and it raises on the path that was about to explain why a check
+    failed, replacing the diagnostic with `this is a bug`. `backslashreplace` keeps the
+    character visible as an escape rather than taking the message down with it.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # pytest's capture, a plain file object
+            continue
+        with contextlib.suppress(Exception):
+            reconfigure(errors="backslashreplace")
+
+
 def main(argv=None):
+    soften_output_encoding()
     args = build_parser().parse_args(argv)
     try:
         ledger = None if args.command in NO_LEDGER else ledger_for(args)

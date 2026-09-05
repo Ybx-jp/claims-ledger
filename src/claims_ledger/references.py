@@ -70,9 +70,9 @@ def check_roster(entries, index, status, ledger):
     for name, path in ledger.docs:
         if os.path.basename(name) != roster:
             continue
-        body = read_document(path)
+        body, _ = read_document(path)
         if body is None:
-            continue
+            continue  # reported once, by run(), rather than once per checker loop
         for ident, act, cells in roster_rows(body):
             rows.append((name, ident, act, cells))
             target = index.get(ident)
@@ -152,10 +152,18 @@ def run(ledger):
                     )
                 )
 
+    # A document that could not be opened at all, and one that fails at the read: either
+    # way its citations were not checked, and a checker that cannot read a document may
+    # not report a clean run over it. `fail`, not `flag`, because the exit code is what a
+    # hook acts on and nothing here was verified.
+    for name, problem in ledger.unreadable_docs:
+        reports.append(Report("fail", None, name, f"{problem}; its citations were not checked"))
+
     cited = {}  # doc name -> {(entry id, act)}
     for name, path in ledger.docs:
-        body = read_document(path)
+        body, problem = read_document(path)
         if body is None:
+            reports.append(Report("fail", None, name, f"{problem}; its citations were not checked"))
             continue
         cited[name] = set()
         seen_archived = sorted({m.group(0) for m in archived.finditer(body)}) if archived else []

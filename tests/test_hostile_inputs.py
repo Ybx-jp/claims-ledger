@@ -13,34 +13,54 @@ over content that was never actually checked, or a write outside the project roo
 `cli.main()` catches a broad `Exception` and prints `claims-ledger: unexpected <Type>:
 ...`. That string is the fingerprint of a case that fell through every specific handler,
 so every test below that produces it fails the assertion on purpose — it is a bug
-signal, not a pass, and is recorded with `xfail(strict=True)` rather than accepted.
+signal, not a pass, and was never weakened to match the behaviour it found.
+
+The eighteen defects this file was written to record are fixed — the nine of the
+2026-09-05 pre-publication audit and the nine of the second pass against those fixes
+(QE-AUDIT.md, both sections) — and each is kept below as the regression test for its fix.
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 
 import pytest
 
-from claims_ledger import cli
+from claims_ledger import cli, schema
 from claims_ledger.config import ConfigError, load_config
+from claims_ledger.corpus import run as corpus_run
 
 
-def run_cli(root, *args, timeout=10):
+def run_cli(root, *args, timeout=10, env=None):
     """The installed CLI as a real subprocess, for cases that must be watched for a hang
-    rather than trusted to return at all."""
+    rather than trusted to return at all, and for the ones whose subject is the
+    environment the process starts in."""
     return subprocess.run(
         [sys.executable, "-m", "claims_ledger", "--root", str(root), *args],
         check=False,
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=None if env is None else {**os.environ, **env},
     )
+
+
+# The C locale with every coercion turned off: stdin/stdout encode as ASCII and so does
+# the codec `subprocess` decodes git's output with.
+ASCII_LOCALE = {
+    "LC_ALL": "C",
+    "LANG": "C",
+    "PYTHONUTF8": "0",
+    "PYTHONCOERCECLOCALE": "0",
+    "PYTHONIOENCODING": "ascii",
+}
 
 
 # === A. the entry parser fed hostile Markdown ========================================
@@ -283,13 +303,9 @@ def test_hostile_credence_values_are_reported_not_raised(project, capsys, creden
         assert "credence" in out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: float() accepts non-ASCII Unicode decimal digits, so a "
-    "credence written with e.g. Arabic-Indic digits is silently treated as an "
-    "ordinary number instead of being reported as malformed",
-)
 def test_a_credence_written_in_non_ascii_digits_is_rejected(project, capsys):
+    """`float()` is wider than the schema: it reads any Unicode decimal digit. A credence
+    is held to ASCII digits so that what a reader sees is what the checker read."""
     project.cl("new", "unicode-credence", "--kind", "prediction", "--resolves-when", "x")
     path = project.entry("A0001-unicode-credence.md")
     text = path.read_text(encoding="utf-8")
@@ -300,7 +316,7 @@ def test_a_credence_written_in_non_ascii_digits_is_rejected(project, capsys):
     capsys.readouterr()
     project.cl("validate")
     out = capsys.readouterr().out
-    assert "credence" in out  # expected: flagged as not a plain number; actually: silently accepted
+    assert "credence" in out  # flagged as not a plain decimal number
 
 
 @pytest.mark.parametrize(
@@ -445,20 +461,14 @@ def test_a_filename_containing_a_newline_does_not_crash(project, capsys):
     assert rc in (0, 1, 2)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: ID_RE and PREFIX_RE use bare `\\d`, which matches any Unicode decimal "
-    "digit (category Nd), not just ASCII 0-9. `claims-ledger new --id A０００１ "  # noqa: RUF001
-    "slug` (fullwidth digits) is accepted and produces an id that is visually confusable "
-    "with A0001 but is a distinct string, and it passes validate's id-format check.",
-)
 def test_an_id_written_in_non_ascii_digits_is_refused(project, capsys):
+    """`\\d` matches any Unicode decimal digit, so a fullwidth id used to be accepted and
+    to pass validate's id check while being a different string from the A0001 it looks
+    like. The id patterns are ASCII-only."""
     fullwidth_id = "A０００１"  # looks like "A0001"  # noqa: RUF001
     rc = project.cl("new", "homoglyph-id", "--id", fullwidth_id)
     err = capsys.readouterr().err
-    # expected: refused as not <letter><four ascii digits>-<slug>
-    # actual: rc == 0 and the file is created
-    assert rc != 0, err
+    assert rc != 0, err  # refused as not <letter><four ascii digits>-<slug>
     assert not any(project.entries.glob("A*homoglyph-id.md"))
 
 
@@ -564,40 +574,38 @@ def test_a_config_with_a_bom_is_a_clean_toml_error(tmp_path, capsys):
     assert "Traceback" not in err and "unexpected" not in err
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: an absolute `ledger` path in claims-ledger.toml is not confined to "
-    '`root` — pathlib\'s `Path(root) / "/abs/path"` discards `root` entirely — so '
-    "`claims-ledger new` writes real files outside the project root with no warning.",
-)
 def test_an_absolute_ledger_path_cannot_escape_the_project_root(tmp_path, capsys):
+    """A cloned repository carries its own claims-ledger.toml. It does not get to name
+    where this tool writes."""
     root = tmp_path / "proj"
     root.mkdir()
     outside = tmp_path / "outside-root"
     cfg = root / "claims-ledger.toml"
     cfg.write_text(f'[tool.claims-ledger]\nledger = "{outside}"\n', encoding="utf-8")
     rc = cli.main(["--root", str(root), "--config", str(cfg), "new", "escape-attempt"])
-    capsys.readouterr()
-    # expected: refused, or at least confined under root; actual: files land in `outside`
-    assert rc != 0 or not outside.exists()
+    err = capsys.readouterr().err
+    # `Path(root) / "/abs"` discards `root`, so this used to write real files outside the
+    # project with no warning. Refused, per the audit's agreed fix.
+    assert rc == 2
+    assert "ledger" in err and "outside the project root" in err
+    assert not outside.exists()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a `..`-traversal `ledger` path in claims-ledger.toml is not confined "
-    "to `root` either; nothing in from_table() normalizes or contains the path.",
-)
 def test_a_traversal_ledger_path_cannot_escape_the_project_root(tmp_path, capsys):
+    """`..` walks out of the root as surely as an absolute path does, and is refused the
+    same way rather than silently normalized into something inside it."""
     root = tmp_path / "a" / "b" / "proj"
     root.mkdir(parents=True)
+    outside = tmp_path / "outside-root"
     cfg = root / "claims-ledger.toml"
     cfg.write_text('[tool.claims-ledger]\nledger = "../../../outside-root"\n', encoding="utf-8")
-    cli.main(["--root", str(root), "--config", str(cfg), "new", "escape-attempt"])
-    capsys.readouterr()
-    config = load_config(root=root, config_path=cfg)
-    resolved = config.ledger_dir.resolve()
-    # expected: confined to root; actual: resolves outside `root` entirely
-    assert str(resolved).startswith(str(root.resolve()))
+    rc = cli.main(["--root", str(root), "--config", str(cfg), "new", "escape-attempt"])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "ledger" in err and "outside the project root" in err
+    assert not outside.exists()
+    with pytest.raises(ConfigError):
+        load_config(root=root, config_path=cfg)
 
 
 def test_root_overrides_the_directory_the_config_file_lives_in(tmp_path):
@@ -675,14 +683,9 @@ def test_a_looping_symlink_entry_is_reported_cleanly(project, capsys):
     assert "unexpected" not in err  # expected: a clean "cannot read entry"; see below
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: when the *entries directory itself* is a symlink loop, is_dir()/glob() "
-    "raise OSError(ELOOP) uncaught, and it surfaces through the generic exception "
-    "handler as 'unexpected RuntimeError: Symlink loop from ...' instead of a specific, "
-    "documented diagnostic.",
-)
 def test_entries_dir_itself_being_a_symlink_loop_is_reported_cleanly(project, capsys):
+    """is_dir() on a loop raises rather than answering; there is still no directory to
+    read, and that is a misconfigured root, not an internal error."""
     import shutil
 
     shutil.rmtree(project.entries)
@@ -693,14 +696,9 @@ def test_entries_dir_itself_being_a_symlink_loop_is_reported_cleanly(project, ca
     assert rc == 2
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a FIFO named *.md in the entries directory hangs every command that "
-    "loads entries (status, validate, check, ...) forever — Path.read_text() blocks "
-    "opening the FIFO for reading with no writer on the other end. There is no timeout "
-    "and no specific handling; the process simply never returns.",
-)
 def test_a_fifo_named_dot_md_does_not_hang_the_tool(project):
+    """read_text() on a FIFO with no writer blocks forever, which in a pre-commit hook
+    wedges the commit with no output at all. Nothing but a regular file is opened."""
     fifo_path = project.entries / "A0001-fifo.md"
     os.mkfifo(fifo_path)
     try:
@@ -739,32 +737,21 @@ def test_root_pointing_at_a_plain_file_is_a_clean_error(tmp_path, capsys):
     assert "Traceback" not in err and "unexpected" not in err
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: `--root ''` is silently treated as 'no --root given' (config.py does "
-    "`root or Path.cwd()`, and '' is falsy), so the command silently runs against the "
-    "process's actual current working directory instead of refusing the empty value.",
-)
 def test_an_empty_root_is_refused_rather_than_silently_using_cwd(tmp_path, monkeypatch, capsys):
     unrelated_cwd = tmp_path / "unrelated-cwd"
     unrelated_cwd.mkdir()
     monkeypatch.chdir(unrelated_cwd)
     rc = cli.main(["--root", "", "status"])
     err = capsys.readouterr().err
-    # expected: refused (nonzero, explaining --root was empty)
-    # actual: rc == 0, having silently used the cwd
-    assert rc != 0, err
+    # `root or Path.cwd()` read the empty string as "no --root given" and ran against
+    # whatever directory the process happened to be in.
+    assert rc == 2, err
+    assert "root is empty" in err
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: cmd_status() never calls guard(), so unlike validate/resolve/references/"
-    "propagate/check it does not distinguish a misconfigured root (no entries directory "
-    "at all) from a real, empty ledger — both print '0 entries' / 'no entries under ...' "
-    "and exit 0. This is exactly the 'clean report over content that was never checked' "
-    "failure mode guard()'s own docstring says must never happen.",
-)
 def test_status_treats_a_missing_entries_directory_like_validate_does(tmp_path, capsys):
+    """status is a report over the entries, so a root with no entries directory stops it
+    at 2 like the five checkers, rather than printing a clean nothing and exiting 0."""
     nowhere = tmp_path / "nowhere"
     status_rc = cli.main(["--root", str(nowhere), "status"])
     capsys.readouterr()
@@ -802,18 +789,14 @@ def test_hostile_slugs_are_refused_cleanly(project, capsys, slug):
     assert not list(project.entries.glob("*.md"))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: an absurdly long slug is accepted by SLUG_RE and only fails at "
-    "path.write_text() with OSError(ENAMETOOLONG), which is not one of the specifically "
-    "handled exceptions in cli.main() and so surfaces as 'unexpected OSError' instead of "
-    "a clean, specific 'slug is too long' diagnostic.",
-)
 def test_an_absurdly_long_slug_is_refused_with_a_specific_message(project, capsys):
+    """ENAMETOOLONG used to reach the catch-all handler, which asks the user to file a
+    bug report over a mistyped slug."""
     rc = project.cl("new", "x" * 300)
     err = capsys.readouterr().err
-    assert rc != 0
+    assert rc == 2
     assert "unexpected" not in err, err
+    assert "too long" in err
 
 
 def test_credence_outside_0_1_via_new_is_accepted_at_scaffold_time_and_caught_at_check(
@@ -933,3 +916,293 @@ def test_credence_outside_the_argparse_range_is_a_clean_argparse_type_or_check_e
         )
     assert exc.value.code == 2
     assert "Traceback" not in capsys.readouterr().err
+
+
+# === E. the environment the process starts in ==========================================
+
+
+def _committed_entry_carrying_a_bullet(project):
+    """A committed entry whose text contains the schema's own `·` separator — the
+    character every history check has to read back out of git."""
+    project.cl("new", "bullet-bearing")
+    path = project.entry("A0001-bullet-bearing.md")
+    project.write_full_entry(path)  # its Grounds and Backing are written with `·`
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "first")
+    return path
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_under_an_ascii_locale_the_history_checks_still_read_git(project):
+    """`text=True` alone decodes git's output with the locale's codec, so under LC_ALL=C
+    an entry carrying `·` took the frozen-region and append-only checks down with a
+    UnicodeDecodeError — and the crash landed on the check, not on the entry."""
+    _committed_entry_carrying_a_bullet(project)
+    proc = run_cli(project.root, "validate", env=ASCII_LOCALE)
+    assert "UnicodeDecodeError" not in proc.stderr
+    assert "unexpected" not in proc.stderr, proc.stderr
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_under_an_ascii_locale_a_failing_diagnostic_still_prints(project):
+    """The failure message names the entry text, which carries `·`. An encoding error
+    there replaces the explanation with `this is a bug` on exactly the path that was
+    about to say what was wrong."""
+    path = _committed_entry_carrying_a_bullet(project)
+    # A malformed References line, below the append marker. The diagnostic quotes it
+    # back, so the message itself carries `·` — the character an ASCII stdout cannot
+    # encode, on the one line that was about to explain the failure.
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write("- 2026-09-05T12:00:00Z · corroborated · grade: measured · author: main\n")
+    proc = run_cli(project.root, "validate", env=ASCII_LOCALE)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "UnicodeEncodeError" not in proc.stderr
+    assert "unexpected" not in proc.stderr, proc.stderr
+    assert "References" in proc.stdout
+
+
+def test_the_corpus_without_git_says_so_instead_of_asking_for_a_bug_report(project):
+    """The corpus applies its history seeds as commits. Without git it cannot run at
+    all, and a self-proof that did not run is a refusal, not a crash."""
+    proc = run_cli(project.root, "corpus", env={"PATH": "/nonexistent"})
+    assert proc.returncode == 2
+    assert "git is not on PATH" in proc.stderr
+    assert "unexpected" not in proc.stderr and "Traceback" not in proc.stderr
+
+
+def test_a_ledger_path_naming_a_regular_file_is_a_clean_error(tmp_path, capsys):
+    """`ledger = "not-a-dir"` pointing at a file used to reach mkdir() and come back as
+    an unexpected NotADirectoryError."""
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "not-a-dir").write_text("i am a file", encoding="utf-8")
+    cfg = root / "claims-ledger.toml"
+    cfg.write_text('[tool.claims-ledger]\nledger = "not-a-dir"\n', encoding="utf-8")
+    rc = cli.main(["--root", str(root), "--config", str(cfg), "new", "nowhere-to-write"])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "unexpected" not in err and "Traceback" not in err
+
+
+# === F. the fixes themselves, attacked =================================================
+#
+# Every case below was found by probing the 2026-09-05 fixes rather than the code they
+# replaced, and every one is now the regression test for a second fix. The oracle for
+# most of them is metamorphic and blunt — making a thing unreadable must never turn a
+# check that fails into a check that passes.
+
+ROOT_USER = os.geteuid() == 0
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_unreadable_entries_directory_is_not_a_clean_pass(project, capsys):
+    """A failing check must not become a passing one because the checker lost the right
+    to read. The entry below fails validate; taking the read bit off its directory must
+    not turn that failure into `0 failure(s)`."""
+    path = project.entry("A0001-unreadable-dir.md")
+    project.cl("new", "unreadable-dir")
+    capsys.readouterr()
+    assert project.cl("validate") == 1, "the scaffolded entry is expected to fail validate"
+    capsys.readouterr()
+
+    os.chmod(project.entries, 0o111)
+    try:
+        rc = project.cl("validate")
+        out = capsys.readouterr()
+    finally:
+        os.chmod(project.entries, 0o755)
+    assert path.name  # the entry is still there; only the directory's read bit went away
+    # It read `validate (0 entries): 0 failure(s)` at rc 0: is_dir() answered True and
+    # glob() swallowed the EACCES from scandir. guard() now lists the directory itself.
+    assert rc != 0, out.out + out.err
+    assert "cannot be listed" in out.err, out.out + out.err
+
+
+def test_a_fifo_registry_does_not_hang_source_add(project, tmp_path):
+    """read_text_or_raise() guards the reads. Nothing guards the append."""
+    registry = project.root / "ledger" / "sources.jsonl"
+    registry.unlink()
+    os.mkfifo(registry)
+    source = tmp_path / "a-source.txt"
+    source.write_text("Some source text.\n", encoding="utf-8")
+    proc = run_cli(
+        project.root,
+        "source",
+        "add",
+        str(source),
+        "--id",
+        "fifo-registry",
+        "--type",
+        "paper",
+        "--citation",
+        "X 2020",
+        timeout=8,
+    )  # it used to never return: open("a") on a FIFO blocks with no reader
+    assert proc.returncode in (0, 1, 2)
+    assert "not a regular file" in proc.stderr, proc.stdout + proc.stderr
+
+
+def test_a_ledger_symlinked_out_of_the_root_does_not_write_outside_it(tmp_path, capsys):
+    """The config string stays under the root; the directory it names does not."""
+    root = tmp_path / "proj"
+    root.mkdir()
+    outside = tmp_path / "outside-root"
+    outside.mkdir()
+    (root / "ledger").symlink_to(outside, target_is_directory=True)
+    rc = cli.main(["--root", str(root), "new", "escape-by-symlink"])
+    out = capsys.readouterr()
+    # It used to write A0001-escape-by-symlink.md into `outside` at rc 0 — the very thing
+    # confined()'s docstring says must not happen. The check follows symlinks now.
+    assert rc != 0 or not list(outside.rglob("*.md")), out.out + out.err
+    assert not list(outside.rglob("*.md")), "a file was written outside the root"
+
+
+def test_document_patterns_cannot_address_files_outside_the_root(tmp_path, capsys):
+    """Confinement is a property of the tool, not of four particular keys."""
+    root = tmp_path / "proj"
+    root.mkdir()
+    outside = tmp_path / "outside-root"
+    outside.mkdir()
+    (outside / "private.md").write_text("cites (A0001-nothing, cites-as-live)\n", encoding="utf-8")
+    cfg = root / "claims-ledger.toml"
+    cli.main(["--root", str(root), "init"])  # init writes the config; configure after it
+    cfg.write_text('[tool.claims-ledger]\ndocuments = ["../outside-root/*.md"]\n', encoding="utf-8")
+    capsys.readouterr()
+    rc = cli.main(["--root", str(root), "--config", str(cfg), "references"])
+    out = capsys.readouterr()
+    # It used to print `FAIL ../outside-root/private.md` and that file's citations.
+    assert "outside-root/private.md" not in out.out + out.err
+    assert rc == 2, out.out + out.err
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_unreadable_document_is_not_silently_treated_as_empty(project, capsys):
+    """The document count says it was checked. It was not read."""
+    doc = project.root / "cites-a-ghost.md"
+    doc.write_text("This cites (A9999-no-such-entry, cites-as-live).\n", encoding="utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1, "a citation of a nonexistent entry must fail"
+    before = capsys.readouterr().out
+    assert "2 documents" in before, before  # this one and the fixture's docs/note-001.md
+
+    os.chmod(doc, 0o000)
+    try:
+        rc = project.cl("references")
+        out = capsys.readouterr()
+    finally:
+        os.chmod(doc, 0o644)
+    # The failure used to disappear at rc 0 while the document was still counted. It is
+    # reported as a document that was not read, and it is out of the count.
+    assert rc != 0, out.out + out.err
+    assert "cites-a-ghost.md" in out.out, out.out + out.err
+    assert "1 document" in out.out, out.out  # and it is no longer counted as checked
+
+
+def test_init_over_a_file_named_entries_is_a_clean_error(tmp_path, capsys):
+    root = tmp_path / "proj"
+    (root / "ledger").mkdir(parents=True)
+    (root / "ledger" / "entries").write_text("i am a file", encoding="utf-8")
+    rc = cli.main(["--root", str(root), "init"])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "unexpected" not in err, err
+
+
+def test_a_directory_named_sources_jsonl_is_a_clean_error(project, tmp_path, capsys):
+    registry = project.root / "ledger" / "sources.jsonl"
+    registry.unlink()
+    registry.mkdir()
+    source = tmp_path / "a-source.txt"
+    source.write_text("Some source text.\n", encoding="utf-8")
+    rc = project.cl(
+        "source",
+        "add",
+        str(source),
+        "--id",
+        "dir-registry",
+        "--type",
+        "paper",
+        "--citation",
+        "X 2020",
+    )
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "unexpected" not in err, err
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_hook_install_into_a_read_only_hooks_dir_is_a_clean_error(project, capsys):
+    project.git("init")
+    hooks = project.root / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    os.chmod(hooks, 0o555)
+    try:
+        rc = project.cl("hook", "--install")
+        err = capsys.readouterr().err
+    finally:
+        os.chmod(hooks, 0o755)
+    assert rc == 2
+    assert "unexpected" not in err, err
+
+
+def test_git_that_never_returns_is_given_up_on_rather_than_waited_for(tmp_path, monkeypatch):
+    """LOW-15, which the audit read from the code rather than reproducing: `schema.git()`
+    ran without a timeout, so a git that blocks — a credential prompt, a pack it wants to
+    recover — hung `validate --cached`, `check`, `resolve` and `sha` with no way out."""
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    # It sleeps rather than blocking forever, so that an unfixed `git()` fails this test
+    # instead of hanging the suite it is meant to protect.
+    (shim / "git").write_text("#!/bin/sh\nsleep 5\n", encoding="utf-8")
+    (shim / "git").chmod(0o755)
+    # Prepended, not replaced: the shim's own `sleep` has to be findable, or it exits
+    # 127 at once and the test passes without ever exercising the timeout.
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(schema, "GIT_TIMEOUT", 1)
+    started = time.monotonic()
+    assert schema.git(tmp_path, "status") is None
+    assert time.monotonic() - started < 3, "git() waited out a git that had stopped"
+
+
+def test_the_corpus_runs_git_the_way_the_checkers_do(monkeypatch):
+    """The corpus keeps its own `git()`, and the audit found it had neither the timeout
+    nor the explicit codec that `schema.git()` was given."""
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(corpus_run.subprocess, "run", fake_run)
+    corpus_run.git(pathlib.Path("."), "status")
+    assert seen["timeout"] == corpus_run.GIT_TIMEOUT
+    assert seen["encoding"] == "utf-8" and seen["errors"] == "replace"
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_source_add_into_a_read_only_cache_is_a_clean_error(project, tmp_path, capsys):
+    cache = project.root / "ledger" / "cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    source = tmp_path / "a-source.txt"
+    source.write_text("Some source text.\n", encoding="utf-8")
+    os.chmod(cache, 0o555)
+    try:
+        rc = project.cl(
+            "source",
+            "add",
+            str(source),
+            "--id",
+            "ro-cache",
+            "--type",
+            "paper",
+            "--citation",
+            "X 2020",
+        )
+        err = capsys.readouterr().err
+    finally:
+        os.chmod(cache, 0o755)
+    assert rc == 2
+    assert "unexpected" not in err, err

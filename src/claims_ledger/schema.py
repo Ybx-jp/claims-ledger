@@ -61,16 +61,22 @@ TAIL_SECTIONS = ("Verdicts", "References")
 SCOPE_KEYS = ("metric", "cohort", "condition")
 APPEND = "<!-- APPEND BELOW THIS LINE ONLY -->"
 
-ID_RE = re.compile(r"^([A-Z])(\d{4})-[a-z0-9][a-z0-9-]*$")
-PREFIX_RE = re.compile(r"^([A-Z]\d+)")
-TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)$")
+ID_RE = re.compile(r"^([A-Z])([0-9]{4})-[a-z0-9][a-z0-9-]*$")
+PREFIX_RE = re.compile(r"^([A-Z][0-9]+)")
+TIMESTAMP_RE = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[+-][0-9]{2}:[0-9]{2}|Z)$"
+)
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+# A plain decimal number, in ASCII digits. `float()` is wider than the schema: it accepts
+# any Unicode decimal digit, so a credence written in Arabic-Indic numerals would pass as
+# an ordinary 0.5, and it accepts `nan` and digit-grouping underscores as well.
+DECIMAL_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
 HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-slug, cites-as-live)`.
-CITATION_RE = re.compile(r"\(([A-Z]\d{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
+CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
 
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
@@ -129,6 +135,10 @@ class Ledger:
     config: Config
     docs: list = dataclasses.field(default_factory=list)  # [(display name, Path)]
     repo: Path | None = None  # git repository holding entries_dir, for history checks
+    # Documents that matched a `documents` pattern and could not be opened, as
+    # [(display name, problem)]. They are not in `docs`, because a document that was not
+    # read was not checked and must not be counted as though it had been.
+    unreadable_docs: list = dataclasses.field(default_factory=list)
 
     @property
     def tree(self):
@@ -149,11 +159,17 @@ class Ledger:
 
 
 def tree_documents(config):
-    """Documents that may cite an entry, addressed from the project root."""
+    """(documents, unreadable) — the documents that may cite an entry, addressed from the
+    project root, and the ones that matched a pattern but cannot be opened.
+
+    A document nobody can read is not an empty document. Kept apart here rather than
+    dropped, so that the checkers report it and the document count stays a count of what
+    was actually read.
+    """
     paths = []
     for pattern in config.documents:
         paths += glob.glob(os.path.join(config.root, pattern), recursive=True)
-    docs, seen = [], {}
+    docs, unreadable, seen = [], [], {}
     for path in sorted(set(paths)):
         norm = path.replace(os.sep, "/")
         if any(x in norm for x in config.document_excludes):
@@ -171,8 +187,24 @@ def tree_documents(config):
         if real in seen and len(seen[real]) <= len(rel):
             continue
         seen[real] = rel
+        problem = unopenable(path)
+        if problem:
+            unreadable.append((rel, problem))
+            continue
         docs.append((rel, Path(path)))
-    return docs
+    return docs, unreadable
+
+
+def unopenable(path):
+    """Why `path` cannot be opened for reading, or None. The file is opened and closed
+    rather than asked about: `os.access` answers for the real uid under a setuid binary
+    and for nobody at all under an ACL, and the question here is whether the read that
+    the checkers are about to do will work."""
+    try:
+        with open(path, "rb"):
+            return None
+    except OSError as exc:
+        return f"cannot be read ({exc.strerror or exc})"
 
 
 def open_ledger(root=None, config_path=None, config=None):
@@ -180,7 +212,8 @@ def open_ledger(root=None, config_path=None, config=None):
     git repository its history checks read."""
     config = config or load_config(root=root, config_path=config_path)
     repo = config.root if (config.root / ".git").exists() else None
-    return Ledger(config=config, docs=tree_documents(config), repo=repo)
+    docs, unreadable = tree_documents(config)
+    return Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
 
 
 def default_ledger(tree=None):
@@ -467,8 +500,14 @@ def read_text_or_raise(path, what):
     """`path` as UTF-8 text, or a LedgerError naming the file and what is wrong with it.
     Every read of a file the user maintains goes through here: an unreadable entry is a
     thing to report, not a traceback."""
+    path = Path(path)
+    # Checked before opening: a FIFO named like an entry blocks read_text() forever with
+    # no writer on the other end, which wedges a pre-commit hook with no output at all.
+    # A directory, a dangling symlink and a symlink loop all land here too.
+    if not path.is_file():
+        raise LedgerError(f"{path}: {what} is not a regular file")
     try:
-        return Path(path).read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
         raise LedgerError(
             f"{path}: {what} is not UTF-8 text (byte {exc.start}: {exc.reason})"
@@ -587,13 +626,29 @@ def parse_timestamp(value):
 # --- loading -------------------------------------------------------------------
 
 
+# A git that blocks — a credential prompt on a submodule url, a pack it wants to recover —
+# would otherwise hang `validate --cached`, `check`, `resolve` and `sha` with no way out,
+# which in a pre-commit hook is a wedged commit. Generous, because a cold `git show` on a
+# large pack is slow, not stuck.
+GIT_TIMEOUT = 30
+
+
 def git(repo, *args, check=False):
     """stdout of a git command in `repo`, or None on failure."""
     try:
         out = subprocess.run(
-            ["git", "-C", str(repo), *args], capture_output=True, text=True, check=check
+            ["git", "-C", str(repo), *args],
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT,
+            # Explicit, because `text=True` alone decodes with the locale's codec: under
+            # LC_ALL=C an entry carrying the schema's own `·` separator would take the
+            # frozen-region and append-only checks down with a UnicodeDecodeError.
+            encoding="utf-8",
+            errors="replace",
+            check=check,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     return out.stdout if out.returncode == 0 else None
 
@@ -605,14 +660,53 @@ def git_available():
     return shutil.which("git") is not None
 
 
+def entries_dir_listing_error(entries_dir):
+    """The error that stops us listing `entries_dir`, or None when it lists.
+
+    The directory is listed, not asked about. `is_dir()` answers True for a directory
+    whose read bit is off; `glob()` then swallows the EACCES that `scandir` raises and
+    yields nothing at all, and the checker prints `0 entries … 0 failure(s)` over a ledger
+    it never read — a pass for a check that did not happen, which is the one report this
+    tool must never produce. A symlink loop reaches pathlib as an OSError or a
+    RuntimeError depending on the interpreter, and neither is an answer either.
+    """
+    try:
+        with os.scandir(entries_dir) as it:
+            next(iter(it), None)
+    except (OSError, RuntimeError) as exc:
+        return exc
+    return None
+
+
+def list_entry_files(entries_dir):
+    """The `*.md` paths under `entries_dir`, or a LedgerError naming why they cannot be
+    listed. Listing is a separate failure from reading any one of them.
+
+    `scandir` rather than `glob`, for the reason `entries_dir_listing_error` gives; a
+    leading dot is excluded to match what `glob("*.md")` used to match.
+    """
+    try:
+        with os.scandir(entries_dir) as it:
+            return [
+                Path(e.path) for e in it if e.name.endswith(".md") and not e.name.startswith(".")
+            ]
+    except (OSError, RuntimeError) as exc:
+        raise LedgerError(
+            f"{entries_dir}: cannot list the entries directory "
+            f"({getattr(exc, 'strerror', None) or exc})"
+        ) from exc
+
+
 def load_entries(ledger, cached=False):
     """Every entry under entries_dir, sorted by filename. With `cached`, an entry that is
     in the git index is read from the index instead of the working tree, which is what a
     pre-commit hook wants to check."""
     entries = []
-    if not ledger.entries_dir.is_dir():
-        return entries
-    for path in sorted(ledger.entries_dir.glob("*.md")):
+    if isinstance(
+        entries_dir_listing_error(ledger.entries_dir), (FileNotFoundError, NotADirectoryError)
+    ):
+        return entries  # a ledger not created yet; `guard()` is what refuses to report
+    for path in sorted(list_entry_files(ledger.entries_dir)):
         text = None
         if cached and ledger.repo:
             rel = os.path.relpath(path, ledger.repo)
@@ -673,7 +767,11 @@ def source_bytes(row, ledger):
 
 
 def read_document(path):
+    """(text, problem). A document that cannot be read is not an empty document: the
+    caller has to say so, because a citation nobody read is a citation nobody checked."""
     try:
-        return Path(path).read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return None
+        return Path(path).read_text(encoding="utf-8"), None
+    except UnicodeDecodeError as exc:
+        return None, f"is not UTF-8 text (byte {exc.start}: {exc.reason})"
+    except OSError as exc:
+        return None, f"cannot be read ({exc.strerror or exc})"

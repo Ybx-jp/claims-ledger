@@ -99,7 +99,7 @@ supports the assertion over this cohort.
 ```
 
 The schema in full — every field, every rule, and what each heuristic is known to miss —
-is in [docs/SCHEMA.md](docs/SCHEMA.md).
+is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md).
 
 ## The four checks
 
@@ -181,6 +181,18 @@ a project that changed them would no longer be running the checks the corpus pro
 
 An unknown key is an error rather than a silent no-op: a misspelled key that quietly
 changes nothing is how a project ends up unchecked.
+
+Every path a configuration names — `ledger`, `entries`, `registry`, `cache`, and the
+`documents` globs — has to stay under the project root. An absolute path, one that walks
+out through `..`, and a `ledger` that is a symlink to somewhere else are all refused by
+name rather than honoured: cloning a repository should not hand its `claims-ledger.toml`
+the right to say where this tool writes, or point the checkers at a file the project does
+not contain.
+
+A checker that cannot read something says so and exits non-zero. An entries directory it
+cannot list, and a document it cannot open, are reported rather than read as empty —
+`0 failure(s)` over a ledger that was never read is the one report this tool must never
+produce.
 
 ## Authoring
 

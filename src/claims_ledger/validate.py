@@ -21,6 +21,7 @@ import re
 from .schema import (
     ACTS,
     APPEND,
+    DECIMAL_RE,
     GRADES,
     ID_RE,
     KINDS,
@@ -117,12 +118,12 @@ def check_frontmatter(e, entries, config):
             "credence and resolves_when are omitted for a claim, never guessed",
         )
     if credence is not None:
-        try:
+        if not DECIMAL_RE.match(str(credence).strip()):
+            fail("frontmatter credence", f"credence `{credence}` is not a plain decimal number")
+        else:
             value = float(credence)
             if not 0.0 <= value <= 1.0:
                 fail("frontmatter credence", f"credence {value} is outside [0, 1]")
-        except ValueError:
-            fail("frontmatter credence", f"credence `{credence}` is not a number")
 
     sup = f.get("supersedes")
     if sup is None:

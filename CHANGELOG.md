@@ -13,6 +13,107 @@ change to what it expects would dissolve the argument.
 
 ## [Unreleased]
 
+### Fixed
+
+The pre-publication audit in `QE-AUDIT.md` (2026-09-05) found nine defects, each recorded
+as a strict-xfail test; all nine are fixed and those tests are now the regressions for
+the fixes. A second pass then attacked the fixes themselves and found nine more, listed
+after them here; those are fixed too, and section F of `tests/test_hostile_inputs.py`
+holds their regressions.
+
+- **A FIFO named `*.md` no longer hangs the tool.** `read_text()` on a FIFO with no
+  writer blocks forever, so `status`, `validate` and `check` never returned — in a
+  pre-commit hook, a wedged commit with no output at all. Nothing but a regular file is
+  opened; a directory, a dangling symlink and a symlink loop report the same way.
+- **A configuration cannot name a path outside the project root.** `ledger`, `entries`,
+  `registry` and `cache` are refused with a `ConfigError` naming the key when they
+  resolve outside `root`, absolutely or through `..`. `Path(root) / "/abs"` discards
+  `root`, so a cloned repository's own `claims-ledger.toml` could send every write —
+  `new`, `init`, `source add`, `sha --write`, `propagate --write` — anywhere on the
+  filesystem, at exit 0 and without a warning.
+- **`status` stops on a root it cannot find.** It was the one command that never called
+  `guard()`, so a nonexistent root printed `no entries under ledger/entries` and exited
+  0 while `validate` exited 2 over the same root.
+- **git's output is decoded as UTF-8**, not with the locale's codec. Under a non-UTF-8
+  locale an entry containing the schema's own `·` separator took the frozen-region and
+  append-only checks down with a `UnicodeDecodeError`.
+- **A diagnostic survives an output encoding that cannot hold it.** Printing `·` to an
+  ASCII stdout raised `UnicodeEncodeError` on precisely the path that was about to
+  explain a failure, replacing the explanation with `this is a bug`. Unencodable
+  characters are escaped instead.
+- **`corpus` says git is missing instead of asking for a bug report.** Its history seeds
+  are applied as commits, so without `git` it now refuses at exit 2 rather than raising
+  `FileNotFoundError` through the catch-all handler.
+- **An id or a credence written in non-ASCII digits is refused.** `\d` matches any
+  Unicode decimal digit and `float()` reads them too, so `A０００１` passed the id check
+  as a distinct string that looks like `A0001`, and `credence: ٠.٥` was silently read as
+  0.5. The id, prefix, timestamp and citation patterns are ASCII-only, and a credence
+  must be a plain decimal number.
+- **`--root ""` is refused** rather than read as "no `--root` given" and run against
+  whatever directory the process happened to start in.
+- **An over-long slug, a symlink loop at the entries directory, and a `ledger` path that
+  names a regular file** are specific errors rather than `unexpected OSError`,
+  `unexpected RuntimeError` and `unexpected NotADirectoryError`. Anything printing "this
+  is a bug, please report it" over an ordinary user mistake is a defect of its own.
+
+#### The second pass, against the fixes
+
+- **A ledger that cannot be listed is no longer a clean pass.** With the read bit off
+  `ledger/entries` — a directory owned by another user, a CI runner without it — `is_dir()`
+  answered True and `glob()` swallowed the `EACCES` from `scandir` and yielded nothing, so
+  `status`, `validate`, `resolve`, `references`, `propagate` and `check` each printed
+  `0 entries … 0 failure(s)` and exited 0 over a ledger full of failing entries, and a
+  pre-commit hook built on `check` let the commit through. The entries directory is now
+  listed rather than asked about, and a directory that will not list stops the command at
+  2. This was the only false pass found in either pass of the audit, and the first pass's
+  verdict — that no defect produced one — was wrong.
+- **A document that could not be read is reported, not treated as empty.** `chmod 000` on
+  a document that cited a nonexistent entry turned a `references` failure into a clean run
+  at exit 0, while the document was still counted in the `N documents` total. An
+  unreadable document is now a failure naming it, it is out of the count, and it is named
+  in the skipped-checks note the other commands print.
+- **`source add` refuses a registry that is not a regular file.** A FIFO at
+  `ledger/sources.jsonl` blocked the append forever — in a hook, a wedged commit with no
+  output — and a directory there asked for a bug report. This was the defect fixed for
+  entry *reads* in the first pass, still open on the registry *write*.
+- **A `ledger` that is a symlink out of the project root is refused.** The containment
+  added in the first pass was lexical, so a checkout carrying `ledger -> /tmp/outside`
+  wrote real entries outside the project at exit 0 — the very thing the containment was
+  written to stop, since a clone carries a symlink as readily as it carries a
+  `claims-ledger.toml`. Paths are now checked as written *and* with their symlinks
+  followed; a symlink that stays under the root still works.
+- **The `documents` globs are confined like every other path.** `documents =
+  ["../outside-root/*.md"]`, and an absolute pattern, pointed the checkers at any readable
+  file on the machine and printed its path and its citations into the report.
+- **Four more ordinary conditions stopped asking for a bug report**: `init` over a regular
+  file named `entries` (`FileExistsError`), `source add` with a directory at
+  `sources.jsonl` (`IsADirectoryError`) or a read-only `cache` (`PermissionError`), and
+  `hook --install` into a read-only `.git/hooks` (`PermissionError`) — an ordinary thing
+  in a locked-down or shared checkout. `sha --write` and `propagate --write` were given
+  the same funnel.
+- **git cannot hang a checker.** `schema.git()` and the corpus runner's own `git()` ran
+  with no timeout, so a git that blocks — a credential prompt, a pack it wants to recover
+  — hung `validate --cached`, `check`, `resolve`, `sha` and the corpus with no way out.
+  Both now give up after 30 seconds, and the corpus decodes git's output as UTF-8
+  explicitly, as the checkers already did.
+
+#### Known, and left as it is
+
+- A document reached through a symlink that leaves the root is still read. The
+  `documents` confinement is lexical by design: what it closes is a configuration that
+  addresses outside the project, not every route a link inside the tree can take.
+
+### Packaging and documentation
+
+- The README's link to `docs/SCHEMA.md` is absolute, so it resolves on the PyPI project
+  page instead of 404ing; the package docstring and the `--grade` help text point at the
+  same URL rather than at a path no installed copy carries.
+- `CHANGELOG.md` ships in the sdist, which `[project.urls]` already promised.
+- A tag-triggered release workflow publishes to PyPI through Trusted Publishing, after
+  the built wheel has proved itself by running the corpus from a clean environment. It
+  needs a publisher configured once on PyPI naming this repository, `release.yml` and
+  the `pypi` environment.
+
 ## [0.1.0] — 2026-09-05
 
 First public release. Extracted from the claims ledger built for a research project on

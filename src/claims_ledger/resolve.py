@@ -83,7 +83,7 @@ def resolve_pointer(p, e, part, index, sources, ledger):
             path = ledger.tree / p.target
             # read_document, not read_text: an evidence file that is unreadable or not
             # UTF-8 is a pointer that does not resolve, reported below, never a crash.
-            text = read_document(path) if path.is_file() else None
+            text = read_document(path)[0] if path.is_file() else None
         else:
             text = git(ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:

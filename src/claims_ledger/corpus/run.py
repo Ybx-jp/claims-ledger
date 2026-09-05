@@ -35,7 +35,7 @@ from pathlib import Path
 
 from .. import propagate, references, resolve, validate
 from ..config import Config
-from ..schema import Ledger
+from ..schema import GIT_TIMEOUT, Ledger, LedgerError
 
 CORPUS = Path(__file__).resolve().parent
 
@@ -107,23 +107,43 @@ def stage(src, dst):
 
 
 def git(repo, *args):
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(repo),
-            "-c",
-            "user.name=corpus",
-            "-c",
-            "user.email=corpus@example",
-            "-c",
-            "commit.gpgsign=false",
-            *args,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    """A git command the corpus needs to have worked — its history seeds are commits, so
+    a failure here is not a finding about a seed, it is the corpus being unable to run.
+    Reported as such, rather than raised through the CLI's catch-all as a bug report."""
+    try:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.name=corpus",
+                "-c",
+                "user.email=corpus@example",
+                "-c",
+                "commit.gpgsign=false",
+                *args,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            # As in schema.git(): `text=True` alone decodes with the locale's codec, and a
+            # git that blocks would hang the corpus with no way out.
+            encoding="utf-8",
+            errors="replace",
+            timeout=GIT_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise LedgerError(
+            f"`git {args[0]}` did not finish within {GIT_TIMEOUT}s while building the "
+            "corpus repository; nothing was proven"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise LedgerError(
+            f"`git {args[0]}` failed while building the corpus repository "
+            f"({(exc.stderr or '').strip().splitlines()[-1] if exc.stderr else exc}); "
+            "nothing was proven"
+        ) from exc
 
 
 def run_checkers(ledger, commit=None):
@@ -202,6 +222,9 @@ def run_seed(seed, root):
 
 
 def main(argv=None):
+    from ..cli import soften_output_encoding  # local: cli imports this module lazily
+
+    soften_output_encoding()  # the `·` below is not encodable under an ASCII locale
     os.environ.setdefault("GIT_CONFIG_NOSYSTEM", "1")
     argv = list(sys.argv[1:] if argv is None else argv)
     verbose = "-v" in argv or "--verbose" in argv

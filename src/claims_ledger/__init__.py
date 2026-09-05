@@ -2,7 +2,8 @@
 every quotation to its source, and derive status from an append-only verdict list, with
 four checkers that enforce the schema and a red-team corpus that proves the checkers.
 
-The schema is stated in full in docs/SCHEMA.md.
+The schema is stated in full in docs/SCHEMA.md, which the repository carries at
+https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md.
 """
 
 from . import propagate, references, resolve, validate
