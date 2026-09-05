@@ -1,0 +1,10 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "well-formed; the chain declares supersession both ways"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the superseded A0002 is exempt from the act check on its immutable Grounds"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "A0002 cites the refuted A0001 as live but has itself fallen; a flag on a dead entry would be a verdict after a terminal status"}
+  ]
+}

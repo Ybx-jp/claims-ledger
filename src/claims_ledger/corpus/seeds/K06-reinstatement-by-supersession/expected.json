@@ -1,0 +1,31 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "every pointer resolves and every quote is a contiguous span of its source"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "acts compatible, references two-way consistent"
+    },
+    {
+      "checker": "propagate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "no unflagged dependency"
+    }
+  ],
+  "note": "refuted followed by exactly one superseded verdict is the one legal verdict after a terminal status."
+}

@@ -1,0 +1,12 @@
+{
+  "class": "non-comparable on an entry below measured",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 verdict 1",
+      "why": "non-comparable is legal only at measured and above; an asserted entry has no numbers to break comparability with"
+    }
+  ]
+}

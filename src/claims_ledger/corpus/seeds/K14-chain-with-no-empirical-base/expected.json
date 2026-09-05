@@ -1,0 +1,37 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "every pointer resolves and every quote is a contiguous span of its source"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "acts compatible, references two-way consistent"
+    },
+    {
+      "checker": "propagate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "no unflagged dependency"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0003 Grounds",
+      "why": "no path from A0003 through its cites-as-live grounds reaches a lab: or experiment: ground or a source's own data: A0003 rests on A0002, which rests on A0001, whose backing is one sentence of a paper. Every checker passes and the chain's effective grade is asserted; a reader who wants more than that has to look"
+    }
+  ],
+  "note": "green for every checker by design; the review row is what the corpus owes the reader about it"
+}

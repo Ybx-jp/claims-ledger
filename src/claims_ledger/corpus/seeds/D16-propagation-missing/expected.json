@@ -1,0 +1,18 @@
+{
+  "class": "fallen ground with no propagated flag",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "propagate",
+      "outcome": "fail",
+      "where": "A0002 Verdicts",
+      "why": "A0002 cites A0001 cites-as-live and A0001 has fallen to refuted, but A0002 carries no contested verdict"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0002 Grounds",
+      "why": "cites-as-live requires an open or corroborated target; A0001 is refuted. This row and the propagate row are the same fact seen by two checkers, and both must fire"
+    }
+  ]
+}

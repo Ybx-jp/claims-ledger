@@ -1,0 +1,18 @@
+{
+  "class": "citing entry claims a wider scope than its sole ground",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0002 Scope",
+      "why": "A0002's only ground is A0001, whose cohort is star graphs at one layer; A0002 claims any graph at any depth. The condition was dropped across the citation edge — the archived absence-scope widening, generalized. Scope subsumption is not checked mechanically; the correct human move is a narrower successor or a lab: ground for the wider cohort"
+    }
+  ]
+}

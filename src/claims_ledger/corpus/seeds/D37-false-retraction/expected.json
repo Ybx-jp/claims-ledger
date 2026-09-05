@@ -1,0 +1,18 @@
+{
+  "class": "retracted for a defect that does not reproduce",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "flag",
+      "where": "A0001 verdict 1",
+      "why": "the retraction names Backing quote 1 as the defect, but the quote verifies as a contiguous span of fx-paper-a; the stated defect is not reproduced"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 verdict 1",
+      "why": "the retraction is itself the defective act; the entry is immutable and the verdict is append-only, so the record is a new entry superseding nothing, re-asserting the claim with grounds that include the failed retraction"
+    }
+  ]
+}

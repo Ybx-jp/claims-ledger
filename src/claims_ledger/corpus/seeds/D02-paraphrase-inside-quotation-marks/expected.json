@@ -1,0 +1,18 @@
+{
+  "class": "paraphrase inside quotation marks",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "clauses reordered and joined by a semicolon that appears in no source; a paraphrase matches nothing"
+    }
+  ]
+}

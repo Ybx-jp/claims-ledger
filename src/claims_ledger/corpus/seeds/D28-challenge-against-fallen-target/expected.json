@@ -1,0 +1,18 @@
+{
+  "class": "challenge against a fallen target",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0004 Grounds",
+      "why": "a challenges act needs an open, corroborated, or contested target; A0003 is retracted, so the only legal act is cites-as-fallen"
+    },
+    {
+      "checker": "propagate",
+      "outcome": "fail",
+      "where": "A0003 Verdicts",
+      "why": "no contested verdict is appended to A0003, whose status is terminal, and the act against it is reported as illegal"
+    }
+  ]
+}

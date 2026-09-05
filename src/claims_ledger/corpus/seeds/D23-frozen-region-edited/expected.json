@@ -1,0 +1,25 @@
+{
+  "class": "pre-APPEND region edited after creation",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Backing",
+      "why": "the region above the APPEND marker differs from the blob at the creating commit"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "commit 02, A0001 frontmatter verbatim_sha",
+      "why": "the declared verbatim_sha no longer matches the Scope and Backing as they now stand"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Backing quote 1",
+      "why": "the edit appended words to the quote, so it is no longer a contiguous span of fx-paper-a; the tampering is seen twice, as an immutability breach and as a quote that does not verify"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to"
+}

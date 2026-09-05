@@ -1,0 +1,10 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "well-formed; the chain declares supersession both ways"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "A0002 still cites the refuted A0001 as live in its immutable Grounds, but A0002 is itself superseded; a fallen citer's acts are history, not live claims"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "A0002 carries the propagated flag for A0001's fall; A0003 cites it as fallen"}
+  ]
+}

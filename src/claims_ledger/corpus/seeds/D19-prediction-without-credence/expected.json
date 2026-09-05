@@ -1,0 +1,18 @@
+{
+  "class": "prediction without credence or resolves_when",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 frontmatter",
+      "why": "kind: prediction requires credence and resolves_when"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 frontmatter credence",
+      "why": "credence is a number in [0, 1]"
+    }
+  ]
+}

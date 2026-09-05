@@ -1,0 +1,12 @@
+{
+  "class": "absence-scope widening",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Grounds",
+      "why": "an absence claim must carry a search: block; this one is stated flatly and widens 'neither of the two prior papers' to a literature"
+    }
+  ]
+}

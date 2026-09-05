@@ -1,0 +1,18 @@
+{
+  "class": "mid-sentence cut without […]",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the quote ends at 'somewhat', inside a sentence, with no elision mark on that side"
+    }
+  ]
+}

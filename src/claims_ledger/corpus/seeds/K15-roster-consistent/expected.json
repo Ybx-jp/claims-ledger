@@ -1,0 +1,10 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "well-formed; the hypothesis names a motivating entry and states its falsifier"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the roster has one row per open hypothesis, its status cell matches, and the references are two-way"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "no unflagged dependency"}
+  ]
+}

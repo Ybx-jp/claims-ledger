@@ -1,0 +1,18 @@
+{
+  "class": "refuted on weaker evidence",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "flag",
+      "where": "A0001 verdict 1",
+      "why": "a refuted verdict whose evidence type (argued) differs from the entry's (measured) is flagged for review, not rejected; the types are not ranked"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 verdict 1",
+      "why": "an argument against a measurement is a rebuttal at issue, not one assumed; the human move is contested until a measurement exists"
+    }
+  ]
+}

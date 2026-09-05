@@ -1,0 +1,12 @@
+{
+  "class": "challenge without its flag",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "propagate",
+      "outcome": "fail",
+      "where": "A0001 Verdicts",
+      "why": "A0002 cites A0001 · challenges but A0001 carries no propagated contested verdict"
+    }
+  ]
+}

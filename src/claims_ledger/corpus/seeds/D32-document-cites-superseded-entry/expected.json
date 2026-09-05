@@ -1,0 +1,12 @@
+{
+  "class": "a document cites a superseded entry as live",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/prereg-digest.md",
+      "why": "cites-as-live needs an open or corroborated target; A0005 is superseded by A0006, and the digest was written before the supersession"
+    }
+  ]
+}

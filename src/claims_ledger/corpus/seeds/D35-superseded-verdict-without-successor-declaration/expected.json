@@ -1,0 +1,12 @@
+{
+  "class": "predecessor names a successor that does not declare it",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 verdict 1",
+      "why": "the superseded verdict names A0002 as successor, but A0002's supersedes: is none; discoverability must run both ways"
+    }
+  ]
+}

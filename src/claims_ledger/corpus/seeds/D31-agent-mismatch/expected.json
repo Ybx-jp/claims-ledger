@@ -1,0 +1,18 @@
+{
+  "class": "verdict author is not who could have written it",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 verdict 1",
+      "why": "a verdict by propagation must carry entry: evidence with · fallen or · challenges; this one points at a lab note, so a person wrote it under the machine's name"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 verdict 1",
+      "why": "verdicts are written by main or by propagation; an expert scope writes none, and a refuted verdict least of all"
+    }
+  ]
+}

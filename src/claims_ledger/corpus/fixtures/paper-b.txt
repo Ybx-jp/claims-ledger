@@ -1,0 +1,7 @@
+Fixture paper B — An expander bound for aggregation error (Okafor and Lindqvist)
+
+Synthetic source for this red-team corpus. Not a finding.
+
+Theorem 2. The expander bound tightens under mean aggregation because the normalisation
+removes the degree factor from the aggregate. Under sum aggregation the factor |N(v)|
+remains and the bound is loose by exactly that factor.

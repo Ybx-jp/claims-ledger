@@ -1,0 +1,12 @@
+{
+  "class": "corroborated by its own grounds",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 verdict 1",
+      "why": "a corroborating verdict must point at a ground the entry does not already cite"
+    }
+  ]
+}

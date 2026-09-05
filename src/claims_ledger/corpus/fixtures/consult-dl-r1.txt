@@ -1,0 +1,15 @@
+Fixture consultation — dl, round 1 (synthetic)
+
+A synthetic consultation answer for this red-team corpus. The speaker is the
+expert scope `dl`. Where it quotes or names a third party, that party is the source.
+
+On the ceiling: the admissible band is between 15M and 20M edges, scaling linearly at
+about 0.51 GiB per million edges at 128 dimensions. Fixture paper B (Okafor and
+Lindqvist) shows that the expander bound tightens under mean aggregation; that is their
+theorem, not mine. I label the saturation figure inferred from the two tables, not
+measured. Poursafaei et al. did not land in anything I retrieved. A non-inferiority
+claim needs a margin stated before the data is seen, otherwise it can be met by any
+result. A metric on which no-refresh wins measures stability, not faithfulness; it
+must be reported as such, never as faithfulness. My own expectation is that under mean
+aggregation the stale fraction, not the count, governs the error. Their bound is tight
+only under mean aggregation.

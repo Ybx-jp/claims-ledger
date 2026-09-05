@@ -1,0 +1,12 @@
+{
+  "class": "speaker or source changed across a supersession without declaration",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 frontmatter verbatim_sha",
+      "why": "the successor keeps the quote text and changes its speaker; source and speaker are part of the verbatim record, so the fingerprint differs and no verbatim_change is declared"
+    }
+  ]
+}

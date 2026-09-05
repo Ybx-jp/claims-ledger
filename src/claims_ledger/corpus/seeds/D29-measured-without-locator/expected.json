@@ -1,0 +1,12 @@
+{
+  "class": "measured claim with an incomplete Scope",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Scope",
+      "why": "grade measured and above requires metric, cohort, and condition lines in Scope; cohort is missing, and a measurement whose conditions are unrecorded is the defect the archived ledger was built after"
+    }
+  ]
+}

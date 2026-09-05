@@ -1,0 +1,44 @@
+---
+id: A0002-dependent
+kind: prediction
+stated: 2026-09-02T10:00:00-07:00
+author: main
+grade: argued
+credence: 0.7
+resolves_when: the preregistered sweep resolves
+supersedes: none
+verbatim_sha: 7f802c7a9550b90918885960733ab94921780f109b1af461c742d50483f0f61b
+---
+
+## Assertion
+
+At Reddit scale the fraction law will hold within 20% across degree deciles.
+
+## Scope
+
+metric: centre-node L2 error by degree decile
+cohort: Reddit, two layers
+condition: uniform perturbation 0.1
+
+## Grounds
+
+- entry: A0001-stale-fraction-law · cites-as-live
+
+## Warrant
+
+The single-layer law composes.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+- 2026-09-02T10:00:00-07:00 · contested · grade: measured · author: propagation
+  evidence: entry: A0001-stale-fraction-law · fallen
+  note: A0001 refuted
+
+## References
+

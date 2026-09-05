@@ -1,0 +1,12 @@
+{
+  "class": "a propagated verdict that nothing caused",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "propagate",
+      "outcome": "fail",
+      "where": "A0001 Verdicts",
+      "why": "the contested verdict by propagation names A0002 as challenger, but A0002 carries no challenges act against A0001 and has not fallen"
+    }
+  ]
+}

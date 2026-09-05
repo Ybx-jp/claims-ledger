@@ -1,0 +1,24 @@
+{
+  "class": "load-bearing elision",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "A0001 Backing quote 1",
+      "why": "both spans exist and the elision is marked"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 Backing quote 1",
+      "why": "the elision removes 'provided the perturbation magnitude is fixed across neighbours', the condition the assertion depends on; the checker guarantees visibility, a human judges load. Correct human verdict: superseded by an entry whose Scope carries the condition"
+    }
+  ]
+}

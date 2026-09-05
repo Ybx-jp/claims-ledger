@@ -1,0 +1,12 @@
+{
+  "class": "citation act incompatible with the target's status",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0002 Grounds",
+      "why": "cites-as-live requires the target to be open or corroborated; A0001 is refuted"
+    }
+  ]
+}

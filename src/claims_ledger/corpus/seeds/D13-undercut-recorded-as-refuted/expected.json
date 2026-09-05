@@ -1,0 +1,18 @@
+{
+  "class": "undercut (attack on the data-to-claim connection) recorded as refuted",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed; the checker cannot classify the attack target"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 verdict 1",
+      "why": "the evidence shows the sweep does not establish the claim (the probe built the invariance into the perturbation) while the numbers and the rule both stand; an undercut leaves the claim neither justified nor defeated, so the correct verdict is contested, or supersession under criterion 1, never refuted. The canon-shaped form is a new entry that challenges A0001 with lab-008 as its ground, which propagates contested"
+    }
+  ]
+}

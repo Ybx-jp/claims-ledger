@@ -1,0 +1,24 @@
+{
+  "class": "speaker misidentified",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "a consultation-type source with a speaker other than its expert is an error; the quote must resolve to fx-paper-b with speaker Okafor and Lindqvist"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "flag",
+      "where": "A0002 Backing quote 1",
+      "why": "the span verifies and the speaker is the expert, but the sentence it sits in names another registered source (Okafor and Lindqvist, fx-paper-b) — the expert attributed the result onward, so the quote is flagged as relayed third-party material that must resolve to the primary source"
+    }
+  ]
+}

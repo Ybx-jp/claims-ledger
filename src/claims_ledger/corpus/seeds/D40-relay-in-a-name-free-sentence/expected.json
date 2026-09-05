@@ -1,0 +1,24 @@
+{
+  "class": "relayed result in a sentence that names nobody (known miss)",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "A0001 Backing quote 1",
+      "why": "the span verifies, the speaker is the expert, and the sentence names no registered author; the heuristic has nothing to fire on"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 Backing quote 1",
+      "why": "the word Their relays Okafor and Lindqvist from the previous sentence; the quote is third-party material attributed to the expert. Recorded as a known miss of the relayed-speaker heuristic; the seed turns into a catch only if a detector that reads across sentences is built and this row is changed with it"
+    }
+  ]
+}

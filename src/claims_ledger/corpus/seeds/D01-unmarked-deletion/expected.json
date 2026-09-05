@@ -1,0 +1,18 @@
+{
+  "class": "unmarked deletion",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the quote drops the parenthetical (cosine, L2) with no elision mark, so it is not a contiguous span of fx-paper-a"
+    }
+  ]
+}

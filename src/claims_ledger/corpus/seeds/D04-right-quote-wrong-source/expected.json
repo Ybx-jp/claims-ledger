@@ -1,0 +1,18 @@
+{
+  "class": "right quote, wrong source",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the span exists in fx-paper-b, not in fx-paper-a as named"
+    }
+  ]
+}

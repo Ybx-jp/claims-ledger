@@ -1,0 +1,8 @@
+{
+  "class": "hypothesis without a falsifier, or without a motivating entry",
+  "known_good": false,
+  "expect": [
+    {"checker": "validate", "outcome": "fail", "where": "A0002 Warrant", "why": "a hypothesis states what would falsify it; A0002's Warrant has no falsifier sentence"},
+    {"checker": "validate", "outcome": "fail", "where": "A0003 Grounds", "why": "a hypothesis names the entries motivating it; A0003 rests on a lab note alone"}
+  ]
+}

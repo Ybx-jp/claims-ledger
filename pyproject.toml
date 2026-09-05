@@ -1,0 +1,69 @@
+[project]
+name = "claims-ledger"
+# Read from src/claims_ledger/__init__.py, so the version lives in exactly one place.
+dynamic = ["version"]
+description = "A checked claims ledger: entries that separate assertion, grounds, warrant and backing, hold every quotation to its source, and derive status from an append-only verdict list"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Jackson Porter" }]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["provenance", "argumentation", "nanopublication", "research", "citation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+# No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
+# pre-commit hook, on a checkout with nothing installed; tomllib is standard library
+# from 3.11, which is what sets the floor.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+claims-ledger = "claims_ledger.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Ybx-jp/claims-ledger"
+Issues = "https://github.com/Ybx-jp/claims-ledger/issues"
+Changelog = "https://github.com/Ybx-jp/claims-ledger/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/claims_ledger/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claims_ledger"]
+
+# The corpus ships with the package — it sits inside src/claims_ledger, so the wheel
+# carries it. A checker is only trusted after it has passed the seeds, and
+# `claims-ledger corpus` is how an installed copy proves itself.
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Pinned explicitly rather than extending ruff's default select, which grows between
+# releases: CI has to fail on this project's rules, not on whatever the newest ruff
+# decided to enable. `I` is import sorting.
+select = ["E4", "E7", "E9", "F", "I"]

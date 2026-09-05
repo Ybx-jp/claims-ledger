@@ -1,0 +1,7 @@
+{
+  "class": "roster status cell stale",
+  "known_good": false,
+  "expect": [
+    {"checker": "references", "outcome": "fail", "where": "docs/ROSTER.md", "why": "the roster row says corroborated; the entry has no verdicts and is open"}
+  ]
+}

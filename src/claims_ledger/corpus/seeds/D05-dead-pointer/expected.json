@@ -1,0 +1,24 @@
+{
+  "class": "dead restatement pointer",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Grounds",
+      "why": "source id fx-consult-dl-r2 has no registry row; the check cannot run and says so, never passing silently"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the same unregistered source id; the quote cannot be checked"
+    }
+  ]
+}

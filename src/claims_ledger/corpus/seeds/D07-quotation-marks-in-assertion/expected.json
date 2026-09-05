@@ -1,0 +1,12 @@
+{
+  "class": "fusion of quote and inference",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Assertion",
+      "why": "quotation marks are illegal in Assertion; the quote continues seamlessly into the project's own inference"
+    }
+  ]
+}

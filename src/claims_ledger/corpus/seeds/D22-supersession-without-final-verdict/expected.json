@@ -1,0 +1,12 @@
+{
+  "class": "supersession without the predecessor's final verdict",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Verdicts",
+      "why": "A0002 names supersedes: A0001 but A0001 carries no superseded verdict; discoverability must run both ways"
+    }
+  ]
+}

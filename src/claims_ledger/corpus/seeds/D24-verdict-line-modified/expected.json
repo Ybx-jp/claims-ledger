@@ -1,0 +1,13 @@
+{
+  "class": "existing verdict line modified",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "commit 02, A0001 verdict 1",
+      "why": "a verdict line present at HEAD~1 was changed; verdicts append and only append"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to"
+}

@@ -1,0 +1,18 @@
+{
+  "class": "malformed or non-monotonic timestamps",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 frontmatter stated",
+      "why": "a bare date is malformed; stated must be ISO 8601 to the second with a UTC offset"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 verdicts",
+      "why": "verdict timestamps must be non-decreasing down the file and none earlier than stated"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "class": "declared verbatim_sha does not match the content",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 frontmatter verbatim_sha",
+      "why": "the declared verbatim_sha differs from the value computed from Scope and Backing"
+    }
+  ]
+}

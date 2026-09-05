@@ -1,0 +1,18 @@
+{
+  "class": "grade inversion",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 frontmatter grade",
+      "why": "measured requires a lab: or experiment: ground; this entry's only ground is a source: pointer"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 frontmatter grade",
+      "why": "asserted forbids a lab: or experiment: ground; this entry carries one"
+    }
+  ]
+}

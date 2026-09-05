@@ -1,0 +1,30 @@
+{
+  "class": "text no source contains",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the quoted sentence appears in no registered source; the expert stated the rule in different words and never used 'unfalsifiable'"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0002 Backing quote 1",
+      "why": "the quoted words appear in no registered source and reverse it: the expert wrote that such a metric must be reported as such, never as faithfulness"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0002 Backing quote 1",
+      "why": "distortion by reversal, not fabrication: a real sentence was inverted. The machinery cannot tell the two apart and fails both the same way; the human record names which it was, because a reversal is the more likely to be quoted onward as the source's view"
+    }
+  ]
+}

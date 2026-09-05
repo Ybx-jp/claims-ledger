@@ -1,0 +1,13 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "commit 02",
+      "why": "the frozen region is identical to the creating blob and the only change is an appended verdict"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to"
+}

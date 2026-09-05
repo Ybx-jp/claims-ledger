@@ -1,0 +1,7 @@
+{
+  "class": "open hypothesis without a roster row",
+  "known_good": false,
+  "expect": [
+    {"checker": "references", "outcome": "fail", "where": "A0002 Roster", "why": "every open hypothesis has a row in the roster; there is no roster document at all"}
+  ]
+}

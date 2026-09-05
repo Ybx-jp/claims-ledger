@@ -1,0 +1,12 @@
+{
+  "class": "a priority claim is an absence claim without its search",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Grounds",
+      "why": "an assertion of firstness is an absence claim about everyone else and must carry a search: ground; the project's own convention forbids the word without one"
+    }
+  ]
+}

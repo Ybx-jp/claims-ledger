@@ -1,0 +1,18 @@
+{
+  "class": "attack on a datum recorded as refuted",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed; the checker cannot classify the attack target"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001 verdict 1",
+      "why": "the evidence withdraws one row of the ground the claim rests on and contradicts nothing; a datum attack leaves the claim unevaluated on that datum, so the correct verdict is contested, or supersession to the two degrees that stand, never refuted"
+    }
+  ]
+}

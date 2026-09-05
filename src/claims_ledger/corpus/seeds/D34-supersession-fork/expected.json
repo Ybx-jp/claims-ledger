@@ -1,0 +1,12 @@
+{
+  "class": "two successors of one entry",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0003 frontmatter supersedes",
+      "why": "A0001 is already superseded by A0002; a second successor forks the chain, and the predecessor can carry only one superseded verdict"
+    }
+  ]
+}

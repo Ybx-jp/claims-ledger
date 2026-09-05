@@ -1,0 +1,12 @@
+{
+  "class": "verbatim record drifts across a supersession chain",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 frontmatter verbatim_sha",
+      "why": "the successor's Scope differs from its predecessor's and no verbatim_change is declared; the verbatim record must be byte-identical across the chain"
+    }
+  ]
+}

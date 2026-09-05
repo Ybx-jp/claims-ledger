@@ -1,0 +1,24 @@
+{
+  "class": "id width, series prefix, and archived-id citation",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A10000 filename and id",
+      "why": "ids are exactly four digits; A10000 is malformed"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "C0001 filename and id",
+      "why": "the C and P series are the archived prefixes and are skipped on rollover"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/prereg-digest.md",
+      "why": "a document cites an archived id (C012); no document may cite the archive"
+    }
+  ]
+}

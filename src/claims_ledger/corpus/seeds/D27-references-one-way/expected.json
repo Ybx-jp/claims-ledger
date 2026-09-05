@@ -1,0 +1,18 @@
+{
+  "class": "references not two-way consistent",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/prereg-digest.md",
+      "why": "the digest cites A0001 cites-as-live but A0001's References section does not list it"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0002 References",
+      "why": "A0002 lists a citing location that does not cite it"
+    }
+  ]
+}

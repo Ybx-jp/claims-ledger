@@ -1,0 +1,13 @@
+{
+  "class": "verdict after a terminal status",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 verdict 2",
+      "why": "retracted is terminal; no verdict may follow it"
+    }
+  ],
+  "note": "the retracted entry's quote really is defective, so resolve.py — which on a retracted entry checks that the stated defect reproduces rather than re-reporting the quote — passes"
+}

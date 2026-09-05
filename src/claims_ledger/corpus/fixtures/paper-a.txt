@@ -1,0 +1,25 @@
+Fixture paper A — Neighbourhood staleness under mean aggregation
+
+This is a synthetic source written for this red-team corpus. It exists so that
+seed entries have text to quote, misquote, and misattribute. Nothing in it is a finding.
+
+1. Setting
+
+Under mean aggregation the per-neighbour contribution is scaled by 1/deg, so the error
+induced by a stale fraction f of the neighbourhood is proportional to f and does not grow
+with degree. We measured centre-node output error (cosine, L2) on star graphs with one
+SAGEConv layer at 16 dimensions, with untrained weights in eval mode.
+
+2. Results
+
+At a fixed stale fraction the error is flat across degrees 4 through 512. At a fixed
+stale count the error falls as 1/deg. The timings will move somewhat with real degree
+distributions, since a heavy tail changes the gather pattern.
+
+3. Discussion
+
+A refresh policy that ranks nodes by stale count will over-rank hubs; under mean
+aggregation the stale fraction is the quantity that matters, provided the perturbation
+magnitude is fixed across neighbours. Neither of the two prior papers reports realised
+error against predicted error. We do not claim the result transfers to sum aggregation.
+The naïve estimator that counts stale neighbours over-ranks hubs.

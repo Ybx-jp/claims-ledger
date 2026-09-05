@@ -1,0 +1,13 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "commit 02",
+      "why": "the successor is a near-copy of a predecessor that stays in the tree; its creating commit is the one that added its file, not the one that added the file it was copied from"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to"
+}
