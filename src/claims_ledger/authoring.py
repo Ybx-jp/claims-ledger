@@ -19,6 +19,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from .config import leaves_root
 from .schema import (
     APPEND,
     ID_RE,
@@ -176,14 +177,35 @@ def create_entry(ledger, slug, **kwargs):
             f"{len(filename.encode('utf-8'))} bytes, over the {NAME_MAX} a filename holds"
         )
     path = ledger.entries_dir / filename
-    if path.exists():
-        raise AuthoringError(f"{path} already exists")
     try:
+        # `exists()` is inside the funnel, not before it: it re-raises ENAMETOOLONG, which
+        # a name that fits NAME_MAX can still provoke by overrunning PATH_MAX under a deep
+        # root — an `unexpected OSError` asked of someone who chose a long slug.
+        if path.exists():
+            raise AuthoringError(f"{path} already exists")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(render_entry(ident, slug, **kwargs), encoding="utf-8")
     except OSError as exc:
         raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return path
+
+
+def refuse_to_write_outside_the_root(ledger, path):
+    """A write is refused when the file it lands on is not under the project root.
+
+    `confined()` establishes this for the paths a configuration names; an entry file is
+    the other way in. A clone carries `ledger/entries/A0001-x.md -> ../../../elsewhere` as
+    readily as it carries a `claims-ledger.toml`, and following one on `sha --write` or
+    `propagate --write` rewrites a file the project does not contain. Reads are left
+    alone: an entry symlinked in from outside is read normally, and only the write is
+    the thing this package promises not to do.
+    """
+    outside = leaves_root(ledger.config.root, path)
+    if outside is not None:
+        raise AuthoringError(
+            f"{path} leads to {outside}, outside the project root {ledger.config.root}; "
+            "nothing is written through a link that leaves the project"
+        )
 
 
 def computed_sha(path):
@@ -228,6 +250,7 @@ def restamp(ledger, path, write=False, force=False):
     )
     if not n:
         raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
+    refuse_to_write_outside_the_root(ledger, path)
     try:
         path.write_text(new, encoding="utf-8")
     except OSError as exc:

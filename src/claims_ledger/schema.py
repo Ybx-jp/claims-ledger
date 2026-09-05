@@ -2,7 +2,9 @@
 
 One parser, one normalization, one fingerprint, one status derivation, shared by
 validate, resolve, references and propagate so that no two checkers can disagree about
-what an entry says. The schema itself is stated in full in docs/SCHEMA.md, restated in
+what an entry says. The schema itself is stated in full in docs/SCHEMA.md, which an
+installed copy does not carry and the repository has at
+https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md. It is restated in
 corpus/README.md (the parts the red-team seeds depend on), and proven by corpus/run.py;
 nothing here is trusted beyond what that corpus exercises.
 
@@ -13,16 +15,18 @@ Nothing outside the standard library is imported, so the checkers run from a pla
 from __future__ import annotations
 
 import dataclasses
+import fnmatch
 import glob
 import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import unicodedata
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from .config import Config, default_config, load_config
 
@@ -160,16 +164,23 @@ class Ledger:
 
 def tree_documents(config):
     """(documents, unreadable) — the documents that may cite an entry, addressed from the
-    project root, and the ones that matched a pattern but cannot be opened.
+    project root, and everything a pattern reached that could not be read.
 
-    A document nobody can read is not an empty document. Kept apart here rather than
-    dropped, so that the checkers report it and the document count stays a count of what
-    was actually read.
+    A document nobody can read is not an empty document, and neither is a directory
+    nobody can list. Both are kept apart here rather than dropped, so that the checkers
+    report them and the document count stays a count of what was actually read.
     """
     paths = []
     for pattern in config.documents:
         paths += glob.glob(os.path.join(config.root, pattern), recursive=True)
-    docs, unreadable, seen = [], [], {}
+    # glob() answers `no matches` for a directory it may not read, exactly as it answered
+    # `no entries` for an unlistable entries directory. The directories the patterns reach
+    # into are therefore walked here, where the EACCES is visible.
+    unreadable = [
+        (os.path.relpath(d, config.root), f"{problem}; the documents under it were not checked")
+        for d, problem in sorted(unlistable_document_dirs(config).items())
+    ]
+    docs, seen = [], {}
     for path in sorted(set(paths)):
         norm = path.replace(os.sep, "/")
         if any(x in norm for x in config.document_excludes):
@@ -178,33 +189,86 @@ def tree_documents(config):
             os.path.realpath(config.ledger_dir)
         ):
             continue  # the ledger does not cite itself
+        rel = os.path.relpath(path, config.root)
         if not os.path.isfile(path):
+            # A FIFO, a directory or a dangling symlink whose name matched a pattern. Not
+            # silently skipped: it was addressed as a document and it was not checked.
+            unreadable.append((rel, "is not a regular file; it was not checked"))
             continue
         # Keyed by real path: a tree can reach one document at more than one address
         # through a symlink, and a document is reported at one location only.
         real = os.path.realpath(path)
-        rel = os.path.relpath(path, config.root)
         if real in seen and len(seen[real]) <= len(rel):
             continue
         seen[real] = rel
-        problem = unopenable(path)
+        problem = unreadable_document(path)
         if problem:
-            unreadable.append((rel, problem))
+            unreadable.append((rel, f"{problem}; its citations were not checked"))
             continue
         docs.append((rel, Path(path)))
     return docs, unreadable
 
 
-def unopenable(path):
-    """Why `path` cannot be opened for reading, or None. The file is opened and closed
-    rather than asked about: `os.access` answers for the real uid under a setuid binary
-    and for nobody at all under an ACL, and the question here is whether the read that
-    the checkers are about to do will work."""
+def unreadable_document(path):
+    """Why `path` cannot be read as UTF-8 text, or None.
+
+    The read is done rather than asked about: `os.access` answers for the real uid under
+    a setuid binary and for nobody at all under an ACL, and a file that opens and then
+    turns out not to be text is just as unchecked as one that never opened. The text is
+    discarded — this runs for every command, and the checkers that want the content read
+    it themselves.
+    """
     try:
-        with open(path, "rb"):
-            return None
+        Path(path).read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        return f"is not UTF-8 text (byte {exc.start}: {exc.reason})"
     except OSError as exc:
         return f"cannot be read ({exc.strerror or exc})"
+    return None
+
+
+def _subdirectories(directory):
+    """(subdirectories, problem) for one directory. Symlinked directories are not
+    descended into, the way `**` does not follow them; the question here is which
+    directories will not list, and a link that leaves the tree is not one of them."""
+    try:
+        with os.scandir(directory) as it:
+            return [Path(e.path) for e in it if e.is_dir(follow_symlinks=False)], None
+    except (OSError, RuntimeError) as exc:
+        return [], f"cannot be listed ({getattr(exc, 'strerror', None) or exc})"
+
+
+def unlistable_document_dirs(config):
+    """{directory: problem} for every directory a `documents` pattern reaches into and
+    cannot list. The last segment of a pattern names files, so only the segments above it
+    are walked; a directory that lists tells us its files list too."""
+    problems = {}
+
+    def note(directory):
+        subdirs, problem = _subdirectories(directory)
+        if problem is not None:
+            problems.setdefault(directory, problem)
+        return subdirs
+
+    def descendants(directory):
+        out = [directory]
+        for child in note(directory):
+            out += descendants(child)
+        return out
+
+    for pattern in config.documents:
+        directories = [Path(config.root)]
+        for segment in PurePath(pattern).parts[:-1]:
+            reached = []
+            for directory in directories:
+                if segment == "**":  # this directory and every directory under it
+                    reached += descendants(directory)
+                else:
+                    reached += [d for d in note(directory) if fnmatch.fnmatch(d.name, segment)]
+            directories = reached
+        for directory in directories:
+            note(directory)  # the segment that names the files still needs a listing
+    return problems
 
 
 def open_ledger(root=None, config_path=None, config=None):
@@ -496,6 +560,31 @@ def _parse_verdicts(text):
     return verdicts
 
 
+def file_problem(path, what):
+    """Why `path` is not a regular file this tool can read, or None when it is one.
+
+    `os.stat` rather than `Path.is_file()`, for two reasons. is_file() answers False for
+    everything from a FIFO to a permission error, and which of them it was is the
+    difference between a message someone can act on and `unexpected PermissionError`. And
+    it answers differently on different interpreters — with the execute bit off a
+    directory, 3.12 lets the EACCES out of is_file() and 3.13 swallows it — while the
+    syscall underneath says the same thing everywhere.
+    """
+    try:
+        info = os.stat(path)
+    except FileNotFoundError:
+        # A path that is there and points at nothing is a different mistake from a path
+        # that is not there: a moved target, against a name that was never written.
+        if os.path.islink(path):
+            return f"{what} is a symlink to nothing"
+        return f"no {what} there"
+    except (OSError, ValueError) as exc:
+        return f"cannot read {what} ({getattr(exc, 'strerror', None) or exc})"
+    if not stat.S_ISREG(info.st_mode):
+        return f"{what} is not a regular file"
+    return None
+
+
 def read_text_or_raise(path, what):
     """`path` as UTF-8 text, or a LedgerError naming the file and what is wrong with it.
     Every read of a file the user maintains goes through here: an unreadable entry is a
@@ -503,9 +592,11 @@ def read_text_or_raise(path, what):
     path = Path(path)
     # Checked before opening: a FIFO named like an entry blocks read_text() forever with
     # no writer on the other end, which wedges a pre-commit hook with no output at all.
-    # A directory, a dangling symlink and a symlink loop all land here too.
-    if not path.is_file():
-        raise LedgerError(f"{path}: {what} is not a regular file")
+    # A directory, a dangling symlink, a symlink loop and a name that will not stat all
+    # land here too.
+    problem = file_problem(path, what)
+    if problem is not None:
+        raise LedgerError(f"{path}: {problem}")
     try:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
@@ -660,6 +751,38 @@ def git_available():
     return shutil.which("git") is not None
 
 
+def git_problem(repo):
+    """Why git cannot answer questions about `repo`, or None when it can.
+
+    `git()` answers None for every failure and the history checks read None as `this entry
+    is not committed yet`, so a git that is present but broken — a damaged object store, a
+    checkout it refuses as dubious ownership, one that timed out — was quieter than a git
+    that is missing: it dropped the frozen-region and append-only checks and said nothing.
+    Asked once, with the cheapest command there is, so `skipped_checks()` can name it.
+    """
+    if not git_available():
+        return "git is not on PATH"
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--git-dir"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=GIT_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return f"git did not answer within {GIT_TIMEOUT}s"
+    except OSError as exc:
+        return f"git could not be run ({exc.strerror or exc})"
+    if out.returncode != 0:
+        detail = (out.stderr or "").strip().splitlines()
+        why = detail[-1] if detail else f"exit {out.returncode}"
+        return f"git cannot read the repository ({why})"
+    return None
+
+
 def entries_dir_listing_error(entries_dir):
     """The error that stops us listing `entries_dir`, or None when it lists.
 
@@ -724,8 +847,11 @@ def load_registry(path):
     is reported by resolve when something points at it."""
     rows = {}
     path = Path(path)
-    if not path.is_file():
-        return rows
+    if not os.path.lexists(path):
+        return rows  # a ledger with no sources registered yet
+    problem = file_problem(path, "the source registry")
+    if problem is not None:
+        raise LedgerError(f"{path}: {problem}")
     for lineno, ln in enumerate(read_text_or_raise(path, "the source registry").splitlines(), 1):
         if not ln.strip():
             continue
@@ -748,11 +874,12 @@ def source_bytes(row, ledger):
         candidate = ledger.cache / row["sha256"]
     else:
         return None, f"registry row {row['id']} names no bytes and there is no cache"
-    if not candidate.is_file():
-        return None, (
-            f"bytes for {row['id']} not found at {ledger.config.relative(candidate)}; "
-            "the check cannot run"
-        )
+    problem = file_problem(candidate, f"bytes for {row['id']}")
+    if problem is not None:
+        where = ledger.config.relative(candidate)
+        if problem.startswith("no "):
+            return None, f"bytes for {row['id']} not found at {where}; the check cannot run"
+        return None, f"{problem} at {where}; the check cannot run"
     data = candidate.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     if digest != row.get("sha256"):

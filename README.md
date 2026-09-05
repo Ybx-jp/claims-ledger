@@ -190,9 +190,14 @@ the right to say where this tool writes, or point the checkers at a file the pro
 not contain.
 
 A checker that cannot read something says so and exits non-zero. An entries directory it
-cannot list, and a document it cannot open, are reported rather than read as empty —
+cannot list, a documents directory it cannot enter, a document it cannot open or decode,
+and a git that runs but cannot answer, are all reported rather than read as empty —
 `0 failure(s)` over a ledger that was never read is the one report this tool must never
 produce.
+
+Writing is confined the same way reading is checked. Nothing is written through a link
+that leaves the project root, including an entry file inside `entries/` that is a symlink
+to somewhere else; reads follow such a link, writes refuse it.
 
 ## Authoring
 

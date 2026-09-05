@@ -20,7 +20,9 @@ from .schema import (
     LedgerError,
     entries_dir_listing_error,
     exit_code,
+    file_problem,
     git_available,
+    git_problem,
     list_entry_files,
     load_entries,
     load_registry,
@@ -111,7 +113,16 @@ def build_parser():
 
     sub.add_parser("status", help="every entry with its kind, grade and derived status")
 
-    n = sub.add_parser("new", help="scaffold an entry")
+    n = sub.add_parser(
+        "new",
+        help="scaffold an entry",
+        # The URL goes in the epilog, which argparse prints as written: in the help text
+        # of an option it was wrapped mid-token at the terminal width, and a link that
+        # cannot be copied is not a link.
+        epilog="The grades, and what each one requires:\n"
+        "https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     n.add_argument("slug", help="lowercase-and-hyphens slug; the id is allocated for you")
     n.add_argument("--id", dest="ident", help="use this id instead of the next free one")
     n.add_argument(
@@ -125,7 +136,7 @@ def build_parser():
         default="measured",
         choices=("asserted", "argued", "measured", "controlled", "preregistered"),
         help="the strength of the grounds, from asserted (none) to preregistered; "
-        "measured and above require a lab or experiment ground. See https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md",
+        "measured and above require a lab or experiment ground",
     )
     n.add_argument("--author", default="main", help="who states it; a lowercase author name")
     n.add_argument("--supersedes", default="none", help="the id this entry replaces, or `none`")
@@ -193,16 +204,20 @@ def skipped_checks(ledger, cached=False):
     a case where the machinery is silently doing less than the README promises.
     """
     notes = []
+    problem = git_problem(ledger.repo) if ledger.repo else None
     if not ledger.repo:
         notes.append(
             "not a git repository, so the frozen-region and append-only checks did not run"
         )
-    elif not git_available():
-        notes.append("git is not on PATH, so the frozen-region and append-only checks did not run")
-    if cached and not ledger.repo:
+    elif problem:
+        # Not only `git is not on PATH`: a git that runs and fails answers None to every
+        # question, and the history checks read None as `not committed yet`. A broken git
+        # was quieter than a missing one until this asked.
+        notes.append(f"{problem}, so the frozen-region and append-only checks did not run")
+    if cached and (not ledger.repo or problem):
         notes.append("--cached had no effect: there is no git index to read")
     for name, problem in ledger.unreadable_docs:
-        notes.append(f"{name} {problem}, so its citations were not checked")
+        notes.append(f"{name} {problem}")
     return notes
 
 
@@ -347,6 +362,16 @@ def cmd_sha(args, ledger):
     worst = 0
     for raw in args.path:
         path = Path(raw)
+        # A path argument is read from the current directory, as every other command-line
+        # tool reads one — but with --root pointing elsewhere, the same entry named two
+        # ways gave two answers and nothing said why. It says why now.
+        with contextlib.suppress(OSError):
+            if not path.exists() and (ledger.config.root / raw).exists():
+                print(
+                    f"claims-ledger: {raw} is read from the current directory, not from "
+                    f"the project root; {ledger.config.root / raw} is the entry there",
+                    file=sys.stderr,
+                )
         declared, computed, changed = authoring.restamp(
             ledger, path, write=args.write, force=args.force
         )
@@ -402,6 +427,18 @@ def cmd_init(args, _ledger):
         print(f"{config_path} already exists; pass --force to write over it", file=sys.stderr)
         return 1
     registry = ledger_dir / "sources.jsonl"
+    ignore = ledger_dir / "cache" / ".gitignore"
+    for path, what in ((config_path, "the configuration"), (ignore, "the cache .gitignore")):
+        # Opening a FIFO for writing blocks until a reader appears, which is a wedged job
+        # with no output at all. The registry is only written when it does not exist, and
+        # `--force` is what makes the configuration a write over something already there.
+        if os.path.lexists(path) and file_problem(path, what) is not None:
+            print(
+                f"claims-ledger: {path} is not a regular file; {what} is written to a "
+                "plain file, and this one would not be one",
+                file=sys.stderr,
+            )
+            return 2
     try:
         # A regular file already at `ledger/entries`, a read-only project directory: a
         # scaffolder run in the wrong place fails in ordinary ways, and none of them is a
@@ -409,7 +446,7 @@ def cmd_init(args, _ledger):
         (ledger_dir / "entries").mkdir(parents=True, exist_ok=True)
         cache = ledger_dir / "cache"
         cache.mkdir(parents=True, exist_ok=True)
-        (cache / ".gitignore").write_text(CACHE_IGNORE, encoding="utf-8")
+        ignore.write_text(CACHE_IGNORE, encoding="utf-8")
         if not registry.exists():
             registry.write_text("", encoding="utf-8")
         config_path.write_text(CONFIG_TEMPLATE.format(ledger=args.ledger), encoding="utf-8")

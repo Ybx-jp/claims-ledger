@@ -15,15 +15,23 @@ over content that was never actually checked, or a write outside the project roo
 so every test below that produces it fails the assertion on purpose — it is a bug
 signal, not a pass, and was never weakened to match the behaviour it found.
 
-The eighteen defects this file was written to record are fixed — the nine of the
-2026-09-05 pre-publication audit and the nine of the second pass against those fixes
-(QE-AUDIT.md, both sections) — and each is kept below as the regression test for its fix.
+The twenty-four defects this file was written to record are fixed, in three rounds: the
+nine of the 2026-09-05 pre-publication audit, the nine of the second pass against those
+fixes, and the six of the third pass against the second round (QE-AUDIT.md, all three
+sections). Each is kept below as the regression test for its fix.
+
+Two of the third pass's six could only be reproduced on some interpreters — pathlib's
+answer for a symlink loop and for a file it may not stat changed between 3.12 and 3.14 —
+and one of those was recorded as `held` by an earlier pass for exactly that reason. The
+fixes are interpreter-independent and so are the tests, which is why neither carries a
+version gate any more; CI runs the matrix the wheel advertises, and 3.14 with it.
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -33,9 +41,11 @@ import unicodedata
 
 import pytest
 
-from claims_ledger import cli, schema
+from claims_ledger import cli, propagate, schema
+from claims_ledger.authoring import NAME_MAX
 from claims_ledger.config import ConfigError, load_config
 from claims_ledger.corpus import run as corpus_run
+from claims_ledger.schema import LedgerError, open_ledger, parse_entry
 
 
 def run_cli(root, *args, timeout=10, env=None):
@@ -1206,3 +1216,250 @@ def test_source_add_into_a_read_only_cache_is_a_clean_error(project, tmp_path, c
         os.chmod(cache, 0o755)
     assert rc == 2
     assert "unexpected" not in err, err
+
+
+# === G. the second round of fixes, attacked ===========================================
+#
+# The third pass, 2026-09-05. Every case below was reproduced by hand against an
+# installed wheel built from d2748eb before it was written down, and each is now the
+# regression test for its fix. Three of the six were the same defect class as a fix in
+# section F, one surface over — which is the finding behind the findings, and why they
+# are kept together rather than scattered back into A-F.
+#
+# Two of them depended on what pathlib does rather than on what this package does, and
+# were therefore invisible on some interpreters: `Path.resolve()` raises on a symlink loop
+# up to 3.12 and returns the path on 3.14, and `Path.is_file()` lets an EACCES out on 3.12
+# and swallows it from 3.13. The fixes go through `os.stat` and catch both, so these run
+# everywhere now rather than being gated on a probe of the interpreter.
+
+HAVE_GIT = shutil.which("git") is not None
+
+
+@pytest.mark.skipif(not HAVE_GIT, reason="needs a real git to make the baseline commit")
+def test_a_git_that_fails_does_not_silently_drop_the_frozen_region_check(
+    project, tmp_path, monkeypatch, capsys
+):
+    """Making git unusable must not turn a check that fails into a check that passes.
+
+    The metamorphic pair is the whole test: absent git prints a note and is honest;
+    broken git must not be quieter than absent git."""
+    path = project.entry("A0001-broken-git.md")
+    assert project.cl("new", "broken-git") == 0
+    project.write_full_entry(path)
+    project.git("init")
+    project.git("add", "-A")
+    project.git("commit", "-m", "seed the creating commit")
+
+    text = path.read_text(encoding="utf-8")
+    tampered = text.replace("mean aggregation error", "MEAN AGGREGATION ERROR", 1)
+    assert tampered != text, "the assertion line is the frozen region under test"
+    path.write_text(tampered, encoding="utf-8")
+    # Restamped, so verbatim_sha agrees and only the git-backed check can catch this.
+    assert project.cl("sha", "--write", str(path)) == 0
+    capsys.readouterr()
+
+    assert project.cl("validate") == 1, "a healthy git catches the tampered frozen region"
+    capsys.readouterr()
+
+    shim = tmp_path / "broken-git"
+    shim.mkdir()
+    (shim / "git").write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
+    (shim / "git").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    rc = project.cl("validate")
+    out = capsys.readouterr()
+    # It did neither: rc 0 with empty stderr, quieter than an absent git. `git_problem()`
+    # asks the repository a question now instead of asking PATH for a binary.
+    assert rc == 1 or "did not run" in out.err, out.out + out.err
+    assert "cannot read the repository" in out.err, out.out + out.err
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_unreadable_documents_directory_is_not_a_clean_pass(project, capsys):
+    """The same oracle as the entries directory: making a thing unreadable must never
+    turn a check that fails into a check that passes."""
+    docs = project.root / "docs"
+    (docs / "cites-a-ghost.md").write_text(
+        "This cites (A9999-ghost, cites-as-live), an entry that does not exist.\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    assert project.cl("references") == 1, "the ghost citation is expected to fail"
+    capsys.readouterr()
+
+    os.chmod(docs, 0o000)
+    try:
+        rc = project.cl("references")
+        out = capsys.readouterr()
+    finally:
+        os.chmod(docs, 0o755)
+    # The directories a `documents` pattern reaches into are walked now, not left to
+    # glob(), which answers `no matches` for a directory it may not read.
+    assert rc != 0, out.out + out.err
+    assert "cannot be listed" in out.out + out.err, out.out + out.err
+
+
+def test_init_force_does_not_hang_on_a_fifo_config(tmp_path):
+    """Opening a FIFO for writing blocks until a reader appears. In CI, a wedged job."""
+    root = tmp_path / "proj"
+    root.mkdir()
+    os.mkfifo(root / "claims-ledger.toml")
+    try:
+        proc = run_cli(root, "init", "--force", timeout=8)
+    except subprocess.TimeoutExpired:
+        raise AssertionError(
+            "`init --force` never returned: it opened a FIFO config for writing"
+        ) from None
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "not a regular file" in proc.stderr, proc.stdout + proc.stderr
+
+
+def test_an_entry_symlinked_out_of_the_root_is_not_written_through(project, tmp_path, capsys):
+    """The containment property as stated is `no write outside the project root`."""
+    outside = tmp_path / "outside-root"
+    outside.mkdir()
+    path = project.entry("A0001-escape-by-entry-symlink.md")
+    assert project.cl("new", "escape-by-entry-symlink") == 0
+    victim = outside / "victim.md"
+    shutil.move(str(path), str(victim))
+    # Stale, so `sha --write` has real work to do. Left agreeing, it rewrites nothing and
+    # the test passes without ever exercising the write.
+    stale = re.sub(
+        r"^verbatim_sha: .*$",
+        "verbatim_sha: " + "0" * 64,
+        victim.read_text(encoding="utf-8"),
+        count=1,
+        flags=re.MULTILINE,
+    )
+    victim.write_text(stale, encoding="utf-8")
+    path.symlink_to(victim)
+    before = victim.read_text(encoding="utf-8")
+    capsys.readouterr()
+
+    # The absolute spelling is the one that escapes: given the same entry as a path
+    # relative to the root, `sha` refuses it as not a regular file. Two answers for one
+    # file is its own defect, recorded in QE-AUDIT.md under MEDIUM-19.
+    project.cl("sha", "--write", str(path))
+    capsys.readouterr()
+    assert victim.read_text(encoding="utf-8") == before, "a file outside the root was rewritten"
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_entries_directory_that_lists_but_will_not_open_is_a_clean_error(project, capsys):
+    """Listable and readable are different rights, and guard() establishes only the first."""
+    assert project.cl("new", "no-exec-bit") == 0
+    capsys.readouterr()
+    os.chmod(project.entries, 0o444)
+    try:
+        rc = project.cl("validate")
+        out = capsys.readouterr()
+    finally:
+        os.chmod(project.entries, 0o755)
+    assert rc == 2, out.out + out.err
+    assert "unexpected" not in out.err, out.err
+
+
+def test_a_root_that_is_a_symlink_loop_is_a_clean_error(tmp_path):
+    loop = tmp_path / "loop"
+    loop.symlink_to(loop)
+    proc = run_cli(loop, "status", timeout=8)
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "unexpected" not in proc.stderr, proc.stderr
+
+
+# The audit's smaller findings, from the same pass. Each was reproduced before it was
+# fixed and each fails without its fix.
+
+
+def test_a_document_that_is_not_a_regular_file_is_reported_rather_than_dropped(project, capsys):
+    """A FIFO, a directory or a dangling symlink whose name matches a `documents` pattern
+    used to be dropped one step before the count, silently. It was addressed as a document
+    and it was not checked, which is the thing that has to be said out loud."""
+    os.mkfifo(project.root / "a-fifo.md")
+    (project.root / "a-directory.md").mkdir()
+    (project.root / "dangling.md").symlink_to(project.root / "gone.md")
+    capsys.readouterr()
+    rc = project.cl("references")
+    out = capsys.readouterr()
+    assert rc == 1, out.out + out.err
+    for name in ("a-fifo.md", "a-directory.md", "dangling.md"):
+        assert name in out.out, out.out
+    assert "1 document" in out.out, out.out  # the fixture's docs/note-001.md, and nothing else
+
+
+def test_a_document_that_is_not_utf8_is_not_counted_as_checked(project, capsys):
+    """The probe opened the file and stopped there, so a document that opened and then
+    failed to decode was counted as read while its citations were never seen."""
+    (project.root / "latin1.md").write_bytes(b"caf\xe9 cites (A9999-ghost, cites-as-live)\n")
+    capsys.readouterr()
+    rc = project.cl("references")
+    out = capsys.readouterr()
+    assert rc == 1, out.out + out.err
+    assert "latin1.md" in out.out and "not UTF-8" in out.out, out.out
+    assert "1 document" in out.out, out.out
+
+
+def test_a_slug_that_overruns_the_path_length_is_a_clean_error(tmp_path, capsys):
+    """The length guard checks NAME_MAX, which the filename fits; the path it goes in can
+    still overrun PATH_MAX, and `exists()` re-raised that as `unexpected OSError`.
+
+    Another one that only shows on some interpreters: up to 3.13 `Path.exists()` lets
+    ENAMETOOLONG out, and on 3.14 it swallows every OSError and answers False. The write
+    that follows raises it either way, so the funnel is where the fix belongs and the test
+    is meaningful wherever the interpreter is strict."""
+    try:
+        limit = os.pathconf(str(tmp_path), "PC_PATH_MAX")
+    except (OSError, ValueError, AttributeError):  # pragma: no cover - not POSIX enough
+        pytest.skip("no PC_PATH_MAX on this filesystem")
+    # A slug that fits NAME_MAX exactly, under a root deep enough that the entry path
+    # does not fit PATH_MAX. The root itself stays inside the limit, so `init` works and
+    # only the entry overruns — which is the case the NAME_MAX guard does not see.
+    slug = "s" * (NAME_MAX - len("A0001-") - len(".md"))
+    tail = len(os.sep + "ledger" + os.sep + "entries" + os.sep) + NAME_MAX
+    target = limit - tail + 16
+    root = tmp_path
+    while len(str(root)) + 101 < target:
+        root = root / ("d" * 100)
+    padding = target - len(str(root)) - 1
+    if padding > 0:
+        root = root / ("d" * min(padding, 200))
+    root.mkdir(parents=True)
+    assert cli.main(["--root", str(root), "init"]) == 0
+    capsys.readouterr()
+    rc = cli.main(["--root", str(root), "new", slug])
+    err = capsys.readouterr().err
+    assert rc == 2, err
+    assert "unexpected" not in err, err
+
+
+def test_propagate_refuses_to_write_through_an_entry_that_leaves_the_root(project, tmp_path):
+    """`sha --write` is not the only writer that follows an entry symlink out of the tree;
+    `propagate --write` appends to the same files. The guard is on the write, not on the
+    command that reached it."""
+    outside = tmp_path / "outside-root"
+    outside.mkdir()
+    path = project.entry("A0001-victim.md")
+    assert project.cl("new", "victim") == 0
+    victim = outside / "victim.md"
+    shutil.move(str(path), str(victim))
+    path.symlink_to(victim)
+    before = victim.read_text(encoding="utf-8")
+
+    ledger = open_ledger(root=project.root)
+    entry = parse_entry(path)
+    with pytest.raises(LedgerError, match="outside the project root"):
+        propagate.append_verdict(entry, "- a block\n", root=ledger.config.root)
+    assert victim.read_text(encoding="utf-8") == before
+
+
+def test_a_registry_that_is_not_a_regular_file_is_a_clean_error_on_read(project, capsys):
+    """The write path refuses it; the read path answered `no sources registered`, which is
+    a different claim from `I could not read the registry`."""
+    registry = project.root / "ledger" / "sources.jsonl"
+    registry.unlink()
+    os.mkfifo(registry)
+    capsys.readouterr()
+    rc = project.cl("source", "list")
+    out = capsys.readouterr()
+    assert rc == 2, out.out + out.err
+    assert "not a regular file" in out.err, out.err

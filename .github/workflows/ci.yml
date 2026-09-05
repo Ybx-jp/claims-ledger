@@ -16,7 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: ["3.11", "3.12", "3.13"]
+        # 3.14 is here because this package is developed on it. An interpreter that is
+        # developed on but not tested is where a verification goes to be wrong: pathlib
+        # changed what it answers for a symlink loop, for a file it may not stat and for
+        # a path too long between 3.12 and 3.14, and a defect that only reproduces on one
+        # of them was once recorded as fixed because it was checked on the other.
+        python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
         with:

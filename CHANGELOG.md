@@ -11,15 +11,76 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [0.1.0] — 2026-09-05
 
-### Fixed
+First public release. Extracted from the claims ledger built for a research project on
+dynamic graph embedding refresh, where the schema, the checkers and the corpus were
+developed together. All 62 corpus seeds pass unchanged from the ledger it came out of.
 
-The pre-publication audit in `QE-AUDIT.md` (2026-09-05) found nine defects, each recorded
-as a strict-xfail test; all nine are fixed and those tests are now the regressions for
-the fixes. A second pass then attacked the fixes themselves and found nine more, listed
-after them here; those are fixed too, and section F of `tests/test_hostile_inputs.py`
-holds their regressions.
+Everything below is in this release: the three adversarial passes recorded in
+`QE-AUDIT.md` all ran before it was tagged, so their fixes are part of the first
+published artifact rather than a change to one.
+
+### The schema and the checkers
+
+- An entry separates Assertion, Scope, Grounds, Warrant and Backing, with no quotation
+  mark permitted in the Assertion, and derives its status from an append-only verdict
+  list rather than storing one.
+- Four checkers — `validate`, `resolve`, `references`, `propagate` — and `check`, which
+  runs all four.
+- A red-team corpus of 62 seeds with committed expected outcomes, shipped inside the
+  package and runnable from an installed copy as `claims-ledger corpus`. The contract is
+  symmetric: an unlisted catch is a finding about the seed or the checker, never a bonus.
+- Authoring: `init`, `new`, `sha`, `source add`, `source list`, `status`, `hook`.
+- No runtime dependencies. Python 3.11 or newer.
+
+### Fixed before release
+
+Found by walking the package as a first-time user would, from a clean install.
+
+- **`check` no longer reports success over a ledger it never found.** Pointed at a
+  directory with no entries directory — the wrong `--root`, a configuration file moved
+  away from its ledger — every checking command now stops with exit 2 and says nothing
+  was checked. It previously printed four `0 failure(s)` lines and exited 0, which is
+  the one report this tool must never produce.
+- **Skipped checks are named rather than counted as passes.** Outside a git repository,
+  or with no `git` on PATH, validate's frozen-region and append-only checks cannot run;
+  they now say so on stderr instead of contributing silence to a clean result. `--cached`
+  outside a repository likewise says it had no effect rather than quietly reading the
+  working tree.
+- **A malformed `sources.jsonl` is reported, not raised.** A line that is not JSON, or a
+  row with no `id`, raised `JSONDecodeError`/`KeyError` as a traceback out of `check`,
+  `resolve` and `source list`. It is now a `LedgerError` naming the file and line number.
+- **An entry file that is not UTF-8 is reported, not raised.** One stray byte raised
+  `UnicodeDecodeError` out of every command that loads entries, `status` included.
+- **An unreadable evidence file is a pointer that does not resolve**, reported by
+  `resolve`, rather than an exception from inside the checker.
+- **No traceback reaches a user.** `main()` now turns any unexpected exception into a
+  diagnostic and exit 2, handles `KeyboardInterrupt` (exit 130) and `BrokenPipeError`
+  (exit 141, for `claims-ledger status | head`). `CLAIMS_LEDGER_TRACEBACK=1` restores the
+  traceback for bug reports.
+- **The installed pre-commit hook works for a pip install.** It named the console script
+  `claims-ledger`, which git's hook environment does not have on PATH when the tool lives
+  in a virtualenv that is not active, so it failed with `not found` on every commit. It
+  now names its interpreter absolutely and reaches the package with `-m claims_ledger`.
+- **`python -m claims_ledger` works**, which the hook depends on and the README's
+  standard-library-only promise implies. There was no `__main__.py`.
+- **`--version`.** There was no way to ask the tool what version was installed.
+- **`__all__` matches the documented library API.** `validate`, `resolve`, `references`
+  and `propagate` are advertised in the README and were reachable only by Python's
+  implicit submodule import, not as declared exports. `LedgerError` is exported too.
+- **The version has one source of truth.** `pyproject.toml` reads it from
+  `claims_ledger.__version__` instead of repeating the literal.
+- `1 entries` reads `1 entry`.
+
+
+### Found and fixed by the pre-publication audit
+
+Three adversarial passes, recorded in `QE-AUDIT.md`: nine defects, then nine more found
+by attacking those fixes, then six more found by attacking the second round. All
+twenty-four are fixed, and every one of them is a strict-xfail test that flipped and is
+kept as the regression for its fix in `tests/test_hostile_inputs.py` — sections A-E for
+the first pass, F for the second, G for the third.
 
 - **A FIFO named `*.md` no longer hangs the tool.** `read_text()` on a FIFO with no
   writer blocks forever, so `status`, `validate` and `check` never returned — in a
@@ -97,80 +158,84 @@ holds their regressions.
   Both now give up after 30 seconds, and the corpus decodes git's output as UTF-8
   explicitly, as the checkers already did.
 
+#### The third pass, against the second round of fixes
+
+Three of the six were the same defect class as a second-pass fix, one surface over. The
+fixes had been applied at the site each was reported at rather than to the class, so this
+round asked of every fix which other surfaces reach the same code by a different route.
+
+- **A git that is present but broken no longer drops the immutability checks in
+  silence.** `git()` answers `None` for every failure — a non-zero exit, a timeout, a
+  damaged object store, a checkout git refuses as `dubious ownership` — and the history
+  checks read `None` as *this entry is not committed yet*. So a broken git was quieter
+  than a missing one: an entry whose frozen region had been tampered with came back
+  `0 failure(s)` at exit 0 with empty stderr, where an absent git at least printed a note.
+  A false pass on the frozen-region and append-only guarantee, which is the immutability
+  claim the package exists to make. `git_problem()` now asks the repository a cheap
+  question instead of asking `PATH` for a binary, and `skipped_checks()` names what it
+  says.
+- **An unreadable *documents directory* is no longer a clean pass.** HIGH-9's listability
+  check went to the entries directory and not to the documents glob, so `chmod 000 docs`
+  turned a failing citation check into `0 failure(s)` at exit 0 with no note at all. The
+  directories a `documents` pattern reaches into are walked now, where the `EACCES` is
+  visible instead of swallowed by `glob()`.
+- **`init --force` no longer hangs on a FIFO named `claims-ledger.toml`.** The
+  regular-file guard went into the registry append and not into the config write, and
+  opening a FIFO for writing blocks until a reader appears — in CI, a wedged job with no
+  output.
+- **Nothing is written through an entry that is a symlink out of the project root.**
+  `confined()` follows symlinks for the five configuration keys; an entry file reached by
+  globbing inside `entries/` was not checked at all, so `sha --write` rewrote a file
+  outside the project at exit 0. `propagate --write` reached the same files by a different
+  route and is guarded with it. Reads are deliberately unchanged: an entry symlinked in
+  from outside is still read normally.
+- **An entries directory that lists but will not open is a clean error.** Mode `0o444`
+  leaves the read bit on and takes the execute bit off, so the names list and none of them
+  stat — `unexpected PermissionError` and a request for a bug report over an ordinary
+  permission problem. Reads go through `os.stat` now rather than `Path.is_file()`, which
+  answers `False` for everything from a FIFO to a permission error and answers it
+  differently on different interpreters.
+- **`--root` pointing at a symlink loop is a clean error**, as the entries directory
+  already was.
+- Smaller, from the same pass: a document that is not a regular file, and one that is not
+  UTF-8, are reported by name rather than dropped before the count; a slug that fits
+  `NAME_MAX` but overruns `PATH_MAX` under a deep root is a specific error rather than
+  `unexpected OSError`; and a source registry that is not a regular file is refused on
+  read as it already was on write.
+
 #### Known, and left as it is
 
 - A document reached through a symlink that leaves the root is still read. The
   `documents` confinement is lexical by design: what it closes is a configuration that
   addresses outside the project, not every route a link inside the tree can take.
+- An entry that is a *hardlink* to a file outside the root is written through. A hardlink
+  is the file, not a reference to it, and there is nothing at the path to refuse.
+- `GIT_TIMEOUT` bounds each git call, not a whole command: `validate --cached` over N
+  entries can wait N × 30s on a git that hangs. A per-command deadline would be the
+  stronger promise; per-call is the one made here.
 
 ### Packaging and documentation
 
 - The README's link to `docs/SCHEMA.md` is absolute, so it resolves on the PyPI project
-  page instead of 404ing; the package docstring and the `--grade` help text point at the
-  same URL rather than at a path no installed copy carries.
+  page instead of 404ing; the package docstring, `schema.py`'s docstring and `new`'s help
+  point at the same URL rather than at a path no installed copy carries. The URL sits in
+  argparse's epilog, which is printed as written — as an option's help text it was wrapped
+  mid-token at the terminal width, and a link that cannot be copied is not a link.
 - `CHANGELOG.md` ships in the sdist, which `[project.urls]` already promised.
 - A tag-triggered release workflow publishes to PyPI through Trusted Publishing, after
   the built wheel has proved itself by running the corpus from a clean environment. It
   needs a publisher configured once on PyPI naming this repository, `release.yml` and
-  the `pypi` environment.
-
-## [0.1.0] — 2026-09-05
-
-First public release. Extracted from the claims ledger built for a research project on
-dynamic graph embedding refresh, where the schema, the checkers and the corpus were
-developed together. All 62 corpus seeds pass unchanged from the ledger it came out of.
-
-### The schema and the checkers
-
-- An entry separates Assertion, Scope, Grounds, Warrant and Backing, with no quotation
-  mark permitted in the Assertion, and derives its status from an append-only verdict
-  list rather than storing one.
-- Four checkers — `validate`, `resolve`, `references`, `propagate` — and `check`, which
-  runs all four.
-- A red-team corpus of 62 seeds with committed expected outcomes, shipped inside the
-  package and runnable from an installed copy as `claims-ledger corpus`. The contract is
-  symmetric: an unlisted catch is a finding about the seed or the checker, never a bonus.
-- Authoring: `init`, `new`, `sha`, `source add`, `source list`, `status`, `hook`.
-- No runtime dependencies. Python 3.11 or newer.
-
-### Fixed before release
-
-Found by walking the package as a first-time user would, from a clean install.
-
-- **`check` no longer reports success over a ledger it never found.** Pointed at a
-  directory with no entries directory — the wrong `--root`, a configuration file moved
-  away from its ledger — every checking command now stops with exit 2 and says nothing
-  was checked. It previously printed four `0 failure(s)` lines and exited 0, which is
-  the one report this tool must never produce.
-- **Skipped checks are named rather than counted as passes.** Outside a git repository,
-  or with no `git` on PATH, validate's frozen-region and append-only checks cannot run;
-  they now say so on stderr instead of contributing silence to a clean result. `--cached`
-  outside a repository likewise says it had no effect rather than quietly reading the
-  working tree.
-- **A malformed `sources.jsonl` is reported, not raised.** A line that is not JSON, or a
-  row with no `id`, raised `JSONDecodeError`/`KeyError` as a traceback out of `check`,
-  `resolve` and `source list`. It is now a `LedgerError` naming the file and line number.
-- **An entry file that is not UTF-8 is reported, not raised.** One stray byte raised
-  `UnicodeDecodeError` out of every command that loads entries, `status` included.
-- **An unreadable evidence file is a pointer that does not resolve**, reported by
-  `resolve`, rather than an exception from inside the checker.
-- **No traceback reaches a user.** `main()` now turns any unexpected exception into a
-  diagnostic and exit 2, handles `KeyboardInterrupt` (exit 130) and `BrokenPipeError`
-  (exit 141, for `claims-ledger status | head`). `CLAIMS_LEDGER_TRACEBACK=1` restores the
-  traceback for bug reports.
-- **The installed pre-commit hook works for a pip install.** It named the console script
-  `claims-ledger`, which git's hook environment does not have on PATH when the tool lives
-  in a virtualenv that is not active, so it failed with `not found` on every commit. It
-  now names its interpreter absolutely and reaches the package with `-m claims_ledger`.
-- **`python -m claims_ledger` works**, which the hook depends on and the README's
-  standard-library-only promise implies. There was no `__main__.py`.
-- **`--version`.** There was no way to ask the tool what version was installed.
-- **`__all__` matches the documented library API.** `validate`, `resolve`, `references`
-  and `propagate` are advertised in the README and were reachable only by Python's
-  implicit submodule import, not as declared exports. `LedgerError` is exported too.
-- **The version has one source of truth.** `pyproject.toml` reads it from
-  `claims_ledger.__version__` instead of repeating the literal.
-- `1 entries` reads `1 entry`.
+  the `pypi` environment. Two gates the third pass asked for: the whole suite — ruff,
+  `ty`, pytest — runs before anything is built, because a tag matches neither of CI's
+  triggers and publication was otherwise gated on the corpus alone; and the `publish` job
+  is guarded on the ref being a tag, because Trusted Publishing binds the repository, the
+  workflow file and the environment but never the ref, so a manual dispatch from any
+  branch would have published with the tag-agrees-with-package check skipped.
+- **3.14 is tested and classified.** It is the interpreter this package is developed on,
+  and it was not in the matrix. Three of the third pass's findings turn on pathlib
+  behaviour that changed between 3.12 and 3.14 — a symlink loop, a file that will not
+  stat, a path too long — and one of them had been recorded as fixed by a pass that
+  checked it on the interpreter where it cannot occur.
 
 ### Development
 
@@ -196,5 +261,4 @@ Found by walking the package as a first-time user would, from a clean install.
 - The tool does not decide whether a claim is true. See "What this does not do" in the
   README.
 
-[Unreleased]: https://github.com/Ybx-jp/claims-ledger/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0

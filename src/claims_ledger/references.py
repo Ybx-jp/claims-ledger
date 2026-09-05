@@ -157,7 +157,7 @@ def run(ledger):
     # not report a clean run over it. `fail`, not `flag`, because the exit code is what a
     # hook acts on and nothing here was verified.
     for name, problem in ledger.unreadable_docs:
-        reports.append(Report("fail", None, name, f"{problem}; its citations were not checked"))
+        reports.append(Report("fail", None, name, problem))
 
     cited = {}  # doc name -> {(entry id, act)}
     for name, path in ledger.docs:

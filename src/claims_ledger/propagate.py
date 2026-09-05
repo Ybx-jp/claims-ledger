@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from .config import leaves_root
 from .schema import (
     FALLEN,
     TERMINAL,
@@ -61,7 +62,15 @@ def verdict_block(status_grade, cause_id, act, note, author):
     )
 
 
-def append_verdict(entry, block):
+def append_verdict(entry, block, root=None):
+    """The verdict appended to the entry file. `root` refuses a write that lands outside
+    the project — an entry inside `entries/` can be a symlink to anywhere, and following
+    one is the write outside the root that this package states it does not do."""
+    if root is not None and (outside := leaves_root(root, entry.path)) is not None:
+        raise LedgerError(
+            f"{entry.path} leads to {outside}, outside the project root {root}; "
+            "nothing is written through a link that leaves the project"
+        )
     text = entry.text
     marker = "\n## References"
     if marker in text:
@@ -206,7 +215,7 @@ def run(ledger, write=False):
 
     if write:
         for e, block in pending:
-            append_verdict(e, block)
+            append_verdict(e, block, root=ledger.config.root)
             reports.append(
                 Report(
                     "flag",

@@ -23,6 +23,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install build twine
+      - name: The suite, before anything is built
+        # A tag matches neither of ci.yml's triggers, so without this the only thing
+        # standing between a tag and PyPI would be the corpus. Publication is gated on
+        # every check CI runs, not on a subset of them.
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          ruff format --check .
+          ty check
+          pytest -q
       - run: python -m build
       - run: twine check --strict dist/*
       - name: The tag and the package agree on the version
@@ -47,6 +57,11 @@ jobs:
 
   publish:
     needs: build
+    # Only a tag publishes. Trusted Publishing binds the repository, the workflow file and
+    # the environment — never the ref — so without this a manual dispatch from any branch
+    # would publish whatever `__init__.py` said, with the tag-agrees-with-package check
+    # skipped for having no tag to compare against.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment: pypi
     # Trusted Publishing: PyPI mints a short-lived token for this workflow, so there is

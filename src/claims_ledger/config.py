@@ -89,7 +89,7 @@ def default_config(root):
     `claims-ledger.toml` at all can still have a `ledger` that is a symlink out of the
     tree, and the containment is a property of the tool rather than of the file.
     """
-    root = Path(root).resolve()
+    root = resolved(root)
     ledger = confined(root, "ledger", "ledger")
     return Config(
         root=root,
@@ -104,7 +104,7 @@ def find_config_file(start):
     """The nearest configuration file at or above `start`, or None. A `pyproject.toml`
     counts only when it carries a `[tool.claims-ledger]` table, so a package that merely
     depends on this one is not mistaken for the project root."""
-    start = Path(start).resolve()
+    start = resolved(start)
     for directory in (start, *start.parents):
         for name in CONFIG_FILENAMES:
             if (directory / name).is_file():
@@ -160,6 +160,22 @@ def _escapes(root, path):
     return path != root and root not in path.parents
 
 
+def resolved(path, what="root"):
+    """`path` with its symlinks followed, or a ConfigError naming it.
+
+    A symlink loop reaches pathlib as a RuntimeError on 3.12 and earlier and as the
+    unresolved path on 3.14; `--root` pointing at one is a misconfigured root either way,
+    not an internal error to ask for a bug report over.
+    """
+    try:
+        return Path(path).resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ConfigError(
+            f"{what} {path} cannot be resolved ({exc}); a symlink loop, or a path that "
+            "walks through something that is not a directory"
+        ) from exc
+
+
 def _followed(path):
     """`path` with its symlinks followed, or `path` itself when they cannot be. A loop
     reaches us as an OSError or a RuntimeError depending on the interpreter, and a path
@@ -201,6 +217,18 @@ def confined(root, key, value):
     return lexical
 
 
+def leaves_root(root, path):
+    """Where `path` really is, when that is outside `root`; None when it is not.
+
+    The same question `confined()` asks of a configured path, asked of a file the tool is
+    about to write. A configuration is not the only thing a clone carries: an entry inside
+    `entries/` can be a symlink to anywhere, and following one on a write is a write
+    outside the project root — which is the property this package states it has.
+    """
+    followed = _followed(path)
+    return followed if _escapes(_followed(Path(root)), followed) else None
+
+
 def confined_pattern(root, key, value):
     """A glob pattern a configuration names, refused if it addresses outside `root`.
 
@@ -234,7 +262,7 @@ def from_table(table, root, source=None):
                 f"{' or '.join(t.__name__ for t in names)}"
             )
 
-    root = Path(root).resolve()
+    root = resolved(root)
     ledger = confined(root, "ledger", table.get("ledger", "ledger"))
     documents = tuple(table.get("documents", DEFAULT_DOCUMENTS))
     for pattern in documents:
@@ -292,7 +320,7 @@ def load_config(root=None, config_path=None):
     if root is not None and not str(root).strip():
         raise ConfigError("root is empty; give a directory or omit --root")
     if config_path is not None:
-        path = Path(config_path).resolve()
+        path = resolved(config_path, what="the configuration file")
         if not path.is_file():
             raise ConfigError(f"no configuration file at {path}")
         return from_table(_read_table(path), root or path.parent, source=path)
