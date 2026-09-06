@@ -282,6 +282,14 @@ to refuse.
   the same file supplies a blob a discharge can name, with the pinned section untouched.
 - **`absent` is checked against the file, not against the verdict.** A ground deleted and
   restored in two commits satisfies it, which is a touch-and-revert.
+- **A verdict that records what the run would have recorded is a discharge, whoever wrote
+  it.** `git hash-object --path <file> -- <file>` is one command, and a hand-written
+  verdict carrying its output holds a live drift at exit 0 across all five checkers. This
+  is inherent rather than a defect: without signing, no rule can separate "the tool wrote
+  this" from "a person wrote what the tool would have written", and *describing the drift*
+  is exactly what an honest discharge does. It is stated here because the rule above is
+  easy to read as an anti-forgery property, and it is not one — it is a rule about whether
+  the record is *true*, not about who made it.
 
 So the accidental forgery is narrowed rather than removed: the object-id case needs a
 deliberate `git rev-parse`, and the two above do not. Both remaining residuals require an
@@ -480,9 +488,10 @@ rather than something a later reader has to notice.
   whose evidence lives on a moving branch, and failing would make that project's ledger
   uncheckable rather than merely weaker.
 - **Whether the discharge should expire.** Nothing here re-flags a claim whose ground
-  moved a second time after being contested: `has_acknowledged()` matches a verdict to a
-  ground by the pointer, and the pointer has not changed. The verdict now carries the
-  object id it was written against, so the question can be asked — is the artifact still
-  the version this discharge judged? — but it is not asked yet, and asking it would mean
-  deciding what a project does about a discharge that has aged out, which is a policy this
-  has no experience to choose from.
+  moved a *second* time after being contested. The suppression rule does now read the
+  `artifact:` line — but it accepts a verdict whose record the artifact really held
+  between the pin and here, and a first drift that was committed satisfies that forever.
+  So the discharge covers every later version of the ground as well as the one it judged.
+  The question can be asked — is the artifact still the version this discharge judged? —
+  and asking it would mean deciding what a project does about a discharge that has aged
+  out, which is a policy this has no experience to choose from.

@@ -423,6 +423,25 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   frozen. A ground is now an orphan when *no* propagated verdict against it states a cause
   that happened, which is the question the rule was always about, and the second verdict
   the next run appends repairs the record by ordinary means.
+- **"Not caused" is two answers, and only one of them is a forgery** — QE8-82, from the
+  second round of the same gate. The wedge above has a sibling the per-ground rule cannot
+  reach, because there is no second verdict to reach with: edit a ground, run
+  `freshness --write`, commit the ledger, and then *abandon* the edit. The recorded blob
+  was never in any commit, the ground is fresh, and `--write` appends nothing more — so
+  the discharge was a permanent failure no legal edit could clear, on the documented
+  workflow and an author who changed their mind. A record git can **refute** — the blob
+  the pin itself has, or `absent` over a history holding no deletion — is the pre-emptive
+  forgery and still fails. A record git can only fail to **confirm** now flags. This is a
+  weakening of one outcome and is recorded as one; what it does not weaken is what the
+  forgery buys, because the suppression rule requires the same `caused` and a verdict
+  nothing can confirm silences no drift either.
+- **The hook is installed where git actually looks for it** — QE8-83. `core.hooksPath`
+  moves the hooks directory, and `hook --install` wrote to `.git/hooks` regardless,
+  printing `installed …` and exiting 0 for a file git would never execute: a gate reported
+  as installed that does not exist, which is this package's own cardinal failure at the
+  surface the sixth pass had just fixed. `git rev-parse --git-path hooks` is the question
+  git asks itself, and it also fixes the linked-worktree and `--separate-git-dir` cases,
+  where `.git` is a file and the install failed with `Not a directory`.
 - **A git that cannot say whether the drift happened says so** — HIGH-54. `ever_drifted()`
   read a `rev-list` that failed, raised or outlived the 30-second timeout as "it drifted",
   and retired the forged-discharge check with no report that it had not run. That is the

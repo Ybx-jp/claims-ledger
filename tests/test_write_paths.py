@@ -666,3 +666,48 @@ def test_hook_install_does_not_write_through_a_link_that_leaves_the_git_director
 
     assert project.cl("hook", "--install") != 0
     assert not outside.exists(), f"`hook --install` wrote a shell script to {outside}"
+
+
+def test_hook_install_goes_where_git_actually_looks_for_hooks(project):
+    """QE8-83. `core.hooksPath` moves the directory git runs hooks out of, and an install
+    into `.git/hooks` under it printed `installed …` and exited 0 for a file git will
+    never execute — a gate reported as installed that does not exist, which is HIGH-57's
+    own class at the surface HIGH-57 fixed. `git rev-parse --git-path hooks` is the
+    question git asks itself."""
+    project.git("init", "-q")
+    project.git("config", "core.hooksPath", "myhooks")
+    assert project.cl("hook", "--install") == 0
+    assert (Path(project.root) / "myhooks" / "pre-commit").is_file(), (
+        "the hook was installed where git does not look"
+    )
+
+
+def test_hook_install_reaches_a_linked_worktrees_real_hooks_directory(project, tmp_path):
+    """QE8-86, and the same fix. In a linked worktree `.git` is a *file*, so the install
+    used to fail with `Not a directory` at a path that was never the right one — the very
+    case the guard's own comment named as its reason for choosing that boundary."""
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the project")
+    linked = tmp_path / "linked"
+    project.git("worktree", "add", "-q", str(linked))
+    assert Project(linked).cl("hook", "--install") == 0
+    assert (Path(project.root) / ".git" / "hooks" / "pre-commit").is_file()
+
+
+def test_hook_install_leaves_a_deliberate_shared_hook_link_alone(project):
+    """QE8-88 and the `lexists` half of QE8-89, which had no test in either direction.
+
+    A team pointing `.git/hooks/pre-commit` at a shared script is a deliberate setup, and
+    the answer it has always had is `exit 1` and the hook text to paste. `exists()` said
+    no to a link whose target is not there and wrote straight through it; asking `lexists`
+    *before* the containment guard keeps the helpful answer for the deliberate case and
+    still writes nothing through the link.
+    """
+    project.git("init", "-q")
+    hooks = Path(project.root) / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    shared = hooks / "shared-pre-commit"  # inside the boundary, so only `lexists` refuses
+    (hooks / "pre-commit").symlink_to(shared)
+    assert project.cl("hook", "--install") == 1
+    assert not shared.exists(), f"the install wrote through the link to {shared}"

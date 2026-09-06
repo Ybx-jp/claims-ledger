@@ -2019,3 +2019,100 @@ verdict.
 That is what the check itself said would settle it. What should still stand between this
 and a tag is the same gate that produced this list — a `qe` consultation over these fixes,
 findings-only, run before the merge and not after it.
+
+## Round 2 of the check — 2026-09-06
+
+The gate ran again over the fixes above and returned **two HIGHs, five MEDIUMs and five
+LOWs**, plus one correction to something I had claimed. Ticket `e68c6248d55d4a8c`; the
+round-1 exchange it was held against is `9f739132726749a9`. Its ruling: *merge the branch,
+do not tag `0.1.0` yet — two changes short, and both are small.* Both are done below, and
+so is everything else it found.
+
+**It conceded the prescription.** Both halves of the reading above are confirmed: `seen_at
+(cached=True)` returns forty hex characters, so the wedge never reaches the branch the
+remedy named; and all three arms of `orphans()` append a `fail`, so rerouting into that
+branch would have left the entry exactly as red. What the remedy was reaching for was the
+**outcome level**, not the branch — and that turned out to be the lever for its own
+sibling, which is the first finding.
+
+**It falsified one thing I wrote here.** "Every new rule was mutated in both directions"
+was false for two of fifteen: `os.path.lexists(registry)` and `os.path.lexists(path)` both
+left the suite at 797 passed, because each was inert given the containment guard beside
+it. The registry one is **withdrawn** — it made `init` report success while writing no
+registry at all, which is worse than the hole it was closing — and the hook one is now
+load-bearing and tested, because asking `lexists` *before* the containment guard is what
+gives a deliberate shared-hooks symlink its old answer back.
+
+### The two that stood between this and a tag
+
+- **QE8-83, HIGH — the hook was installed where git does not look.** `core.hooksPath`
+  moves the directory; `hook --install` wrote `.git/hooks/pre-commit` regardless, printed
+  `installed …`, exited 0, and the commit that followed ran no checkers. A gate reported
+  as installed that does not exist is this package's own cardinal failure, at the surface
+  HIGH-57 had just fixed. `git rev-parse --git-path hooks` — the question git asks itself
+  — closes it and QE8-86 (a linked worktree and `--separate-git-dir`, where `.git` is a
+  file and the install failed with `Not a directory`) with it.
+- **QE8-82, HIGH — QE7-74's sibling, which the per-ground rule cannot reach.** Edit a
+  ground, run `freshness --write`, commit the ledger the way the docs say to, then abandon
+  the edit. No legacy data, no forgery, no `--cached`, and no second verdict to rescue the
+  group, because `--write` appends nothing for a ground that is fresh. So the outcome is
+  the lever: `caused()` now separates a record git can **refute** — the pin's own blob, or
+  `absent` over no deletion — from one it can only fail to **confirm**. The first fails,
+  as before. The second flags. **That is a weakening of one outcome and is recorded as
+  one**, in `CHANGELOG.md`, in `docs/FRESHNESS.md`, and in the docstring of the regression
+  whose assertion changed. What it does not weaken is what the forgery buys: `discharges()`
+  requires the same `caused`, so a verdict nothing can confirm silences no drift either.
+
+### The rest
+
+- **QE8-85, MEDIUM.** "It costs the rule nothing" was false as written. The gate ran the
+  control and found the masked verdict buys the forger no *suppression* — a caused sibling
+  already discharges everything — but it cost the rule its only *report*. The refutable
+  shape is now reported whatever stands beside it, which is safe because no run of this
+  checker ever writes a verdict recording the blob the pin already has.
+- **QE8-90, MEDIUM.** One defect, two names: three of the four bad `artifact:` shapes
+  produced a `validate` failure and a `freshness` orphan, the second describing the wrong
+  defect. `orphans()` now skips a verdict `validate` has already condemned, which is what
+  the comment justifying the split had claimed all along.
+- **QE8-87, MEDIUM.** Renaming `propagation-author` — a documented, configurable knob —
+  made every tool-written verdict a `validate` failure saying it "claims a check that did
+  not run", which was factually false about it. The message states the shape now, and
+  names the config edit as the other way to reach it.
+- **QE8-84, MEDIUM.** Overstatement, here and in `docs/FRESHNESS.md`. A hand-written
+  verdict whose `artifact:` is `git hash-object` of the file the author just edited holds
+  a live drift at exit 0. That is inherent — without signing nothing separates "the tool
+  wrote this" from "a person wrote what the tool would have written" — but it is a third
+  residual and it was unstated. It is stated now, and **the sentence below is corrected
+  accordingly**: what is closed is that no *false* record silences a drift, not that no
+  verdict can.
+- **QE8-92, MEDIUM.** A `@blobNN:` token naming a state or path that does not exist gave
+  `unexpected FileNotFoundError … this is a bug. Please report it` — QE7-76's shape in the
+  new code, on the surface `release.yml` runs against both artifacts. It is a `LedgerError`
+  naming the seed's mistake now.
+- **QE8-88, QE8-89, QE8-93, LOW.** A deliberate shared-hooks symlink gets its old `exit 1`
+  and hook text back, because `lexists` is asked before the guard; the two untested
+  changes are resolved above; the stale `has_acknowledged()` references in
+  `freshness.py` and in `docs/FRESHNESS.md`'s open questions are gone, and that open
+  question was also wrong about *why* a discharge does not expire — it is `caused()`
+  answering about the whole history, not a pointer that has not changed.
+- **QE8-91, LOW.** The residuals had no executable hold. All three are stated in
+  `docs/FRESHNESS.md`; the two that could one day be closed are now strict xfails in
+  `tests/test_qe7_regressions.py`, so the day someone half-closes one the suite says so
+  rather than the specification drifting away from the code in silence. Both still
+  reproduce exactly as written.
+
+### What this means for the release, corrected
+
+**The hold's stated reason is closed.** It was: *a drifted ground is never silently fresh,
+and there is a one-line verdict that makes it silently fresh.* No **false** record does
+that any more — not a missing `artifact:`, a non-hash, a wrong-case `absent`, the null id,
+or a well-formed id the artifact has never been. What a verdict recording the *true*
+current blob does is discharge the drift, which is what a discharge is for, and no rule
+short of signing can ask who wrote it. Three residuals stand, all three in
+`docs/FRESHNESS.md`, all three requiring an author with commit access deliberately writing
+a verdict in the machine's name.
+
+Gates at this commit: 803 tests and 2 strict xfails, 76/76 seeds, `ruff check`,
+`ruff format --check`, `ty`, whole tree. The four new rules of this round were mutated and
+each reddens its own test. The check did not reach: interpreters other than 3.12, the
+built wheel, crash recovery, or QE7-77's performance question.

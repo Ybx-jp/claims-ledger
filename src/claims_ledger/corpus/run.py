@@ -163,7 +163,16 @@ def blob_id(repo, states, state, rel, pins):
     # whose artifact has CRLF endings into LF here and hash bytes git is not about to
     # store — and a corpus transformation that rewrites every seed to CRLF is one of the
     # invariants this package holds itself to.
-    text = (states / state / rel).read_bytes().decode("utf-8")
+    source = states / state / rel
+    if not source.is_file():
+        # A seed's own mistake, reported as one. Left to reach the CLI's catch-all it was
+        # `unexpected FileNotFoundError … this is a bug. Please report it`, on the surface
+        # `release.yml` runs against both built artifacts — QE7-76's shape in new code.
+        raise LedgerError(
+            f"@blob{state}:{rel} names {source}, which is not a file in this seed; a "
+            "blob token names a path as some numbered commit state has it"
+        )
+    text = source.read_bytes().decode("utf-8")
     text = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
     out = subprocess.run(
         ["git", "-C", str(repo), "hash-object", "--path", rel, "--stdin"],

@@ -22,6 +22,7 @@ from .schema import (
     exit_code,
     file_problem,
     git_available,
+    git_call,
     git_problem,
     index_problem,
     list_entry_files,
@@ -531,7 +532,7 @@ def cmd_init(args, _ledger):
         cache = ledger_dir / "cache"
         cache.mkdir(parents=True, exist_ok=True)
         write_text_atomically(ignore, CACHE_IGNORE)
-        if not os.path.lexists(registry):
+        if not registry.exists():
             write_text_atomically(registry, "")
         write_text_atomically(config_path, CONFIG_TEMPLATE.format(ledger=args.ledger))
     except OSError as exc:
@@ -547,6 +548,30 @@ def cmd_init(args, _ledger):
     return 0
 
 
+def hooks_dir(repo):
+    """(the directory git runs hooks out of, why it could not be asked).
+
+    `.git/hooks` is a guess, and it is wrong in three ways this package cannot afford.
+    `core.hooksPath` moves the directory anywhere, and an install into `.git/hooks` under
+    it reported `installed …` and exit 0 for a file git will never execute — a gate that
+    does not exist, announced as installed, which is the failure this package exists to
+    refuse and is HIGH-57's own class at the surface HIGH-57 fixed. In a linked worktree
+    and under `--separate-git-dir`, `.git` is a *file*, so the install failed with
+    `Not a directory` at a path that was never the right one.
+
+    `git rev-parse --git-path hooks` answers all three, because it is the question git
+    asks itself. Resolved against the repository, since git answers relative to it.
+    """
+    answer = git_call(repo, "rev-parse", "--git-path", "hooks")
+    if not answer.ok or not answer.out.strip():
+        return None, (
+            f"git could not say where this repository keeps its hooks ({answer.why}); "
+            "the hook was not installed, because a hook installed where git does not "
+            "look is a check that never runs"
+        )
+    return Path(repo) / answer.out.strip(), None
+
+
 def cmd_hook(args, ledger):
     if not args.install:
         print(hook_text(), end="")
@@ -554,31 +579,35 @@ def cmd_hook(args, ledger):
     if not ledger.repo:
         print("not a git repository; nothing to install into", file=sys.stderr)
         return 1
-    gitdir = Path(ledger.repo) / ".git"
-    hooks = gitdir / "hooks"
-    path = hooks / "pre-commit"
-    # The hook is the one write in this package that lands outside the project root by
-    # design — in a worktree or a `--separate-git-dir` clone the git directory genuinely
-    # is elsewhere — so the guard is asked against that directory instead of the root.
-    # What it refuses is a link the repository does not control: a dangling
-    # `.git/hooks/pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0,
-    # naming the in-root path it had not written to.
-    outside = leaves_root(gitdir, path)
-    if outside is not None:
-        print(
-            f"claims-ledger: {path} leads to {outside}, outside the git directory "
-            f"{gitdir}; the hook is not installed through a link that leaves it",
-            file=sys.stderr,
-        )
+    hooks, why = hooks_dir(ledger.repo)
+    if hooks is None:
+        print(f"claims-ledger: {why}", file=sys.stderr)
         return 2
+    path = hooks / "pre-commit"
     try:
-        hooks.mkdir(parents=True, exist_ok=True)
         # `lexists`, because a symlink to nothing is still something someone put there:
-        # `exists()` said no to it and the install wrote through it.
+        # `exists()` said no to it and the install wrote through it. Asked before the
+        # containment guard so that a deliberate `pre-commit -> ../../shared/pre-commit`
+        # — a team sharing one hook — is met with "leaving it alone" and the hook text,
+        # which is what it was always met with, rather than with an accusation.
         if os.path.lexists(path):
             print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
             print(hook_text(), end="")
             return 1
+        # Nothing is there, so anything the write lands on is reached through a link the
+        # repository does not control — the hooks directory itself being one. A dangling
+        # `pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming
+        # the in-root path it had not written to; a `hooks -> /tmp` does the same one
+        # level up, and `lexists` above cannot see that one.
+        outside = leaves_root(hooks, path)
+        if outside is not None:
+            print(
+                f"claims-ledger: {path} leads to {outside}, outside the hooks directory "
+                f"{hooks}; the hook is not installed through a link that leaves it",
+                file=sys.stderr,
+            )
+            return 2
+        hooks.mkdir(parents=True, exist_ok=True)
         write_text_atomically(path, hook_text(), mode=0o755)
     except OSError as exc:
         # A read-only .git/hooks is an ordinary thing in a locked-down or shared checkout.

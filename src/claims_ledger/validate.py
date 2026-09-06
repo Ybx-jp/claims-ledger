@@ -372,12 +372,16 @@ def check_verdicts(e, entries, config):
         elif v.artifact is not None:
             # The other direction, and the one a person reaches for: `artifact:` on a
             # hand-written `corroborated` verdict is machine provenance nothing machine
-            # produced.
+            # produced. Stated as a shape rather than as an accusation, because the rule
+            # cannot tell a person fabricating provenance from a verdict the machinery
+            # really wrote under a `propagation-author` the configuration has since been
+            # changed away from — and it said "claims a check that did not run" about
+            # every tool-written verdict in the ledger after that one-line config edit.
             fail(
                 part,
-                "artifact: is written by `freshness --write` on a propagated verdict "
-                "naming a pinned ground, and by nothing else; on this verdict it claims a "
-                "check that did not run",
+                "artifact: is recorded by `freshness --write` on a propagated verdict "
+                "naming a pinned ground, and this verdict is not that shape; if the "
+                "machinery wrote it, `propagation-author` no longer names its author",
             )
         if v.status == "non-comparable" and e.grade not in MEASURED_AND_ABOVE:
             fail(

@@ -186,16 +186,22 @@ def test_an_acknowledged_ground_is_silent(pinned):
 
 def test_a_verdict_naming_a_ground_that_has_not_drifted_is_an_orphan(pinned):
     """Without this the discharge is forgeable: write the verdict first and the ground
-    never has to be looked at again."""
+    never has to be looked at again.
+
+    The forger records what the file is, because that is the value they can read off the
+    repository without running anything — and the artifact as the pin has it states no
+    drift, whatever else is true of it. That is the half of "not caused" git can refute,
+    and it is the half that still fails."""
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
+        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
         "  note: propagated from a moved ground\n"
     )
     ((outcome, part, message),) = pinned.outcomes()
     assert outcome == "fail"
     assert part == "Verdicts"
-    assert "that ground has not drifted" in message
+    assert "states no drift" in message
     assert "orphan" in message
 
 

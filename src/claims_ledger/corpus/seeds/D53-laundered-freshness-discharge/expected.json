@@ -20,7 +20,7 @@
       "outcome": "fail",
       "where": "commit 04, A0001 Verdicts",
       "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, the checker read that as proof the discharge was caused and accepted it permanently. The verdict records the blob the pin itself has, which states no drift, so it is still an orphan",
-      "message": "that ground has not drifted"
+      "message": "records the artifact as the pin itself has it"
     }
   ],
   "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"

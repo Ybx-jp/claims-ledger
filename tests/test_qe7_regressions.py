@@ -20,6 +20,9 @@ filesystem or the package.
 
 from __future__ import annotations
 
+import subprocess
+
+import pytest
 from test_freshness import pinned  # noqa: F401  — the fixture, reused as-is
 
 from claims_ledger import freshness, validate
@@ -89,14 +92,20 @@ def test_the_null_object_id_is_refused(pinned):  # noqa: F811
 def test_an_artifact_on_a_hand_written_verdict_is_refused(pinned):  # noqa: F811
     """The other direction, and the one that lets a person fabricate machine provenance:
     `artifact:` is what `freshness --write` records, so on a `corroborated` verdict signed
-    by a person it claims a check that did not run."""
+    by a person it is provenance nothing machine produced.
+
+    The message states the shape rather than the intent (QE8-88 of the second round): the
+    rule cannot tell a person fabricating provenance from a verdict the machinery really
+    wrote under a `propagation-author` the configuration has since been changed away from,
+    and it said "claims a check that did not run" about every verdict in the ledger after
+    that one-line edit."""
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · corroborated · grade: measured · author: main\n"
         "  evidence: experiment: docs/note-001.md @working\n"
         f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
         "  note: read again and it still says so\n"
     )
-    assert any("claims a check that did not run" in m for _, m in failures(pinned))
+    assert any("this verdict is not that shape" in m for _, m in failures(pinned))
 
 
 def test_a_second_artifact_line_is_malformed(pinned):  # noqa: F811
@@ -199,13 +208,38 @@ def test_a_staged_drift_edited_again_before_the_commit_does_not_wedge(pinned):  
 def test_the_orphan_rule_still_refuses_a_ground_no_verdict_caused(pinned):  # noqa: F811
     """The control for the rule that un-wedges it. Asking the question of the ground
     rather than of each verdict must not become "one verdict excuses the rest": with no
-    caused verdict among them, two are still an orphan, and the report names both."""
-    pinned.append(propagated(pinned.pin, "b" * 40))
-    pinned.append(propagated(pinned.pin, "c" * 40))
+    caused verdict among them, two verdicts recording the blob the pin already has are
+    still an orphan, and the report names both."""
+    at_pin = pinned.p.blob("docs/note-001.md")
+    pinned.append(propagated(pinned.pin, at_pin))
+    pinned.append(propagated(pinned.pin, at_pin))
     ((part, message),) = failures(pinned, checker=freshness)
     assert part == "Verdicts"
     assert "verdicts 1, 2" in message
     assert "orphan" in message
+
+
+def test_a_forged_verdict_is_named_even_beside_a_caused_sibling(pinned):  # noqa: F811
+    """QE8-85. Asking the question of the ground bought the forger nothing — a caused
+    sibling already discharges every later drift of that ground, so the masked verdict
+    adds no suppression — but the first version of the rule stopped *reporting* it, and
+    the report was the rule's only diagnostic. A verdict recording the pin's own blob is
+    refutable whatever stands beside it, and no run of this checker writes one, so there
+    is no honest flow for the accusation to wedge."""
+    at_pin = pinned.p.blob("docs/note-001.md")
+    pinned.append(propagated(pinned.pin, at_pin))
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "a real drift, really discharged")
+    pinned.append(propagated(pinned.pin, pinned.p.blob("docs/note-001.md")))
+    (pinned.root / "docs" / "note-001.md").write_text(NOTE, encoding="utf-8")
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "and back to what the pin has")
+
+    ((part, message),) = failures(pinned, checker=freshness)
+    assert part == "Verdicts"
+    assert "verdict 1" in message and "verdict 2" not in message
+    assert "states no drift" in message
 
 
 def _drop_last_verdict(pinned):  # noqa: F811
@@ -219,3 +253,103 @@ def _drop_last_verdict(pinned):  # noqa: F811
     head, marker, tail = text.partition("\n## References")
     blocks = [b for b in head.split("\n\n- ")]
     path.write_text("\n\n- ".join(blocks[:-1]) + "\n" + marker + tail, encoding="utf-8")
+
+
+# === QE8 — what round 2 of the same gate found in the fixes above ======================
+#
+# The gate ran again over these fixes and returned two HIGHs. One is QE7-74's sibling,
+# reached with no legacy data, no forgery and no `--cached`; the other is a gate the tool
+# reports as installed that git will never run.
+
+
+def test_an_abandoned_pre_commit_discharge_does_not_wedge(pinned):  # noqa: F811
+    """QE8-82. The whole sequence is documented workflow and an author who changed their
+    mind: edit a note, run `freshness --write`, commit the ledger the way the docs say to,
+    then undo the edit. The recorded blob was never in a commit, so `caused()` can never
+    say yes; and unlike QE7-74's shape there is no second verdict to rescue the group,
+    because `--write` appends nothing for a ground that is fresh.
+
+    So the outcome is the lever rather than the branch: a record git can only fail to
+    *confirm* is not the same thing as one git can *refute*, and reporting the first as a
+    forgery is what made it a permanent red no legal edit could clear."""
+    original = (pinned.root / "docs" / "note-001.md").read_bytes()
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    assert pinned.p.cl("freshness", "--write") == 1
+    pinned.p.git("add", "ledger")
+    pinned.p.git("commit", "-qm", "the ledger says the ground moved")
+
+    (pinned.root / "docs" / "note-001.md").write_bytes(original)
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("flag", "Verdicts"), "an abandoned edit wedges the entry"
+    assert "never committed" in message
+    assert pinned.p.cl("check") == 0
+
+
+# === The residuals, held by something that goes red when they close ====================
+#
+# QE8-91. `docs/FRESHNESS.md` states three residuals of the discharge rule, and prose does
+# not go red when it becomes false. A strict xfail asserts the report the checker *would*
+# make if the residual were closed, so the day someone half-closes one of these the suite
+# says so instead of the specification quietly drifting away from the code.
+
+
+TWO_SECTIONS = NOTE + "\n## Method\n\nStar graphs, one layer, sixteen dimensions.\n"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="`caused()` has no section awareness: it asks whether the *file* ever held the "
+    "recorded blob, so one ordinary commit editing a different section supplies a blob a "
+    "discharge on this section can name, with the pinned section untouched. Residual 2 of "
+    "docs/FRESHNESS.md.",
+)
+def test_a_blob_from_another_sections_edit_does_not_discharge_this_one(pinned):  # noqa: F811
+    """The forger edits `## Method`, commits, and writes a discharge on `§ "Observation"`
+    naming the blob the file now holds. One `git rev-parse`, no revert, and the pinned
+    section was never touched."""
+    pinned.note(TWO_SECTIONS)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "a section the claim does not rest on")
+    pinned.append(propagated(pinned.pin, pinned.p.blob("docs/note-001.md")))
+
+    pinned.note(TWO_SECTIONS.replace("0.04", "0.09"))
+    assert [o for o, _, _ in pinned.outcomes()] == ["flag"], (
+        "the discharge silenced a real drift of the section it never described"
+    )
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="`absent` is checked against the file, not against the verdict: a ground "
+    "deleted and restored in two commits satisfies it, which is a touch-and-revert. "
+    "Residual 3 of docs/FRESHNESS.md.",
+)
+def test_a_delete_and_restore_does_not_discharge_a_withdrawal(pinned):  # noqa: F811
+    """`absent` needs no object id at all: `git rm`, commit, restore, commit, and the
+    pre-emptively written discharge stands over every later drift of the ground."""
+    original = (pinned.root / "docs" / "note-001.md").read_bytes()
+    pinned.append(propagated(pinned.pin, "absent"))
+    pinned.p.git("rm", "-q", "docs/note-001.md")
+    pinned.p.git("commit", "-qm", "gone")
+    (pinned.root / "docs" / "note-001.md").write_bytes(original)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "and back")
+
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    assert [o for o, _, _ in pinned.outcomes()] == ["flag"], (
+        "a delete-and-restore laundered a discharge into silencing a later drift"
+    )
+
+
+def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
+    """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
+    catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
+    surface `release.yml` runs against both built artifacts."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    with pytest.raises(LedgerError, match="not a file in this seed"):
+        corpus_run.blob_id(repo, tmp_path / "commits", "07", "docs/nope.md", {})
