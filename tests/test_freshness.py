@@ -101,7 +101,7 @@ def test_a_committed_edit_is_a_moved_ground(pinned):
     assert outcome == "flag"
     assert part == "Grounds 1"
     assert "has moved" in message
-    assert "1 commit has touched it" in message
+    assert "1 commit has touched section 'Observation'" in message
 
 
 def test_an_uncommitted_edit_is_already_a_moved_ground(pinned):

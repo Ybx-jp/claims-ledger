@@ -32,6 +32,20 @@ change to what it expects would dissolve the argument.
   real short object id before the state is committed. A seed cannot name an object the
   runner has not created yet, and drift, like immutability, is a property of history.
 
+- **Section patterns.** A `§ "<section>"` pointer used to mean a Markdown heading and
+  nothing else, so a claim could not rest on a named function of a source file, and the
+  drift comparison treated every edit anywhere in an artifact as a moved ground. A
+  sectioned evidence type may now carry a regex with a `{name}` slot under
+  `[tool.claims-ledger.section-patterns]`; omitted, it gets the heading it always meant.
+  `resolve` and `freshness` read a section through the same pattern, and `freshness`
+  compares only the named section, so an edit elsewhere in the artifact is no longer
+  drift. A pattern that does not compile, does not mention `{name}`, or names a type that
+  is not sectioned is refused where the configuration is read.
+- Two more seeds, `D49` and `K23`, bringing the corpus to 72.
+- A drifted ground in an uncommitted working tree says so, rather than reporting that
+  `0 commits have touched it` — which, of a file the author is editing right now, reads
+  as a checker that has lost track of its own subject.
+
 ### Changed
 
 - `validate` admits one more verdict shape under the propagation author: a `contested`
@@ -47,6 +61,11 @@ change to what it expects would dissolve the argument.
 
 ### Fixed
 
+- The configuration `claims-ledger init` writes is now checked to be parseable TOML. The
+  template is filled with `str.format` and then read by a parser, and an escape that
+  survives one and not the other is unparseable in a way nothing else would notice: a
+  `\b` in a commented-out example became a real backspace, which `tomllib` refuses even
+  inside a comment.
 - `propagate --write` lost verdicts. Two verdicts destined for one entry were two writes
   built from the same in-memory text, so the second overwrote the first — an entry citing
   two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by

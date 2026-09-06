@@ -1,11 +1,12 @@
 """The authoring side, end to end: scaffold a ledger, register a source, write an entry
-that quotes it, and have all four checkers pass. Then the ways the authoring commands
+that quotes it, and have all five checkers pass. Then the ways the authoring commands
 refuse to do the wrong thing.
 """
 
 import json
 import subprocess
 import sys
+import tomllib
 
 import pytest
 
@@ -191,3 +192,16 @@ def test_the_hook_does_not_depend_on_the_console_script_being_on_path(project):
         check=False,
     )
     assert "not found" not in proc.stderr, proc.stderr
+
+
+def test_the_configuration_init_writes_is_parseable_toml(tmp_path):
+    """The template is filled with `str.format` and then read by a TOML parser, and an
+    escape that survives one and not the other is unparseable in a way no other test
+    would notice: a backslash-b in a commented-out example became a real backspace, and
+    tomllib refuses that character even inside a comment."""
+    root = tmp_path / "project"
+    root.mkdir()
+    assert cli.main(["--root", str(root), "init"]) == 0
+    written = (root / "claims-ledger.toml").read_bytes()
+    tomllib.loads(written.decode("utf-8"))
+    assert not [c for c in written.decode("utf-8") if c < " " and c not in "\n\t"]
