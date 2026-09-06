@@ -25,7 +25,22 @@ the answer for real hunks — `corpus/run.py`'s staging fix among them.
 | not independently revertible | 1 — `import re` in `freshness.py`, which breaks its own module; reached by the whole-file revert (8 regressions red, corpus 75/76) |
 | hunks whose removal turned something red | 40 |
 | hunks whose removal changed nothing | 16 |
-| **regressions red under at least one revert** | **39 of 43** |
+| runs disqualified for collection or call errors | 2 |
+| **regressions red under a revert whose run was clean** | **34 of 43** |
+
+**The 34 is a correction.** This document first said 39, and the number was wrong in the
+way this experiment exists to catch: two `schema.py` hunks are pure additions —
+`CODE_FENCE_RE`, `fenced_spans()`, `_in_a_fence()` — whose names are referenced only inside
+function bodies, so reverting one alone leaves the module importable, `run_one.sh`'s import
+control passes, and every call site then raises `NameError`. `results-by-hunk.jsonl`
+recorded it plainly (`23 failed, 14 passed, 6 errors`) and the tally did not read it. Five
+regressions drew their only credit from that cascade, and every one of them holds a rule in
+`validate.py`, which does not appear in this commit's diff at all — they could not have been
+detecting the loss of a fix, because no fix of theirs was reverted.
+
+So there is a second control now, and `tally.py` computes the number rather than leaving it
+to be read off: **a hunk's credit is disqualified when its own run reports collection or
+call errors.** The finding is the QE review's (QE7-73), not this document's.
 
 `results-by-hunk.jsonl` and `results-by-file.jsonl` are the raw records, and together they
 are a fix→regression map: for every hunk, which regressions its removal breaks.
@@ -48,9 +63,19 @@ The sixteenth is code, and it is inert on purpose: **hunk 49**, which drops
 keyword-only parameter (hunk 48, which *is* caught), the `is not None` test can never be
 false, so removing it is a no-op. Hunk 48 is what carries the change.
 
-## The four regressions no revert turns red
+## The nine regressions no clean revert turns red
 
-None is a second HIGH-55, and each is a different reason:
+None is a second HIGH-55, and each is a different reason. Five of them are the ones the
+disqualified cascade used to cover:
+
+- The four `tests/test_schema.py` well-formedness tests — `kind`, `author`, `grade` and the
+  `verbatim_sha` format — and `test_the_write_flag_names_what_propagate_appended`. Like the
+  three below, these are HIGH-59 coverage added over **report sites that already existed**;
+  `validate.py` and `propagate.py`'s `--write` report are not in this commit's diff, so no
+  hunk of it could break them. Each was verified the only way that class can be: by
+  neutering the report site it exists for and watching it go red.
+
+And the four the first run already named:
 
 - `test_a_broken_git_is_not_a_freshness_check_that_ran`,
   `test_a_broken_git_is_not_settled_as_pointers_that_do_not_resolve`,
@@ -70,6 +95,7 @@ None is a second HIGH-55, and each is a different reason:
     .qe/probe7/revert-experiment/split.sh <fix-commit> <outdir>
     ls <outdir>/hunks | sed 's/\.patch$//' | sort -n \
       | xargs -P 6 -I{} .qe/probe7/revert-experiment/run_one.sh <outdir>/hunks/{}.patch hunk-{}
+    .venv/bin/python .qe/probe7/revert-experiment/tally.py           # the number, computed
 
 About four minutes at `-P 6`. Run it against the next pass's fixes before calling them done.
 
