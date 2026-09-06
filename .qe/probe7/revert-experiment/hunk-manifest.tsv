@@ -1,0 +1,57 @@
+1	.github/workflows/ci.yml	@@ -57,7 +57,7 @@ jobs:
+2	.github/workflows/release.yml	@@ -83,9 +83,15 @@ jobs:
+3	.github/workflows/release.yml	@@ -94,3 +100,32 @@ jobs:
+4	CHANGELOG.md	@@ -16,7 +16,7 @@ change to what it expects would dissolve the argument.
+5	CHANGELOG.md	@@ -32,7 +32,7 @@ would have put a `0.1.0` on the record that nobody could ever install.
+6	CHANGELOG.md	@@ -385,6 +385,120 @@ Written after the section above, and before anything was tagged.
+7	CHANGELOG.md	@@ -409,7 +523,18 @@ Recorded as methodology changes, with the seeds named, under this file's own rul
+8	README.md	@@ -7,7 +7,7 @@ An entry separates the four roles a sentence in a research note usually fuses 
+9	README.md	@@ -31,20 +31,74 @@ the stored bytes of its registered source.
+10	README.md	@@ -130,7 +184,7 @@ and a document that still cites a refuted entry as live fails.
+11	README.md	@@ -140,7 +194,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
+12	README.md	@@ -290,7 +344,7 @@ $ pytest -q
+13	README.md	@@ -303,12 +357,17 @@ grow between releases.
+14	RELEASING.md	@@ -0,0 +1,88 @@
+15	docs/FRESHNESS.md	@@ -217,10 +217,38 @@ forgeable by writing the verdict pre-emptively.
+16	docs/FRESHNESS.md	@@ -266,7 +294,7 @@ Defect seeds:
+17	docs/FRESHNESS.md	@@ -407,8 +435,9 @@ rather than something a later reader has to notice.
+18	docs/SCHEMA.md	@@ -128,6 +128,7 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
+19	src/claims_ledger/authoring.py	@@ -188,6 +188,11 @@ def create_entry(ledger, slug, **kwargs):
+20	src/claims_ledger/authoring.py	@@ -344,6 +349,14 @@ def register_source(
+21	src/claims_ledger/cli.py	@@ -43,12 +43,24 @@ HOOK_TEMPLATE = """#!/bin/sh
+22	src/claims_ledger/corpus/README.md	@@ -259,12 +259,30 @@ and a human judges; `review` means the machinery passes and only the human recor
+23	src/claims_ledger/corpus/README.md	@@ -273,11 +291,12 @@ with `write=False`. The corpus proves the semantic classes; `tests/` proves the
+24	src/claims_ledger/corpus/README.md	@@ -320,6 +339,7 @@ with `write=False`. The corpus proves the semantic classes; `tests/` proves the
+25	src/claims_ledger/corpus/README.md	@@ -380,8 +400,9 @@ outline; a test-oracle literature on corpora of this shape.
+26	src/claims_ledger/corpus/run.py	@@ -95,12 +95,19 @@ def matches(report, commit, entry, part, message=None):
+27	src/claims_ledger/corpus/run.py	@@ -142,7 +149,13 @@ def stage(src, dst, pins=None):
+28	src/claims_ledger/corpus/run.py	@@ -222,6 +235,30 @@ def run_checkers(ledger, commit=None):
+29	src/claims_ledger/corpus/seeds/D05-dead-pointer/entries/A0002-refresh-schedule-rests-on-an-entry-that-is-gone.md	@@ -0,0 +1,40 @@
+30	src/claims_ledger/corpus/seeds/D05-dead-pointer/entries/A0003-nobody-reported-eviction-thrash.md	@@ -0,0 +1,39 @@
+31	src/claims_ledger/corpus/seeds/D05-dead-pointer/expected.json	@@ -1,5 +1,5 @@
+32	src/claims_ledger/corpus/seeds/D05-dead-pointer/expected.json	@@ -12,13 +12,36 @@
+33	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/01/docs/note-100.md	@@ -0,0 +1,7 @@
+34	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/02/docs/note-100.md	@@ -0,0 +1,7 @@
+35	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/02/entries/A0001-stale-fraction-governs-mean-aggregation-error.md	@@ -0,0 +1,46 @@
+36	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/03/docs/note-100.md	@@ -0,0 +1,7 @@
+37	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/03/entries/A0001-stale-fraction-governs-mean-aggregation-error.md	@@ -0,0 +1,46 @@
+38	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/04/docs/note-100.md	@@ -0,0 +1,7 @@
+39	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/commits/04/entries/A0001-stale-fraction-governs-mean-aggregation-error.md	@@ -0,0 +1,46 @@
+40	src/claims_ledger/corpus/seeds/D53-laundered-freshness-discharge/expected.json	@@ -0,0 +1,20 @@
+41	src/claims_ledger/freshness.py	@@ -33,6 +33,7 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
+42	src/claims_ledger/freshness.py	@@ -66,7 +67,7 @@ def is_object_name(repo, pin):
+43	src/claims_ledger/freshness.py	@@ -80,6 +81,26 @@ def is_object_name(repo, pin):
+44	src/claims_ledger/freshness.py	@@ -125,15 +146,50 @@ def has_acknowledged(entry, pointer, author):
+45	src/claims_ledger/freshness.py	@@ -340,7 +396,26 @@ def run(ledger, write=False, cached=False):
+46	src/claims_ledger/freshness.py	@@ -362,22 +437,89 @@ def run(ledger, write=False, cached=False):
+47	src/claims_ledger/freshness.py	@@ -406,11 +548,39 @@ def orphans(entries, config, repo, tree, author, cached=False):
+48	src/claims_ledger/propagate.py	@@ -86,11 +86,15 @@ def grouped(pending):
+49	src/claims_ledger/propagate.py	@@ -102,7 +106,7 @@ def append_verdict(entry, block, root=None):
+50	src/claims_ledger/schema.py	@@ -343,6 +343,67 @@ def section_header_re(config, type_name, section):
+51	src/claims_ledger/schema.py	@@ -351,8 +412,20 @@ def section_span(text, config, type_name, section):
+52	src/claims_ledger/schema.py	@@ -361,6 +434,9 @@ def section_span(text, config, type_name, section):
+53	src/claims_ledger/schema.py	@@ -477,6 +553,7 @@ class Verdict:
+54	src/claims_ledger/schema.py	@@ -570,8 +647,18 @@ class Entry:
+55	src/claims_ledger/schema.py	@@ -596,7 +683,7 @@ def _parse_verdicts(text):
+56	src/claims_ledger/schema.py	@@ -699,6 +786,7 @@ def write_bytes_atomically(path, data, mode=None):
+57	src/claims_ledger/schema.py	@@ -714,6 +802,59 @@ def write_bytes_atomically(path, data, mode=None):
