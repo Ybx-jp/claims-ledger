@@ -1,0 +1,13 @@
+{
+  "class": "a propagated verdict nothing caused",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Verdicts",
+      "why": "the ground has not moved, so the verdict discharges a finding that was never made; without this the acknowledgement is forgeable"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

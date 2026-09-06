@@ -6,8 +6,8 @@ written record to be verifiable rather than merely earnest.
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
-derives its status from a verdict list that only ever grows. Four checkers enforce that,
-and a red-team corpus of 62 seeds with committed expected outcomes proves the checkers.
+derives its status from a verdict list that only ever grows. Five checkers enforce that,
+and a red-team corpus of 70 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -50,6 +50,7 @@ validate: 0 failure(s), 0 flag(s)
 resolve: 0 failure(s), 0 flag(s)
 references: 0 failure(s), 0 flag(s)
 propagate: 0 failure(s), 0 flag(s)
+freshness: 0 failure(s), 0 flag(s)
 ```
 
 An entry looks like this:
@@ -101,7 +102,7 @@ supports the assertion over this cohort.
 The schema in full — every field, every rule, and what each heuristic is known to miss —
 is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md).
 
-## The four checks
+## The five checks
 
 | command | holds |
 |---|---|
@@ -109,14 +110,15 @@ is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SC
 | `claims-ledger resolve` | every pointer resolves; every quoted span is a contiguous span of the named source's stored bytes, with elisions marked |
 | `claims-ledger references` | citation acts agree with the target's current status, entry to entry and document to entry, both directions |
 | `claims-ledger propagate` | when an entry falls or is challenged, its dependents carry the `contested` flag that says why (`--write` appends them) |
+| `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and its bytes match the pin, and the pin is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
 
-`claims-ledger check` runs all four. Each exits non-zero on a failure and zero on a
+`claims-ledger check` runs all five. Each exits non-zero on a failure and zero on a
 flag, because a flag is a report a human judges rather than a gate.
 
 A check that could not run never reports that it passed. Pointed at a directory with no
 entries directory in it — the wrong `--root`, a configuration file moved away from its
 ledger — every checking command stops with exit 2 and says nothing was checked, rather
-than printing four clean lines over an empty room. Where a check is genuinely skipped
+than printing five clean lines over an empty room. Where a check is genuinely skipped
 rather than passed, it is named on stderr: outside a git repository, or with no `git` on
 PATH, validate's frozen-region and append-only checks cannot run and say so.
 
@@ -128,7 +130,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 62 seeds, each a small ledger with committed
+the red-team corpus it was built against: 70 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found plus one per rule the schema's
 own structure creates, plus known-good seeds every checker must leave alone.
 
@@ -136,7 +138,7 @@ own structure creates, plus known-good seeds every checker must leave alone.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-62/62 seeds pass
+70/70 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the

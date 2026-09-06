@@ -1,0 +1,13 @@
+{
+  "class": "a ground that did not move",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the load-bearing known-negative: a checker that reported every entry on every commit would pass all four defect seeds above and fail only here"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

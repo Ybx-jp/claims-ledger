@@ -23,7 +23,7 @@ from claims_ledger.corpus import run as corpus_run
 
 CORPUS = Path(corpus_run.CORPUS)
 SEEDS = sorted(p for p in (CORPUS / "seeds").iterdir() if p.is_dir())
-CHECKERS = {"validate", "resolve", "references", "propagate", "review"}
+CHECKERS = {"validate", "resolve", "references", "propagate", "freshness", "review"}
 OUTCOMES = {"pass", "fail", "flag", "judge"}
 
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 
 from .schema import (
+    UNPINNED,
     Report,
     by_id,
     git,
@@ -37,11 +38,6 @@ from .schema import (
 )
 
 SENTENCE_END = ".!?"
-# Pins that name no revision: the artifact is read from the working tree as it stands.
-# A ledger kept outside version control needs one, and the red-team corpus uses
-# `@corpus`. Anywhere else it is an escape hatch, and a pointer that uses it is only as
-# reproducible as the working tree it was read in.
-UNPINNED = ("working", "corpus")
 
 
 class Sources:
@@ -85,7 +81,11 @@ def resolve_pointer(p, e, part, index, sources, ledger):
             # UTF-8 is a pointer that does not resolve, reported below, never a crash.
             text = read_document(path)[0] if path.is_file() else None
         else:
-            text = git(ledger.tree, "show", f"{p.pin}:{p.target}")
+            # `git show <pin>:<path>` reads the path from the repository's root, so the
+            # question goes to the repository holding the entries rather than to the
+            # project root. They are the same directory in a real project; in a corpus
+            # history seed the repository is built in a temporary directory.
+            text = git(ledger.repo or ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:
             fail(f"{p.type}: {p.target} @{p.pin} does not resolve")
         elif p.section and not re.search(rf"^#+\s*{re.escape(p.section)}\s*$", text, re.MULTILINE):

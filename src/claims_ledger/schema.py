@@ -82,6 +82,13 @@ REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-slug, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
 
+# Pins that name no revision: the artifact is read from the working tree as it stands.
+# A ledger kept outside version control needs one, and the red-team corpus uses
+# `@corpus`. Anywhere else it is an escape hatch, and a pointer that uses it is only as
+# reproducible as the working tree it was read in — and, because there is no revision to
+# compare against, freshness has nothing to say about it.
+UNPINNED = ("working", "corpus")
+
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
 

@@ -33,7 +33,7 @@ import tempfile
 import traceback
 from pathlib import Path
 
-from .. import propagate, references, resolve, validate
+from .. import freshness, propagate, references, resolve, validate
 from ..config import Config
 from ..schema import GIT_TIMEOUT, Ledger, LedgerError
 
@@ -43,8 +43,9 @@ CHECKERS = {
     "validate": validate.run,
     "resolve": resolve.run,
     "references": references.run,
-    # The one that needs an argument bound: here propagate only reports, never writes.
+    # The two that need an argument bound: here they only report, never write.
     "propagate": functools.partial(propagate.run, write=False),
+    "freshness": functools.partial(freshness.run, write=False),
 }
 WHERE_RE = re.compile(r"^(?:commit (\d+),?\s*)?(.*)$")
 ENTRY_RE = re.compile(r"^([A-Z]\d+)\s*(.*)$")
@@ -98,12 +99,27 @@ def seed_ledger(root, staged, repo=None):
     )
 
 
-def stage(src, dst):
+# A history seed cannot know the object ids of the commits the runner is about to make,
+# so an entry that must rest on one writes `@commit01` and the runner substitutes the
+# real short id of that state once it exists. The substitution happens before the state
+# is committed, so what git records is what the checkers read: an entry whose frozen
+# region is stable across every later commit, exactly as a hand-written pin would be.
+PIN_RE = re.compile(r"@commit(\d+)")
+
+
+def stage(src, dst, pins=None):
     for name in ("entries", "docs"):
         if (dst / name).exists():
             shutil.rmtree(dst / name)
         if (src / name).is_dir():
             shutil.copytree(src / name, dst / name)
+    if not pins:
+        return
+    for path in sorted((dst).glob("*/*.md")):
+        text = path.read_text(encoding="utf-8")
+        swapped = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
+        if swapped != text:
+            path.write_text(swapped, encoding="utf-8")
 
 
 def git(repo, *args):
@@ -146,6 +162,18 @@ def git(repo, *args):
         ) from exc
 
 
+def head(repo):
+    """The short object id of the commit just made, as a seed's `@commitNN` resolves to."""
+    out = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=GIT_TIMEOUT,
+    )
+    return out.stdout.strip()
+
+
 def run_checkers(ledger, commit=None):
     """{checker: reports | Exception}"""
     produced = {}
@@ -175,10 +203,12 @@ def run_seed(seed, root):
         tmp = Path(tmpdir)
         if (seed / "commits").is_dir():
             git(tmp, "init", "-q")
+            pins = {}
             for state in sorted(p for p in (seed / "commits").iterdir() if p.is_dir()):
-                stage(state, tmp)
+                stage(state, tmp, pins)
                 git(tmp, "add", "-A")
                 git(tmp, "commit", "-qm", state.name)
+                pins[state.name] = head(tmp)
                 for name, result in run_checkers(
                     seed_ledger(root, tmp, repo=tmp), commit=state.name
                 ).items():

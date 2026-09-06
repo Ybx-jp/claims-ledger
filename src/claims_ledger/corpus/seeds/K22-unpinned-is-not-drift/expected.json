@@ -1,0 +1,13 @@
+{
+  "class": "an unpinned ground",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "@corpus and @working name no revision, so there is nothing to compare and freshness says nothing; this is why every seed written before it stays green, and a later reader who changes UNPINNED finds out here what it costs"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

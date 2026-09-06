@@ -1,0 +1,19 @@
+{
+  "class": "a ground moved and the claim was not revisited",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 02, A0001 Grounds 1",
+      "why": "the note the claim rests on was remeasured after the pin; the claim may or may not survive it, and nobody has said which"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the correct human act is a fresh corroborated entry pinned to the new note, or a contested verdict; the flag exists to force the choice"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

@@ -21,7 +21,7 @@ as such in the commit that makes it.
 ## Layout
 
     corpus/
-      run.py               the runner: every seed through the four checkers, held to
+      run.py               the runner: every seed through the five checkers, held to
                            expected.json under the contract below; `claims-ledger corpus`
                            is how it is invoked
       fixtures/            synthetic sources the seeds quote: two papers, one consultation,
@@ -39,7 +39,13 @@ as such in the commit that makes it.
           entries/         the ledger entries of this seed, as they would sit in ledger/entries/
           docs/            any citing documents the seed needs
           commits/01, 02   history seeds only: successive states to apply as commits;
-                           a state after 01 may be deliberately tampered
+                           a state after 01 may be deliberately tampered. An entry that
+                           must rest on one of these commits writes `@commit01` and the
+                           runner substitutes that commit's real short object id before
+                           the state is committed, because a seed cannot know an id the
+                           runner has not created yet. What git records is therefore what
+                           the checkers read, and the entry's frozen region is stable
+                           across every later state exactly as a hand-written pin is.
 
 Seeds are independent. Each is checked as if its `entries/` and `docs/` were the whole
 ledger, with `sources.jsonl` and `fixtures/` shared from the corpus root. Ids repeat
@@ -52,7 +58,8 @@ across seeds (most seeds have an `A0001`) and mean nothing outside their seed.
       {"checker": "resolve",  "outcome": "fail", "where": "A0001 Backing quote 1",
        "why": "the quote drops the parenthetical (cosine, L2) with no elision mark"}]}
 
-`checker` is one of `validate`, `resolve`, `references`, `propagate` — the four programs
+`checker` is one of `validate`, `resolve`, `references`, `propagate`, `freshness` — the
+five programs
 that live beside this directory — or `review`, which is not a program. A checker
 row's `outcome` is `pass`, `fail`, or `flag`; a `review` row's outcome is always `judge`.
 `where` names an entry and one part of it so a runner can match the checker's report to
@@ -76,8 +83,9 @@ The runner's contract, fixed before the runner existed and implemented by `run.p
   *surface*, and both from one that is green by design and owes the reader a warning. A
   known-good seed may carry a `review` row; its checker rows are still all `pass`.
 - History seeds (`commits/`) are applied as successive commits in a fresh repository, and
-  their rows name the commit they apply to. They are the only way to test immutability,
-  since immutability is a property of history and not of a file.
+  their rows name the commit they apply to. They are the only way to test immutability
+  and drift, since both are properties of history and not of a file — an artifact that
+  changed and an entry pinned to the revision before it cannot be staged as one state.
 
 ## The schema the seeds are written against
 

@@ -11,6 +11,47 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Added
+
+- **A fifth checker, `freshness`.** `resolve` asks whether a ground's pointer resolves,
+  and asks it of the past: the pin names a commit, so once an entry resolves it resolves
+  for good. The ledger could therefore not notice that the world had moved — an entry
+  could rest on a test that had since been deleted and every checker stayed green,
+  because the evidence was still there at the revision nobody works on. `freshness`
+  compares each pinned ground to the working tree: a path that is gone fails, bytes that
+  differ from the pin flag, and a pin that is a branch or a tag rather than an object id
+  flags, because a pin that follows the work can never go stale. It never judges whether
+  a difference matters. A `contested` verdict by the propagation author naming the
+  pointer discharges the finding, `--write` appends it, and a verdict naming a ground
+  that has not drifted is an orphan and fails. The specification is `docs/FRESHNESS.md`.
+- Eight corpus seeds for it — `D45`–`D48`, `K19`–`K22` — bringing the corpus to 70.
+  Every one was falsified by deleting the rule it covers and re-running the corpus.
+- History seeds may write `@commit01` in an entry; the runner substitutes that commit's
+  real short object id before the state is committed. A seed cannot name an object the
+  runner has not created yet, and drift, like immutability, is a property of history.
+
+### Changed
+
+- `validate` admits one more verdict shape under the propagation author: a `contested`
+  verdict whose evidence is an evidence ground carrying a pin, which is what `freshness`
+  writes. `entry:` evidence with `· fallen` or `· challenges` remains the only other one,
+  so a person still cannot write under the machine's name.
+- `resolve` reads a pinned artifact from the repository holding the entries rather than
+  from the project root. `git show <pin>:<path>` resolves the path from the repository
+  root; the two are the same directory in a real project, and are not in a corpus
+  history seed. No seed's expected outcome moves: every pin in the 62 seeds written
+  before this is `@corpus`, which reads from the working tree and never reached that call.
+- `claims-ledger check` and the installed pre-commit hook run five checkers, not four.
+
+### Fixed
+
+- `propagate --write` lost verdicts. Two verdicts destined for one entry were two writes
+  built from the same in-memory text, so the second overwrote the first — an entry citing
+  two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by
+  entry and written once. Found while building `freshness`, which would have inherited it.
+
 ## [0.1.0] — 2026-09-05
 
 First public release. Extracted from the claims ledger built for a research project on

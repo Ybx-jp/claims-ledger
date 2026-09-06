@@ -1,6 +1,8 @@
 # The freshness checker
 
-A specification, written before the checker exists.
+A specification, written before the checker existed. Stage 1 is now built; where the
+implementation taught the specification something, the specification has been corrected
+rather than quietly satisfied, and those corrections are marked **Built:**.
 
 `resolve` asks whether a ground's pointer resolves to the artifact that established the
 fact. It asks that of the past: the pin names a commit, and `git show <pin>:<path>` reads
@@ -179,19 +181,27 @@ exit clean on every seed.
 
 Two facts make this tractable. First, **all 82 evidence pins across the 62 existing seeds
 are `@corpus`**, which freshness skips — so no existing `expected.json` moves, and adding
-the checker is not a methodology change to any seed already committed. Second, drift is a
-property of history and not of a file, exactly like the immutability the corpus already
-tests, so its seeds are `commits/` seeds and the runner's existing history machinery
-carries them unchanged.
+the checker is not a methodology change to any seed already committed. Verified: with the
+fifth checker in `CHECKERS`, all 62 pass untouched. Second, drift is a property of history
+and not of a file, exactly like the immutability the corpus already tests, so its seeds
+are `commits/` seeds.
+
+**Built — the runner needed one addition, and this specification was wrong to say it did
+not.** A seed cannot write a pin, because the commit it would name does not exist until
+the runner makes it. So a history seed writes `@commit01` and the runner substitutes that
+state's real short object id before the state is committed. What git records is what the
+checkers read, so the entry's frozen region is stable across every later state exactly as
+a hand-written pin is. This is documented in `corpus/README.md` alongside the rest of the
+seed format.
 
 Defect seeds:
 
 | seed | what it holds | expected |
 |---|---|---|
-| `D45-ground-moved-unacknowledged` | `commits/02` edits the pinned artifact | `freshness` **flag** at `commit 2, A0001 Grounds 1` |
-| `D46-ground-withdrawn` | `commits/02` deletes the pinned artifact | `freshness` **fail** at `commit 2, A0001 Grounds 1` |
-| `D47-pin-is-a-branch` | pin written `@main` | `freshness` **flag** at `A0001 Grounds 1` |
-| `D48-orphan-freshness-verdict` | propagation contested verdict naming a ground that has not moved | `freshness` **fail** at `A0001 Verdicts 1` |
+| `D45-ground-moved-unacknowledged` | `commits/02` edits the pinned artifact | `freshness` **flag** at `commit 02, A0001 Grounds 1` |
+| `D46-ground-withdrawn` | `commits/02` deletes the pinned artifact | `freshness` **fail** at `commit 02, A0001 Grounds 1` |
+| `D47-pin-is-a-name-not-a-commit` | pin written `@HEAD` | `freshness` **flag** at `commit 02, A0001 Grounds 1` |
+| `D48-orphan-freshness-verdict` | propagation contested verdict naming a ground that has not moved | `freshness` **fail** at `commit 02, A0001 Verdicts` |
 
 Known-good seeds:
 
@@ -208,6 +218,13 @@ on every commit would pass every defect seed above.
 `K22` is the seed that documents why the other 62 stay green, so that a later reader who
 changes `UNPINNED` finds out what it costs.
 
+**Built — each seed was falsified rather than assumed.** Every rule was removed from the
+checker in turn and the corpus re-run: dropping the fallen-entry exemption fails `K21`
+alone; reporting every pinned ground fails `K19` and `D48`; dropping the orphan check
+fails `D48`; dropping the acknowledgement fails `K20`; dropping the unstable-pin rule
+fails `D47`; and dropping the `UNPINNED` skip fails 43 seeds, `K22` among them. A seed
+that survives its own rule being deleted is not proving anything, and none of these do.
+
 ## Cost
 
 Two `git rev-parse` calls per checked pointer, both plumbing, both O(1) against the object
@@ -219,9 +236,23 @@ run must say it did not run, rather than passing quietly, which is the failure m
 
 ## Staging
 
-**Stage 1 is everything above**, and it needs no schema change and no configuration key.
-Evidence types are already project-declared, `code:`/`test:` already parse, and the
-comparison is pure git.
+**Stage 1 is everything above**, and it needs no configuration key. Evidence types are
+already project-declared, `code:`/`test:` already parse, and the comparison is pure git.
+
+**Built — it did need one schema change, which this specification did not foresee.**
+`validate` held a propagation-authored verdict to `entry:` evidence with `· fallen` or
+`· challenges`, since those were the only things the machinery wrote. Freshness writes a
+third: a `contested` verdict naming a pinned evidence ground. The rule is widened to admit
+exactly that shape and no more, so a person still cannot write under the machine's name.
+
+**Built — three smaller things the implementation turned up.** `UNPINNED` moved from
+`resolve` to `schema`, because `validate` now needs it too. `resolve`'s `git show
+<pin>:<path>` and freshness's working-tree read both go to `ledger.repo` rather than
+`ledger.tree`: `git show` resolves a path from the repository root, and the two are the
+same directory in a real project but not in a corpus history seed. And `propagate` had a
+latent bug that freshness would have inherited — two verdicts destined for one entry were
+two writes from the same in-memory text, so the second silently overwrote the first. Both
+now group by entry and write once.
 
 **Stage 2 is section scoping**, and it is the answer to the noise floor. Today
 `§ "<section>"` matches a Markdown heading and nothing else — `resolve` looks for

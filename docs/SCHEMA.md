@@ -31,7 +31,7 @@ nanopublication model (Kuhn et al. 2021); *challenges* is micropublications' rel
                             Committed; the bytes are not
         cache/              the bytes, keyed by sha256; not committed
 
-## The four checks
+## The five checks
 
 Each is `claims-ledger <name>`, each exits non-zero on a failure and zero on a flag (a
 report a human judges).
@@ -53,9 +53,20 @@ report a human judges).
   agree both ways; no document cites an id in a quarantined series.
 - **propagate** — a dependent of a fallen entry, and the target of a `challenges` act,
   carry the `contested` verdict by propagation that records why; `--write` appends the
-  missing ones. It is the one place machinery writes into an entry.
+  missing ones.
+- **freshness** — every ground pinned to a commit still names the artifact the claim was
+  established on: the path is in the working tree (gone is a failure), its bytes are
+  identical to the bytes at the pin (a difference is a flag), and the pin is an object id
+  rather than a branch or a tag, which would follow the work and never go stale (a flag).
+  It never judges whether a difference matters; a `contested` verdict by the propagation
+  author naming the pointer discharges the finding, and `--write` appends it. The
+  specification is [docs/FRESHNESS.md](FRESHNESS.md).
 
-They are proven, not trusted: `claims-ledger corpus` runs all four over every seed in
+`propagate` and `freshness` are the two places machinery writes into an entry, and both
+write the same thing: a `contested` verdict under the propagation author, naming its
+cause. A verdict under that author whose cause did not happen is an orphan and fails.
+
+They are proven, not trusted: `claims-ledger corpus` runs all five over every seed in
 the red-team corpus and holds them to the committed expectations under the contract in
 that directory's README. A checker is only as good as the seed that exercises it, and a
 defect class found in practice gets a seed before it gets a fix.
@@ -117,8 +128,11 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   earlier than `stated`. **Who may write a verdict is checked:** `author:` is one of the
   configured names and nothing else — an expert whose opinion is a source writes none,
   because a consultation is evidence a verdict points at — and a verdict by the
-  propagation author must carry `entry:` evidence with `· fallen` or `· challenges`,
-  since those are the only two things the machinery writes about. An assertion is a
+  propagation author must carry either `entry:` evidence with `· fallen` or
+  `· challenges`, which is what `propagate` writes, or an evidence ground carrying a pin,
+  which is what `freshness` writes; those are the only things the machinery writes about,
+  and anything else under that name is a person borrowing the authority of a check that
+  did not run. An assertion is a
   proposition made by an agent on an occasion; `author` and `stated` are the agent and
   the occasion, and a verdict under the wrong agent is malformed whatever it says.
 - *References* lists the documents (not entries) that cite this entry:
@@ -189,16 +203,24 @@ bytes, or a pointer without its row, is a failure that says the check could not 
 never a silent pass. A consultation-type source's speaker is its expert; a sentence in
 such a source that names another registered author is flagged as relayed.
 
-**Propagation** is the one place machinery writes into an entry. When an entry cited
-`cites-as-live` falls, or an entry is named by a `challenges` act, a `contested` verdict
-under the propagation author is appended to the dependent or challenged entry, and the
-flag is reported until a human re-verdicts. A `challenges` act whose target lacks that
+**Propagation** is one of the two places machinery writes into an entry. When an entry
+cited `cites-as-live` falls, or an entry is named by a `challenges` act, a `contested`
+verdict under the propagation author is appended to the dependent or challenged entry,
+and the flag is reported until a human re-verdicts. A `challenges` act whose target lacks that
 verdict, or whose target is fallen, is a failure, and so is a propagated verdict whose
 named cause does not exist. A dependent flagged because its live-cited ground fell
 cannot return to `corroborated`: its Grounds are immutable and still cite the fallen
 entry, so the reference check keeps failing until it is superseded; once it has fallen
 itself, its Grounds are history, exempt from the act check, and it needs no further
-flag, since a verdict after a terminal status is illegal. A document that cites an entry
+flag, since a verdict after a terminal status is illegal.
+
+**Freshness** is the other. A ground pinned to a commit resolves forever, so `resolve`
+alone cannot see that the artifact beneath it has moved; freshness compares the pin to
+the working tree and appends the same `contested` verdict, naming the pointer instead of
+an entry. A pin cannot be edited — Grounds are above the APPEND marker — so re-pinning a
+claim on the artifact as it now stands is supersession, which is the right answer: a
+claim re-established on new evidence is a different claim from the one established on the
+old. A document that cites an entry
 `cites-as-live` after the entry is superseded or refuted fails the same way; the filter
 a reader must apply every time is applied for them at check time.
 

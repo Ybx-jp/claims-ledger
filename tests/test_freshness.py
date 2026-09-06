@@ -1,0 +1,315 @@
+"""The freshness checker: a pinned ground still names the artifact it was established on.
+
+Every case here builds a real repository and makes a real commit. The checker's whole
+subject is what git says about two revisions of a file, so a test that stubbed git would
+prove nothing about the thing being claimed.
+
+The specification is docs/FRESHNESS.md.
+"""
+
+import subprocess
+
+import pytest
+
+from claims_ledger import freshness, references, validate
+from claims_ledger.schema import open_ledger
+
+NOTE = """# note 001
+
+## Observation
+
+At a stale fraction of 0.1 the measured error was 0.04.
+"""
+
+
+class Pinned:
+    """A project whose entry rests on `docs/note-001.md` at a commit that exists."""
+
+    def __init__(self, project, pin):
+        self.p = project
+        self.pin = pin
+        self.root = project.root
+
+    def ledger(self):
+        return open_ledger(root=self.root)
+
+    def run(self, write=False):
+        return freshness.run(self.ledger(), write=write)
+
+    def note(self, text):
+        (self.root / "docs" / "note-001.md").write_text(text, encoding="utf-8")
+
+    def entry_path(self):
+        return next(self.p.entries.glob("A0001-*.md"))
+
+    def append(self, block):
+        """Append below the marker, the way a person or the machinery would."""
+        path = self.entry_path()
+        text = path.read_text(encoding="utf-8")
+        head, marker, tail = text.partition("\n## References")
+        path.write_text(head.rstrip("\n") + "\n\n" + block + marker + tail, encoding="utf-8")
+
+    def outcomes(self, write=False):
+        return [(r.outcome, r.part, r.message) for r in self.run(write=write)]
+
+
+@pytest.fixture
+def pinned(project):
+    """The artifact is committed first, so the entry can name the commit it rests on;
+    then the entry is committed, so its frozen region has a blob to be held to."""
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the artifact, before any claim rests on it")
+    pin = _head(project)
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    text = path.read_text(encoding="utf-8").replace(
+        'lab: docs/note-001.md § "Observation" @working',
+        f'lab: docs/note-001.md § "Observation" @{pin}',
+    )
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+    return Pinned(project, pin)
+
+
+def _head(project):
+    """The short object id of HEAD, which is what a person writing a pin would copy."""
+    out = subprocess.run(
+        ["git", "-C", str(project.root), "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return out.stdout.strip()
+
+
+# --- the three findings ---------------------------------------------------------------
+
+
+def test_an_untouched_ground_is_fresh(pinned):
+    assert pinned.outcomes() == []
+
+
+def test_a_committed_edit_is_a_moved_ground(pinned):
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "remeasure")
+    ((outcome, part, message),) = pinned.outcomes()
+    assert outcome == "flag"
+    assert part == "Grounds 1"
+    assert "has moved" in message
+    assert "1 commit has touched it" in message
+
+
+def test_an_uncommitted_edit_is_already_a_moved_ground(pinned):
+    """The comparison is against the working tree, not HEAD. In a pre-commit hook HEAD is
+    still the commit before the edit being made, and a HEAD comparison would surface the
+    drift one commit late, against a diff the author has stopped thinking about."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    ((outcome, _, message),) = pinned.outcomes()
+    assert outcome == "flag"
+    assert "has moved" in message
+
+
+def test_a_deleted_ground_is_withdrawn_and_fails(pinned):
+    (pinned.root / "docs" / "note-001.md").unlink()
+    ((outcome, part, message),) = pinned.outcomes()
+    assert outcome == "fail"
+    assert part == "Grounds 1"
+    assert "is not in the working tree" in message
+
+
+def test_a_branch_pin_is_unstable_and_the_drift_is_not_reported(pinned):
+    """A pin that follows the work resolves forever, so it can never go stale. The
+    checker says that once and does not then pretend to have compared anything."""
+    _repin(pinned, "master")
+    pinned.p.git("branch", "-f", "master", "HEAD")
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    outcomes = pinned.outcomes()
+    assert [o for o, _, _ in outcomes] == ["flag"]
+    assert "pinned to a name, not a commit" in outcomes[0][2]
+
+
+def test_a_branch_whose_name_looks_like_an_object_id_is_still_unstable(pinned):
+    """`beef` is four hex characters and a legal branch name. The shape of the text is
+    not proof, so git is asked whether it is also a ref."""
+    pinned.p.git("branch", "beef")
+    _repin(pinned, "beef")
+    outcomes = pinned.outcomes()
+    assert [o for o, _, _ in outcomes] == ["flag"]
+    assert "pinned to a name, not a commit" in outcomes[0][2]
+
+
+# --- what is exempt -------------------------------------------------------------------
+
+
+def test_an_unpinned_ground_is_not_this_checkers_business(pinned):
+    """`@working` says in the schema that it is only as reproducible as the tree it was
+    read in. There is no revision to compare against, so there is nothing to say."""
+    _repin(pinned, "working")
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    assert pinned.outcomes() == []
+
+
+def test_a_fallen_entry_may_drift(pinned):
+    """A fallen entry's Grounds are history: they record what it was established on, not
+    what anyone should now believe."""
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · refuted · grade: measured · author: main\n"
+        '  evidence: lab: docs/note-001.md § "Observation" @working\n'
+        "  note: the sweep did not replicate\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    assert pinned.outcomes() == []
+
+
+def test_an_acknowledged_ground_is_silent(pinned):
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    assert len(pinned.outcomes()) == 1
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
+        "  note: propagated from a moved ground\n"
+    )
+    assert pinned.outcomes() == []
+
+
+def test_a_verdict_naming_a_ground_that_has_not_drifted_is_an_orphan(pinned):
+    """Without this the discharge is forgeable: write the verdict first and the ground
+    never has to be looked at again."""
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
+        "  note: propagated from a moved ground\n"
+    )
+    ((outcome, part, message),) = pinned.outcomes()
+    assert outcome == "fail"
+    assert part == "Verdicts"
+    assert "that ground has not drifted" in message
+    assert "orphan" in message
+
+
+def test_a_verdict_naming_a_ground_the_entry_does_not_have_is_an_orphan(pinned):
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/nowhere.md § "Observation" @{pinned.pin}\n'
+        "  note: propagated from a moved ground\n"
+    )
+    ((outcome, _, message),) = pinned.outcomes()
+    assert outcome == "fail"
+    assert "carries no such ground" in message
+
+
+# --- writing --------------------------------------------------------------------------
+
+
+def test_write_appends_a_verdict_and_still_fails(pinned):
+    (pinned.root / "docs" / "note-001.md").unlink()
+    outcomes = pinned.outcomes(write=True)
+    assert [o for o, _, _ in outcomes] == ["fail", "flag"]
+    text = pinned.entry_path().read_text(encoding="utf-8")
+    assert "author: propagation" in text
+    assert "propagated from a withdrawn ground" in text
+    # And the appended verdict discharges the finding on the next run.
+    assert [o for o, _, _ in pinned.outcomes()] == []
+
+
+def test_two_drifted_grounds_both_survive_one_write(project):
+    """Each block is built from the entry's text as it was parsed, so two writes to one
+    entry would make the second overwrite the first."""
+    project.git("init", "-q")
+    (project.root / "docs" / "note-002.md").write_text(NOTE, encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "two artifacts")
+    pin = _head(project)
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    text = path.read_text(encoding="utf-8").replace(
+        'lab: docs/note-001.md § "Observation" @working',
+        f'lab: docs/note-001.md § "Observation" @{pin}\n'
+        f'- lab: docs/note-002.md § "Observation" @{pin}',
+    )
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+
+    (project.root / "docs" / "note-001.md").unlink()
+    (project.root / "docs" / "note-002.md").unlink()
+    reports = freshness.run(open_ledger(root=project.root), write=True)
+    assert [r.outcome for r in reports] == ["fail", "fail", "flag"]
+    assert "appended 2 contested verdict(s)" in reports[-1].message
+    text = path.read_text(encoding="utf-8")
+    assert text.count("author: propagation") == 2
+    assert freshness.run(open_ledger(root=project.root)) == []
+
+
+# --- the seams with the other checkers ------------------------------------------------
+
+
+def test_validate_accepts_the_verdict_freshness_writes(pinned):
+    """The machinery writes two shapes now: propagate's entry: evidence, and this one."""
+    (pinned.root / "docs" / "note-001.md").unlink()
+    pinned.run(write=True)
+    assert validate.run(pinned.ledger()) == []
+
+
+def test_a_person_may_not_borrow_the_machines_name(pinned):
+    """The widened rule is still a rule: an unpinned evidence pointer under the
+    propagation author is a person writing under a check that did not run."""
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        '  evidence: lab: docs/note-001.md § "Observation" @working\n'
+        "  note: not something the machinery would write\n"
+    )
+    messages = [r.message for r in validate.run(pinned.ledger())]
+    assert any("under the machine's name" in m for m in messages)
+
+
+def test_the_contested_status_breaks_a_cites_as_live_citation(pinned):
+    """Freshness needs no failure semantics of its own. It moves the status, and the
+    citation checker does the rest — which is what makes a stale comment in a source file
+    a broken build rather than a note nobody reads."""
+    (pinned.root / "docs" / "digest.md").write_text(
+        f"The law ({_entry_id(pinned)}, cites-as-live) still stands.\n", encoding="utf-8"
+    )
+    path = pinned.entry_path()
+    text = path.read_text(encoding="utf-8")
+    path.write_text(
+        text.rstrip("\n") + "\n\n- docs/digest.md · standing · cites-as-live\n", encoding="utf-8"
+    )
+    assert references.run(pinned.ledger()) == []
+
+    (pinned.root / "docs" / "note-001.md").unlink()
+    pinned.run(write=True)
+    messages = [r.message for r in references.run(pinned.ledger())]
+    assert any("cites-as-live against A0001-" in m for m in messages)
+    assert any("contested" in m for m in messages)
+
+
+def test_pinned_grounds_with_no_repository_are_a_check_that_did_not_run(project):
+    """Silence here would be the failure mode this package exists to refuse: a check that
+    could not run, reported as a check that passed."""
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    text = path.read_text(encoding="utf-8").replace("@working", "@" + "a" * 40)
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    (report,) = freshness.run(open_ledger(root=project.root))
+    assert report.outcome == "fail"
+    assert "freshness did not run" in report.message
+
+
+def _entry_id(pinned):
+    return pinned.entry_path().stem
+
+
+def _repin(pinned, new):
+    path = pinned.entry_path()
+    text = path.read_text(encoding="utf-8").replace(f"@{pinned.pin}", f"@{new}")
+    path.write_text(text, encoding="utf-8")

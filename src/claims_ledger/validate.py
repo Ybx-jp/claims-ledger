@@ -32,6 +32,7 @@ from .schema import (
     STATUSES,
     TAIL_SECTIONS,
     TERMINAL,
+    UNPINNED,
     VERDICT_ENTRY_ACTS,
     Report,
     by_id,
@@ -293,13 +294,20 @@ def check_verdicts(e, entries, config):
                 fail(part, "defect: is the evidence of a retracted verdict and of no other")
             if p.type == "entry" and p.act not in VERDICT_ENTRY_ACTS and p.act not in ACTS:
                 fail(part, f"entry: evidence carries act `{p.act}`")
-            if v.author == config.propagation_author and not (
-                v.status == "contested" and p.type == "entry" and p.act in ("fallen", "challenges")
-            ):
+            # The two shapes the machinery writes: propagate's, naming the entry whose
+            # fall or challenge caused the flag, and freshness's, naming the pinned
+            # ground that moved or was withdrawn. Anything else under the machine's name
+            # is a person borrowing the authority of a check that did not run.
+            propagated = v.status == "contested" and (
+                (p.type == "entry" and p.act in ("fallen", "challenges"))
+                or (p.type in config.evidence_types and p.pin not in UNPINNED)
+            )
+            if v.author == config.propagation_author and not propagated:
                 fail(
                     part,
                     "a propagation verdict is contested with entry: evidence · fallen or "
-                    "· challenges; anything else was written by a person under the machine's name",
+                    "· challenges, or an evidence ground carrying a pin; anything else was "
+                    "written by a person under the machine's name",
                 )
             if v.status == "superseded":
                 if not (p.type == "entry" and p.act == "supersedes"):

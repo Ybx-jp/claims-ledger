@@ -62,8 +62,25 @@ def verdict_block(status_grade, cause_id, act, note, author):
     )
 
 
+def grouped(pending):
+    """[(entry, joined blocks)] — every block destined for one entry in a single write.
+
+    Each block is built from `entry.text` as it was parsed, so two writes to one entry
+    make the second overwrite the first. An entry citing two fallen grounds earns two
+    verdicts and must keep both.
+    """
+    order, blocks = [], {}
+    for entry, block in pending:
+        key = str(entry.path)
+        if key not in blocks:
+            order.append(key)
+            blocks[key] = (entry, [])
+        blocks[key][1].append(block)
+    return [(blocks[k][0], "\n".join(blocks[k][1])) for k in order]
+
+
 def append_verdict(entry, block, root=None):
-    """The verdict appended to the entry file. `root` refuses a write that lands outside
+    """The verdicts appended to the entry file. `root` refuses a write that lands outside
     the project — an entry inside `entries/` can be a symlink to anywhere, and following
     one is the write outside the root that this package states it does not do."""
     if root is not None and (outside := leaves_root(root, entry.path)) is not None:
@@ -214,14 +231,14 @@ def run(ledger, write=False):
                 )
 
     if write:
-        for e, block in pending:
+        for e, block in grouped(pending):
             append_verdict(e, block, root=ledger.config.root)
             reports.append(
                 Report(
                     "flag",
                     e.prefix,
                     "Verdicts",
-                    f"appended a contested verdict by {author}",
+                    f"appended {block.count(2 * chr(10)) + 1} contested verdict(s) by {author}",
                 )
             )
     return reports

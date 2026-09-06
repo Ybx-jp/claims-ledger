@@ -1,0 +1,13 @@
+{
+  "class": "a pin that can never go stale",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 02, A0001 Grounds 1",
+      "why": "the pin is a name that follows the work, so the ground resolves forever and the drift beneath it \u2014 the note was remeasured \u2014 is never reported"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

@@ -1,6 +1,6 @@
 """The `claims-ledger` command.
 
-Four checkers, an authoring side, and the corpus that proves the checkers. Every
+Five checkers, an authoring side, and the corpus that proves the checkers. Every
 subcommand exits non-zero on a failure and zero on a flag, so a hook can be a list of
 commands and a flag is a report a human judges rather than a gate.
 """
@@ -14,7 +14,7 @@ import shlex
 import sys
 from pathlib import Path
 
-from . import __version__, authoring, propagate, references, resolve, validate
+from . import __version__, authoring, freshness, propagate, references, resolve, validate
 from .config import ConfigError
 from .schema import (
     LedgerError,
@@ -31,7 +31,7 @@ from .schema import (
     source_bytes,
 )
 
-CHECKERS = ("validate", "resolve", "references", "propagate")
+CHECKERS = ("validate", "resolve", "references", "propagate", "freshness")
 
 HOOK_TEMPLATE = """#!/bin/sh
 # Installed by `claims-ledger hook --install`.
@@ -46,6 +46,7 @@ set -e
 {python} -m claims_ledger resolve
 {python} -m claims_ledger references
 {python} -m claims_ledger propagate
+{python} -m claims_ledger freshness
 """
 
 
@@ -68,6 +69,8 @@ documents = ["*.md", "docs/*.md"]
 
 # The named artifacts an entry may rest on. A `sectioned` type is written
 # `lab: <path> § "<section>" @<commit>`; a plain one `experiment: <path> @<commit>`.
+# The pin is what `freshness` compares against the working tree, so a pin that names a
+# commit goes stale visibly and one that names a branch never can. `@working` opts out.
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
@@ -92,7 +95,7 @@ CACHE_IGNORE = """# Source bytes, keyed by sha256. The registry row is committed
 def build_parser():
     p = argparse.ArgumentParser(
         prog="claims-ledger",
-        description="A claims ledger and the four checkers that hold it to its schema.",
+        description="A claims ledger and the five checkers that hold it to its schema.",
     )
     p.add_argument("--version", action="version", version=f"claims-ledger {__version__}")
     p.add_argument("--root", help="project root; default is the configuration file's directory")
@@ -108,7 +111,12 @@ def build_parser():
     pr = sub.add_parser("propagate", help="dependents of fallen entries carry the contested flag")
     pr.add_argument("--write", action="store_true", help="append the missing verdicts")
 
-    c = sub.add_parser("check", help="run all four checkers")
+    fr = sub.add_parser(
+        "freshness", help="pinned grounds still name the artifact they were established on"
+    )
+    fr.add_argument("--write", action="store_true", help="append the missing verdicts")
+
+    c = sub.add_parser("check", help="run all five checkers")
     c.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
     sub.add_parser("status", help="every entry with its kind, grade and derived status")
@@ -301,6 +309,14 @@ def cmd_propagate(args, ledger):
     return report_command("propagate", reports, load_entries(ledger), ledger)
 
 
+def cmd_freshness(args, ledger):
+    stop = guard(ledger)
+    if stop is not None:
+        return stop
+    reports = freshness.run(ledger, write=args.write)
+    return report_command("freshness", reports, load_entries(ledger), ledger)
+
+
 def cmd_check(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
@@ -313,8 +329,10 @@ def cmd_check(args, ledger):
             reports = resolve.run(ledger)
         elif name == "references":
             reports = references.run(ledger)
-        else:
+        elif name == "propagate":
             reports = propagate.run(ledger, write=False)
+        else:
+            reports = freshness.run(ledger, write=False)
         print_reports(reports, name)
         worst = max(worst, exit_code(reports))
     return worst
@@ -519,6 +537,7 @@ COMMANDS = {
     "resolve": cmd_resolve,
     "references": cmd_references,
     "propagate": cmd_propagate,
+    "freshness": cmd_freshness,
     "check": cmd_check,
     "status": cmd_status,
     "new": cmd_new,

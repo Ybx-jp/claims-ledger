@@ -1,12 +1,12 @@
 """A claims ledger: entries that separate assertion, grounds, warrant and backing, hold
 every quotation to its source, and derive status from an append-only verdict list, with
-four checkers that enforce the schema and a red-team corpus that proves the checkers.
+five checkers that enforce the schema and a red-team corpus that proves the checkers.
 
 The schema is stated in full in docs/SCHEMA.md, which the repository carries at
 https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md.
 """
 
-from . import propagate, references, resolve, validate
+from . import freshness, propagate, references, resolve, validate
 from .config import Config, ConfigError, default_config, load_config
 from .schema import (
     ACTS,
@@ -32,6 +32,10 @@ from .schema import (
 # PyPI release can never disagree.
 __version__ = "0.1.0"
 
+# The five checkers are listed in `__all__` alongside everything else, in sorted order,
+# because `from claims_ledger import validate` working by implicit submodule import is an
+# accident of Python rather than a declared export, and README.md advertises them as the
+# library API.
 __all__ = [
     "ACTS",
     "GRADES",
@@ -49,14 +53,12 @@ __all__ = [
     "derive_status",
     "exit_code",
     "fingerprint",
+    "freshness",
     "load_config",
     "load_entries",
     "open_ledger",
     "parse_entry",
     "print_reports",
-    # The four checkers, which README.md advertises as the library API. They are listed
-    # here because `from claims_ledger import validate` working by implicit submodule
-    # import is an accident of Python, not a declared export.
     "propagate",
     "references",
     "resolve",
