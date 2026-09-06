@@ -1,5 +1,5 @@
 {
-  "class": "dead restatement pointer",
+  "class": "dead pointer",
   "known_good": false,
   "expect": [
     {
@@ -12,13 +12,36 @@
       "checker": "resolve",
       "outcome": "fail",
       "where": "A0001 Grounds",
-      "why": "source id fx-consult-dl-r2 has no registry row; the check cannot run and says so, never passing silently"
+      "why": "source id fx-consult-dl-r2 has no registry row; the check cannot run and says so, never passing silently",
+      "message": "fx-consult-dl-r2"
     },
     {
       "checker": "resolve",
       "outcome": "fail",
       "where": "A0001 Backing quote 1",
-      "why": "the same unregistered source id; the quote cannot be checked"
+      "why": "the same unregistered source id; the quote cannot be checked",
+      "message": "fx-consult-dl-r2"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0002 Grounds",
+      "why": "an entry: ground names an id the ledger does not have; a pointer that cannot be followed is not a pointer that passes",
+      "message": "does not exist"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0002 Grounds",
+      "why": "the same dead entry-ground pointer, from the entry-to-entry side: a citation to an entry that is not there fails the reference check rather than being silently indexed as if it were",
+      "message": "which does not exist"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0003 Grounds",
+      "why": "the search: ground parses but its query= is empty; a search of record with nothing searched for is not evidence an absence claim can rest on",
+      "message": "needs corpus=, query= and date="
     }
   ]
 }

@@ -10,6 +10,7 @@ its findings; the controls beside them are not decoration — they are what kept
 from being weakenings, and they record which surfaces were examined and found clean.
 """
 
+import re
 import subprocess
 
 from claims_ledger import freshness, resolve, validate
@@ -491,3 +492,142 @@ def test_the_three_findings_say_what_they_are(project):
     assert outcome == "fail"
     assert "is not in the working tree; the ground it names is gone" in withdrawn
     assert "1 commit has touched the artifact since the pin" in withdrawn
+
+
+# --- what a discharge states, and what holds it to it -------------------------------------
+#
+# Sixth pass, HIGH-53 and HIGH-54. The orphan rule exists to refuse a *pre-emptive*
+# forgery, and the fifth pass's fix for MEDIUM-34 asked whether the artifact had ever been
+# touched since the pin — a question the forger controls, since one commit that edits the
+# artifact and one that puts it back answers yes. What the verdict states is now recorded
+# in the verdict: `artifact:` is what the ground was when the drift was seen, and these
+# hold the checker to it in both directions.
+
+
+def contested_at(pointer_line, seen, note="propagated from a moved ground"):
+    """A propagated verdict that records what the artifact was when the drift was seen."""
+    return (
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f"  evidence: {pointer_line}\n"
+        f"  artifact: {seen}\n"
+        f"  note: {note}\n"
+    )
+
+
+def test_the_discharge_records_the_artifact_the_drift_was_seen_at(project):
+    """A verdict that records nothing can be checked against nothing. `--write` writes the
+    object id git would store the drifted artifact under — not a commit id, because the
+    ordinary case is a drift that is in the working tree and not committed at all, which
+    is what a pre-commit hook is for."""
+    path, _ = build(project, ["experiment: docs/note-001.md @{pin}"])
+    note(project, NOTE.replace("0.04", "0.09"))
+    outcomes(project, write=True)
+    line = next(
+        ln
+        for ln in path.read_text(encoding="utf-8").splitlines()
+        if ln.strip().startswith("artifact:")
+    )
+    seen = line.split(":", 1)[1].strip()
+    assert re.fullmatch(r"[0-9a-f]{40}", seen), line
+    assert seen == subprocess.run(
+        ["git", "-C", str(project.root), "hash-object", "docs/note-001.md"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip(), "the recorded id is not the artifact the run was looking at"  # fmt: skip
+
+
+def test_a_touch_and_a_revert_do_not_launder_a_pre_emptive_discharge(project):
+    """HIGH-53. The forgery `docs/FRESHNESS.md` names — a discharge written before the
+    ground has moved — used to become permanent after one commit that edited the artifact
+    and one that put it back. The ground is byte-identical to the pin throughout, and a
+    verdict that states no drift states nothing."""
+    path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
+    append(path, contested(f"experiment: docs/note-001.md @{pin}"))
+    assert [o for o, _, _ in outcomes(project)] == ["fail"], "the control: it is an orphan"
+
+    original = (project.root / "docs" / "note-001.md").read_bytes()
+    note(project, NOTE.replace("0.04", "0.99"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "a touch")
+    (project.root / "docs" / "note-001.md").write_bytes(original)
+    project.git("add", "-A")
+    project.git("commit", "-qm", "and back again")
+
+    assert [o for o, _, _ in outcomes(project)] == ["fail"], (
+        "one no-op commit pair laundered a discharge naming a drift that never happened"
+    )
+
+
+def test_a_discharge_recording_a_version_the_artifact_never_held_is_an_orphan(project):
+    """The forger's other move: write the verdict pre-emptively *and* record something in
+    its `artifact:` line. The id here is a real object in this very repository — the entry
+    file's own blob — so being well formed, and even being findable, is not what is being
+    asked. The question is whether *this artifact* was ever that between the pin and here.
+    """
+    path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
+    real_but_not_this_artifact = rev(project, "HEAD:ledger/entries/A0001-fraction-law.md")
+    append(path, contested_at(f"experiment: docs/note-001.md @{pin}", real_but_not_this_artifact))
+    assert [o for o, _, _ in outcomes(project)] == ["fail"]
+
+
+def test_a_discharge_recording_the_artifact_as_the_pin_has_it_is_an_orphan(project):
+    """The nearest miss, and the one the touch-and-revert history hands a forger for free:
+    after an edit and its undo, the blob the pin names is itself a version the artifact
+    held inside the range — so "a version it held" is not sufficient on its own. The
+    artifact as the pin has it is the definition of a ground that has not drifted."""
+    path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
+    at_pin = rev(project, f"{pin}:docs/note-001.md")
+    original = (project.root / "docs" / "note-001.md").read_bytes()
+    note(project, NOTE.replace("0.04", "0.99"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "a touch")
+    (project.root / "docs" / "note-001.md").write_bytes(original)
+    project.git("add", "-A")
+    project.git("commit", "-qm", "and back again")
+
+    append(path, contested_at(f"experiment: docs/note-001.md @{pin}", at_pin))
+    assert [o for o, _, _ in outcomes(project)] == ["fail"]
+
+
+def test_a_reverted_drift_is_still_discharged_by_the_verdict_the_checker_wrote(project):
+    """MEDIUM-34's case, which the fix for HIGH-53 must not reopen: the checker's own
+    discharge, over a drift that really happened and was then undone. Verdicts append and
+    only append, so a discharge that turned into an orphan here would wedge the entry for
+    the life of it."""
+    path, _ = build(project, ["experiment: docs/note-001.md @{pin}"])
+    note(project, NOTE.replace("0.04", "0.09"))
+    outcomes(project, write=True)
+    project.git("add", "-A")
+    project.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
+    note(project, NOTE)  # the edit is undone
+    assert outcomes(project) == []
+    assert path.read_text(encoding="utf-8").count("author: propagation") == 1
+
+
+def test_a_withdrawn_ground_that_comes_back_does_not_wedge_the_ledger(project):
+    """The withdrawn half of the same rule. An artifact that was deleted and later
+    restored byte-identically is a ground that is fresh again, and the discharge the
+    checker wrote for its withdrawal is not an orphan: the deletion is in the history, and
+    `absent` is what the verdict recorded."""
+    path, _ = build(project, ["experiment: docs/note-001.md @{pin}"])
+    (project.root / "docs" / "note-001.md").unlink()
+    outcomes(project, write=True)
+    assert "artifact: absent" in path.read_text(encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the note is withdrawn, and the discharge for it")
+    note(project, NOTE)
+    project.git("add", "-A")
+    project.git("commit", "-qm", "and it comes back, unchanged")
+    assert outcomes(project) == []
+
+
+def test_a_discharge_claiming_a_withdrawal_that_never_happened_is_an_orphan(project):
+    """`absent` is a claim about history like any other, and it is checked against the
+    history: nothing has ever deleted this artifact."""
+    path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
+    append(
+        path,
+        contested_at(
+            f"experiment: docs/note-001.md @{pin}", "absent", "propagated from a withdrawn ground"
+        ),
+    )
+    assert [o for o, _, _ in outcomes(project)] == ["fail"]

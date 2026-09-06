@@ -188,6 +188,11 @@ def create_entry(ledger, slug, **kwargs):
         # root — an `unexpected OSError` asked of someone who chose a long slug.
         if path.exists():
             raise AuthoringError(f"{path} already exists")
+        # A dangling symlink at the entry path is not `exists()`, so without this the
+        # refusal above steps aside and the new entry is written wherever the link leads.
+        # `restamp` and `append_verdict` have always asked; this one was clean by accident
+        # rather than by a guard, which is not a property to leave resting on an accident.
+        refuse_to_write_outside_the_root(ledger, path)
         path.parent.mkdir(parents=True, exist_ok=True)
         write_text_atomically(path, render_entry(ident, slug, **kwargs))
     except OSError as exc:
@@ -344,6 +349,14 @@ def register_source(
         if not ledger.cache:
             raise AuthoringError("this ledger has no cache; register with --keep-path instead")
         stored = ledger.cache / digest
+        # Asked before the cache slot is so much as read. Every write in this package goes
+        # through one funnel now, and the funnel's own docstring says where the link leads
+        # is the caller's question — but this caller had never asked it, so a dangling
+        # symlink planted at the content-addressed slot sent `source add` outside the
+        # project root, exit 0, naming the in-root path it had not written to. The check
+        # precedes the "are these already the right bytes" read as well, so a *live* link
+        # out of the root is refused rather than quietly accepted as a cache hit.
+        refuse_to_write_outside_the_root(ledger, stored)
         try:
             ledger.cache.mkdir(parents=True, exist_ok=True)
             # The cache is content-addressed, so a file already under this name should be

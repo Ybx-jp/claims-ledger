@@ -30,7 +30,7 @@ from .schema import (
 # The single source of truth for the version: pyproject.toml reads it from here
 # (`[tool.hatch.version] path`), so `claims_ledger.__version__`, `pip show` and the
 # PyPI release can never disagree.
-__version__ = "0.2.0"
+__version__ = "0.1.0"
 
 # The five checkers are listed in `__all__` alongside everything else, in sorted order,
 # because `from claims_ledger import validate` working by implicit submodule import is an

@@ -217,10 +217,56 @@ forgeable by writing the verdict pre-emptively.
 the first, the rule wedged the ledger: undo the edit that caused a discharge and the
 checker called its own verdict an orphan, permanently, with no legal way out — verdicts
 append and only append, so the verdict cannot be removed, and the pin sits above the APPEND
-marker, so it cannot be changed. The orphan test therefore also asks whether any commit
-between the pin and HEAD touched the artifact at all. A pin nothing has touched cannot have
-drifted, and a verdict naming one is the pre-emptive forgery the rule is for; an artifact
-that moved and moved back is a discharge that was caused.
+marker, so it cannot be changed.
+
+**Built — and the question the fix first asked was one the forger controls.** The wedge was
+closed by also asking whether any commit between the pin and HEAD had touched the artifact
+at all, and treating a yes as proof that the verdict was caused. That is not the question
+the rule needs answered. *Touched* is not *drifted*: one commit that edits the artifact and
+one that puts it back — or a `chmod +x`, or a rename away and back — answers yes while the
+artifact stays byte-identical to the blob at the pin, and a discharge written pre-emptively
+is then accepted permanently. The rule traded a loud false positive for a silent false
+negative, which is the trade this package exists to refuse.
+
+So the verdict states its cause, and is held to what it states. `--write` records an
+`artifact:` line — the object id git would store the artifact under at the moment the drift
+was seen, or `absent` for a ground that had been withdrawn — and the orphan test asks
+whether the artifact really was that between the pin and here: a blob the path has actually
+held, or a commit that really deleted it. A blob is the right grain rather than a commit
+because the ordinary case is a drift that is in the working tree and not committed at all,
+which is what a pre-commit hook is for.
+
+A verdict that records nothing is an orphan, and so is one recording the artifact as the pin
+itself has it, which states no drift. This does not make the discharge unforgeable — the
+ledger is text a person writes, and a forger who genuinely drifts the artifact in a commit
+and names that blob has made a record a reader can follow.
+
+**Three things it does not yet reach, and the first is the largest.** An adversarial review
+of this rule measured them; they are stated here rather than left for a reader to discover,
+because a specification that overstates its own guarantee is the defect this package exists
+to refuse.
+
+- **The `artifact:` line is not consulted while the drift is live.** `orphans()` asks about
+  it only when the ground looks fresh again, and `has_acknowledged()` — which is what
+  silences a `moved` report — matches a verdict to a ground by the pointer alone. So a
+  propagation-authored verdict carrying any value, or none, silences a real, committed,
+  ongoing drift with every checker at exit 0. The gate is older than this rule; what is new
+  is that this rule depends on it.
+- **`caused()` has no section awareness.** For a `§ "<section>"` ground it asks whether the
+  *file* ever held the recorded blob, so one ordinary commit editing a different section of
+  the same file supplies a blob a discharge can name, with the pinned section untouched.
+- **`absent` is checked against the file, not against the verdict.** A ground deleted and
+  restored in two commits satisfies it, which is a touch-and-revert.
+
+So the accidental forgery is narrowed rather than removed: the object-id case needs a
+deliberate `git rev-parse`, and the two above do not.
+
+**A git that cannot answer is not a git answering no.** The history question can fail — a
+corrupt pack, a clean filter that exits non-zero, the per-call timeout. When it does, the
+run reports that whether the drift happened *could not be established* and exits non-zero.
+It does not decide either way: reading the silence as "it drifted" retires the rule without
+saying so, and reading it as "it did not" forges an accusation against a correctly
+discharged verdict.
 
 ## What is exempt, and why
 
@@ -266,7 +312,7 @@ Defect seeds:
 | `D45-ground-moved-unacknowledged` | `commits/02` edits the pinned artifact | `freshness` **flag** at `commit 02, A0001 Grounds 1` |
 | `D46-ground-withdrawn` | `commits/02` deletes the pinned artifact | `freshness` **fail** at `commit 02, A0001 Grounds 1` |
 | `D47-pin-is-a-name-not-a-commit` | pin written `@HEAD` | `freshness` **flag** at `commit 02, A0001 Grounds 1` |
-| `D48-orphan-freshness-verdict` | propagation contested verdict naming a ground that has not moved, on an artifact no commit since the pin has touched | `freshness` **fail** at `commit 02, A0001 Verdicts` |
+| `D48-orphan-freshness-verdict` | propagation contested verdict naming a ground that has not moved, recording no artifact it was seen at | `freshness` **fail** at `commit 02, A0001 Verdicts` |
 | `D49-section-withdrawn-from-a-file-that-remains` | `commits/02` removes the pinned section; the file stays | `freshness` **fail** at `commit 02, A0001 Grounds 1` |
 | `D51-pin-git-cannot-classify` | the pin is `@HEAD@{99}` in a repository with one commit, so `rev-parse` fails rather than answering | `freshness` **fail** at `commit 01, A0001 Grounds 1`, and `resolve` **fail** at `commit 01, A0001 Grounds` |
 
@@ -407,8 +453,9 @@ rather than something a later reader has to notice.
   whose evidence lives on a moving branch, and failing would make that project's ledger
   uncheckable rather than merely weaker.
 - **Whether the discharge should expire.** Nothing here re-flags a claim whose ground
-  moved a second time after being contested — the contested verdict names a pointer, and
-  the pointer has not changed. It may need to name the blob object id it was written
-  against instead. The orphan rule's "was it ever touched since the pin" is the same
-  question asked at a coarser grain, and a verdict that named the blob it was written
-  against would answer both exactly.
+  moved a second time after being contested: `has_acknowledged()` matches a verdict to a
+  ground by the pointer, and the pointer has not changed. The verdict now carries the
+  object id it was written against, so the question can be asked — is the artifact still
+  the version this discharge judged? — but it is not asked yet, and asking it would mean
+  deciding what a project does about a discharge that has aged out, which is a policy this
+  has no experience to choose from.

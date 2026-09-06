@@ -95,12 +95,19 @@ def matches(report, commit, entry, part, message=None):
     report said. The place is where a rule fires and not which rule it is, so a rule whose
     place another rule can also occupy — or one whose report would survive being emptied
     of everything but its outcome — is named here as well.
+
+    An empty string is not a substring that pins anything: `"" in x` is true of every
+    `x`, so a row that wrote `"message": ""` would otherwise bind exactly as loosely as
+    one that omitted the key — but silently, since it looks pinned. Only `None` — the key
+    left out — means "the place alone is enough."
     """
     if report.commit != commit or report.entry != entry:
         return False
     if report.part.casefold() != part.casefold():
         return False
-    return message is None or message.casefold() in report.message.casefold()
+    if message is None:
+        return True
+    return bool(message) and message.casefold() in report.message.casefold()
 
 
 def seed_ledger(root, staged, repo=None):
@@ -142,7 +149,13 @@ def stage(src, dst, pins=None):
         if (dst / name).exists():
             shutil.rmtree(dst / name)
         if (src / name).is_dir():
-            shutil.copytree(src / name, dst / name)
+            # `copyfile` rather than the default `copy2`, which preserves the source's
+            # mtime. Git's index caches (mtime, size) and skips reading a file whose pair
+            # is unchanged, so a seed state that edits a line without changing its length
+            # — `0.041` to `0.991` — staged as a file git believed it had already seen,
+            # `git add -A` picked up nothing, and the commit failed with `nothing to
+            # commit` rather than with anything naming the cause.
+            shutil.copytree(src / name, dst / name, copy_function=shutil.copyfile)
     if not pins:
         return
     for path in sorted((dst).glob("*/*.md")):
@@ -222,6 +235,30 @@ def run_checkers(ledger, commit=None):
 def run_seed(seed, root):
     """(passed, lines, produced) for one seed directory."""
     expected = json.loads((seed / "expected.json").read_text(encoding="utf-8"))
+    if not expected.get("expect"):
+        # HIGH-45 put a floor under an empty corpus and a filter that matches no seed;
+        # this is the same floor one level down. Without it, an `expect: []` seed prints
+        # `1/1 seeds pass` over a seed that bound nothing to anything — a full pass for
+        # zero evidence, which is the report this package exists to refuse. `test_corpus
+        # .py`'s own `assert exp["expect"]` only holds the corpus this repository
+        # currently ships; `run.py` is what an installed wheel runs, so the floor has to
+        # live here too.
+        return (
+            False,
+            ["expected.json declares no expectation rows; nothing was proven"],
+            {name: [] for name in CHECKERS},
+        )
+    for r in expected["expect"]:
+        if r.get("message") == "":
+            # `matches()` reads an empty string as "no message was given" rather than as
+            # a substring that matches every report, so a row written this way would
+            # quietly bind as loosely as one that left the key out at all — the seed
+            # author told nothing was wrong. Refused here instead, at the row that wrote
+            # it, rather than left to surface later as a mismatch with no clear cause.
+            raise ValueError(
+                f"{seed.name}: a row's `message` is the empty string, which pins nothing; "
+                'omit the key instead of writing ""'
+            )
     rows = [
         (r["checker"], r["outcome"], *parse_where(r["where"]), r["why"], r.get("message"))
         for r in expected["expect"]

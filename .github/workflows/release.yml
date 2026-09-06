@@ -83,9 +83,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     # Trusted Publishing: PyPI mints a short-lived token for this workflow, so there is
-    # no long-lived secret in the repository. It needs a publisher configured once at
-    # https://pypi.org/manage/project/claims-ledger/settings/publishing/ naming this
-    # repository, the workflow file `release.yml` and the environment `pypi`.
+    # no long-lived secret in the repository. The project-settings publishing page
+    # (pypi.org/manage/project/claims-ledger/settings/publishing/) does not exist until
+    # something has already been uploaded, so the *first* publish instead needs an
+    # account-level pending publisher, configured once at
+    # https://pypi.org/manage/account/publishing/, naming this repository, the workflow
+    # file `release.yml` and the environment `pypi` below — PyPI turns it into the
+    # project's own publisher automatically on that first successful upload. The `pypi`
+    # GitHub environment this job runs under also has to exist beforehand (Settings →
+    # Environments in this repository); nothing here creates it. See RELEASING.md.
     permissions:
       id-token: write
     steps:
@@ -94,3 +100,32 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+
+  github_release:
+    needs: publish
+    # Same gate as `publish`, and dependent on it: a Release names a tag that actually
+    # reached PyPI, never one that only got as far as `build`. Nothing else in this file
+    # creates GitHub's own Release object — only the tag and the PyPI upload — and
+    # CHANGELOG.md links every version heading straight to `releases/tag/vX.Y.Z`, which
+    # 404s without one.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    # `contents: write` is a wider grant than this file has anywhere else, so it is held
+    # to one job: the top level stays `contents: read`, `build` and `publish` never see
+    # it, and this job runs no code from the repository — `gh release create` talks to
+    # the GitHub API directly and needs no checkout.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
+        with:
+          name: dist
+          path: dist/
+      - name: Create the GitHub Release the CHANGELOG links to
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See CHANGELOG.md for what this release contains." \
+            dist/*

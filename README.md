@@ -7,7 +7,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 75 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 76 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -31,19 +31,73 @@ the stored bytes of its registered source.
 
 ## Quickstart
 
+Every command below is run by `tests/test_readme_quickstart.py` against a fresh project
+and its output compared with what is printed here, so this transcript is reproducible
+rather than illustrative — including the digests, which is why the source file it starts
+from is written out rather than assumed.
+
 ```console
+$ cat > paper.txt <<'EOF'
+Okafor and Lindqvist authored the study. A stale fraction of 0.1 produced an error of 0.04. The full run log is in the appendix.
+EOF
+
 $ claims-ledger init
 wrote /home/you/project/claims-ledger.toml
 created /home/you/project/ledger/entries, /home/you/project/ledger/cache and …
 
 $ claims-ledger source add paper.txt --id fx-paper --type paper \
     --citation "Okafor and Lindqvist (2026)" --authors Okafor Lindqvist
-registered fx-paper (66e48fb0b7f9…) in ledger/sources.jsonl
-bytes at ledger/cache/66e48fb0b7f9…
+registered fx-paper (f09680d85993…) in ledger/sources.jsonl
+bytes at ledger/cache/f09680d85993…
 
 $ claims-ledger new stale-fraction-governs-error
 wrote ledger/entries/A0001-stale-fraction-governs-error.md
 Fill in Assertion, Scope, Grounds, Warrant and Backing, then `claims-ledger sha --write`…
+
+$ cat > ledger/entries/A0001-stale-fraction-governs-error.md <<'EOF'
+---
+id: A0001-stale-fraction-governs-error
+kind: claim
+stated: 2026-09-06T09:00:00-07:00
+author: main
+grade: asserted
+supersedes: none
+verbatim_sha: 0
+---
+
+## Assertion
+
+A stale fraction of 0.1 produces an embedding error of 0.04.
+
+## Scope
+
+metric: embedding error
+cohort: dynamic graph embeddings
+condition: stale fraction 0.1
+
+## Grounds
+
+- source: fx-paper · summary
+
+## Warrant
+
+Restates the source's own reported result.
+
+## Backing
+
+- source: fx-paper · summary
+  speaker: Okafor and Lindqvist
+  quote: "A stale fraction of 0.1 produced an error of 0.04."
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+EOF
+
+$ claims-ledger sha --write ledger/entries/A0001-stale-fraction-governs-error.md
+ledger/entries/A0001-stale-fraction-governs-error.md: 0… → 84d9b6514b98…
 
 $ claims-ledger check
 validate: 0 failure(s), 0 flag(s)
@@ -130,7 +184,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 75 seeds, each a small ledger with committed
+the red-team corpus it was built against: 76 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -140,7 +194,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-75/75 seeds pass
+76/76 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
@@ -290,7 +344,7 @@ $ pytest -q
 $ claims-ledger corpus
 ```
 
-All five are what CI runs, over Python 3.11, 3.12 and 3.13 on Linux and macOS, plus a
+All five are what CI runs, over Python 3.11, 3.12, 3.13 and 3.14 on Linux and macOS, plus a
 job that builds the wheel, installs it into a clean environment and runs the corpus from
 a directory that is not the checkout — because the claim that an installed copy can prove
 itself is only worth anything if it is tested that way.
@@ -303,12 +357,17 @@ grow between releases.
 A change that moves a corpus seed's expected outcome is a methodology change, not a bug
 fix: record it in `CHANGELOG.md` with the seed named.
 
+Cutting a release is `RELEASING.md`'s job to describe, not this one's — it names the
+exact PyPI and GitHub setup a first publish needs and the steps every release after it
+repeats.
+
 ## Provenance
 
 Extracted from the claims ledger built for a research project on dynamic graph embedding
 refresh, where the schema, the checkers and the corpus were developed together. The
 extraction changed what was project-specific into configuration — where the ledger sits,
 which documents may cite it, what an evidence pointer is called, who may write a verdict
-— and changed nothing about the schema or the checks. All 62 corpus seeds pass unchanged.
+— and changed nothing about the schema or the checks. Every one of the sixty-two seeds
+the corpus held at extraction still passes unchanged; it has since grown to 76.
 
 MIT licensed.

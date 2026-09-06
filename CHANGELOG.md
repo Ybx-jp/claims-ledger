@@ -11,188 +11,31 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
-## [0.2.0] — 2026-09-06
-
-### Added
-
-- **A fifth checker, `freshness`.** `resolve` asks whether a ground's pointer resolves,
-  and asks it of the past: the pin names a commit, so once an entry resolves it resolves
-  for good. The ledger could therefore not notice that the world had moved — an entry
-  could rest on a test that had since been deleted and every checker stayed green,
-  because the evidence was still there at the revision nobody works on. `freshness`
-  compares each pinned ground to the working tree: a path that is gone fails, bytes that
-  differ from the pin flag, and a pin that is a branch or a tag rather than an object id
-  flags, because a pin that follows the work can never go stale. It never judges whether
-  a difference matters. A `contested` verdict by the propagation author naming the
-  pointer discharges the finding, `--write` appends it, and a verdict naming a ground
-  that has not drifted is an orphan and fails. The specification is `docs/FRESHNESS.md`.
-- Eight corpus seeds for it — `D45`–`D48`, `K19`–`K22`. Every one was falsified by
-  deleting the rule it covers and re-running the corpus.
-- History seeds may write `@commit01` in an entry; the runner substitutes that commit's
-  real short object id before the state is committed. A seed cannot name an object the
-  runner has not created yet, and drift, like immutability, is a property of history.
-
-- **Section patterns.** A `§ "<section>"` pointer used to mean a Markdown heading and
-  nothing else, so a claim could not rest on a named function of a source file, and the
-  drift comparison treated every edit anywhere in an artifact as a moved ground. A
-  sectioned evidence type may now carry a regex with a `{name}` slot under
-  `[tool.claims-ledger.section-patterns]`; omitted, it gets the heading it always meant.
-  `resolve` and `freshness` read a section through the same pattern, and `freshness`
-  compares only the named section, so an edit elsewhere in the artifact is no longer
-  drift. A pattern that does not compile, does not mention `{name}`, or names a type that
-  is not sectioned is refused where the configuration is read.
-- Two more seeds, `D49` and `K23`.
-- A drifted ground in an uncommitted working tree says so, rather than reporting that
-  `0 commits have touched it` — which, of a file the author is editing right now, reads
-  as a checker that has lost track of its own subject.
-
-### Changed
-
-- `validate` admits one more verdict shape under the propagation author: a `contested`
-  verdict whose evidence is an evidence ground carrying a pin, which is what `freshness`
-  writes. `entry:` evidence with `· fallen` or `· challenges` remains the only other one,
-  so a person still cannot write under the machine's name.
-- `resolve` reads a pinned artifact from the repository holding the entries rather than
-  from the project root. `git show <pin>:<path>` resolves the path from the repository
-  root; the two are the same directory in a real project, and are not in a corpus
-  history seed. No seed's expected outcome moves: every pin in the 62 seeds written
-  before this is `@corpus`, which reads from the working tree and never reached that call.
-- `claims-ledger check` and the installed pre-commit hook run five checkers, not four.
-
-### Fixed
-
-- **A git that stops answering is no longer read as good news** — the fourth adversarial
-  pass, `QE-AUDIT.md` HIGH-23 … MEDIUM-28. `git_problem()` was asked once at the start of
-  a run and every command after it was trusted, so a failure that `rev-parse --git-dir`
-  cannot see — a required clean filter that exits non-zero, a truncated index, a loose
-  object removed, a diff that outlives the timeout — came back as `None` from `git()` and
-  was read by its caller as a benign negative: unchanged, not staged, not committed. A
-  check that never ran, reported as a check that passed. `git_call()` answers with the
-  exit status beside the output, so a caller can tell *no* from *could not ask*, and each
-  surface was changed to ask in that form: `freshness` reports a comparison it could not
-  make instead of a fresh ground, and does not turn the same silence into an orphan
-  verdict; `validate` reports a revision whose blob it could not read instead of waiving
-  the append-only check across it, and says when `--cached` fell back to the working tree
-  because the index could not be parsed; `sha --write` refuses to rewrite an entry when
-  git cannot say whether it is committed, rather than rewriting an immutable frozen
-  region and exiting 0; and `resolve` reports a git it could not ask once, for the
-  ledger, rather than telling the author that every pinned pointer they wrote is wrong.
-  Two surfaces of the same class, found while fixing rather than reported: an entry whose
-  history `git log` cannot list was read as one that had never been committed, and so
-  dropped out of both history checks; and `drift()` could not tell a path that is not at
-  the pin from a git that could not look for it.
-- **The immutability check covers the whole frozen region** (`QE-AUDIT.md` HIGH-22). It
-  compared parsed sections, and a section runs from its own heading to the next — so
-  every byte above the first `## ` heading of a committed entry belonged to no section
-  and was compared against nothing. The scaffold leaves that region empty, which is what
-  made it a hiding place. The bytes above the APPEND marker are compared now, with the
-  section-by-section diff kept for the diagnostic so a changed section is still named.
-- The configuration `claims-ledger init` writes is now checked to be parseable TOML. The
-  template is filled with `str.format` and then read by a parser, and an escape that
-  survives one and not the other is unparseable in a way nothing else would notice: a
-  `\b` in a commented-out example became a real backspace, which `tomllib` refuses even
-  inside a comment.
-- `propagate --write` lost verdicts. Two verdicts destined for one entry were two writes
-  built from the same in-memory text, so the second overwrote the first — an entry citing
-  two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by
-  entry and written once. Found while building `freshness`, which would have inherited it.
-- **Every write is a temp file and a rename** — the fifth adversarial pass, `QE-AUDIT.md`
-  HIGH-39 … LOW-52. `create_entry`, `restamp`, `append_verdict`, `cmd_init` and `cmd_hook`
-  each truncated their destination before knowing they could fill it, so a write that
-  failed partway — a full disk, a quota, a resource limit — left a committed entry cut off
-  mid-verdict with its `## References` gone. The diagnostic was already right; the state
-  left behind was not.
-- **A `--write` no longer rewrites the frozen region of a CRLF entry, and `check` can see
-  it if anything does.** The write paths read and wrote through universal newlines, so
-  appending three lines to an entry committed with CRLF rewrote all forty above the APPEND
-  marker — and `check_history` compared `git show`'s decoded output against decoded text,
-  so the "compared as bytes" immutability check could not see a newline change on either
-  side. The write paths keep the file's own endings; the frozen region is compared as
-  bytes as well as as sections. `append_verdict` also chooses its insertion point below
-  the APPEND marker rather than by the first `## References`, which on a layout `validate`
-  rejects put the verdict inside the frozen region, and refuses the write outright if the
-  bytes above the marker would change.
-- **`source add` writes a line as a line.** Onto a `sources.jsonl` with no final newline it
-  glued its row onto the previous one, destroyed both, printed `registered …` and exited 0,
-  and every later command exited 2 with `not a JSON object`. A failed append is now rolled
-  back to the length the file had. Retrying an interrupted `source add` also kept the
-  truncated cache file — `if not stored.exists()` trusted the name of a content-addressed
-  file — and exited 0 over bytes it never wrote; the bytes are checked against the digest.
-- **`sha --write a b c` no longer stops at the first path it cannot write.** Each path is
-  its own write, and the ones after a refusal were neither attempted nor named.
-- **`freshness`:** a discharge verdict names a section, so one verdict no longer silences
-  every ground on the same file and pin; `--write` exits non-zero, so the verdicts it
-  appends are looked at before they are committed; `--cached` reaches it, so
-  `check --cached` compares the index the commit will carry rather than the working tree;
-  an uppercase object id is an object id and a `@v9.9` that names nothing is `resolve`'s
-  finding, because git is now asked about every pin rather than only the hex-shaped ones;
-  paths reach `git diff` as `:(literal)` pathspecs, so an edit to `docs/note1.md` is not
-  reported as drift in `docs/note[1].md`; and undoing an edit no longer turns the
-  checker's own discharge into an orphan failure that no legal edit could clear.
-- **A `###` subsection no longer ends its parent `##` section.** The shipped default
-  section pattern ended a section at a heading of *any* depth, so a claim's own evidence
-  could be inverted under a subheading with `resolve` and `freshness` both green — and a
-  project that had configured nothing had no anchoring available to it, because `#+` is
-  every depth. A pattern that can nest now says so with a group named `depth`.
-- **Frontmatter fences may carry trailing whitespace.** `--- ` was read as no frontmatter
-  at all, which is one report followed by every check that needed a key cascading behind
-  it. YAML permits it and editors leave it there.
-
-### Methodology
-
-Recorded as methodology changes, with the seeds named, under this file's own rule.
-
-- **The corpus runner matches a report's place exactly, and one row is satisfied by one
-  report.** A row naming a prefix of the place, or a place two rules both fail at, was held
-  up by whichever rule still existed: deleting the terminal-status rule or the
-  `resolves_when` rule from `validate` left the corpus at 72/72. A row may also name a
-  substring of the report's `message`, for a rule the place alone does not identify.
-  `D17-verdict-after-terminal`'s second verdict is `contested` rather than a bare
-  corroboration, so the terminal-status rule is the only rule failing at that place, and
-  `D19-prediction-without-credence`'s first row is split into the two rules it always
-  claimed to bind. No seed's outcome moves; what each row *proves* does.
-- **A run that checked nothing exits non-zero.** An empty corpus, or a seed filter matching
-  no seed, printed `0/0 seeds pass` and exited 0 — and that command is the release
-  workflow's proof that the built artifact still works, so a distribution that shipped no
-  seeds would have passed the gate.
-- **Three seeds**, for rules no seed held: `D50-document-that-is-not-text` (a document the
-  reference checker could not open — the third pass's HIGH-17 fix, which had unit tests and
-  no seed), `D51-pin-git-cannot-classify` (a ground the freshness checker could not
-  examine, which is this package's stated reason to exist), and
-  `D52-mid-sentence-start-without-elision` (the half of D06's class nothing covered). The
-  corpus is 75 seeds, and the corpus README now says which rules it does *not* hold up —
-  a mutation sweep found most of `validate`'s well-formedness guards survive their own
-  deletion, and the unit suite is what holds those.
-
-### Release
-
-- Every action in both workflows is pinned to a commit, including
-  `pypa/gh-action-pypi-publish@release/v1` — a mutable branch, in the one job holding
-  `id-token: write`.
-- The sdist is installed into a clean environment and made to run the corpus before
-  publication, as the wheel already was. An sdist is what pip falls back to wherever
-  wheels are refused, and `twine check` reads its metadata rather than running it.
-
-## [0.1.0] — 2026-09-05
+## [0.1.0] — 2026-09-06
 
 First public release. Extracted from the claims ledger built for a research project on
 dynamic graph embedding refresh, where the schema, the checkers and the corpus were
-developed together. All 62 corpus seeds pass unchanged from the ledger it came out of.
+developed together. All 62 corpus seeds passed unchanged from the ledger it came out of;
+the release ships 76.
 
-Everything below is in this release: the three adversarial passes recorded in
-`QE-AUDIT.md` all ran before it was tagged, so their fixes are part of the first
-published artifact rather than a change to one.
+**Everything below is in this release, and this file has one version heading rather than
+several on purpose.** The five adversarial passes recorded in `QE-AUDIT.md`, the fifth
+checker and section scoping all landed before anything was tagged or uploaded, so there
+was no earlier release for any of them to be a change to. Splitting them across versions
+would have put a `0.1.0` on the record that nobody could ever install.
 
 ### The schema and the checkers
 
 - An entry separates Assertion, Scope, Grounds, Warrant and Backing, with no quotation
   mark permitted in the Assertion, and derives its status from an append-only verdict
   list rather than storing one.
-- Four checkers — `validate`, `resolve`, `references`, `propagate` — and `check`, which
-  runs all four.
-- A red-team corpus of 62 seeds with committed expected outcomes, shipped inside the
-  package and runnable from an installed copy as `claims-ledger corpus`. The contract is
-  symmetric: an unlisted catch is a finding about the seed or the checker, never a bonus.
+- Five checkers — `validate`, `resolve`, `references`, `propagate`, `freshness` — and
+  `check`, which runs all five. The first four are described here; `freshness` has its own
+  section below, because it was written after this one.
+- A red-team corpus, 62 seeds at extraction and 76 at release, with committed expected
+  outcomes, shipped inside the package and runnable from an installed copy as
+  `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
+  the seed or the checker, never a bonus, and one row is satisfied by one report.
 - Authoring: `init`, `new`, `sha`, `source add`, `source list`, `status`, `hook`.
 - No runtime dependencies. Python 3.11 or newer.
 
@@ -415,13 +258,305 @@ round asked of every fix which other surfaces reach the same code by a different
   trailing `Z` to `+00:00` before `datetime.fromisoformat`, which has handled `Z` itself
   since 3.11. Nothing covered a `Z` timestamp, so it is covered now.
 
+### The fifth checker, and section scoping
+
+Written after the section above, and before anything was tagged.
+
+- **A fifth checker, `freshness`.** `resolve` asks whether a ground's pointer resolves,
+  and asks it of the past: the pin names a commit, so once an entry resolves it resolves
+  for good. The ledger could therefore not notice that the world had moved — an entry
+  could rest on a test that had since been deleted and every checker stayed green,
+  because the evidence was still there at the revision nobody works on. `freshness`
+  compares each pinned ground to the working tree: a path that is gone fails, bytes that
+  differ from the pin flag, and a pin that is a branch or a tag rather than an object id
+  flags, because a pin that follows the work can never go stale. It never judges whether
+  a difference matters. A `contested` verdict by the propagation author naming the
+  pointer discharges the finding, `--write` appends it, and a verdict naming a ground
+  that has not drifted is an orphan and fails. The specification is `docs/FRESHNESS.md`.
+- Eight corpus seeds for it — `D45`–`D48`, `K19`–`K22`. Every one was falsified by
+  deleting the rule it covers and re-running the corpus.
+- History seeds may write `@commit01` in an entry; the runner substitutes that commit's
+  real short object id before the state is committed. A seed cannot name an object the
+  runner has not created yet, and drift, like immutability, is a property of history.
+
+- **Section patterns.** A `§ "<section>"` pointer used to mean a Markdown heading and
+  nothing else, so a claim could not rest on a named function of a source file, and the
+  drift comparison treated every edit anywhere in an artifact as a moved ground. A
+  sectioned evidence type may now carry a regex with a `{name}` slot under
+  `[tool.claims-ledger.section-patterns]`; omitted, it gets the heading it always meant.
+  `resolve` and `freshness` read a section through the same pattern, and `freshness`
+  compares only the named section, so an edit elsewhere in the artifact is no longer
+  drift. A pattern that does not compile, does not mention `{name}`, or names a type that
+  is not sectioned is refused where the configuration is read.
+- Two more seeds, `D49` and `K23`.
+- A drifted ground in an uncommitted working tree says so, rather than reporting that
+  `0 commits have touched it` — which, of a file the author is editing right now, reads
+  as a checker that has lost track of its own subject.
+
+### Changed by the fifth checker
+
+- `validate` admits one more verdict shape under the propagation author: a `contested`
+  verdict whose evidence is an evidence ground carrying a pin, which is what `freshness`
+  writes. `entry:` evidence with `· fallen` or `· challenges` remains the only other one,
+  so a person still cannot write under the machine's name.
+- `resolve` reads a pinned artifact from the repository holding the entries rather than
+  from the project root. `git show <pin>:<path>` resolves the path from the repository
+  root; the two are the same directory in a real project, and are not in a corpus
+  history seed. No seed's expected outcome moves: every pin in the 62 seeds written
+  before this is `@corpus`, which reads from the working tree and never reached that call.
+- `claims-ledger check` and the installed pre-commit hook run five checkers, not four.
+
+### Fixed by the fourth and fifth adversarial passes
+
+- **A git that stops answering is no longer read as good news** — the fourth adversarial
+  pass, `QE-AUDIT.md` HIGH-23 … MEDIUM-28. `git_problem()` was asked once at the start of
+  a run and every command after it was trusted, so a failure that `rev-parse --git-dir`
+  cannot see — a required clean filter that exits non-zero, a truncated index, a loose
+  object removed, a diff that outlives the timeout — came back as `None` from `git()` and
+  was read by its caller as a benign negative: unchanged, not staged, not committed. A
+  check that never ran, reported as a check that passed. `git_call()` answers with the
+  exit status beside the output, so a caller can tell *no* from *could not ask*, and each
+  surface was changed to ask in that form: `freshness` reports a comparison it could not
+  make instead of a fresh ground, and does not turn the same silence into an orphan
+  verdict; `validate` reports a revision whose blob it could not read instead of waiving
+  the append-only check across it, and says when `--cached` fell back to the working tree
+  because the index could not be parsed; `sha --write` refuses to rewrite an entry when
+  git cannot say whether it is committed, rather than rewriting an immutable frozen
+  region and exiting 0; and `resolve` reports a git it could not ask once, for the
+  ledger, rather than telling the author that every pinned pointer they wrote is wrong.
+  Two surfaces of the same class, found while fixing rather than reported: an entry whose
+  history `git log` cannot list was read as one that had never been committed, and so
+  dropped out of both history checks; and `drift()` could not tell a path that is not at
+  the pin from a git that could not look for it.
+- **The immutability check covers the whole frozen region** (`QE-AUDIT.md` HIGH-22). It
+  compared parsed sections, and a section runs from its own heading to the next — so
+  every byte above the first `## ` heading of a committed entry belonged to no section
+  and was compared against nothing. The scaffold leaves that region empty, which is what
+  made it a hiding place. The bytes above the APPEND marker are compared now, with the
+  section-by-section diff kept for the diagnostic so a changed section is still named.
+- The configuration `claims-ledger init` writes is now checked to be parseable TOML. The
+  template is filled with `str.format` and then read by a parser, and an escape that
+  survives one and not the other is unparseable in a way nothing else would notice: a
+  `\b` in a commented-out example became a real backspace, which `tomllib` refuses even
+  inside a comment.
+- `propagate --write` lost verdicts. Two verdicts destined for one entry were two writes
+  built from the same in-memory text, so the second overwrote the first — an entry citing
+  two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by
+  entry and written once. Found while building `freshness`, which would have inherited it.
+- **Every write is a temp file and a rename** — the fifth adversarial pass, `QE-AUDIT.md`
+  HIGH-39 … LOW-52. `create_entry`, `restamp`, `append_verdict`, `cmd_init` and `cmd_hook`
+  each truncated their destination before knowing they could fill it, so a write that
+  failed partway — a full disk, a quota, a resource limit — left a committed entry cut off
+  mid-verdict with its `## References` gone. The diagnostic was already right; the state
+  left behind was not.
+- **A `--write` no longer rewrites the frozen region of a CRLF entry, and `check` can see
+  it if anything does.** The write paths read and wrote through universal newlines, so
+  appending three lines to an entry committed with CRLF rewrote all forty above the APPEND
+  marker — and `check_history` compared `git show`'s decoded output against decoded text,
+  so the "compared as bytes" immutability check could not see a newline change on either
+  side. The write paths keep the file's own endings; the frozen region is compared as
+  bytes as well as as sections. `append_verdict` also chooses its insertion point below
+  the APPEND marker rather than by the first `## References`, which on a layout `validate`
+  rejects put the verdict inside the frozen region, and refuses the write outright if the
+  bytes above the marker would change.
+- **`source add` writes a line as a line.** Onto a `sources.jsonl` with no final newline it
+  glued its row onto the previous one, destroyed both, printed `registered …` and exited 0,
+  and every later command exited 2 with `not a JSON object`. A failed append is now rolled
+  back to the length the file had. Retrying an interrupted `source add` also kept the
+  truncated cache file — `if not stored.exists()` trusted the name of a content-addressed
+  file — and exited 0 over bytes it never wrote; the bytes are checked against the digest.
+- **`sha --write a b c` no longer stops at the first path it cannot write.** Each path is
+  its own write, and the ones after a refusal were neither attempted nor named.
+- **`freshness`:** a discharge verdict names a section, so one verdict no longer silences
+  every ground on the same file and pin; `--write` exits non-zero, so the verdicts it
+  appends are looked at before they are committed; `--cached` reaches it, so
+  `check --cached` compares the index the commit will carry rather than the working tree;
+  an uppercase object id is an object id and a `@v9.9` that names nothing is `resolve`'s
+  finding, because git is now asked about every pin rather than only the hex-shaped ones;
+  paths reach `git diff` as `:(literal)` pathspecs, so an edit to `docs/note1.md` is not
+  reported as drift in `docs/note[1].md`; and undoing an edit no longer turns the
+  checker's own discharge into an orphan failure that no legal edit could clear.
+- **A `###` subsection no longer ends its parent `##` section.** The shipped default
+  section pattern ended a section at a heading of *any* depth, so a claim's own evidence
+  could be inverted under a subheading with `resolve` and `freshness` both green — and a
+  project that had configured nothing had no anchoring available to it, because `#+` is
+  every depth. A pattern that can nest now says so with a group named `depth`.
+- **Frontmatter fences may carry trailing whitespace.** `--- ` was read as no frontmatter
+  at all, which is one report followed by every check that needed a key cascading behind
+  it. YAML permits it and editors leave it there.
+
+### Fixed by the sixth adversarial pass
+
+Four of these are in code the fifth pass's own fixes introduced one day earlier, which is
+why the pass ran a revert experiment over that commit rather than a seventh audit.
+
+- **A propagated discharge states what caused it, and is held to it** — `QE-AUDIT.md`
+  HIGH-53. Closing the wedge in MEDIUM-34 introduced `ever_drifted()`, which asked whether
+  any commit since the pin had *touched* the artifact and read a yes as proof that the
+  verdict was caused. That is a question the forger controls: one commit that edits the
+  artifact and one that puts it back — or a `chmod +x`, or a rename away and back —
+  laundered a pre-emptively written discharge permanently, while the artifact stayed
+  byte-identical to the blob at the pin. The rule had traded a loud false positive for a
+  silent false negative. `freshness --write` now records an `artifact:` line in the verdict
+  — the object id git would store the artifact under at the moment the drift was seen, or
+  `absent` for a ground that had been withdrawn — and the orphan rule asks whether the
+  artifact really was that between the pin and here. A verdict that records nothing, or
+  that records the artifact as the pin itself has it, is an orphan. The line is a new
+  optional field of the verdict schema; a propagated verdict written by an earlier
+  build carries none, and is reported as an orphan once the ground it names is fresh again.
+  **That state cannot be repaired**: the verdict cannot be edited, because verdicts append
+  and only append and `validate` catches the edit; appending a second verdict does not
+  clear the first; and `freshness --write` writes nothing for a ground that has not
+  drifted. Nothing was ever published, so no ledger outside this repository holds one — but
+  ten corpus seed entries do, and they pass only because their grounds are still drifted.
+  See `QE-AUDIT.md`, QE7-74 and the `artifact:` ruling, for the correction this needs.
+- **A git that cannot say whether the drift happened says so** — HIGH-54. `ever_drifted()`
+  read a `rev-list` that failed, raised or outlived the 30-second timeout as "it drifted",
+  and retired the forged-discharge check with no report that it had not run. That is the
+  class the fourth pass closed across six findings, reopened in new code. The check now
+  reports that the cause *could not be established* and exits non-zero, the way every other
+  git question in the package already did.
+- **A file the filesystem says may not be written is not written** — HIGH-55. Routing every
+  write through a temporary file and `os.replace` — the fifth pass's fix for the truncating
+  writes — moved the permission question from the file to the directory, so `sha --write`
+  rewrote a mode-444 entry, exited 0, and left the mode still saying the file was
+  protected. The funnel now asks the kernel, by opening the target for writing without
+  truncating it, before anything is written.
+- **`source add` no longer writes outside the project root** — HIGH-56. A symlink planted
+  at the content-addressed cache slot sent the stored bytes wherever it led, exit 0, with
+  the run naming the in-root path it had not written to. Pre-existing rather than
+  introduced. `register_source` and `create_entry` now ask
+  `refuse_to_write_outside_the_root`, `append_verdict` requires the root rather than
+  defaulting it away, and a test now asks the question of every write site at once, so the
+  next one cannot be added without either asking or saying why it does not have to.
+- **A `#` inside a fenced code block is not a heading** — HIGH-58. `section_span()` read one
+  as a depth-1 heading, so a `## Observation` section ended at the fence and everything
+  below it — including the sentence the claim rests on — was outside the comparison for
+  `freshness` and `resolve` both. A Markdown lab note carrying a code snippet is the
+  ordinary shape of the artifact this checker compares. The entry parser was blind the same
+  way: a fenced `## Verdicts` after the real one replaced it with an empty section, so an
+  entry carrying a `refuted` verdict read as `open` (loudly — `validate` reported the
+  sections as out of order — but read as `open` by everything downstream of the parse).
+- **An option-shaped pin is one defect under one name** — LOW-65.
+  `git rev-parse --symbolic-full-name --upload-pack=x` exits 0 and echoes its own argument,
+  which is git's parse-options behaviour for an unrecognised double-dash argument and not a
+  refname; read as one, a pin beginning with a dash drew an unstable-pin flag *and*
+  `resolve`'s "does not resolve", which is the pair LOW-36 was fixed to stop. The answer is
+  now read as what `--symbolic-full-name` is documented to print.
+- **What the corpus says it proves is what it proves** — HIGH-59. The fifth pass narrowed
+  `corpus/README.md`'s claim rather than faking the coverage, which was the honest move —
+  but the narrowed claim was also false. An independent AST sweep counted 116 report sites
+  rather than the 99 a text grep had found, and 50 of them are caught by neither the corpus
+  nor the unit suite: most are the well-formedness guards the README says the unit suite
+  holds, and it did not hold the `kind`, `author`, `grade` or `verbatim_sha`-format ones at
+  all. Seven were not well-formedness at all but the "not silently passing" class the README
+  names outright. `D05-dead-pointer` now carries two more entries — an `entry:` ground
+  naming an id that does not exist, and a malformed `search:` line — the four sites a seed
+  cannot express (a git that cannot answer, a document that becomes unreadable between two
+  reads, `propagate --write`'s own report) have tests in
+  `tests/test_sweep_gap_closures.py`, the four unheld enums have tests in
+  `tests/test_schema.py`, and the README's Coverage section now names what is held instead
+  of asserting a class.
+- **A seed that expects nothing is not a seed that passed** — MEDIUM-64. An `expected.json`
+  with an empty `expect` array counted as a full pass — `1/1 seeds pass`, exit 0 — over a
+  seed that bound nothing to anything. HIGH-45 put a floor under an empty corpus; this is
+  the same floor one level down, and it is in `run.py`, which is what an installed wheel
+  runs, rather than in a dev-time assertion.
+- **An empty expected `message` pins nothing, and says so** — LOW-69. `matches()` tested
+  `message.casefold() in report.message.casefold()`, and `"" in x` is always true, so a row
+  written `"message": ""` was indistinguishable from one that omitted the field. It is now a
+  non-match, and the runner refuses the row outright rather than leaving the seed author to
+  find out downstream.
+- **The installed pre-commit hook asks freshness about the index** — HIGH-57. MEDIUM-33
+  gave `freshness` a `--cached` flag and wired it through `check`; `HOOK_TEMPLATE` never
+  got it, so the hook ran `validate --cached` beside four checkers reading the working
+  tree, and a drift staged and then undone before the commit went through in silence. The
+  hook's own comment now says which three checkers still read the working tree, because
+  `resolve`, `references` and `propagate` have no `--cached` to give them.
+- **The README says how many seeds there are, and which interpreters CI runs** —
+  MEDIUM-60 and MEDIUM-62. `All 62 corpus seeds pass unchanged` stood over a corpus of 75,
+  under a regression that only matched a count directly adjacent to the word; the
+  Provenance paragraph now separates what was true at extraction from what is true now.
+  The CI line named three interpreters where the matrix runs four.
+- **The pre-merge gate is as strong as the one it stands in front of** — MEDIUM-63.
+  `ci.yml` ran `twine check`, `release.yml` runs `twine check --strict`, so a metadata
+  regression only `--strict` catches passed every PR and first failed at the tag.
+- **The publishing instructions work for the publish they are for** — MEDIUM-61, and the
+  new `RELEASING.md`. `release.yml` sent the operator to a project-settings page that does
+  not exist until after a first upload; a never-published project needs the account-level
+  pending publisher, and the `pypi` GitHub environment the publish job names had to exist
+  beforehand and was written down nowhere. `RELEASING.md` now carries the whole sequence,
+  checked against the workflow rather than written from the generic version of it.
+- **The Quickstart is run, not illustrated** — LOW-67. The transcript printed
+  `0 failure(s)` over commands that produce a validation failure, and its digests were
+  placeholders. It now writes its own source file, fills in the entry, and shows real
+  digests — and `tests/test_readme_quickstart.py` parses the console block out of
+  `README.md` and runs every command in it against a fresh project, comparing output line
+  for line, so the transcript cannot drift from the tool again without the suite saying so.
+- **The link the CHANGELOG makes is a link the release makes true** — LOW-68. Every
+  version heading here points at `releases/tag/vX.Y.Z`, and nothing in `release.yml`
+  created a GitHub Release — only the tag and the PyPI upload. A `github_release` job now
+  does, after `publish` and under the same tag gate, with `contents: write` held to that
+  one job.
+- **The rename that completes an atomic write is flushed** — LOW-66. `write_bytes_atomically`
+  fsynced the temporary file and not the directory it was renamed into, so the replacement
+  survived a crash of the process and not a power loss. Every interruption the suite can
+  produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
+  reach.
+
+### Methodology
+
+Recorded as methodology changes, with the seeds named, under this file's own rule.
+
+- **The corpus runner matches a report's place exactly, and one row is satisfied by one
+  report.** A row naming a prefix of the place, or a place two rules both fail at, was held
+  up by whichever rule still existed: deleting the terminal-status rule or the
+  `resolves_when` rule from `validate` left the corpus at 72/72. A row may also name a
+  substring of the report's `message`, for a rule the place alone does not identify.
+  `D17-verdict-after-terminal`'s second verdict is `contested` rather than a bare
+  corroboration, so the terminal-status rule is the only rule failing at that place, and
+  `D19-prediction-without-credence`'s first row is split into the two rules it always
+  claimed to bind. No seed's outcome moves; what each row *proves* does.
+- **A run that checked nothing exits non-zero.** An empty corpus, or a seed filter matching
+  no seed, printed `0/0 seeds pass` and exited 0 — and that command is the release
+  workflow's proof that the built artifact still works, so a distribution that shipped no
+  seeds would have passed the gate.
+- **Three seeds**, for rules no seed held: `D50-document-that-is-not-text` (a document the
+  reference checker could not open — the third pass's HIGH-17 fix, which had unit tests and
+  no seed), `D51-pin-git-cannot-classify` (a ground the freshness checker could not
+  examine, which is this package's stated reason to exist), and
+  `D52-mid-sentence-start-without-elision` (the half of D06's class nothing covered). The
+  corpus is 75 seeds, and the corpus README now says which rules it does *not* hold up —
+  a mutation sweep found most of `validate`'s well-formedness guards survive their own
+  deletion. That change said the unit suite held those; the sixth pass measured it and
+  found four of the named ones held by nothing, which is HIGH-59 above.
+- **One seed**, `D53-laundered-freshness-discharge`, for HIGH-53: a discharge written
+  before its ground moved, followed by a commit that edits the artifact and a commit that
+  puts it back. It is the forgery the orphan rule exists to refuse, in the history that
+  used to launder it, and it fails against the unfixed checker at `commit 04` and passes
+  against the fixed one. The corpus is 76 seeds.
+- **The corpus runner stages by content, not by timestamp.** `shutil.copytree` preserves
+  mtime, and git's index skips reading a file whose (mtime, size) pair is unchanged, so a
+  history seed that edits a line without changing its length staged a change git did not
+  see: `git add -A` picked up nothing and the run died with `nothing to commit`. Found
+  while writing `D53`, whose drift is `0.041` to `0.991`.
+
+### Release
+
+- Every action in both workflows is pinned to a commit, including
+  `pypa/gh-action-pypi-publish@release/v1` — a mutable branch, in the one job holding
+  `id-token: write`.
+- The sdist is installed into a clean environment and made to run the corpus before
+  publication, as the wheel already was. An sdist is what pip falls back to wherever
+  wheels are refused, and `twine check` reads its metadata rather than running it.
+
 ### Known limits
 
 - Tested on Linux and macOS. Windows is neither tested nor claimed: the installed hook is
-  `#!/bin/sh`, and the newline translation `Path.write_text` performs on Windows has not
-  been checked against the byte-exact quotation matching.
+  `#!/bin/sh`. Every write path now keeps a file's own line endings and the frozen region
+  is compared as bytes, so the translation that used to sit between them is gone — but
+  that is reasoning, not a run on Windows, and this line says which of the two it is.
 - The tool does not decide whether a claim is true. See "What this does not do" in the
   README.
 
-[0.2.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0

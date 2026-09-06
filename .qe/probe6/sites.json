@@ -1,0 +1,930 @@
+[
+  {
+    "module": "validate.py",
+    "lineno": 91,
+    "end_lineno": 91,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"filename and id\", \"no id\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 96,
+    "end_lineno": 96,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"filename and id\", f\"`{ident or stem}` is not <letter><four digits>-<slug>\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 101,
+    "end_lineno": 101,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter kind\", f\"kind `{f.get('kind')}` is not one of {list(KINDS)}\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 103,
+    "end_lineno": 106,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"frontmatter stated\",\n            f\"`{f.get('stated')}` is not ISO 8601 to the second with a UTC offset\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 109,
+    "end_lineno": 109,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter author\", f\"author `{author}` is not a lowercase author name\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 111,
+    "end_lineno": 111,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter grade\", f\"grade `{f.get('grade')}` is not one of {list(GRADES)}\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 116,
+    "end_lineno": 116,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter credence\", f\"kind: {f.get('kind')} requires credence\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 118,
+    "end_lineno": 118,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter resolves_when\", f\"kind: {f.get('kind')} requires resolves_when\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 120,
+    "end_lineno": 123,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"frontmatter credence\",\n            \"credence and resolves_when are omitted for a claim, never guessed\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 134,
+    "end_lineno": 134,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter supersedes\", \"no supersedes: line (`none` or an id)\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 140,
+    "end_lineno": 140,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter verbatim_sha\", \"verbatim_sha is not a 64-hex sha256\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 164,
+    "end_lineno": 164,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"sections\", f\"missing the line `{APPEND}`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 173,
+    "end_lineno": 173,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"Assertion\", \"empty\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 187,
+    "end_lineno": 187,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"Grounds\", \"no grounds; a Warrant needs something to rest on\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 206,
+    "end_lineno": 210,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"frontmatter grade\",\n            f\"{e.grade} requires a {' or '.join(config.evidence_types)} ground; \"\n            f\"grounds are {sorted(kinds)}\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 212,
+    "end_lineno": 216,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"frontmatter grade\",\n            f\"asserted forbids a {' or '.join(sorted(evidence))} ground; an observation \"\n            \"is measured\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 218,
+    "end_lineno": 221,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"Grounds\",\n            \"the Assertion reads as an absence or priority claim and carries no search: ground\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 224,
+    "end_lineno": 224,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"Warrant\", \"empty\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 371,
+    "end_lineno": 374,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"Verdicts\",\n            \"verdict timestamps must be non-decreasing down the file and none earlier than stated\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 388,
+    "end_lineno": 395,
+    "col_offset": 8,
+    "kind": "append-call",
+    "text": "out.append(\n            Report(\n                \"fail\",\n                pred.prefix,\n                \"Verdicts\",\n                f\"{e.id} names supersedes: {pred.id} but {pred.id} carries no superseded verdict\",\n            )\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 409,
+    "end_lineno": 416,
+    "col_offset": 8,
+    "kind": "append-call",
+    "text": "out.append(\n            Report(\n                \"fail\",\n                e.prefix,\n                \"frontmatter verbatim_sha\",\n                f\"the verbatim record differs from {pred.id}'s and no verbatim_change is declared\",\n            )\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 86,
+    "end_lineno": 86,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter\", msg)"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 93,
+    "end_lineno": 93,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"filename and id\", f\"id `{ident}` does not match filename `{stem}`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 98,
+    "end_lineno": 98,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"filename and id\", f\"series `{m.group(1)}` is an archived prefix and is skipped\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 126,
+    "end_lineno": 126,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter credence\", f\"credence `{credence}` is not a plain decimal number\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 136,
+    "end_lineno": 136,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter supersedes\", f\"supersedes `{sup}`, which does not exist\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 142,
+    "end_lineno": 145,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            \"frontmatter verbatim_sha\",\n            \"declared verbatim_sha does not match the value computed from Scope and Backing\",\n        )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 157,
+    "end_lineno": 157,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(s, \"section missing\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 159,
+    "end_lineno": 159,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"sections\", f\"sections out of order: {e.section_order}\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 162,
+    "end_lineno": 162,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(s, \"not a section of the schema\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 166,
+    "end_lineno": 166,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"sections\", \"the APPEND marker must follow Backing and precede Verdicts\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 169,
+    "end_lineno": 169,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, msg)"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 175,
+    "end_lineno": 175,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"Assertion\", \"quotation marks are illegal in Assertion; source words live in Backing\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 180,
+    "end_lineno": 180,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"Scope\", f\"line {ln.strip()!r} is not metric:, cohort: or condition:\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 190,
+    "end_lineno": 193,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                \"Grounds\",\n                f\"`{raw}` is not a typed pointer ({'/'.join(config.ground_types)})\",\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 229,
+    "end_lineno": 231,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                \"Grounds\", \"a hypothesis names the entries motivating it; there is no entry: ground\"\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 233,
+    "end_lineno": 237,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                \"Warrant\",\n                \"a hypothesis states what would falsify it; no sentence here says `falsified if`, \"\n                \"`falsifier` or the like\",\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 241,
+    "end_lineno": 241,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(b.part, \"source: is `<registry id> \u00b7 <locator>`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 243,
+    "end_lineno": 243,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(b.part, \"speaker: is empty\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 245,
+    "end_lineno": 245,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(b.part, \"quote: is not quoted spans separated by [\u2026]\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 249,
+    "end_lineno": 249,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"References\", f\"`{raw}` is not `- <path> \u00b7 standing | record \u00b7 <act>`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 269,
+    "end_lineno": 269,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, v.malformed)"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 272,
+    "end_lineno": 272,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, f\"status `{v.status}` is not a verdict status\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 275,
+    "end_lineno": 275,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, f\"grade `{v.grade}` is not one of {list(GRADES)}\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 277,
+    "end_lineno": 281,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                part,\n                f\"author `{v.author}` is not one of {list(config.verdict_authors)}; \"\n                \"a verdict is written by a named author and by nobody else\",\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 284,
+    "end_lineno": 284,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, f\"timestamp `{v.timestamp}` is not ISO 8601 to the second with a UTC offset\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 292,
+    "end_lineno": 292,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, \"no evidence: line\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 336,
+    "end_lineno": 338,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                part, f\"non-comparable is legal only at measured and above; this entry is {e.grade}\"\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 340,
+    "end_lineno": 344,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "flag(\n                part,\n                f\"refuted on {v.grade} evidence against a {e.grade} entry; evidence types are \"\n                \"not ranked, so this is for review\",\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 399,
+    "end_lineno": 407,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"frontmatter supersedes\",\n                    f\"{pred.id} is already superseded by {', '.join(sorted(named))}; \"\n                    \"a second successor forks the chain\",\n                )\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 482,
+    "end_lineno": 490,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"frontmatter\",\n                    f\"cannot read the history of {rel} ({log.why}); the frozen-region and \"\n                    \"append-only checks did not run over this entry\",\n                )\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 499,
+    "end_lineno": 501,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\"fail\", e.prefix, \"frontmatter\", f\"cannot read {rel} at {creating[:7]}\")\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 521,
+    "end_lineno": 530,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"the frozen region\",\n                    f\"differs from the blob at the creating commit {creating[:7]} outside \"\n                    \"any section; the region above the APPEND marker is immutable, \"\n                    \"including the bytes no section owns\",\n                )\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 541,
+    "end_lineno": 550,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"the frozen region\",\n                    f\"has the same text as the blob at the creating commit {creating[:7]} \"\n                    \"and not the same bytes; the region above the APPEND marker is \"\n                    \"immutable, line endings included\",\n                )\n            )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 130,
+    "end_lineno": 130,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(\"frontmatter credence\", f\"credence {value} is outside [0, 1]\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 184,
+    "end_lineno": 184,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(\"Scope\", f\"grade {e.grade} requires a {key}: line\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 195,
+    "end_lineno": 195,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"Grounds\", f\"`{raw}` carries act `{p.act}`, not one of {list(ACTS)}\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 251,
+    "end_lineno": 251,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"References\", f\"`{raw}` carries act `{r.act}`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 294,
+    "end_lineno": 294,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(part, f\"evidence `{v.evidence}` is not a typed pointer\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 348,
+    "end_lineno": 348,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(part, \"a second superseded verdict; supersession is a chain, not a tree\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 358,
+    "end_lineno": 366,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(\n                    part,\n                    f\"follows a terminal `{terminal}` verdict; nothing may follow it\"\n                    + (\n                        \" except one superseded\"\n                        if terminal in (\"refuted\", \"non-comparable\")\n                        else \"\"\n                    ),\n                )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 509,
+    "end_lineno": 517,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "out.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        name,\n                        f\"differs from the blob at the creating commit {creating[:7]}; \"\n                        \"the region above the APPEND marker is immutable\",\n                    )\n                )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 555,
+    "end_lineno": 564,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "out.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        \"Verdicts\",\n                        f\"cannot read {rel} at {h[:7]} ({answer.why}); verdicts append and \"\n                        \"only append, and across that revision it was not checked that \"\n                        \"they did\",\n                    )\n                )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 202,
+    "end_lineno": 202,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"Grounds\", f\"`{raw}` is not written as `{want}`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 297,
+    "end_lineno": 297,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(part, \"defect: is the evidence of a retracted verdict and of no other\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 299,
+    "end_lineno": 299,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(part, f\"entry: evidence carries act `{p.act}`\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 309,
+    "end_lineno": 314,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(\n                    part,\n                    \"a propagation verdict is contested with entry: evidence \u00b7 fallen or \"\n                    \"\u00b7 challenges, or an evidence ground carrying a pin; anything else was \"\n                    \"written by a person under the machine's name\",\n                )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 330,
+    "end_lineno": 334,
+    "col_offset": 16,
+    "kind": "bare-call",
+    "text": "fail(\n                    part,\n                    \"a corroborating verdict must point at a ground the entry does not \"\n                    \"already cite\",\n                )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 575,
+    "end_lineno": 583,
+    "col_offset": 20,
+    "kind": "append-call",
+    "text": "out.append(\n                        Report(\n                            \"fail\",\n                            e.prefix,\n                            f\"verdict {i}\",\n                            f\"present at {h_old[:7]} and changed or removed at {label}; \"\n                            \"verdicts append and only append\",\n                        )\n                    )"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 317,
+    "end_lineno": 317,
+    "col_offset": 20,
+    "kind": "bare-call",
+    "text": "fail(part, \"a superseded verdict names its successor: entry: <id> \u00b7 supersedes\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 321,
+    "end_lineno": 321,
+    "col_offset": 24,
+    "kind": "bare-call",
+    "text": "fail(part, f\"names successor `{p.target}`, which does not exist\")"
+  },
+  {
+    "module": "validate.py",
+    "lineno": 323,
+    "end_lineno": 328,
+    "col_offset": 24,
+    "kind": "bare-call",
+    "text": "fail(\n                            part,\n                            f\"names successor `{p.target}`, whose supersedes: is \"\n                            f\"`{successor.front.get('supersedes')}`; \"\n                            \"discoverability runs both ways\",\n                        )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 141,
+    "end_lineno": 141,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(problem)"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 144,
+    "end_lineno": 148,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\n            f\"a consultation-type source backs only its expert's own judgment: speaker is \"\n            f\"`{b.speaker}`, the registry says `{row.get('speaker')}`; a relayed result resolves \"\n            \"to the primary source or not at all\"\n        )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 152,
+    "end_lineno": 152,
+    "col_offset": 8,
+    "kind": "bare-call",
+    "text": "fail(\"quote: is not quoted spans separated by [\u2026]\")"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 289,
+    "end_lineno": 297,
+    "col_offset": 8,
+    "kind": "append-call",
+    "text": "reports.append(\n            Report(\n                \"fail\",\n                None,\n                \"Grounds\",\n                f\"{unasked}, so the pinned pointers were not read out of git; whether \"\n                \"each still names its artifact is unknown, not settled\",\n            )\n        )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 106,
+    "end_lineno": 106,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(f\"{p.type}: {p.target} @{p.pin} does not resolve\")"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 163,
+    "end_lineno": 167,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                f\"span {k} is not a contiguous span of {b.source_id}{where}: {span[:60]!r}\u2026\"\n                if len(span) > 60\n                else f\"span {k} is not a contiguous span of {b.source_id}{where}: {span!r}\"\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 188,
+    "end_lineno": 188,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"the quote starts inside a sentence with no elision mark on that side\")"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 195,
+    "end_lineno": 198,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\n                f\"the quote ends at {quote.spans[-1].split()[-1]!r}, inside a sentence, with no \"\n                \"elision mark on that side\"\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 216,
+    "end_lineno": 225,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    part,\n                    f\"the source sentence containing span {k} names {who}; the expert may \"\n                    \"be attributing the result onward, and relayed material resolves to \"\n                    \"the primary source\",\n                )\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 238,
+    "end_lineno": 246,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    part,\n                    \"the stated defect names no Backing quote, so this checker cannot \"\n                    \"reproduce it; a human confirms the retraction\",\n                )\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 251,
+    "end_lineno": 258,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    part,\n                    f\"the stated defect names Backing quote {n}, which the entry does not have\",\n                )\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 261,
+    "end_lineno": 270,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    part,\n                    f\"the retraction names Backing quote {n} as the defect, but the quote \"\n                    f\"verifies as a contiguous span of {block.source_id}; the stated \"\n                    \"defect does not reproduce\",\n                )\n            )"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 108,
+    "end_lineno": 108,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(f\"{p.target} @{p.pin} has no section {p.section!r}\")"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 111,
+    "end_lineno": 111,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(f\"entry: {p.target} does not exist\")"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 115,
+    "end_lineno": 115,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(problem)"
+  },
+  {
+    "module": "resolve.py",
+    "lineno": 118,
+    "end_lineno": 118,
+    "col_offset": 12,
+    "kind": "bare-call",
+    "text": "fail(\"search: needs corpus=, query= and date=\")"
+  },
+  {
+    "module": "references.py",
+    "lineno": 160,
+    "end_lineno": 160,
+    "col_offset": 8,
+    "kind": "append-call",
+    "text": "reports.append(Report(\"fail\", None, name, problem))"
+  },
+  {
+    "module": "references.py",
+    "lineno": 106,
+    "end_lineno": 114,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"Roster\",\n                    f\"no row in a {roster} document cites this open hypothesis; the roster \"\n                    \"has one row per hypothesis that is not terminal\",\n                )\n            )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 166,
+    "end_lineno": 166,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(Report(\"fail\", None, name, f\"{problem}; its citations were not checked\"))"
+  },
+  {
+    "module": "references.py",
+    "lineno": 171,
+    "end_lineno": 179,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"fail\",\n                    None,\n                    name,\n                    f\"cites archived id(s) {', '.join(seen_archived)}; no document may \"\n                    \"cite the archive\",\n                )\n            )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 82,
+    "end_lineno": 90,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "out.append(\n                    Report(\n                        \"fail\",\n                        None,\n                        name,\n                        f\"row cites {ident} as its hypothesis, but that entry is a \"\n                        f\"{target.front.get('kind')}\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 116,
+    "end_lineno": 118,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "out.append(\n                Report(\"fail\", e.prefix, \"Roster\", f\"{len(mine)} roster rows cite this hypothesis\")\n            )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 141,
+    "end_lineno": 143,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\"fail\", e.prefix, \"Grounds\", f\"cites {p.target}, which does not exist\")\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 187,
+    "end_lineno": 187,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(Report(\"fail\", None, name, f\"cites {ident}, which does not exist\"))"
+  },
+  {
+    "module": "references.py",
+    "lineno": 190,
+    "end_lineno": 198,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        None,\n                        name,\n                        f\"{act} against {ident}, whose status is {status[ident]}; \"\n                        f\"{act} needs {' or '.join(sorted(ACT_ALLOWS[act]))}\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 200,
+    "end_lineno": 208,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        None,\n                        name,\n                        f\"cites {ident} {act} but {ident}'s References section does not \"\n                        \"list this document\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 217,
+    "end_lineno": 224,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        None,\n                        name,\n                        f\"carries the Assertion of {e.id} verbatim without citing it\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 233,
+    "end_lineno": 240,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        \"References\",\n                        f\"lists {r.path}, which is not a document this checker can see\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 92,
+    "end_lineno": 100,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "out.append(\n                    Report(\n                        \"fail\",\n                        None,\n                        name,\n                        f\"row for {ident} says `{cells[-1]}`; the entry's status is \"\n                        f\"`{status[ident]}`\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 145,
+    "end_lineno": 153,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        \"Grounds\",\n                        f\"{p.act} against {p.target}, whose status is {status[p.target]}; \"\n                        f\"{p.act} needs {' or '.join(sorted(ACT_ALLOWS[p.act]))}\",\n                    )\n                )"
+  },
+  {
+    "module": "references.py",
+    "lineno": 242,
+    "end_lineno": 250,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        \"References\",\n                        f\"lists {r.path} \u00b7 {r.act}, but that document does not cite \"\n                        f\"{e.id} that way\",\n                    )\n                )"
+  },
+  {
+    "module": "propagate.py",
+    "lineno": 270,
+    "end_lineno": 277,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    \"Verdicts\",\n                    f\"appended {block.count(2 * chr(10)) + 1} contested verdict(s) by {author}\",\n                )\n            )"
+  },
+  {
+    "module": "propagate.py",
+    "lineno": 257,
+    "end_lineno": 265,
+    "col_offset": 16,
+    "kind": "append-call",
+    "text": "reports.append(\n                    Report(\n                        \"fail\",\n                        e.prefix,\n                        \"Verdicts\",\n                        f\"verdict {v.index} by {author} names {p.target} as its cause, but \"\n                        f\"{why}; a propagated verdict that nothing caused is an orphan\",\n                    )\n                )"
+  },
+  {
+    "module": "propagate.py",
+    "lineno": 164,
+    "end_lineno": 173,
+    "col_offset": 20,
+    "kind": "append-call",
+    "text": "reports.append(\n                        Report(\n                            \"fail\",\n                            e.prefix,\n                            \"Verdicts\",\n                            f\"cites {target.id} cites-as-live and {target.id} has fallen to \"\n                            f\"{status[target.id]}, but carries no contested verdict by \"\n                            f\"{author} naming it\",\n                        )\n                    )"
+  },
+  {
+    "module": "propagate.py",
+    "lineno": 190,
+    "end_lineno": 199,
+    "col_offset": 20,
+    "kind": "append-call",
+    "text": "reports.append(\n                        Report(\n                            \"fail\",\n                            target.prefix,\n                            \"Verdicts\",\n                            f\"{e.id} challenges {target.id}, whose status is terminal \"\n                            f\"({status[target.id]}); no contested verdict is appended and the \"\n                            \"act is illegal \u2014 a fallen entry is cited cites-as-fallen\",\n                        )\n                    )"
+  },
+  {
+    "module": "propagate.py",
+    "lineno": 201,
+    "end_lineno": 209,
+    "col_offset": 20,
+    "kind": "append-call",
+    "text": "reports.append(\n                        Report(\n                            \"fail\",\n                            target.prefix,\n                            \"Verdicts\",\n                            f\"{e.id} cites {target.id} \u00b7 challenges but {target.id} carries \"\n                            \"no propagated contested verdict naming it\",\n                        )\n                    )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 274,
+    "end_lineno": 282,
+    "col_offset": 8,
+    "kind": "return-list",
+    "text": "return [\n            Report(\n                \"fail\",\n                None,\n                \"freshness\",\n                f\"{len(pinned)} ground(s) are pinned to a commit and there is no git \"\n                \"repository holding the entries; freshness did not run\",\n            )\n        ]"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 284,
+    "end_lineno": 284,
+    "col_offset": 8,
+    "kind": "return-list",
+    "text": "return [Report(\"fail\", None, \"freshness\", f\"{problem}; freshness did not run\")]"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 299,
+    "end_lineno": 306,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    part,\n                    f\"`{raw}` was not checked: {detail}\",\n                )\n            )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 309,
+    "end_lineno": 317,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"flag\",\n                    e.prefix,\n                    part,\n                    f\"`{raw}` is pinned to a name, not a commit; a pin that follows the \"\n                    \"work resolves forever and can never go stale\",\n                )\n            )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 329,
+    "end_lineno": 336,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    part,\n                    f\"{gone}; the ground it names is gone ({since_phrase(detail, 'the artifact')})\",\n                )\n            )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 339,
+    "end_lineno": 341,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\"flag\", e.prefix, part, f\"`{raw}` has moved: {since_phrase(detail, where)}\")\n            )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 357,
+    "end_lineno": 361,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"fail\", e.prefix, \"Verdicts\", f\"appended {n} contested verdict(s) by {author}\"\n                )\n            )"
+  },
+  {
+    "module": "freshness.py",
+    "lineno": 414,
+    "end_lineno": 422,
+    "col_offset": 12,
+    "kind": "append-call",
+    "text": "reports.append(\n                Report(\n                    \"fail\",\n                    e.prefix,\n                    \"Verdicts\",\n                    f\"verdict {v.index} by {author} names `{q.raw}` as its cause, but \"\n                    f\"{why}; a propagated verdict that nothing caused is an orphan\",\n                )\n            )"
+  }
+]

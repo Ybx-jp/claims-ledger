@@ -57,7 +57,7 @@ jobs:
           python-version: "3.12"
       - run: pip install build twine
       - run: python -m build
-      - run: twine check dist/*
+      - run: twine check --strict dist/*
       - name: Install the wheel into a clean environment and run the corpus from elsewhere
         run: |
           python -m venv /tmp/clean

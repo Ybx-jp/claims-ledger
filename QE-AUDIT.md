@@ -1174,9 +1174,19 @@ not — is a comment that now says what the condition does. Both workflows pin e
 to a commit, and the sdist is proven from a clean environment beside the wheel.
 
 LOW-52 was a returning defect, so its fix is the test that was already written for it:
-`test_the_changelog_has_no_unreleased_section_at_the_current_version`. The version is
-`0.2.0` — a fifth checker is a feature — and the section that was `[Unreleased]` is now
-`[0.2.0]`.
+`test_the_changelog_has_no_unreleased_section_at_the_current_version`.
+
+**The version stays at `0.1.0`, and the report's suggested fix was wrong about that.** It
+said to bump to `0.2.0` because a fifth checker is a feature, which is right whenever
+`0.1.0` is an artifact somebody could have installed. It is not: there is no tag in this
+repository, no GitHub release, and `pypi.org/pypi/claims-ledger/json` answers 404. Bumping
+was done and then undone, because it would have put a `0.1.0` on the record that nobody
+could ever install, under a heading reading `First public release` and a link to a tag that
+does not exist — a record asserting something that did not happen, which is the class of
+defect this package exists to catch. `CHANGELOG.md` now carries **one** version heading:
+everything, including the fifth checker and both of the last two passes, landed before
+anything was tagged, so there was no earlier release for any of it to be a change to. The
+`[Unreleased]` section is gone either way, which is what the finding was about.
 
 ### One thing this pass's fixes changed that no finding asked for
 
@@ -1185,3 +1195,739 @@ a Python snippet inside a finding would edit the record of what an agent ran; th
 because `D50`'s document is deliberately not UTF-8, and a formatter that reads every file
 cannot read it. `ty` already excluded the seeds for the same reason. Without this,
 `ruff format --check .` — which CI runs — exits 2 on the tree the pass itself committed.
+
+---
+
+# Sixth pass — 2026-09-06, against the fifth round of fixes
+
+The fifth pass closed with **"All twenty-four findings are fixed."** This pass tested that
+sentence, and it is true. Every one of the twenty-four verifies as genuinely fixed against
+a scenario rebuilt from the finding report rather than from the flipped test — because the
+session that fixed them also edited the tests, and a green suite it wrote itself is not
+evidence about itself.
+
+Then it kept going, because a fix is new code and new code is where defects are. Three of
+this pass's findings are **in the fifth pass's fixes**, in code one day old.
+
+## What the fifth pass's fixes actually did
+
+Recorded first, and in more detail than a passing grade needs, because this is the half a
+later reader will not re-derive.
+
+- **All twenty-four findings: fixed.** Reproduced by hand — a real repository, real
+  commits, a real `RLIMIT_FSIZE` in a child process, real CRLF bytes — not by running the
+  suite.
+- **The thirty-one strict xfails were flipped honestly.** Every test file was diffed
+  against the pre-fix commit `95e292f`. The changes are removed `@pytest.mark.xfail`
+  decorators and re-tensed docstrings. Three assertions moved; all three are disclosed in
+  the fifth pass's own closing section and all three follow from the fix rather than
+  standing in for it. No control was sacrificed to make a fix pass.
+- **The suite is green on the whole supported matrix**, which the closing report did not
+  claim: 737 passed / 0 xfailed on **3.11, 3.12, 3.13 and 3.14**. `ruff`, `ruff format`
+  and `ty` clean. Corpus 75/75.
+- **Both artifacts are sound.** Wheel and sdist build byte-for-byte identically across two
+  runs, carry all 75 seeds byte-identical (including the one deliberately not UTF-8), leak
+  no host path or e-mail address, and install-and-prove clean from 3.11, 3.12 and 3.14
+  from a directory that is not the checkout. `twine check --strict` passes both. The
+  package name is free on PyPI. Every `uses:` in both workflows was dereferenced against
+  the GitHub API and matches the version its comment claims, including the annotated,
+  signed `v1.14.2` of the publish action.
+- **Both spec moves were legitimate.** LOW-37 and LOW-38 changed `docs/FRESHNESS.md`
+  rather than the code, and in each the code was the better of the two. No prose was found
+  stretched to cover behaviour that is still wrong.
+- **`harden-release-publication-gates` is closed.** A dispatch from a branch stops after
+  `build`; the comment now says what the condition does.
+
+## The shape of this pass
+
+The fifth pass said every one of its HIGHs was the same clause of the oracle — *a check
+that did not run, reported as a check that passed*. That is still where the defects are.
+What is new is where they come from.
+
+**Four of the seven HIGHs below are in code written by the fix commit `cd19b86`.** Both
+`freshness.ever_drifted` and `schema.write_bytes_atomically` were introduced there. This is
+the first pass in which the majority of findings are in the previous pass's own repairs
+rather than in the original package.
+
+And the HIGH series across all six passes does not fall:
+
+| pass | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| HIGH findings | 3 | 3 | 3 | 5 | 8 | 7 |
+
+*(The fifth pass's own header says "nine HIGH, ten MEDIUM, five LOW". Counted from its
+headings it is **eight HIGH, eleven MEDIUM, five LOW**. Corrected here rather than left,
+since this document is the record.)*
+
+## The orphan rule, and what fixing MEDIUM-34 cost — HIGH-53, HIGH-54
+
+MEDIUM-34 was that undoing a drift **wedged the ledger**: `orphans()` called the checker's
+own discharge an orphan forever, and no legal edit could clear it. That is an
+over-report — loud, wrong, and impossible to miss.
+
+The fix added `ever_drifted()`, which asks *"did any commit between the pin and HEAD touch
+this artifact at all"* and treats a yes as proof the verdict was caused. That is not the
+question the rule needs answered, and — this is the part that matters — **it is a question
+the person writing the forged verdict controls.**
+
+### HIGH-53 — a forged discharge is laundered by one no-op commit
+
+Write a `contested` verdict in the propagation author's name before the ground has moved.
+This is the exact forgery `docs/FRESHNESS.md` says the rule exists to refuse: *"Otherwise
+the discharge is forgeable by writing the verdict pre-emptively."* It is caught. Then make
+**one commit that edits the artifact and one that puts it back**, and it is accepted
+permanently:
+
+```
+1. forged, artifact never touched:  [('fail', 'Verdicts', '…that ground has not drifted…')]
+2. after touch-and-revert:          []
+```
+
+The artifact is byte-identical to the blob at the pin throughout. A mode change (`chmod
++x`) and a rename-away-and-back launder it equally well.
+
+Before this fix the forgery rule was sound. **The fix traded a loud false positive for a
+silent false negative**, which is the trade this package exists to refuse.
+
+*Fix shape*: the exact answer is the one the fifth pass already named and deferred — record
+the blob object id the verdict was written against, and compare that. It is still the open
+question `docs/FRESHNESS.md` records. Nothing cheaper distinguishes "this drifted" from
+"someone touched this", because that distinction is the whole rule.
+
+### HIGH-54 — a git that cannot answer retires the check, silently
+
+```python
+count = (out or "").strip()
+return not count.isdigit() or int(count) > 0
+```
+
+When `git rev-list --count <pin>..HEAD -- <artifact>` fails for any reason — a non-zero
+exit, an `OSError`, or the 30-second `GIT_TIMEOUT`, and this is the slowest git call the
+checker makes — `git()` returns `None`, `count` is `""`, and the function answers **"it
+drifted."** The orphan check is skipped and the run reports nothing at all.
+
+This is the class the fourth pass closed across six findings (HIGH-23 … MEDIUM-28), and
+`tests/test_git_degradation.py` is the file that holds that discipline. The new call was
+added without being brought under it. Its neighbour
+`test_g_a_failed_diff_does_not_forge_an_orphan` covers the opposite direction — a failed
+diff producing a *false* orphan — so the false-negative direction, the dangerous one, was
+uncovered.
+
+*Fix shape*: `ever_drifted` should return `(answer, why)` the way `is_object_name` and
+`is_committed` already do, and `orphans()` should report "could not be established" exactly
+as `drift()`'s `"unknown"` path already does.
+
+## The write funnel, and the one caller it went past — HIGH-55, HIGH-56
+
+### HIGH-55 — a mode-444 entry is silently rewritten, and it hollowed out this pass's own regression
+
+`write_bytes_atomically` never opens the target: it writes a temp file beside it and
+`os.replace`s. `os.replace` needs write permission on the **directory**, not on the file.
+Measured against both trees:
+
+```
+at 95e292f : claims-ledger: cannot write …/A0001-a-claim.md (Permission denied)   exit 2
+at 776500b : …/A0001-a-claim.md: 000000000000… → 986b8f35faa4…                    exit 0
+             mode after: 444   content changed: YES
+```
+
+The file is rewritten, the run exits 0, and the mode is preserved so the file still *looks*
+protected. This is a genuine regression, verified by running both trees rather than
+inferred.
+
+The half that makes it more than a permissions curiosity:
+`test_sha_write_over_several_paths_does_not_silently_skip_the_rest` — **the regression the
+fifth pass wrote for LOW-44** — injects its failure with exactly one mechanism,
+`os.chmod(paths[1], 0o444)`, and asserts `restamped or paths[2].name in output`. That
+injection no longer injects. All three paths now succeed, the left disjunct is
+unconditionally true, and the test is green while exercising nothing.
+
+**It is one of the thirty-one the closing report counts as "thirty-one passing
+regressions."** Diffing the test files — the fourth pass's remedy, and the one applied at
+the top of this document — is structurally blind to it, because the test's text never
+changed. What changed was the world underneath it.
+
+### HIGH-56 — `source add` writes outside the project root
+
+```
+planted:  ledger/cache/6bb27e9a… -> /tmp/outside/pwned.txt   (dangling)
+$ claims-ledger source add --id fx-paper --type paper --citation "A paper (2026)" src.txt
+registered fx-paper (6bb27e9a7bd5…) in ledger/sources.jsonl
+bytes at /…/proj/ledger/cache/6bb27e9a…
+exit 0
+outside file exists after: YES, contents match the source bytes
+$ claims-ledger check   → exit 0
+```
+
+It names the in-root path it did **not** write to. `refuse_to_write_outside_the_root` is
+called at `authoring.py:208` and `propagate.py:105` and nowhere else; `register_source`
+has never asked it.
+
+**This is pre-existing, not introduced** — the same attack succeeds against `95e292f` via
+`shutil.copyfile`, and that was checked rather than assumed. What the fifth pass changed is
+that every write now goes through a funnel whose own docstring says *"where the link leads
+is the caller's question, and `leaves_root` is where it is asked"* — and the refactor
+walked past the one caller that never asks. HIGH-11 and MEDIUM-19 were this class.
+
+## The surface the tool is installed as — HIGH-57
+
+MEDIUM-33 gave `freshness` a `--cached` flag and wired it through `check`. `HOOK_TEMPLATE`
+was never touched:
+
+```sh
+{python} -m claims_ledger validate --cached
+{python} -m claims_ledger resolve
+{python} -m claims_ledger references
+{python} -m claims_ledger propagate
+{python} -m claims_ledger freshness
+```
+
+`validate` reads the index; the four beside it read the working tree. A drift that is
+staged and then undone in the working tree commits through the installed hook in silence.
+MEDIUM-33's own writeup named the pre-commit hook as the surface that mattered.
+
+`resolve`, `references` and `propagate` have no `--cached` at all, so this is the narrow
+fix (`freshness --cached` in the template) or the wide one (the flag on all five). The
+narrow one closes the finding; the wide one closes the class.
+
+## What a heading is — HIGH-58
+
+HIGH-31's `depth` group settled which *headings* end a section. It did not settle what a
+heading is. `section_span()` has no fence awareness, so a `#`-led line inside a fenced code
+block is read as a depth-1 heading and ends the `##` section it sits in:
+
+```
+section_text(doc, config, "lab", "Observation")
+→ '## Observation\n\nAt a stale fraction of 0.1 the measured error was 0.04.\n\n```python\n'
+```
+
+Everything below the fence opener — including the note's conclusion — is outside the
+comparison, for `freshness` and for `resolve` both. Invert the sentence the claim rests on
+and both return `[]`. A Markdown lab note carrying a code snippet is the ordinary shape of
+the artifact this checker compares, not an edge case.
+
+This one is pre-existing rather than introduced; the pre-fix `^#+` was blind the same way.
+It ships either way.
+
+## What the corpus proves, and what it says it proves — HIGH-59
+
+The fifth pass's HIGH-47 was that 60 of 99 report sites could be deleted with the corpus
+still green. The fix added three seeds, tightened the runner — and, for the rest,
+**corrected the claim instead of the coverage**, which was the honest move. `corpus/README.md`
+now says: the corpus proves the semantic classes and every rule about not silently passing,
+the unit suite holds the well-formedness guards, and two `--write` reports are unreachable
+from the corpus by construction.
+
+This pass re-ran the sweep independently, with an AST enumerator rather than the text-grep
+the fifth pass used — the grep only reached `fail(...)`/`flag(...)` lambda calls and missed
+direct `reports.append(Report(...))` sites in `validate.check_history` and in `resolve.py`.
+
+**There are 116 report sites at this tip, not 99.** Every one was neutered in a fresh copy
+of `src/`, run in a subprocess with an assertion that the mutant was actually the module
+imported, first through the corpus and then — for corpus survivors — through the full suite:
+
+| | |
+|---|---|
+| caught by the corpus | 53 / 116 |
+| survived the corpus, caught by the unit suite | 13 |
+| **caught by nothing** | **50** |
+
+Most of the fifty are `validate.py`'s well-formedness guards, which the README says the
+unit suite holds — and it does not: `grep -rn KINDS tests/` returns nothing, so the
+frontmatter `kind` enum itself is unheld. But several of the fifty are **not**
+well-formedness at all. They are the "not silently passing" class the README names
+explicitly:
+
+- `references.py:141` — Grounds citing an entry that does not exist.
+- `resolve.py:111` — an `entry:` ground naming an entry that does not exist.
+- `resolve.py:118` — a malformed `search:` line.
+- `resolve.py:289` — *"the pinned pointers were not read out of git; whether each still
+  names its artifact is unknown, not settled."*
+- `freshness.py:284` — the `git_problem` case, *"freshness did not run."*
+- `references.py:166` — `read_document()`'s own re-check, *"its citations were not
+  checked."* D50 seeds only the sibling path at `references.py:160`.
+- `propagate.py:270` — the `--write` report the README says is unreachable from the corpus
+  and held by the suite instead. It is held by neither; `test_invariants.py`'s
+  `propagate --write` assertions pass for an unrelated reason with it deleted.
+
+Verified by hand rather than taken from the harness — delete `references.py:141`'s report:
+
+```
+$ claims-ledger corpus                → 75/75 seeds pass
+$ pytest -q                           → 725 passed, 12 xfailed, 0 failed
+```
+
+Both gates green over a ledger that now silently accepts a Grounds pointer to an entry
+that does not exist.
+
+The defect is not the coverage — a seed per rule was never promised and the fifth pass was
+right to narrow the claim rather than fake it. **The defect is that the narrowed claim is
+also false**, and it is the sentence a reader consults to find out what the corpus is
+evidence for. This package exists to refuse exactly that: a record asserting more than what
+happened.
+
+*Fix shape*: the claim and the coverage have to meet somewhere. Either seed the seven
+semantic rules above, or narrow the sentence to what the sweep actually supports — and
+either way, the sweep is now cheap to re-run (`.qe/probe6/enumerate_sites.py`,
+`mutate_one.py`) and should be what the sentence is checked against.
+
+## Smaller
+
+| | |
+|---|---|
+| MEDIUM-60 | **README misstates the seed count, under a regression too narrow to see it.** `README.md:312` reads `All 62 corpus seeds pass unchanged`; the corpus is 75. MEDIUM-48 was this defect at three sites, and the regression written for it matches `\b\d+(?=[ /]\d*\s*seeds?\b)` — a count *adjacent* to the word. Run over the file it matches `75` only. A fourth site with one word in between stayed stale under a green test. LOW-52's lesson was that a returning defect is a missing regression; this is a regression narrower than its own finding, one pass later. |
+| MEDIUM-61 | **The release workflow's publishing instructions cannot work for a first publish.** `release.yml:87` sends the operator to `pypi.org/manage/project/claims-ledger/settings/publishing/`. That page cannot exist before the first upload. A never-published project needs the account-level *pending publisher*. Followed literally, the first tag push fails at the `publish` step. The `environment: pypi` this job names must also exist beforehand, and is written down nowhere. |
+| MEDIUM-62 | `README.md:293` says CI runs `Python 3.11, 3.12 and 3.13`. `ci.yml`'s matrix is `["3.11", "3.12", "3.13", "3.14"]`, and 3.14 is in the package's own classifiers. README is the PyPI long description. |
+| MEDIUM-63 | `ci.yml` runs `twine check dist/*`; `release.yml` runs `twine check --strict`. A metadata regression only `--strict` catches passes every PR and first fails at the tag, which is the run with no cheap way back. |
+| LOW-65 | `git rev-parse --symbolic-full-name --upload-pack=x` exits 0 and echoes its own argument — git's parse-options behaviour for an unrecognised double-dash argument, not a refname. `is_object_name()` reads it as a symbolic ref, so an option-shaped pin gets an unstable-pin flag *and* resolve's "does not resolve": the two contradictory names LOW-36 was fixed to stop. Pins are free text in the schema, so a leading dash is a typo away. |
+| LOW-66 | `write_bytes_atomically` fsyncs the temp file but never the containing directory after `os.replace`, so the rename is not durable across a power loss. Every crash reachable and tested — `SIGKILL`, `RLIMIT_FSIZE` — is handled correctly; the docstring claims "atomic within a filesystem" and not power-loss durability, so this is a gap in the audit's phrasing rather than a violated guarantee. |
+| LOW-67 | The README Quickstart transcript is not reproducible. The commands as shown produce `FAIL A0001 frontmatter grade: measured requires a lab or experiment ground; grounds are ['source']`, not the `0 failure(s)` it prints. |
+| LOW-68 | `CHANGELOG.md`'s `[0.1.0]` link points at `releases/tag/v0.1.0`. Nothing in `release.yml` creates a GitHub Release, only the tag and the PyPI upload, so that link 404s after a successful publish as well as before it. |
+| MEDIUM-64 | **HIGH-45's floor has a hole below the two it closed.** A seed whose `expected.json` carries an `"expect"` array of `[]` counts as a full pass: `1/1 seeds pass`, exit 0, over a seed that checked nothing. `run.py` has no per-seed floor; only `test_corpus.py`'s `assert exp["expect"]` stands in the way, and that is a dev-time check of the *currently committed* corpus. Nothing in `run.py` would refuse a wheel that shipped one, which is the same gap HIGH-45 was about. |
+| LOW-69 | `matches()` compares an expectation row's `message` with `message.casefold() in report.message.casefold()`, and `"" in x` is always true — so `"message": ""` is indistinguishable from omitting the field. Not exploitable today: the one-row-one-report bijection catches HIGH-46's ambiguous-place case regardless of message content, confirmed by emptying D17's own message and re-running the terminal-verdict mutant. A footgun for the next seed author who thinks `""` pins something. |
+
+## What held
+
+Recorded so an examined surface and an unexamined one do not look the same.
+
+- **Write paths**: a writable file inside a read-only directory (clean exit 2, correct
+  message, no leftover temp, no traceback); leftover temp files after `SIGKILL` (inert —
+  no glob in the package collects `.name.claims-ledger-<pid>`); hard links (broken by
+  `os.replace`, and nothing in the package creates or inspects one); two racing
+  `sha --write` processes (never corrupted over three runs, atomic last-writer-wins);
+  marker duplication against `append_verdict`'s new assertion (two independent layers of
+  defence, no bypass); byte-fidelity through `sha --write` and `propagate --write` for
+  lone-CR, mixed CRLF/LF and no-final-newline; registry edge cases — empty, all-whitespace,
+  CRLF-ending, symlinked, truncated mid-JSON, and a FIFO (refused before opening, no hang).
+- **Freshness**: injection-shaped pins (`--git-dir=/etc`, `-h`, `--`, empty, newline) — no
+  escalation, argv-list `subprocess.run` is not shell-interpreted; a branch named as
+  another commit's full hex, resolved as a name per git's own precedence; abbreviated
+  7-character object ids in both directions; MEDIUM-35's `:(literal)` under `:`, `*`, `?`,
+  a leading `-`, a path literally beginning with `:(literal)`, and `../` traversal, in the
+  false-positive *and* true-positive directions; HIGH-30's exit code under moved+withdrawn
+  together, a `--write` with nothing to append, and a second `--write`; HIGH-29's section
+  identity — `has_acknowledged()` and `orphans()` compare raw strings consistently, so no
+  divergence between them is possible.
+- **Packaging**: reproducible builds; no leaks; correct RECORD, METADATA and WHEEL;
+  `python -m claims_ledger`; every subcommand's `--help`; `init` into an empty directory; a
+  run in a directory that is not a git repository, and one with `git` off PATH entirely —
+  both name the checks that did not run and exit without a traceback.
+
+## Is a seventh pass the answer? No.
+
+The question this pass had to settle for itself is whether six passes each finding HIGHs in
+the last one's fixes is (i) an audit converging on a hard artifact, (ii) an audit
+manufacturing findings that would never fire, or (iii) a fix process producing defects as
+fast as it closes them. Those carry different decisions, and the record discriminates:
+
+- The HIGH count is **not falling** (3, 3, 3, 5, 8, 6).
+- **Four of this pass's six HIGHs are in one-day-old code**, both new functions introduced
+  by the fix commit `cd19b86`.
+
+That is (iii), not (i). And the remedy for (iii) is not another adversarial pass — it is a
+check standing between the fixer and the merge that does not currently exist. **HIGH-55 is
+the proof it is needed**: a fix silently invalidated a regression written in the same pass,
+and the existing remedy (diff the test files) cannot see it, because the test text did not
+change.
+
+**The bounded experiment that should run before a seventh pass**, and before publication:
+revert each of the twenty-four fifth-pass fix hunks one at a time and record which of the
+thirty-one flipped regressions goes red. Any regression that stays green over its own
+reverted fix is a second HIGH-55. This is roughly twenty-five minutes of machine time and
+it is the only thing that converts "thirty-one passing regressions" from a count into a
+claim. Passes 1–3 validated their regressions against unfixed code; the fifth pass's
+closing never claims it did.
+
+## The revert experiment — run, and what it found
+
+The section above proposed this rather than a seventh pass. It has been run. Harness and
+raw results in `.qe/probe6/revert-experiment/`.
+
+**Method.** `cd19b86` — the fifth pass's fix commit — was split into **94 hunks** across
+`src/`, `.github/`, `docs/`, `README.md`, `CHANGELOG.md` and `pyproject.toml`. Each hunk was
+reverse-applied, alone, to a clean `git archive` of the tree, and the **31 regressions the
+fifth pass flipped** were run against it. The test files stay at HEAD throughout, so a
+regression going red means the flipped test actually detects the loss of its own fix.
+
+Two controls, because a sweep that silently tested the wrong tree would report exactly what
+one hopes to see: the module import is asserted to resolve inside the copy rather than to
+the editable install pointing at the checkout, and a no-revert control run gives **31
+passed**.
+
+Where a hunk could not stand alone the experiment widened rather than gave up:
+
+| | |
+|---|---|
+| hunks reverted individually | 86 of 94 ran |
+| 4 could not be reverse-applied | 3 `CHANGELOG.md` hunks and the `__init__.py` version bump — all superseded by `776500b`, which rewrote both |
+| 4 were not independently revertible | `freshness.py` and `propagate.py` import blocks, `schema.py`'s new helpers, and `git_bytes` — reverting one alone breaks the module, so they were reached at file level instead |
+| whole-file reverts | 26 of 29 files ran; `schema.py` breaks every importer, so it was reached by the full-`src/` revert |
+| full `src/` revert | 28 of 31 red; the 3 survivors are the three regressions whose subject is not in `src/` at all |
+
+**The result: 30 of the 31 are load-bearing. One is not.**
+
+- **29** go red under some single-hunk or single-file revert.
+- **`test_the_changelog_has_no_unreleased_section_at_the_current_version`** could not be
+  reverted by the harness at all, because `776500b` rewrote `CHANGELOG.md` out from under
+  `cd19b86`'s hunks. Checked directly instead by reinjecting the defect — re-adding a
+  `## [Unreleased]` heading — and it goes red. Load-bearing; the gap was the harness's.
+- **`test_sha_write_over_several_paths_does_not_silently_skip_the_rest` is not
+  load-bearing**, and this is now measured rather than argued:
+
+```
+$ patch -R < (cd19b86's changes to src/claims_ledger/cli.py)
+$ grep -c "def sha_one"                       → 0   (the LOW-44 fix is gone)
+$ grep -c "except authoring.AuthoringError"   → 0   (the per-path catch is gone)
+$ pytest tests/test_write_paths.py::test_sha_write_over_several_paths_does_not_silently_skip_the_rest
+1 passed
+```
+
+Its own fix — the whole of it — can be deleted and the regression written for it stays
+green. Reverting `authoring.py` alone leaves it green too; it goes red only when **both**
+are reverted, and then for `authoring.py`'s reason rather than its own. This is HIGH-55
+stated at its sharpest, and it is a stronger claim than the one HIGH-55 makes: the test does
+not merely have an inert failure injection, it does not detect the removal of the code it
+was written to hold.
+
+**What the experiment does not find is a second one**, and that matters as much as what it
+does. The fifth pass's regression corpus has exactly one hole, in the place this pass had
+already identified, and the other thirty were verified against unfixed code by machine.
+`## What this means for the release` above is corrected accordingly.
+
+The experiment is also a fix→regression map — `results-by-hunk.jsonl` records, for every
+hunk of the fix commit, which regressions its removal breaks. That is worth keeping: it is
+what makes the next pass's "N passing regressions" a claim rather than a count, and re-running
+it costs three minutes.
+
+## What this means for the release
+
+**Do not publish yet.** Not because the artifacts are wrong — they are not; the wheel and
+the sdist are the cleanest part of this package — but because:
+
+1. **HIGH-56 is a write outside the project root**, exit 0, `check` clean afterwards. It is
+   pre-existing rather than new, which makes it older than the audit, not smaller.
+2. **HIGH-53 turns the checker's core forgery rule into one a careless committer defeats by
+   accident**, and it is a defect the last fix introduced.
+3. ~~**HIGH-55 means the publication gate contains at least one vacuously green test**, and
+   until the revert experiment runs, nobody knows whether it contains one or several.~~
+   **Settled by the experiment, and in the reassuring direction**: exactly one of the
+   thirty-one is not load-bearing, it is the one HIGH-55 named, and the other thirty were
+   verified against unfixed code by machine. HIGH-55 is still a defect and its regression
+   still needs a failure injection that fires — but it is no longer an unknown, and it is
+   no longer a reason on its own to hold the release.
+4. **MEDIUM-61 means the first tag push fails anyway**, at the `publish` step, for a reason
+   that has nothing to do with any of the above.
+
+The counter-argument deserves recording, because it is strong: a `0.1.0` with no users has
+almost no blast radius, PyPI is irreversible only per-filename, and every one of these HIGHs
+needs either a hostile local actor with write access to the repository or a git that cannot
+answer. That case would be taken, except for point 3 — a gate with an unknown number of
+vacuous tests in it is not a gate, and the experiment that settles it costs less than this
+paragraph took to write.
+
+## Disposition of the sixth pass
+
+Written before any fix, as the fourth and fifth were. **Nothing here is fixed.** The
+seventeen findings — **seven HIGH, five MEDIUM, five LOW** — are fifteen strict xfails in
+`tests/test_pass6_regressions.py`. Three are recorded without one and say so: LOW-66 has
+no reachable failure to assert (a power loss is not a test), and LOW-67 and LOW-68 are
+prose whose correction the next edit would have to keep true anyway. Suite is **737
+passed, 15 strict xfails** on 3.11, 3.12, 3.13 and 3.14; `ruff`, `ruff format` and `ty`
+clean; corpus 75/75.
+
+Findings reproduced by hand by this pass's own author, rather than taken from the agent
+that found them: HIGH-53, HIGH-54, HIGH-55 (against both trees), HIGH-56 (against both
+trees), HIGH-57, HIGH-58, HIGH-59's minimal mutant, and MEDIUM-60.
+
+Three notes for the pass that fixes these:
+
+- **The revert experiment has been run** — see the section above. The gate has exactly one
+  hole and it is HIGH-55's; the other thirty regressions are load-bearing, verified by
+  machine against unfixed code. Nothing below is blocked on it any more, and the harness in
+  `.qe/probe6/revert-experiment/` should be re-run against *this* pass's fixes before the
+  next one calls them done.
+- **HIGH-53 and HIGH-54 share a root**, and it is `ever_drifted` answering a question
+  nobody asked. Both close with one change at the right granularity — the blob object id —
+  and neither closes properly without it. The fourth pass's six git findings had this shape
+  too.
+- **HIGH-55 is the finding to fix first**, not because it is the worst but because every
+  other verdict in this document depends on the tests being load-bearing.
+
+---
+
+# The check between the fixer and the merge — 2026-09-06, over the sixth pass's fixes
+
+The sixth pass argued against a seventh adversarial pass and for something that did not
+exist: a check standing between the fixer and the merge. This is that check, run for the
+first time, over the seventeen fixes. It is a consultation of the `qe` scope — ticket
+`9f739132726749a9`, exchange `scope:main:exchange:9f739132726749a9` — answered by a session
+that read the code, built real repositories and ran the probes, and that changed nothing
+under `src/` so the fixer's baseline stayed intact.
+
+**It worked.** It closed thirteen of the seventeen with hand reproductions against both
+trees rather than against a green suite, and it found five new HIGHs — two of them in the
+fixes under review, one of them a false number in the fixer's own evidence.
+
+## Disposition of the sixth pass
+
+All fifteen strict xfails in `tests/test_pass6_regressions.py` are green, and the flip is
+accountable: `git diff 33b13b6..HEAD -- tests/test_pass6_regressions.py` removes the fifteen
+decorators, re-wraps every docstring with the xfail's own `reason=` text as its opening
+paragraph, and moves exactly **two assertions**, both because the assertion as written could
+not do what it claimed:
+
+- `test_the_installed_hook_asks_freshness_about_the_index` selected the hook line with
+  `endswith("freshness")`, which matches the explanatory comment above the invocations. The
+  comment says `--cached`, because it explains the fix. The assertion passed over prose. It
+  now takes the non-comment `-m claims_ledger` lines and asserts there are five. **This is
+  HIGH-55's shape inside the pass that found HIGH-55.**
+- `test_an_option_shaped_pin_is_not_reported_as_an_unstable_pin` unpacked `Report` objects
+  as three-tuples on its last line — reachable only once the flag above it stopped firing,
+  so the `--runxfail` check the pass ran never got to it.
+
+Suite **785 passed, no xfails** on 3.11, 3.12, 3.13 and 3.14 (nine CI jobs, Linux and
+macOS); `ruff`, `ruff format` and `ty` clean; corpus **76/76**.
+
+## What the check found
+
+Reproduced by hand against both trees. Three of the five HIGHs were re-reproduced
+independently by the fixer before being written here; the rest are the reviewer's.
+
+### QE7-70 — HIGH — `artifact:` is never consulted while the drift is live
+
+The whole of HIGH-53's fix rests on a field that is unreachable in the state a discharge
+normally lives in. `orphans()` asks `caused()` only when the ground looks fresh
+(`if finding not in (None, "unstable-pin"): continue`), and `has_acknowledged()` — which is
+what suppresses a `moved` report — matches a discharge to a ground by pointer identity
+alone and never reads `artifact:`. Over a real, committed, ongoing drift:
+
+```
+live drift, no verdict:        flag  `experiment: docs/note-001.md @3b78c16` has moved
+artifact: 0000…0 (40 zeros)    freshness []   check exit 0, all five checkers
+artifact: not-a-hash           freshness []   check exit 0
+artifact: ABSENT (wrong case)  freshness []   check exit 0
+no artifact: line at all       freshness []   check exit 0
+```
+
+The `continue` is byte-identical at `33b13b6`: **the gate is pre-existing, the dependence on
+it is new.** Reproduced independently.
+
+### QE7-71 — HIGH — HIGH-53's laundering survives in two shapes
+
+Both with the verdict written once and never edited, both ending at `check` exit 0 over a
+live drift of the pinned ground.
+
+**(a) A sectioned ground, laundered by one ordinary commit to a different section of the
+same file.** `caused()` has no section awareness: it asks whether the *file* ever held the
+recorded blob. Someone edits `## Method`; the forger writes a discharge on
+`§ "Observation"` naming the blob the file now holds — one `git rev-parse`. No revert, no
+second commit, and nothing ever touched the pinned section. `D53`'s own pointer is
+sectioned, so this is a one-line variant of the seed now in the corpus. Reproduced
+independently.
+
+**(b) `absent` plus delete-and-restore**, which needs no object id at all: `git rm`, commit,
+restore, commit, and the discharge stands.
+
+`docs/FRESHNESS.md` claimed *"a careless touch-and-revert launders nothing"*. Shape (b) is a
+careless touch-and-revert. The claim was true of the object-id headline case and false of
+these two; the specification has been corrected to state all three, which is what the
+document is for.
+
+**HIGH-53 is narrowed, not closed.** The cost of the forgery rose from two no-op commits to
+two no-op commits and one `git rev-parse` — or, in shape (b), not at all.
+
+### QE7-72 — HIGH — HIGH-56's class is open at two more callers
+
+The fix's own comment says *"Every write in this package goes through one funnel now."* Two
+sites take the identical planted-dangling-symlink attack:
+
+```
+$ ln -s /tmp/outside/registry-pwned.jsonl ledger/sources.jsonl     # dangling
+$ claims-ledger init      → exit 0, and /tmp/outside/registry-pwned.jsonl now exists
+$ ln -s /tmp/outside/hook-pwned.sh .git/hooks/pre-commit           # dangling
+$ claims-ledger hook --install
+  → exit 0, and -rwxr-xr-x /tmp/outside/hook-pwned.sh, 1690 bytes of shell
+```
+
+Both name the in-root path they did not write to. `cmd_init` and `cmd_hook` are the two
+names on `test_every_write_asks_where_the_link_leads`'s allowlist, and the allowlist's
+reasoning was right about the *directory* and wrong about the write: `init` creates the
+root, so the root exists by the time the registry is written, and `hook --install` needs to
+write outside the root but not through a link the repository does not control. Reproduced
+independently: the `init` half, exactly as above.
+
+### QE7-73 — MEDIUM — the fixer's revert experiment reported 39 of 43 and the number was 34
+
+Two `schema.py` hunks are pure additions — `CODE_FENCE_RE`, `fenced_spans()`,
+`_in_a_fence()` — whose names are referenced only inside function bodies. Reverting one
+alone leaves the module importable, so the harness's import control passes, and every call
+site then raises `NameError`. Five regressions drew their only credit from that cascade, and
+all five hold rules in `validate.py`, which does not appear in this commit's diff at all.
+`results-by-hunk.jsonl` recorded it plainly — `23 failed, 14 passed, 6 errors` — and the
+tally did not read it.
+
+**None of the five is vacuous**: like the four the first run already named, they are HIGH-59
+coverage over report sites that already existed, so no hunk of this commit could break them,
+and each was verified by neutering the site it exists for. What was wrong was the claim, and
+the claim is what this package is about. Corrected: the harness has a second control — a
+hunk's credit is disqualified when its own run reports collection or call errors — and
+`tally.py` computes the number instead of leaving it to be read off. Reproduced
+independently; the write-up in `.qe/probe7/revert-experiment/` now says 34 of 43 and why.
+
+### QE7-74 — HIGH — `freshness --cached --write` records a blob that may never be committed, and the entry wedges
+
+`seen_at(cached=True)` records the *index* blob; `caused()` looks only at committed history.
+Stage a drift, discharge it, then edit once more before committing — a second `git add`,
+`git add -p`, an amend, a formatter — and the recorded id is never in any commit. Once the
+ground is fresh again the discharge is an orphan, permanently: verdicts append and only
+append, and the pin above the marker is frozen. **MEDIUM-34's wedge, which HIGH-53's fix was
+required not to reopen, reopened** — with no legacy data, on the flag path HIGH-57's fix
+just made the installed hook's default. Two of this pass's fixes combine into it.
+
+### QE7-75 — MEDIUM — the `artifact:` field has no well-formedness check anywhere
+
+`grep -n artifact src/claims_ledger/validate.py` returns nothing. A non-hex value, a
+wrong-case `ABSENT`, two `artifact:` lines (the last silently wins), an `artifact:` before
+`evidence:` against the documented order, and an `artifact:` on a hand-written
+`corroborated` verdict by `main` — all give `validate: 0 failures`. The last lets a person
+fabricate machine provenance on a hand-written verdict. This is the HIGH-59 class in new
+code, in the commit that closed seven of them.
+
+### Smaller
+
+| | |
+|---|---|
+| QE7-76 | **MEDIUM** — the corpus's new `message: ""` refusal is a `ValueError` out of the CLI's catch-all, so a seed-authoring mistake prints `this is a bug. Please report it` and exits 2. `release.yml` runs `corpus` against both artifacts, so a shipped seed like that makes the release gate ask for a bug report. |
+| QE7-77 | **MEDIUM** — `section_span()` re-sweeps the whole document for fences on every call: 20 calls on a ~280 KB artifact cost ~10.1 ms each, ~202 ms total, flat regardless of section. `caused()` adds one to two git calls per discharged verdict (160 vs 140 over 20 grounds). `--full-history` disables history simplification; that it is the more expensive walk on a long merge-heavy history is reasoned, **not measured**. The suite is materially slower — 785 in 68–72 s against 727 in 44 s at base — which matters because it is the gate the fixer has to run. |
+| QE7-78 | **LOW** — LOW-65's fix stopped flagging a moving *pseudo-ref* pin. `ORIG_HEAD`, `FETCH_HEAD`, `MERGE_HEAD` and `CHERRY_PICK_HEAD` were `unstable-pin` flags at `33b13b6` and are silent now: an over-report traded for silence, which is the trade this pass called a defect when it found it in MEDIUM-34's fix. |
+| QE7-79 | **LOW** — `freshness --cached`'s `moved` message says "in the working tree" about the index. The withdrawn branch gets it right. It is what the installed hook now prints by default. |
+| QE7-80 | **LOW** — one unclosed fence in an entry's prose swallows the rest of the body: `Backing`, `Verdicts` and `References` all report `section missing`, plus a spurious `verbatim_sha` mismatch, and nothing names the fence. Loud, which the docstring accepts, and a bad half-hour. The same mechanism under a project's own `section-patterns` makes every `def` vanish from a module with a flush-left ``` in a docstring. |
+| QE7-81 | **LOW** — two residuals in the corpus fixes: `matches()`' guard is `bool(message)`, so `"message": " "` still pins nothing; and `run_seed`'s floor counts rows in the JSON rather than rows that bind, so a row naming an unknown checker is filtered out silently (caught in practice by the unexpected-report sweep). |
+
+## What the check examined and found clean
+
+An examined surface and an unexamined one must not look the same.
+
+`validate`'s frozen-region and append-only comparison over a four-line verdict block —
+`Verdict.raw` includes the `artifact:` line, so editing a committed value or retro-fitting
+one is caught (`verdicts append and only append`), and no bypass was found. `references`,
+`resolve`, `propagate` and `status` over tool-written four-line verdicts. `check` end to end
+across a real drift-and-discharge cycle. `validate --cached` over a committed four-line
+verdict. The installed hook: it installs, runs all five checkers, and blocks a failing
+commit. HIGH-54, HIGH-55, HIGH-57 and HIGH-58 each verified against both trees. And every
+one of the 43 regressions was read for the HIGH-55 shape — selectors that could match a
+comment, `assert a or b` with an unconditional disjunct, injections that no longer inject —
+with sixteen mutation-checked directly: **no vacuous test was found**, and the reviewer
+wrote a deliberately vacuous variant of the mode-444 regression to confirm it could tell.
+
+## What it did not reach
+
+- One interpreter. The reviewer's box has CPython 3.12 only; the 3.11/3.13/3.14 result is
+  CI's, not theirs.
+- The built wheel and sdist. The checkout was reviewed; the artifacts were not.
+- Anything needing PyPI or a real Actions run. MEDIUM-61's fix is prose about pages nobody
+  here can reach; its regression was mutation-checked, its outcome was not.
+- The mutation sweep is 24 of 62 survivors deep at this tip; 38 sites unrun. "Caught by
+  nothing" at tip is bounded below by 17, not measured.
+- Crash recovery through the new refusal: no `SIGKILL` between the `r+b` open and the
+  `os.replace`.
+- The revert experiment was audited from its committed records and one hunk was
+  spot-checked; it was not re-run.
+
+## What this means for the release
+
+**Do not publish `0.1.0` yet.** Two of the sixth pass's four reasons are closed and struck;
+two stand, one in a sharper form; and the fixes added a third.
+
+**Closed.** ~~HIGH-55~~ — a mode-444 entry is refused with exit 2 and a named message,
+verified by running both trees, and the regression whose injection it had hollowed out now
+injects. ~~MEDIUM-61~~ — `release.yml` names the account-level pending publisher and the
+`pypi` environment, `RELEASING.md` writes the sequence down, a `github_release` job creates
+the Release the CHANGELOG links to, and each of those three is held by a regression that
+goes red when its fix is reverted. The first tag push no longer fails at `publish` for that
+reason.
+
+**Standing.** HIGH-56 is fixed at the site it named and its class is not: `init` writes the
+source registry, and `hook --install` writes a mode-755 shell script, through a dangling
+symlink out of the project root, exit 0, each printing the in-root path it did not write to.
+HIGH-53 is narrowed, not closed: a discharge is still laundered by one ordinary commit
+editing a *different section of the same file* when the ground is sectioned — the pointer
+form the corpus's own HIGH-53 seed uses — and by a delete-and-restore when the verdict
+records `absent`.
+
+**New, and the reason this is a hold rather than a hedge.** The `artifact:` line the fix
+introduced is never examined while a drift is live: a propagation-authored verdict carrying
+forty zeros, a non-hash, or no `artifact:` line at all silences a real, committed, ongoing
+drift, and `validate` says nothing about the value in any state. In the one state where it
+*is* examined, two ways of writing it wedge the entry permanently — a verdict written by an
+earlier build, and one written by `freshness --cached --write` whose staged blob is never
+committed as such. The second needs no legacy ledger and is reached on the flag path the
+installed hook now uses by default. Verdicts append and only append and the pin is frozen,
+so neither is repairable by a legal edit; the CHANGELOG's stated repair path did not exist,
+which was found by trying all three of them.
+
+The artifacts remain the strongest part of this package, and the counter-argument is
+unchanged and still strong: a `0.1.0` with no users has almost no blast radius, and every
+one of these needs a hostile local actor with commit access or a git that cannot answer. The
+reason to hold anyway is narrower than last time and it is not about blast radius: **the
+checker's central promise is that a drifted ground is never silently fresh, and there is a
+one-line verdict that makes it silently fresh.** Publishing a tool whose stated purpose is
+to refuse a record that asserts more than what happened, while it holds that hole, is the
+thing this package exists not to do.
+
+**The smallest thing that would change the answer** — four changes, roughly twenty lines and
+four sentences:
+
+1. `validate` refuses a propagation-authored `contested` verdict whose `artifact:` is
+   missing or is neither a 40-hex object id nor `absent`. Well-formedness, at the checker
+   that owns it, firing regardless of drift state. Closes the readable half of QE7-70 and
+   all of QE7-75.
+2. `orphans()`'s "records nothing / records something unreadable" branch reports *could not
+   be established* instead of *orphan* — HIGH-54's own shape, one branch away in the same
+   function. Un-wedges both permanent states.
+3. `refuse_to_write_outside_the_root` at `cli.py`'s registry write and hook write.
+4. The false sentences. **Done in this branch**: `docs/FRESHNESS.md` now states all three
+   residuals of the touch-and-revert claim, `CHANGELOG.md` says the legacy state cannot be
+   repaired rather than promising a path that does not exist, and `corpus/README.md`'s
+   Coverage opening no longer claims a seed for every not-silently-passing rule twenty lines
+   above the paragraph saying it has none for two of them.
+
+Two corpus seeds are worth adding alongside: a sectioned ground whose file was touched in a
+*different* section, and an `absent` discharge over a delete-and-restore. `D53` covers
+neither.
+
+With those, the residual is QE7-71 — a laundering that requires an author with commit access
+deliberately writing a verdict in the machine's name — documented honestly in the
+specification rather than contradicted by it. That is a residual a `0.1.0` can ship with.
+
+## Is a seventh adversarial pass the answer? Still no — this is.
+
+The HIGH series is now 3, 3, 3, 5, 8, 7, 5. Not falling, and two of this check's five are in
+one-day-old code, so the sixth pass's diagnosis holds: a fix process producing defects about
+as fast as it closes them, whose remedy is a gate on the fix rather than another audit of the
+package. What is new is that the gate exists and has a measured yield — five HIGHs, three of
+them unreachable from the suite, one of them a false number in the fixer's own evidence — 
+which the sixth pass could only assert.
+
+**What should stand between the fixer and the merge next time**, in the order that would have
+caught the most:
+
+1. **A "what did this fix newly refuse?" pass.** For every fix that adds a refusal — the
+   orphan rule, the mode check, the fence rule, the corpus floor — run it against data
+   written before the fix existed. Three of the five HIGHs are that and nothing else,
+   including both permanent wedges. This check does not exist and is the cheapest on the
+   list.
+2. **Every gate CI runs, over the whole tree, before every commit, as one command.** The
+   branch went red on `ty` while the local run was green, because the local run was "ruff and
+   pytest on the file I just touched". A selectively-run gate has coverage equal to the
+   author's model of the change, and the model being wrong is what every finding class here
+   has in common.
+3. **The revert experiment, with the second control** — now added.
+4. **Mutation in both directions for every new rule**: delete the rule and watch the test go
+   red, *and* satisfy the rule falsely and watch the test stay green. Half of the new
+   `artifact:` rules were only checked in the first direction, which is exactly why QE7-70
+   and QE7-75 survived a green 785-test suite. A new field needs a test that it is
+   *checked*, not only that it *exists*.
+5. **Keep the check adversarial and independent.** It found a defect in the fixer's own
+   evidence, and a self-review structurally cannot. It also has to stay findings-only: this
+   one changed nothing under `src/`, so the baseline it was judging stayed intact.

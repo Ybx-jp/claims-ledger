@@ -172,6 +172,68 @@ def test_a_sectioned_type_must_be_written_with_its_section(tmp_path):
     assert any('§ "<section>"' in m for m in messages)
 
 
+def test_a_kind_outside_the_enum_is_not_well_formed(tmp_path):
+    """`corpus/README.md`'s Coverage section says validate's well-formedness guards --
+    "the kind, author and grade enums" among them — are held by the unit suite rather
+    than by a corpus seed, because a mutation sweep showed the corpus does not need them
+    to pass. The sixth pass's sweep found the `kind` enum itself held by neither: `grep
+    -rn KINDS tests/` returned nothing before this test existed."""
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("kind: claim", "kind: theory", 1),
+        encoding="utf-8",
+    )
+    ledger = ledger_named(tmp_path)
+    messages = [r.message for r in validate_run(ledger)]
+    assert any("kind `theory` is not one of" in m for m in messages), messages
+
+
+def test_a_grade_outside_the_enum_is_not_well_formed(tmp_path):
+    """The same sentence names the `grade` enum beside `kind`; held by neither gate
+    before this test, same as `kind` above."""
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("grade: measured", "grade: definitive", 1),
+        encoding="utf-8",
+    )
+    ledger = ledger_named(tmp_path)
+    messages = [r.message for r in validate_run(ledger)]
+    assert any("grade `definitive` is not one of" in m for m in messages), messages
+
+
+def test_a_frontmatter_author_that_is_not_a_lowercase_name_is_not_well_formed(tmp_path):
+    """The same sentence's third named example, `author`: frontmatter `author:` is
+    checked against a lowercase-name pattern (validate.py) — a different check from a
+    verdict's `author:` being one of `verdict-authors`, which this test does not touch.
+    This frontmatter half was held by neither gate before this test."""
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("author: main", "author: Main", 1),
+        encoding="utf-8",
+    )
+    ledger = ledger_named(tmp_path)
+    messages = [r.message for r in validate_run(ledger)]
+    assert any("author `Main` is not a lowercase author name" in m for m in messages), messages
+
+
+def test_a_verbatim_sha_that_is_not_64_hex_is_not_well_formed(tmp_path):
+    """The same sentence's fourth named example: a `verbatim_sha` that is not 64 hex
+    characters is a different defect from one that is 64 hex but wrong (D30 seeds that
+    one). The format check itself — `SHA_RE` — was held by neither gate before this
+    test: it is not a mismatch the corpus can express without also making the entry
+    fail the length/character check first, which is exactly why a seed cannot stand in
+    for this test."""
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    text = path.read_text(encoding="utf-8")
+    sha_line = next(ln for ln in text.splitlines() if ln.startswith("verbatim_sha: "))
+    path.write_text(
+        text.replace(sha_line, "verbatim_sha: not-64-hex-characters", 1), encoding="utf-8"
+    )
+    ledger = ledger_named(tmp_path)
+    messages = [r.message for r in validate_run(ledger)]
+    assert any("verbatim_sha is not a 64-hex sha256" in m for m in messages), messages
+
+
 def test_the_ledger_reads_its_paths_from_the_configuration(tmp_path):
     config = from_table({"ledger": "record", "entries": "claims"}, tmp_path)
     ledger = open_ledger(config=config)

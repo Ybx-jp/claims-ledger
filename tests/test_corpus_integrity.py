@@ -529,12 +529,35 @@ def test_every_action_the_release_uses_is_pinned_to_a_commit():
     assert not unpinned, unpinned
 
 
+def test_the_tag_that_publishes_also_gets_a_github_release():
+    """LOW-68: CHANGELOG.md links every version heading to `releases/tag/vX.Y.Z`, and
+    nothing in this workflow ever made that page — only the tag and the PyPI upload did
+    — so the link 404s after a successful publish as well as before it. A job here has
+    to actually create the Release, gated and scoped the way `publish` itself is: only a
+    tag, only after `publish` has succeeded, and `contents: write` no wider than the one
+    job that needs it."""
+    text = release_yml()
+    release = text[text.index("\n  github_release:") :]
+    assert "startsWith(github.ref, 'refs/tags/')" in release
+    assert "needs: publish" in release
+    assert "gh release create" in release
+    assert "contents: write" in release
+    # Scoped to this job alone: `publish` needs only `id-token: write`, and the
+    # top-level block (every other job's default) is `contents: read`.
+    granted = [
+        ln
+        for ln in text.splitlines()
+        if "contents: write" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(granted) == 1, granted
+
+
 def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     """`hatchling` takes `packages = ["src/claims_ledger"]`, so the seeds ride along inside
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 75
+    assert len(SEEDS) == 76
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name

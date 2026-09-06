@@ -387,3 +387,50 @@ def test_i_a_missing_git_is_not_a_pointer_that_does_not_resolve(pinned, monkeypa
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# --- GITFAIL-8: a git that cannot say whether the drift happened -----------------------
+
+
+def _shim_git_that_cannot(tmp_path, subcommand):
+    """A real `git` on PATH that fails one subcommand and delegates the rest.
+
+    Everywhere else in this file the failure is produced by configuring git, which is
+    better evidence. It cannot reach this one: `git log --raw` reads history and runs no
+    clean filter, so there is nothing to configure that stops it and leaves
+    `rev-parse --git-dir` working. The shim is still a real git failing for real — a
+    non-zero exit from the binary the package invokes — and not a patched internal.
+    """
+    d = tmp_path / "shim-bin"
+    d.mkdir(exist_ok=True)
+    real = shutil.which("git")
+    (d / "git").write_text(
+        "#!/bin/sh\n"
+        f'for a in "$@"; do [ "$a" = "{subcommand}" ] && exit 128; done\n'
+        f'exec {real} "$@"\n',
+        encoding="utf-8",
+    )
+    (d / "git").chmod(0o755)
+    return d
+
+
+def test_j_a_git_that_cannot_say_whether_the_drift_happened_says_so(pinned, tmp_path, monkeypatch):
+    """The orphan rule's own git call, brought under this file's discipline. `orphans()`
+    asks history whether the artifact really was what the verdict records; when git cannot
+    answer, the check did not run, and a check that did not run is never a check that
+    passed. The predecessor of this code read a failed `rev-list` as "it drifted" and
+    retired the forged-discharge check in silence.
+    """
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.run(write=True)  # the discharge, recording the artifact the drift was seen at
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
+    pinned.note(NOTE)  # undone, so the verdict is the one thing left to judge
+    assert pinned.outcomes() == [], "precondition: the discharge stands"
+
+    monkeypatch.setenv(
+        "PATH", f"{_shim_git_that_cannot(tmp_path, 'log')}{os.pathsep}{os.environ['PATH']}"
+    )
+    got = pinned.outcomes()
+    assert [o for o, _, _ in got] == ["fail"], f"the silence of a git that could not answer: {got}"
+    assert "could not be established" in got[0][2]
