@@ -72,3 +72,13 @@ None is a second HIGH-55, and each is a different reason:
       | xargs -P 6 -I{} .qe/probe7/revert-experiment/run_one.sh <outdir>/hunks/{}.patch hunk-{}
 
 About four minutes at `-P 6`. Run it against the next pass's fixes before calling them done.
+
+## What the numbers were taken at
+
+The sweep above ran against `aadb230`. One commit landed after it — `5fa68a2`, which
+changes a single test and nothing under `src/`, because `ty` refuses the deliberate
+`TypeError` call that test makes and CI caught what the local run had not. The hunk set is
+unaffected (`tests/` is excluded from the split), and the one result that could have moved
+was re-checked at the new tip: hunk 48 still turns
+`test_appending_a_verdict_cannot_skip_the_root_it_is_checked_against` red, and the control
+still gives `43 passed`, `76/76 seeds pass`.
