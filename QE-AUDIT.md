@@ -1174,9 +1174,19 @@ not — is a comment that now says what the condition does. Both workflows pin e
 to a commit, and the sdist is proven from a clean environment beside the wheel.
 
 LOW-52 was a returning defect, so its fix is the test that was already written for it:
-`test_the_changelog_has_no_unreleased_section_at_the_current_version`. The version is
-`0.2.0` — a fifth checker is a feature — and the section that was `[Unreleased]` is now
-`[0.2.0]`.
+`test_the_changelog_has_no_unreleased_section_at_the_current_version`.
+
+**The version stays at `0.1.0`, and the report's suggested fix was wrong about that.** It
+said to bump to `0.2.0` because a fifth checker is a feature, which is right whenever
+`0.1.0` is an artifact somebody could have installed. It is not: there is no tag in this
+repository, no GitHub release, and `pypi.org/pypi/claims-ledger/json` answers 404. Bumping
+was done and then undone, because it would have put a `0.1.0` on the record that nobody
+could ever install, under a heading reading `First public release` and a link to a tag that
+does not exist — a record asserting something that did not happen, which is the class of
+defect this package exists to catch. `CHANGELOG.md` now carries **one** version heading:
+everything, including the fifth checker and both of the last two passes, landed before
+anything was tagged, so there was no earlier release for any of it to be a change to. The
+`[Unreleased]` section is gone either way, which is what the finding was about.
 
 ### One thing this pass's fixes changed that no finding asked for
 
