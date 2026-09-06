@@ -121,7 +121,11 @@ def scoped(repo, pointer, path, config):
         return None
     if after is None:
         return "withdrawn"
-    return None if before == after else "moved"
+    # Trailing whitespace is the gap between one section and the next, not part of
+    # either. The last section of an artifact runs to the end of it, so appending a new
+    # section to the file would otherwise lengthen the one before it by the blank lines
+    # separating them, and report a section nobody touched as moved.
+    return None if before.rstrip() == after.rstrip() else "moved"
 
 
 def drift(repo, pointer, tree, config):  # `tree` is the repository's working tree
@@ -160,12 +164,20 @@ def drift(repo, pointer, tree, config):  # `tree` is the repository's working tr
     return "moved", since()
 
 
-def commits_phrase(count):
-    """`n commits have` / `1 commit has` / a shrug when git would not say."""
+def since_phrase(count, where):
+    """How the artifact got from the pin to here, for the message.
+
+    A count of zero is the ordinary pre-commit case — the edit is in the working tree and
+    no commit has been made yet — and saying `0 commits have touched it` of a file the
+    author is editing right now reads as a checker that has lost track of its own
+    subject."""
+    if count and count.isdigit() and int(count) == 0:
+        return f"{where} differs from the pin in the working tree, uncommitted"
     if not count or not count.isdigit():
-        return "an unknown number of commits have"
+        return f"an unknown number of commits have touched {where} since the pin"
     n = int(count)
-    return "1 commit has" if n == 1 else f"{n} commits have"
+    verb = "1 commit has" if n == 1 else f"{n} commits have"
+    return f"{verb} touched {where} since the pin"
 
 
 def run(ledger, write=False):
@@ -231,19 +243,13 @@ def run(ledger, write=False):
                     "fail",
                     e.prefix,
                     part,
-                    f"{gone}; {commits_phrase(detail)} touched the artifact since the pin, "
-                    "and the ground it names is gone",
+                    f"{gone}; the ground it names is gone ({since_phrase(detail, 'the artifact')})",
                 )
             )
             note = "propagated from a withdrawn ground"
         else:
             reports.append(
-                Report(
-                    "flag",
-                    e.prefix,
-                    part,
-                    f"`{raw}` has moved: {commits_phrase(detail)} touched {where} since the pin",
-                )
+                Report("flag", e.prefix, part, f"`{raw}` has moved: {since_phrase(detail, where)}")
             )
             note = "propagated from a moved ground"
         pending.append((e, verdict_block(e.grade, p, note, author)))

@@ -292,6 +292,16 @@ configuration comment, `SCHEMA.md` and `section_span`'s own docstring all say to
 at the granularity the section really has. A checker cannot detect the mistake, because
 a pattern that matches less is indistinguishable from a section that is genuinely shorter.
 
+**Two things found by running it, not by reading it.** Pointed at the demonstration
+repository with a pattern for Python definitions, appending a *new* function to a file
+reported the function before it as moved: the last section of an artifact runs to the end
+of it, so an appended section lengthened its predecessor by the blank lines between them.
+Trailing whitespace is the gap between sections and not part of either, and is stripped
+before the comparison. And a drifted ground in an uncommitted working tree said `0
+commits have touched it`, which of a file the author is editing right now reads as a
+checker that has lost track of its own subject; the zero case now says so plainly. Both
+have regressions.
+
 **What the corpus cannot prove here.** A seed is checked under `corpus_config()`, which
 is one fixed configuration for every seed; a seed cannot declare a pattern of its own. So
 the corpus proves section scoping under the default Markdown pattern — `D49` (a section

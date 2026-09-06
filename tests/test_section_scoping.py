@@ -238,4 +238,22 @@ def test_a_pointer_with_no_section_still_compares_the_whole_artifact(scoped):
     note(scoped, TWO_SECTIONS.replace("sixteen dimensions", "thirty-two dimensions"))
     (report,) = freshness.run(open_ledger(root=scoped.root))
     assert report.outcome == "flag"
-    assert "touched it since the pin" in report.message
+    assert "it differs from the pin" in report.message
+    assert "section" not in report.message
+
+
+def test_appending_a_new_section_does_not_move_the_one_before_it(scoped):
+    """The last section of an artifact runs to the end of it, so an appended section
+    would otherwise lengthen its predecessor by the blank lines between them. Found by
+    running the checker against a real repository, not by reading the code."""
+    note(scoped, TWO_SECTIONS + "\n## Discussion\n\nThe timings will move.\n")
+    assert freshness.run(open_ledger(root=scoped.root)) == []
+
+
+def test_an_uncommitted_edit_does_not_claim_that_no_commits_touched_it(scoped):
+    """`0 commits have touched it` of a file the author is editing right now reads as a
+    checker that has lost track of its own subject; it is the ordinary pre-commit case."""
+    note(scoped, TWO_SECTIONS.replace("0.04", "0.09"))
+    (report,) = freshness.run(open_ledger(root=scoped.root))
+    assert "uncommitted" in report.message
+    assert "0 commit" not in report.message

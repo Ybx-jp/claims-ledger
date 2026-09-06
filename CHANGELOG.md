@@ -42,6 +42,9 @@ change to what it expects would dissolve the argument.
   drift. A pattern that does not compile, does not mention `{name}`, or names a type that
   is not sectioned is refused where the configuration is read.
 - Two more seeds, `D49` and `K23`, bringing the corpus to 72.
+- A drifted ground in an uncommitted working tree says so, rather than reporting that
+  `0 commits have touched it` — which, of a file the author is editing right now, reads
+  as a checker that has lost track of its own subject.
 
 ### Changed
 
