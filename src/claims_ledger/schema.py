@@ -90,6 +90,14 @@ CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(A
 # compare against, freshness has nothing to say about it.
 UNPINNED = ("working", "corpus")
 
+# What a verdict's `artifact:` line may say: the object id git would store the drifted
+# artifact under, or that the ground was gone. Defined here rather than in `freshness`,
+# which writes the line, because `validate` is the checker that holds it to a shape and a
+# rule enforced only by the code that writes the value is a rule a hand-edit walks past.
+ABSENT = "absent"
+OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
+NULL_OBJECT_ID = "0" * 40
+
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
 
@@ -687,7 +695,15 @@ def _parse_verdicts(text):
             if not fm:
                 v.malformed = v.malformed or f"unrecognized line {ln.strip()!r}"
                 continue
-            setattr(v, fm.group(1), fm.group(2).strip())
+            field = fm.group(1)
+            # A repeated field used to overwrite silently, so a verdict carrying two
+            # `artifact:` lines was read as whichever came last and the other one was
+            # invisible to every checker and to `--write`'s own append-only comparison.
+            # A block that says a thing twice does not say it once.
+            if getattr(v, field) is not None:
+                v.malformed = v.malformed or f"a second `{field}:` line"
+                continue
+            setattr(v, field, fm.group(2).strip())
         verdicts.append(v)
     return verdicts
 

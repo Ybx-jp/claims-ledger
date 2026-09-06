@@ -128,7 +128,7 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
 
       - <timestamp> · <status> · grade: <grade of the evidence> · author: <an allowed author>
         evidence: <typed pointer, held to the same resolution bar as Grounds>
-        artifact: <object id, or `absent`; optional, written by `freshness --write`>
+        artifact: <object id, or `absent`; written by `freshness --write`, once>
         note: <optional>
 
   Verdict evidence adds two pointer forms Grounds do not have: `entry: <id> · fallen`,
@@ -142,7 +142,12 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   `· challenges`, which is what `propagate` writes, or an evidence ground carrying a pin,
   which is what `freshness` writes; those are the only things the machinery writes about,
   and anything else under that name is a person borrowing the authority of a check that
-  did not run. An assertion is a
+  did not run. **`artifact:` is machine provenance and is checked as such:** the second of
+  those two shapes must carry exactly one, and it is a 40-hex object id — not the null
+  object id, which names nothing — or the word `absent` for a ground that was gone. Every
+  other verdict must carry none, because on a hand-written verdict it claims a check that
+  did not run. A field written twice is malformed rather than resolved to the last one:
+  a block that says a thing twice does not say it once. An assertion is a
   proposition made by an agent on an occasion; `author` and `stated` are the agent and
   the occasion, and a verdict under the wrong agent is malformed whatever it says.
 - *References* lists the documents (not entries) that cite this entry:

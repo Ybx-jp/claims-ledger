@@ -10,10 +10,17 @@
     },
     {
       "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 03, A0001 Grounds 1",
+      "why": "commit 03 really does move the ground, and the verdict written at commit 02 does not describe that drift: it records the blob the pin has, which is neither what this run reads the artifact as nor anything the path held as a drift. A verdict matched to a ground by its pointer alone silenced this flag, which is how a discharge carrying any value at all — or none — kept a real, committed, ongoing drift at exit 0",
+      "message": "has moved"
+    },
+    {
+      "checker": "freshness",
       "outcome": "fail",
       "where": "commit 04, A0001 Verdicts",
-      "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, the checker read that as proof the discharge was caused and accepted it permanently. The verdict states no artifact it was seen at, and states nothing, so it is still an orphan",
-      "message": "records no artifact it was seen at"
+      "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, the checker read that as proof the discharge was caused and accepted it permanently. The verdict records the blob the pin itself has, which states no drift, so it is still an orphan",
+      "message": "that ground has not drifted"
     }
   ],
   "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"

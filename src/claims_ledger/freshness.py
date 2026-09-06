@@ -33,11 +33,13 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 
 from .propagate import append_verdict, grouped
 from .schema import (
+    ABSENT,
+    NULL_OBJECT_ID,
+    OBJECT_ID_RE,
     TERMINAL,
     UNPINNED,
     Report,
@@ -124,8 +126,8 @@ def checked_pointers(entry, config):
     return out
 
 
-def has_acknowledged(entry, pointer, author):
-    """Whether the entry already carries a propagated verdict naming this pointer.
+def acknowledgements(entry, pointer, author):
+    """The propagated verdicts this entry carries against this pointer, in file order.
 
     The section counts. `§ "<section>"` is part of a pointer's identity everywhere else
     in this checker — `scoped()` compares that span alone, `orphans()` looks a ground up
@@ -134,21 +136,46 @@ def has_acknowledged(entry, pointer, author):
     so the second drifted ground would have been reported fresh for the life of the
     entry.
     """
-    return any(
-        v.author == author
+    return [
+        v
+        for v in entry.verdicts
+        if v.author == author
         and v.status == "contested"
         and (q := v.pointer)
         and q.type == pointer.type
         and q.target == pointer.target
         and q.pin == pointer.pin
         and q.section == pointer.section
-        for v in entry.verdicts
-    )
+    ]
 
 
-ABSENT = "absent"
-OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
-NULL_OBJECT_ID = "0" * 40
+def discharges(repo, pointer, verdict, seen):
+    """(whether this verdict discharges the drift in front of it, why git could not say).
+
+    Matching a verdict to a ground by the pointer alone was the whole of the suppression
+    rule, and it made the `artifact:` line unreachable in the state a discharge normally
+    lives in: with the drift live, `orphans()` does not ask, so nothing read the value at
+    all and a verdict carrying forty zeros, or any plausible id, silenced a real,
+    committed, ongoing drift with every checker at exit 0. A pointer is *which* drift a
+    verdict is about; it is not evidence that the verdict is about this one.
+
+    Two ways a verdict is about the drift in front of it, and they cover different
+    moments. **It records what this run is looking at** — the ordinary pre-commit case,
+    where the drift is in the working tree or the index and is in no commit yet, so there
+    is no history for `caused()` to find it in. **Or the artifact really was what it says
+    it was, between the pin and here** — the case after the drift is committed, which is
+    also the one that survives the artifact changing again afterwards.
+
+    A verdict that is neither is not suppressed, and the drift is reported. That is not an
+    accusation: `orphans()` is where a verdict is called a forgery, and this only declines
+    to let one silence a finding it does not describe. Under `--write` the run then
+    appends a verdict that does describe it, which is what keeps the pre-commit path from
+    wedging when the staged bytes are edited again before the commit is made.
+    """
+    recorded = (verdict.artifact or "").strip()
+    if recorded and seen is not None and recorded == seen:
+        return True, None
+    return caused(repo, pointer, verdict)
 
 
 def verdict_block(grade, pointer, note, author, seen):
@@ -372,7 +399,32 @@ def run(ledger, write=False, cached=False):
                 )
             )
             continue
-        if has_acknowledged(e, p, author):
+        # What the artifact is as this run reads it, asked before the acknowledgement is
+        # weighed rather than only on the `--write` path: it is half of what makes a
+        # verdict a discharge of *this* drift, and it is what `--write` records.
+        seen, why_unseen = seen_at(repo, p, repo / p.target, cached, finding == "withdrawn")
+        acknowledged = False
+        for v in acknowledgements(e, p, author):
+            state, could_not = discharges(repo, p, v, seen)
+            if state:
+                acknowledged = True
+                break
+            if state is None:
+                # A git that cannot answer is not a git answering no. Silence here would
+                # retire the suppression rule; an accusation here would forge one against
+                # a correctly discharged verdict. The run says which, and exits non-zero.
+                reports.append(
+                    Report(
+                        "fail",
+                        e.prefix,
+                        part,
+                        f"`{raw}` has drifted and whether verdict {v.index} by {author} "
+                        f"discharges it could not be established: {could_not}",
+                    )
+                )
+                acknowledged = True
+                break
+        if acknowledged:
             continue
         where = f"section {p.section!r}" if p.sectioned else "it"
         if finding == "withdrawn":
@@ -403,7 +455,7 @@ def run(ledger, write=False, cached=False):
         # one nothing could ever check, so it is not written: the ledger is left as it was
         # and the run says why, rather than appending a discharge that is unfalsifiable
         # from the moment it is made.
-        seen, why = seen_at(repo, p, repo / p.target, cached, finding == "withdrawn")
+        why = why_unseen
         if seen is None:
             reports.append(
                 Report(
@@ -522,72 +574,108 @@ def caused(repo, pointer, verdict):
     return seen in held, None
 
 
+def propagated_by_ground(entry, config, author):
+    """{ground pointer as written: the propagated verdicts naming it}, in file order."""
+    out = {}
+    for v in entry.verdicts:
+        q = v.pointer
+        if v.author != author or v.status != "contested" or q is None:
+            continue
+        if q.type not in config.evidence_types or q.pin in UNPINNED:
+            continue
+        out.setdefault(q.raw, []).append(v)
+    return out
+
+
 def orphans(entries, config, repo, tree, author, cached=False):
-    """A propagated verdict whose stated cause has not happened. Without this the
-    discharge is forgeable: write the verdict first and the ground never has to be
-    looked at again."""
+    """A ground whose acknowledgement states a cause that has not happened. Without this
+    the discharge is forgeable: write the verdict first and the ground never has to be
+    looked at again.
+
+    Asked of the ground rather than of each verdict, because what the rule protects is a
+    ground — that a drifted one is never silently fresh — and an entry may legitimately
+    carry more than one propagated verdict against the same ground. The pre-commit path
+    produces exactly that: the hook records the staged blob, the author edits the staged
+    bytes once more before committing, and the next run appends a second verdict naming
+    what was finally committed. The first records a blob no commit ever held, and holding
+    each verdict separately made it an orphan the moment the ground came back — a failure
+    no legal edit could clear, since verdicts append and only append and the pin above the
+    marker is frozen. It costs the rule nothing: a forger who has genuinely drifted the
+    ground and named the blob has made a record a reader can follow, and adding a second,
+    emptier verdict beside it buys nothing that the first did not already buy.
+    """
     reports = []
     for e in entries:
         pointers = {p.raw: p for _, _, p in checked_pointers(e, config)}
-        for v in e.verdicts:
-            q = v.pointer
-            if v.author != author or v.status != "contested" or q is None:
-                continue
-            if q.type not in config.evidence_types or q.pin in UNPINNED:
-                continue
-            ground = pointers.get(q.raw)
+        for raw, verdicts in propagated_by_ground(e, config, author).items():
+            named = (
+                f"verdict {verdicts[0].index}"
+                if len(verdicts) == 1
+                else "verdicts " + ", ".join(str(v.index) for v in verdicts)
+            )
+            verb = "names" if len(verdicts) == 1 else "name"
+            ground = pointers.get(raw)
             if ground is None:
-                why = f"{e.id} carries no such ground"
-            else:
-                finding = drift(repo, ground, tree, config, cached=cached)[0]
-                if finding == "unknown":
-                    # An orphan is a verdict whose stated cause did not happen. Whether it
-                    # happened is exactly what git declined to say, and `run()` reports
-                    # that; forging the accusation out of the silence would make a
-                    # correctly discharged verdict fail.
-                    continue
-                if finding not in (None, "unstable-pin"):
-                    continue
-                established, could_not = caused(repo, ground, v)
-                if established:
-                    # The artifact really was what the verdict says it was, between the
-                    # pin and here. The verdict was caused; nothing about it is
-                    # pre-emptive, and undoing the edit afterwards does not make it one.
-                    continue
-                if established is None:
-                    # A git that cannot answer is not a git answering no — the class the
-                    # fourth pass closed across six findings. Whether the drift happened
-                    # is exactly what git declined to say, and a check that did not run is
-                    # never a check that passed.
-                    reports.append(
-                        Report(
-                            "fail",
-                            e.prefix,
-                            "Verdicts",
-                            f"verdict {v.index} by {author} names `{q.raw}` as its cause "
-                            f"and whether that drift happened could not be established: "
-                            f"{could_not}",
-                        )
+                reports.append(
+                    Report(
+                        "fail",
+                        e.prefix,
+                        "Verdicts",
+                        f"{named} by {author} {verb} `{raw}` as its cause, but "
+                        f"{e.id} carries no such ground; a propagated verdict that "
+                        "nothing caused is an orphan",
                     )
-                    continue
-                # One finding, said precisely. A verdict that records nothing, and one
-                # whose record cannot be read, are both the shape a pre-emptive forgery
-                # has, and the reader is told which — here rather than from `validate`,
-                # because the rule this line belongs to is this one and one defect under
-                # two names is two defects to whoever reads the output.
-                recorded = (v.artifact or "").strip()
-                why = "that ground has not drifted"
-                if not recorded:
-                    why += " and the verdict records no artifact it was seen at"
-                elif recorded != ABSENT and not OBJECT_ID_RE.match(recorded):
-                    why += f" and `artifact: {recorded}` is neither an object id nor `absent`"
+                )
+                continue
+            finding = drift(repo, ground, tree, config, cached=cached)[0]
+            if finding == "unknown":
+                # An orphan is a verdict whose stated cause did not happen. Whether it
+                # happened is exactly what git declined to say, and `run()` reports that;
+                # forging the accusation out of the silence would make a correctly
+                # discharged verdict fail.
+                continue
+            if finding not in (None, "unstable-pin"):
+                continue
+            could_not = None
+            established = False
+            for v in verdicts:
+                ok, why = caused(repo, ground, v)
+                if ok:
+                    # The artifact really was what this verdict says it was, between the
+                    # pin and here. The acknowledgement was caused; nothing about it is
+                    # pre-emptive, and undoing the edit afterwards does not make it one.
+                    established = True
+                    break
+                if ok is None:
+                    could_not = could_not or why
+            if established:
+                continue
+            if could_not is not None:
+                # A git that cannot answer is not a git answering no — the class the
+                # fourth pass closed across six findings. Whether the drift happened is
+                # exactly what git declined to say, and a check that did not run is never
+                # a check that passed.
+                reports.append(
+                    Report(
+                        "fail",
+                        e.prefix,
+                        "Verdicts",
+                        f"{named} by {author} {verb} `{raw}` as its cause and whether "
+                        f"that drift happened could not be established: {could_not}",
+                    )
+                )
+                continue
+            # What is wrong with the value itself — a missing `artifact:`, a non-hash, a
+            # wrong-case `absent` — is `validate`'s to say now, and it says it of every
+            # verdict in every state rather than only of one that has come back fresh.
+            # Repeating it here would make one defect two to whoever reads the output.
             reports.append(
                 Report(
                     "fail",
                     e.prefix,
                     "Verdicts",
-                    f"verdict {v.index} by {author} names `{q.raw}` as its cause, but "
-                    f"{why}; a propagated verdict that nothing caused is an orphan",
+                    f"{named} by {author} {verb} `{raw}` as its cause, but that ground "
+                    "has not drifted; a propagated verdict that nothing caused is an orphan",
                 )
             )
     return reports

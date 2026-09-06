@@ -170,11 +170,15 @@ def test_a_fallen_entry_may_drift(pinned):
 
 
 def test_an_acknowledged_ground_is_silent(pinned):
+    """A discharge names the artifact it was written about, and the artifact it names is
+    the one in front of the run. Both halves matter: the `artifact:` line is what makes
+    the verdict a discharge of *this* drift rather than of the pointer in general."""
     pinned.note(NOTE.replace("0.04", "0.09"))
     assert len(pinned.outcomes()) == 1
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
+        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
         "  note: propagated from a moved ground\n"
     )
     assert pinned.outcomes() == []

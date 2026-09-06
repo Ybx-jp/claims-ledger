@@ -1931,3 +1931,91 @@ caught the most:
 5. **Keep the check adversarial and independent.** It found a defect in the fixer's own
    evidence, and a self-review structurally cannot. It also has to stay findings-only: this
    one changed nothing under `src/`, so the baseline it was judging stayed intact.
+
+## Closing the check — 2026-09-06
+
+The five HIGHs are fixed, in the branch `qe7-fixes` off `f198f32`. Every gate CI runs was
+run over the whole tree before each commit — `ruff check`, `ruff format --check`, `ty`,
+`pytest`, `claims-ledger corpus` — and each new rule was mutated in both directions.
+
+**One of the four prescribed changes was wrong as prescribed, and the correction is the
+larger half of this work.** The list above says: "`orphans()`'s *records nothing / records
+something unreadable* branch reports *could not be established* instead of *orphan* …
+un-wedges both permanent states." It does not. QE7-74's wedge — the one with no legacy
+data, on the flag path the installed hook now uses by default — carries a **well-formed**
+40-hex `artifact:`; it is simply an index blob no commit ever held, so it never reaches
+that branch and lands on the ordinary orphan report. And reporting *could not be
+established* there would not have un-wedged it either: that branch is a `fail`, so an
+entry in it stays as red and as unrepairable as before. Neither half of the sentence
+holds. What un-wedges it is asking the orphan question of the **ground** instead of of
+each verdict.
+
+### What was done
+
+1. **`validate` holds `artifact:` to a shape** — QE7-75, and the readable half of QE7-70.
+   Required on the propagated shape that records a drift, and a 40-hex object id or
+   `absent`; the null object id is refused by name, because forty hex characters that no
+   artifact has ever hashed to pass the shape while stating nothing. Forbidden on every
+   other verdict, where it claims a check that did not run. A second `artifact:` line — or
+   a second `evidence:` or `note:` — is malformed rather than resolved to the last one,
+   which is the general case of the same defect.
+2. **A drift is silenced only by a verdict that describes it** — the rest of QE7-70, which
+   the prescribed list did not reach. Pointer identity says *which* drift a verdict is
+   about; it is not evidence that it is about this one. `discharges()` asks whether the
+   verdict records what this run reads the artifact as — the ordinary pre-commit case,
+   where the drift is in no commit for the history question to find — or whether the
+   artifact really was what it says, between the pin and here. A well-formed but false id
+   no longer holds a live, committed drift at exit 0. `D53` shows it: the seed now expects
+   a `flag` at commit 03, where the forged discharge used to be silent.
+3. **The orphan question is asked of the ground** — QE7-74. A ground is an orphan when
+   *no* propagated verdict against it states a cause that happened. The pre-commit path
+   produces more than one legitimately — the hook records the staged blob, the author
+   stages one more edit, the next run appends a verdict naming what was finally committed
+   — and holding each verdict separately made the first an orphan the moment the ground
+   came back, unrepairably. It costs the rule nothing: a forger who has genuinely drifted
+   the ground and named the blob has made a record a reader can follow, and an emptier
+   verdict beside it buys nothing the first did not.
+4. **`init` and `hook --install` ask where the link leads** — QE7-72. Both names came off
+   `test_every_write_asks_where_the_link_leads`'s allowlist, which is now empty. `init`
+   asks against the project root, which exists by the time the registry lands in it;
+   `hook --install` asks against the git directory, which is the boundary its own write
+   has. `os.path.lexists` replaces `exists()` at the hook's "already there, leaving it
+   alone" refusal, because a symlink to nothing is still something someone put there.
+5. **QE7-73** needed no code: the number was corrected in the pass that reported it.
+
+The corpus needed a way to write a real object id into a seed, since a seed cannot know
+one the runner has not made yet. `@blob02:docs/note-100.md` resolves to the id of that
+path *as state 02 has it* — named by state rather than resolved against the working tree,
+because the text lands inside a verdict block and a token that resolved differently at
+each state would rewrite a committed verdict and trip the append-only rule instead of
+testing the one it is for.
+
+### What was not done, and why
+
+**The two seeds suggested alongside** — a sectioned ground touched in a different section,
+and an `absent` discharge over a delete-and-restore. Both are QE7-71, and QE7-71 is a
+residual: after these fixes the checker still says nothing about either. A seed is a
+committed expectation, and `run_seed` refuses one that expects nothing — correctly, since
+that was HIGH-45's shape. Writing them as `known_good: true` would assert that a ledger
+carrying a forged discharge is a good one, which is worse than not having the seed. They
+stay in `docs/FRESHNESS.md`, stated as residuals, which is where a guarantee the package
+does not have belongs.
+
+**Verdict-block field order** is not checked. It is one of the shapes QE7-75 listed, and
+it is the cosmetic one: an `artifact:` above `evidence:` states the same thing as one
+below it, and nothing reads the block positionally.
+
+### What this means for the release
+
+The hold's stated reason is closed. It was: *the checker's central promise is that a
+drifted ground is never silently fresh, and there is a one-line verdict that makes it
+silently fresh.* There is not, now — not a missing line, not a non-hash, not the null id,
+not a well-formed id the artifact has never been. Two residuals stand, both requiring an
+author with commit access deliberately writing a verdict in the machine's name, and both
+are written down in the specification rather than contradicted by it: `caused()` has no
+section awareness, and `absent` is checked against the file rather than against the
+verdict.
+
+That is what the check itself said would settle it. What should still stand between this
+and a tag is the same gate that produced this list — a `qe` consultation over these fixes,
+findings-only, run before the merge and not after it.

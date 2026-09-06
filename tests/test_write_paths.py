@@ -519,11 +519,15 @@ def test_entry_files_are_visited_in_filename_order(project):
 # --- the guard in front of the funnel ---------------------------------------------------
 
 
-# Where a write may land outside the project root by design, and why. `cmd_init` creates
-# the root and the ledger under it, so there is no project yet to be outside of; `cmd_hook`
-# writes into `.git/hooks`, which in a worktree or a `--separate-git-dir` clone genuinely
-# is outside the root, and refusing it there would refuse to install the hook at all.
-WRITES_THAT_ARE_NOT_LEDGER_FILES = {"cmd_init", "cmd_hook"}
+# Where a write may land outside the project root by design, and why. Empty, and the two
+# names that used to be here are the reason the list is kept rather than the rule relaxed:
+# `cmd_init` was excused because it creates the root, and `cmd_hook` because `.git/hooks`
+# in a worktree or a `--separate-git-dir` clone genuinely is outside the root. Both
+# excuses were about the *directory* and the question is about the *write* — `init`
+# creates the root before the registry lands in it, and the hook needs to leave the root
+# but not to leave the git directory — so both now ask, each against the boundary its own
+# write has.
+WRITES_THAT_ARE_NOT_LEDGER_FILES = set()
 FUNNEL = {"write_bytes_atomically", "write_text_atomically"}
 GUARDS = {"refuse_to_write_outside_the_root", "leaves_root"}
 
@@ -618,3 +622,47 @@ def test_every_write_asks_where_the_link_leads():
         "refuse_to_write_outside_the_root, and are not listed as writes that are not "
         "ledger files"
     )
+
+
+def test_init_does_not_scaffold_the_registry_through_a_link_that_leaves_the_root(tmp_path):
+    """HIGH-56's class, at the caller the fix's own allowlist excused. `init` was allowed
+    to skip the guard because it creates the root — but the root exists by the time the
+    registry lands in it, so a symlink planted at `ledger/sources.jsonl` before the first
+    `init` sent the write outside, exit 0, printing the in-root path it had not written
+    to. The link is a live one rather than a dangling one on purpose: `file_problem` sees
+    a regular file through it and says nothing is wrong, which is why the shape survived
+    the guard that catches a symlink to nothing.
+    """
+    root = tmp_path / "project"
+    (root / "ledger").mkdir(parents=True)
+    outside = tmp_path / "outside" / "registry-pwned.jsonl"
+    outside.parent.mkdir()
+    outside.write_text("mine\n", encoding="utf-8")
+    (root / "ledger" / "sources.jsonl").symlink_to(outside)
+
+    assert Project(root).cl("init") != 0
+    assert outside.read_text(encoding="utf-8") == "mine\n", (
+        f"`init` wrote the source registry to {outside}, outside the project root"
+    )
+
+
+def test_hook_install_does_not_write_through_a_link_that_leaves_the_git_directory(project):
+    """The other name on that allowlist. `.git/hooks` is genuinely outside the project
+    root in a worktree, which is why the guard here is asked against the git directory
+    instead — but `hook --install` asked nothing at all, so a dangling
+    `.git/hooks/pre-commit -> /tmp/x.sh` took 1690 bytes of mode-755 shell outside the
+    repository, exit 0.
+
+    `exists()` is the second half of it: a symlink to nothing is not `exists()`, so the
+    "this hook is already here, leaving it alone" refusal stepped aside for exactly the
+    link that needed it.
+    """
+    project.git("init", ".")
+    outside = Path(project.root).parent / "outside" / "hook-pwned.sh"
+    outside.parent.mkdir(exist_ok=True)
+    hooks = Path(project.root) / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    (hooks / "pre-commit").symlink_to(outside)
+
+    assert project.cl("hook", "--install") != 0
+    assert not outside.exists(), f"`hook --install` wrote a shell script to {outside}"

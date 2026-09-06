@@ -100,10 +100,19 @@ def append(path, block):
     path.write_text(head.rstrip("\n") + "\n\n" + block + marker + tail, encoding="utf-8")
 
 
-def contested(pointer_line, note="propagated from a moved ground"):
+def contested(pointer_line, artifact=None, note="propagated from a moved ground"):
+    """A propagated verdict, as `freshness --write` writes one.
+
+    `artifact` is what the run recorded the ground as when it saw the drift. Omitted only
+    where the case is about a verdict that does not describe the drift in front of it —
+    which `validate` refuses on its own, and which is why the omission has to be
+    deliberate rather than the default it used to be.
+    """
+    line = f"  artifact: {artifact}\n" if artifact else ""
     return (
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f"  evidence: {pointer_line}\n"
+        f"{line}"
         f"  note: {note}\n"
     )
 
@@ -124,7 +133,13 @@ def test_a_verdict_naming_the_same_section_still_discharges_it(project):
     )
     note(project, TWO_SECTIONS.replace("0.04", "0.09"))
     assert [o for o, _, _ in outcomes(project)] == ["flag"]
-    append(path, contested(f'lab: docs/note-001.md § "Observation" @{pin}'))
+    append(
+        path,
+        contested(
+            f'lab: docs/note-001.md § "Observation" @{pin}',
+            artifact=project.blob("docs/note-001.md"),
+        ),
+    )
     assert outcomes(project) == []
 
 
@@ -144,7 +159,13 @@ def test_a_verdict_naming_one_section_does_not_discharge_another(project):
     )
     note(project, TWO_SECTIONS.replace("0.04", "0.09").replace("sixteen", "thirty-two"))
     assert len(outcomes(project)) == 2
-    append(path, contested(f'lab: docs/note-001.md § "Observation" @{pin}'))
+    append(
+        path,
+        contested(
+            f'lab: docs/note-001.md § "Observation" @{pin}',
+            artifact=project.blob("docs/note-001.md"),
+        ),
+    )
     still = outcomes(project)
     assert [o for o, _, _ in still] == ["flag"]
     assert "'Method'" in still[0][2]
@@ -389,7 +410,12 @@ def test_a_fallen_entry_carrying_a_discharge_is_not_an_orphan(project):
     exemption does not leak into an accusation."""
     path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
     note(project, NOTE.replace("0.04", "0.09"))
-    append(path, contested(f"experiment: docs/note-001.md @{pin}"))
+    append(
+        path,
+        contested(
+            f"experiment: docs/note-001.md @{pin}", artifact=project.blob("docs/note-001.md")
+        ),
+    )
     append(
         path,
         "- 2026-11-21T09:00:00-08:00 · refuted · grade: measured · author: main\n"

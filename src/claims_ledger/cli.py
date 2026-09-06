@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, authoring, freshness, propagate, references, resolve, validate
-from .config import ConfigError
+from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
     entries_dir_listing_error,
@@ -492,6 +492,26 @@ def cmd_init(args, _ledger):
         return 1
     registry = ledger_dir / "sources.jsonl"
     ignore = ledger_dir / "cache" / ".gitignore"
+    # `init` creates the root, so it was allowed to skip the guard every other write in
+    # this package asks — and skipping it meant a symlink planted at any of these four
+    # names sent the scaffolder outside the project, exit 0, printing the in-root path it
+    # had not written to. The root is resolved above, so the question the guard asks is
+    # one that can be answered here: where does this name really lead.
+    for path, what in (
+        (ledger_dir, "the ledger directory"),
+        (config_path, "the configuration"),
+        (ignore, "the cache .gitignore"),
+        (registry, "the source registry"),
+    ):
+        outside = leaves_root(root, path)
+        if outside is not None:
+            print(
+                f"claims-ledger: {what} at {path} leads to {outside}, outside the "
+                f"project root {root}; nothing is written through a link that leaves "
+                "the project",
+                file=sys.stderr,
+            )
+            return 2
     for path, what in ((config_path, "the configuration"), (ignore, "the cache .gitignore")):
         # Opening a FIFO for writing blocks until a reader appears, which is a wedged job
         # with no output at all. The registry is only written when it does not exist, and
@@ -511,7 +531,7 @@ def cmd_init(args, _ledger):
         cache = ledger_dir / "cache"
         cache.mkdir(parents=True, exist_ok=True)
         write_text_atomically(ignore, CACHE_IGNORE)
-        if not registry.exists():
+        if not os.path.lexists(registry):
             write_text_atomically(registry, "")
         write_text_atomically(config_path, CONFIG_TEMPLATE.format(ledger=args.ledger))
     except OSError as exc:
@@ -534,11 +554,28 @@ def cmd_hook(args, ledger):
     if not ledger.repo:
         print("not a git repository; nothing to install into", file=sys.stderr)
         return 1
-    hooks = Path(ledger.repo) / ".git" / "hooks"
+    gitdir = Path(ledger.repo) / ".git"
+    hooks = gitdir / "hooks"
     path = hooks / "pre-commit"
+    # The hook is the one write in this package that lands outside the project root by
+    # design — in a worktree or a `--separate-git-dir` clone the git directory genuinely
+    # is elsewhere — so the guard is asked against that directory instead of the root.
+    # What it refuses is a link the repository does not control: a dangling
+    # `.git/hooks/pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0,
+    # naming the in-root path it had not written to.
+    outside = leaves_root(gitdir, path)
+    if outside is not None:
+        print(
+            f"claims-ledger: {path} leads to {outside}, outside the git directory "
+            f"{gitdir}; the hook is not installed through a link that leaves it",
+            file=sys.stderr,
+        )
+        return 2
     try:
         hooks.mkdir(parents=True, exist_ok=True)
-        if path.exists():
+        # `lexists`, because a symlink to nothing is still something someone put there:
+        # `exists()` said no to it and the install wrote through it.
+        if os.path.lexists(path):
             print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
             print(hook_text(), end="")
             return 1

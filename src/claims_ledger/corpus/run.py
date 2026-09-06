@@ -143,6 +143,37 @@ def seed_ledger(root, staged, repo=None):
 # region is stable across every later commit, exactly as a hand-written pin would be.
 PIN_RE = re.compile(r"@commit(\d+)")
 
+# The same problem one grain down. A verdict's `artifact:` records the object id git
+# stores the drifted artifact under, and a seed cannot know that id either. `@blob02:
+# docs/note-100.md` is the id of that path as state `02` has it — named by state rather
+# than resolved against the working tree, because the substituted text lands *inside* a
+# verdict block, and a token that resolved differently at each state would rewrite a
+# committed verdict and trip the append-only rule instead of testing the one it is for.
+BLOB_RE = re.compile(r"@blob(\d+):(\S+)")
+
+
+def blob_id(repo, states, state, rel, pins):
+    """The object id git will store `rel` under in seed state `state`.
+
+    Hashed from the bytes the runner is about to commit — pins substituted first, and
+    `--path` so that whatever the repository does to a file on its way in is done here
+    too — rather than read back out of a commit that may not have been made yet.
+    """
+    # `read_bytes` and decode, never `read_text`: universal newlines would turn a seed
+    # whose artifact has CRLF endings into LF here and hash bytes git is not about to
+    # store — and a corpus transformation that rewrites every seed to CRLF is one of the
+    # invariants this package holds itself to.
+    text = (states / state / rel).read_bytes().decode("utf-8")
+    text = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
+    out = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "--path", rel, "--stdin"],
+        input=text.encode("utf-8"),
+        capture_output=True,
+        check=True,
+        timeout=GIT_TIMEOUT,
+    )
+    return out.stdout.decode().strip()
+
 
 def stage(src, dst, pins=None):
     for name in ("entries", "docs"):
@@ -156,11 +187,26 @@ def stage(src, dst, pins=None):
             # `git add -A` picked up nothing, and the commit failed with `nothing to
             # commit` rather than with anything naming the cause.
             shutil.copytree(src / name, dst / name, copy_function=shutil.copyfile)
-    if not pins:
-        return
-    for path in sorted((dst).glob("*/*.md")):
-        text = path.read_text(encoding="utf-8")
-        swapped = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
+    files = sorted(dst.glob("*/*.md"))
+    if pins:
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            swapped = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
+            if swapped != text:
+                path.write_text(swapped, encoding="utf-8")
+    # A second pass, over files the first one has finished with: a blob id is the id of
+    # the bytes as they will be committed, pins and all. Read as bytes and only decoded
+    # when a token is actually in them — a seed whose document is deliberately not text
+    # is one of the things the corpus is for, and a rewriting pass that decodes every
+    # file to look for a token it does not contain crashes the runner on that seed.
+    for path in files:
+        data = path.read_bytes()
+        if b"@blob" not in data:
+            continue
+        text = data.decode("utf-8")
+        swapped = BLOB_RE.sub(
+            lambda m: blob_id(dst, src.parent, m.group(1), m.group(2), pins or {}), text
+        )
         if swapped != text:
             path.write_text(swapped, encoding="utf-8")
 
