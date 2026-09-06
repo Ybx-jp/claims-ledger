@@ -343,6 +343,67 @@ def section_header_re(config, type_name, section):
     return re.compile(pattern, re.MULTILINE)
 
 
+# A fenced code block opens on a line of three or more backticks or tildes indented by at
+# most three spaces, and closes on the next line of at least as many of the same character
+# with nothing but whitespace after it. CommonMark's rule, and the one every renderer a
+# reader of these artifacts will use implements.
+CODE_FENCE_RE = re.compile(
+    r"^(?P<indent> {0,3})(?P<fence>`{3,}|~{3,})(?P<info>[^\n]*)$", re.MULTILINE
+)
+
+
+def fenced_spans(text):
+    """(start, end) for every fenced code block in `text`, in order.
+
+    A `#`-led line inside one is a comment, a shell prompt or a C preprocessor directive
+    — not a heading — and a Markdown lab note carrying a code snippet is the ordinary
+    shape of the artifact this package compares, not an edge case. Reading such a line as
+    a heading ended the section it sat in and left everything below the fence outside the
+    comparison, for `freshness` and `resolve` both.
+
+    An unclosed fence runs to the end of the artifact, which is CommonMark's answer and
+    the safe one here: text nobody can see the end of is text this tool should not be
+    finding headings in.
+
+    Applied to every artifact, including the ones a project reads with its own
+    `section-patterns` — a source file, say, whose sections are `def <name>`. Markdown's
+    fence grammar is the wrong grammar for a Python file, and a line of three backticks at
+    the left margin inside a docstring would be read as one. That is accepted, because the
+    alternative is worse in the direction that matters: honouring fences only for the
+    default heading pattern would quietly stop honouring them for a project that writes
+    its own Markdown pattern, which is this defect back and silent. A false fence in a
+    code artifact is loud instead — the section is not found, or is found too long, and
+    `resolve` or a `moved` flag says so.
+    """
+    spans, pos = [], 0
+    while (opening := CODE_FENCE_RE.search(text, pos)) is not None:
+        marker = opening.group("fence")
+        pos = opening.end()
+        if marker[0] == "`" and "`" in opening.group("info"):
+            # A backtick fence's info string may not contain a backtick, so this line is
+            # inline code inside a paragraph rather than the opening of a block.
+            continue
+        closing = next(
+            (
+                c
+                for c in CODE_FENCE_RE.finditer(text, pos)
+                if c.group("fence")[0] == marker[0]
+                and len(c.group("fence")) >= len(marker)
+                and not c.group("info").strip()
+            ),
+            None,
+        )
+        spans.append((opening.start(), closing.end() if closing else len(text)))
+        if closing is None:
+            break
+        pos = closing.end()
+    return spans
+
+
+def _in_a_fence(spans, at):
+    return any(start <= at < end for start, end in spans)
+
+
 def section_span(text, config, type_name, section):
     """(start, end) of the named section in `text`, or None when it is not there.
 
@@ -351,8 +412,20 @@ def section_span(text, config, type_name, section):
     artifact. One pattern therefore decides both ends, and a pattern anchored too loosely
     ends the section early and leaves the rest of it uncompared, which is why the
     configuration documents where to anchor.
+
+    What counts as a header is settled twice: by the pattern, which says which headings
+    end a section, and by `fenced_spans`, which says what a heading is at all. A line
+    that only looks like one because it is inside a code block ends nothing.
     """
-    head = section_header_re(config, type_name, section).search(text)
+    fences = fenced_spans(text)
+    head = next(
+        (
+            m
+            for m in section_header_re(config, type_name, section).finditer(text)
+            if not _in_a_fence(fences, m.start())
+        ),
+        None,
+    )
     if head is None:
         return None
     pattern = config.section_pattern(type_name).replace(NAME_SLOT, ANY_NAME)
@@ -361,6 +434,9 @@ def section_span(text, config, type_name, section):
     at = head.end()
     while (m := nxt.search(text, at)) is not None:
         deeper = m.groupdict().get("depth")
+        if _in_a_fence(fences, m.start()):
+            at = m.end()
+            continue
         if depth is None or deeper is None or len(deeper) <= len(depth):
             return head.start(), m.start()
         # A heading nested under this one is part of it, not the end of it: `## Method`
@@ -477,6 +553,7 @@ class Verdict:
     grade: str = ""
     author: str = ""
     evidence: str | None = None
+    artifact: str | None = None  # the blob the drift was seen at, for a propagated verdict
     note: str | None = None
     malformed: str | None = None
 
@@ -570,8 +647,18 @@ class Entry:
 
 
 def _split_sections(body):
+    """(section names in file order, name -> body).
+
+    A `##` line inside a fenced code block is not a heading, here for the same reason it
+    is not one in `section_span`: a Backing quote or a Reference line may legitimately
+    contain one, and reading it as a section makes the entry a different entry. The
+    direction that matters is the quiet one — a fenced `## Verdicts` *after* the real
+    Verdicts section replaced it with an empty one, so an entry carrying a `refuted`
+    verdict read as `open`, and `references` would then let a document cite it as live.
+    """
     order, sections = [], {}
-    matches = list(HEADING_RE.finditer(body))
+    fences = fenced_spans(body)
+    matches = [m for m in HEADING_RE.finditer(body) if not _in_a_fence(fences, m.start())]
     for i, m in enumerate(matches):
         name = m.group(1)
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
@@ -596,7 +683,7 @@ def _parse_verdicts(text):
         else:
             v.timestamp, v.status, v.grade, v.author = m.groups()
         for ln in lines[1:]:
-            fm = re.match(r"^\s+(evidence|note): (.*)$", ln.rstrip())
+            fm = re.match(r"^\s+(evidence|artifact|note): (.*)$", ln.rstrip())
             if not fm:
                 v.malformed = v.malformed or f"unrecognized line {ln.strip()!r}"
                 continue
@@ -699,6 +786,7 @@ def write_bytes_atomically(path, data, mode=None):
     leads is the caller's question, and `leaves_root` is where it is asked.
     """
     target = Path(os.path.realpath(path))
+    _refuse_a_target_this_process_may_not_write(target)
     tmp = target.with_name(f".{target.name}.claims-ledger-{os.getpid()}")
     try:
         with open(tmp, "wb") as fh:
@@ -714,6 +802,59 @@ def write_bytes_atomically(path, data, mode=None):
         with contextlib.suppress(OSError):
             os.unlink(tmp)
         raise
+    _fsync_directory(target.parent)
+
+
+def _refuse_a_target_this_process_may_not_write(target):
+    """Raise `PermissionError` when the filesystem says `target` may not be written.
+
+    `os.replace` needs write permission on the *directory* and none at all on the file,
+    so a funnel that only ever renames onto its target will rewrite a mode-444 entry,
+    exit 0, and leave the mode still saying the file is protected. Every write in this
+    package used to truncate its destination, which asked the kernel for permission by
+    opening it; this asks the same question the same way, and asks it before anything is
+    written.
+
+    The kernel is the arbiter rather than `os.access`, because the question is not "do
+    the mode bits say so" — root, an ACL, an immutable flag and a read-only mount all
+    answer differently from the bits, and a check that disagreed with the write it stands
+    in front of would be worse than none. `r+b` opens for writing without truncating.
+
+    Only regular files are asked about. A directory, a FIFO or a device at the target is
+    not a permissions question, and `os.replace`'s own error names it better than opening
+    it would — a FIFO in particular is a file that opening can block on forever, which in
+    a pre-commit hook is a wedged commit with no output.
+    """
+    try:
+        info = os.stat(target)
+    except OSError:
+        return  # Not there, or not stattable; the temp file and `os.replace` say so.
+    if not stat.S_ISREG(info.st_mode):
+        return
+    with open(target, "r+b"):
+        pass
+
+
+def _fsync_directory(path):
+    """Flush the directory entry `os.replace` just made, so the rename survives a power
+    loss and not merely a crash of this process.
+
+    Every interruption the package is actually tested against — `SIGKILL`, `RLIMIT_FSIZE`
+    — is already handled by the rename itself, and this closes the one case that is not
+    reachable by a test. Failures are ignored on purpose: a directory that cannot be
+    opened for reading is Windows, and a write that has already landed must not be turned
+    into an error by the flush that follows it.
+    """
+    fd = None
+    try:
+        fd = os.open(path, os.O_RDONLY)
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        if fd is not None:
+            with contextlib.suppress(OSError):
+                os.close(fd)
 
 
 def _existing_mode(path):

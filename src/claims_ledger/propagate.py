@@ -86,10 +86,14 @@ def grouped(pending):
 REFERENCES_RE = re.compile(r"(?:\r\n|\n)## References")
 
 
-def append_verdict(entry, block, root=None):
+def append_verdict(entry, block, *, root):
     """The verdicts appended to the entry file. `root` refuses a write that lands outside
     the project — an entry inside `entries/` can be a symlink to anywhere, and following
     one is the write outside the root that this package states it does not do.
+
+    Required, and keyword-only, because a guard a caller may omit is a guard a caller
+    omits: HIGH-11, MEDIUM-19 and HIGH-56 were each one write site that never asked this
+    question, and a default of None was the third one waiting to happen.
 
     The file is re-read from disk with its own line endings, rather than written back
     from the text the parser normalized: an entry committed with CRLF was otherwise
@@ -102,7 +106,7 @@ def append_verdict(entry, block, root=None):
     point by that heading alone put the verdict inside the frozen region of a committed
     entry.
     """
-    if root is not None and (outside := leaves_root(root, entry.path)) is not None:
+    if (outside := leaves_root(root, entry.path)) is not None:
         raise LedgerError(
             f"{entry.path} leads to {outside}, outside the project root {root}; "
             "nothing is written through a link that leaves the project"

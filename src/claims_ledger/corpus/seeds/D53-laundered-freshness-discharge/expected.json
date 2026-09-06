@@ -1,0 +1,20 @@
+{
+  "class": "a propagated verdict nothing caused, and the history a forger builds to hide that",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Verdicts",
+      "why": "the ground has not moved, so the verdict discharges a finding that was never made"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "fail",
+      "where": "commit 04, A0001 Verdicts",
+      "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, the checker read that as proof the discharge was caused and accepted it permanently. The verdict states no artifact it was seen at, and states nothing, so it is still an orphan",
+      "message": "records no artifact it was seen at"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

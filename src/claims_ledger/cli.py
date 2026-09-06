@@ -43,12 +43,24 @@ HOOK_TEMPLATE = """#!/bin/sh
 # hooks with its own environment: a console script in a virtualenv that is not active
 # is not on PATH, and the hook would fail with `claims-ledger: not found` on every
 # commit. `-m claims_ledger` needs nothing on PATH at all.
+#
+# `validate` has read `--cached` since MEDIUM-33, and the freshness line below now asks
+# for it too, so that every checker here that CAN read what is actually being committed —
+# the index — does, rather than whatever the working tree happens to hold when `git commit`
+# runs. Left bare, a drift that is staged and then undone in the working tree before the
+# hook fires committed silently: `validate --cached` saw the stale pointer, but a bare
+# `freshness` looked past it at the already-reverted working tree and found nothing
+# wrong. This was the surface MEDIUM-33's own writeup named as the one that matters.
+#
+# `resolve`, `references` and `propagate` have no `--cached` of their own yet, so this
+# hook still reads the working tree for those three; giving all five the flag is a wider
+# fix than this one, and out of this pass's budget to audit.
 set -e
 {python} -m claims_ledger validate --cached
 {python} -m claims_ledger resolve
 {python} -m claims_ledger references
 {python} -m claims_ledger propagate
-{python} -m claims_ledger freshness
+{python} -m claims_ledger freshness --cached
 """
 
 

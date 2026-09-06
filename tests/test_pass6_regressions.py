@@ -5,10 +5,20 @@ no case for any of them. What it holds is the defects that verifying those fixes
 up, and three of them are *in* the fixes: new code, merged the same day, reopening the
 class it was written to close.
 
-Each case is a strict xfail naming the sentence it holds the code to, so the suite fails
-the moment a fix lands without its xfail being flipped. Kept in one file rather than
-distributed into the dimension files, because they flip together and a reader coming to
-this pass should find it whole; move each into its subject's file when it goes green.
+Each case was a strict xfail naming the sentence it holds the code to; every one is now
+green, and each opens with the defect it was written against so the sentence and the fix
+stay together. They are kept here, in the pass that found them, rather than distributed
+into the dimension files as the header first proposed: the fifth pass's flipped
+regressions are scattered across six files, and finding out what a pass actually proved
+now means reading six diffs. One file per pass is the record a reader can check. Each
+opening paragraph is the xfail's own `reason=` text, unedited, so what the pass claimed
+and what the fix answers can be read against each other.
+
+They are not what holds these fixes on their own. Every one of them is also held by
+tests in the file whose subject it is — `test_freshness_spec.py` for the orphan rule,
+`test_section_scoping.py` for what a heading is, `test_write_paths.py` for the write
+funnel — and by `D53-laundered-freshness-discharge` in the corpus. This file is where
+the pass's own case sits; those are where the class is held.
 
 Nothing here patches git, the filesystem or the package. Every repository is real and
 every git failure is produced by putting a shim on PATH, not by patching `schema.git`
@@ -23,7 +33,6 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
 from test_freshness import pinned  # noqa: F401  — the fixture, reused as-is
 from test_freshness_spec import build
 
@@ -57,10 +66,10 @@ def outcomes(root):
 
 
 def shim_git(tmp_path, failing_subcommand):
-    """A `git` on PATH that fails one subcommand and delegates everything else to the
-    real one. A repository this git cannot fully answer is an ordinary condition — a
-    corrupted object, a clean filter that fails, a history too large for the timeout —
-    and the package's own rule is that a git which cannot answer is not a git saying no.
+    """A `git` on PATH that fails one subcommand and delegates everything else to the real one. A
+    repository this git cannot fully answer is an ordinary condition — a corrupted object, a
+    clean filter that fails, a history too large for the timeout — and the package's own rule
+    is that a git which cannot answer is not a git saying no.
     """
     d = tmp_path / "shim-bin"
     d.mkdir(exist_ok=True)
@@ -93,17 +102,15 @@ FORGERY = (
 # question the person writing the forged verdict controls.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: ever_drifted() asks whether the artifact was ever touched since the pin, "
-    "not whether this verdict was caused, so one no-op commit that edits the artifact and "
-    "puts it back launders a pre-emptively written discharge permanently",
-)
 def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa: F811
-    """docs/FRESHNESS.md justifies the orphan rule as stopping a *pre-emptive* forgery:
-    "Otherwise the discharge is forgeable by writing the verdict pre-emptively." The
-    artifact here is byte-identical to the blob at the pin the whole way through. One
-    commit touches it, the next puts it back, and nothing about the ground has changed.
+    """Fixed. The defect, as this pass wrote it: ever_drifted() asks whether the artifact was
+    ever touched since the pin, not whether this verdict was caused, so one no-op commit that
+    edits the artifact and puts it back launders a pre-emptively written discharge permanently
+
+    docs/FRESHNESS.md justifies the orphan rule as stopping a *pre-emptive* forgery:
+    "Otherwise the discharge is forgeable by writing the verdict pre-emptively." The artifact
+    here is byte-identical to the blob at the pin the whole way through. One commit touches
+    it, the next puts it back, and nothing about the ground has changed.
     """
     pinned.append(FORGERY.format(pin=pinned.pin))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], (
@@ -126,16 +133,15 @@ def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: ever_drifted() reads a git that could not answer as `it drifted` — "
-    "`not count.isdigit() or int(count) > 0` — so a rev-list that fails or times out "
-    "retires the forged-discharge check silently, with no report that it did not run",
-)
 def test_a_git_that_cannot_answer_does_not_retire_the_orphan_check(pinned, tmp_path, monkeypatch):  # noqa: F811
-    """The fourth pass closed this class across six findings: a git that cannot answer is
-    not a git answering no. `ever_drifted()` is the one git call in the package with no
-    channel for `could not be established`, and it fails open — toward silence."""
+    """Fixed. The defect, as this pass wrote it: ever_drifted() reads a git that could not answer
+    as `it drifted` — `not count.isdigit() or int(count) > 0` — so a rev-list that fails or
+    times out retires the forged-discharge check silently, with no report that it did not run
+
+    The fourth pass closed this class across six findings: a git that cannot answer is not a
+    git answering no. `ever_drifted()` is the one git call in the package with no channel for
+    `could not be established`, and it fails open — toward silence.
+    """
     pinned.append(FORGERY.format(pin=pinned.pin))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], "the control"
 
@@ -148,17 +154,15 @@ def test_a_git_that_cannot_answer_does_not_retire_the_orphan_check(pinned, tmp_p
 # === a section's span, and what still ends one ========================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: section_span() has no fence awareness, so a `#`-led line inside a "
-    "```fenced``` code block is read as a heading and ends the section it sits in; "
-    "everything below it is outside the comparison for both freshness and resolve",
-)
 def test_a_hash_inside_a_fenced_code_block_does_not_end_the_section():
-    """HIGH-31's `depth` group settled which *headings* end a section. It did not settle
-    what a heading is. A Markdown lab note carrying a code snippet is the ordinary shape
-    of the artifact this checker compares, and `# a comment` is the ordinary content of
-    one."""
+    """Fixed. The defect, as this pass wrote it: section_span() has no fence awareness, so a
+    `#`-led line inside a ```fenced``` code block is read as a heading and ends the section it
+    sits in; everything below it is outside the comparison for both freshness and resolve
+
+    HIGH-31's `depth` group settled which *headings* end a section. It did not settle what a
+    heading is. A Markdown lab note carrying a code snippet is the ordinary shape of the
+    artifact this checker compares, and `# a comment` is the ordinary content of one.
+    """
     doc = (
         "# note 001\n\n"
         "## Observation\n\n"
@@ -178,16 +182,15 @@ def test_a_hash_inside_a_fenced_code_block_does_not_end_the_section():
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: the same defect end to end — an edit below a fenced code block inside "
-    "the pinned section is invisible to freshness and to resolve, so a claim's own "
-    "evidence can be inverted with every checker green",
-)
 def test_an_edit_below_a_fence_inside_the_pinned_section_is_still_caught(project):
-    """The severity of the one above. This is not a wording question: the sentence that
-    is inverted is the one the claim rests on. The fence is in the note *at the pin*, so
-    the only thing that changes afterwards is the conclusion below it."""
+    """Fixed. The defect, as this pass wrote it: the same defect end to end — an edit below a
+    fenced code block inside the pinned section is invisible to freshness and to resolve, so a
+    claim's own evidence can be inverted with every checker green
+
+    The severity of the one above. This is not a wording question: the sentence that is
+    inverted is the one the claim rests on. The fence is in the note *at the pin*, so the only
+    thing that changes afterwards is the conclusion below it.
+    """
     note = project.root / "docs" / "note-001.md"
     note.write_text(FENCED_NOTE, encoding="utf-8")
     build(project, ['lab: docs/note-001.md § "Observation" @{pin}'])
@@ -206,36 +209,45 @@ def test_an_edit_below_a_fence_inside_the_pinned_section_is_still_caught(project
 # === the surface the tool is actually installed as ====================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: MEDIUM-33 gave `freshness` a --cached flag and gave `check` the wiring, "
-    "but HOOK_TEMPLATE still runs bare `freshness`, so the installed pre-commit hook — "
-    "the surface MEDIUM-33's own writeup named as the one that matters — reads the "
-    "working tree while validate reads the index",
-)
 def test_the_installed_hook_asks_freshness_about_the_index():
-    """A pre-commit hook checks what is being committed. `validate --cached` reads the
-    index; the freshness line beside it reads the working tree, so a drift that is staged
-    and then undone in the working tree commits through the hook silently."""
+    """Fixed. The defect, as this pass wrote it: MEDIUM-33 gave `freshness` a --cached flag and
+    gave `check` the wiring, but HOOK_TEMPLATE still runs bare `freshness`, so the installed
+    pre-commit hook — the surface MEDIUM-33's own writeup named as the one that matters —
+    reads the working tree while validate reads the index
+
+    A pre-commit hook checks what is being committed. `validate --cached` reads the index; the
+    freshness line beside it reads the working tree, so a drift that is staged and then undone
+    in the working tree commits through the hook silently.
+    """
     text = hook_text(python="/usr/bin/python3")
-    line = next(ln for ln in text.splitlines() if ln.endswith("freshness"))
-    assert "--cached" in line, f"the hook runs {line.strip()!r}"
+    # The lines the hook actually runs, and not the comment above them. Selected by
+    # `endswith("freshness")`, as this was first written, the test read a comment line
+    # instead — the comment says `--cached` because it explains the fix, so the assertion
+    # was satisfied by prose while the invocation below it went unexamined. That is
+    # HIGH-55's shape exactly: a test green over a mechanism that never fired.
+    invocations = [
+        ln.strip()
+        for ln in text.splitlines()
+        if "-m claims_ledger" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(invocations) == 5, invocations
+    (line,) = [ln for ln in invocations if " freshness" in ln]
+    assert "--cached" in line, f"the hook runs {line!r}"
 
 
 # === the write paths, and what the atomic-write funnel changed ========================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: write_bytes_atomically never opens the target — it writes a temp file "
-    "beside it and os.replace()s, which needs permission on the directory and not on the "
-    "file — so `sha --write` now rewrites a mode-444 entry, exits 0, and leaves the mode "
-    "saying the file is protected. The truncating write it replaced exited 2.",
-)
 def test_sha_write_refuses_an_entry_whose_mode_forbids_writing(project):
-    """A file the filesystem says may not be written is not written. This is also what
+    """Fixed. The defect, as this pass wrote it: write_bytes_atomically never opens the target —
+    it writes a temp file beside it and os.replace()s, which needs permission on the directory
+    and not on the file — so `sha --write` now rewrites a mode-444 entry, exits 0, and leaves
+    the mode saying the file is protected. The truncating write it replaced exited 2.
+
+    A file the filesystem says may not be written is not written. This is also what
     `test_sha_write_over_several_paths_does_not_silently_skip_the_rest` uses as its only
-    failure injection, so while this is broken that regression is vacuously green."""
+    failure injection, so while this is broken that regression is vacuously green.
+    """
     assert project.cl("new", "a-claim") == 0
     path = next(project.entries.glob("A0001-*.md"))
     project.write_full_entry(path)
@@ -253,18 +265,17 @@ def test_sha_write_refuses_an_entry_whose_mode_forbids_writing(project):
     assert code == 2
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: register_source's cache write never asks refuse_to_write_outside_the_root, "
-    "and write_bytes_atomically resolves the path before writing, so a dangling symlink "
-    "planted at the content-addressed cache slot sends `source add` outside the project "
-    "root; it exits 0 and names the in-root path it did not write to",
-)
 def test_source_add_does_not_store_bytes_through_a_link_that_leaves_the_root(project, tmp_path):
-    """README, and the docstring of `write_bytes_atomically` itself: "where the link
-    leads is the caller's question, and `leaves_root` is where it is asked." `restamp`
-    and `append_verdict` ask it. This caller never has — the funnel was routed past the
-    one write site with no guard in front of it."""
+    """Fixed. The defect, as this pass wrote it: register_source's cache write never asks
+    refuse_to_write_outside_the_root, and write_bytes_atomically resolves the path before
+    writing, so a dangling symlink planted at the content-addressed cache slot sends `source
+    add` outside the project root; it exits 0 and names the in-root path it did not write to
+
+    README, and the docstring of `write_bytes_atomically` itself: "where the link leads is the
+    caller's question, and `leaves_root` is where it is asked." `restamp` and `append_verdict`
+    ask it. This caller never has — the funnel was routed past the one write site with no
+    guard in front of it.
+    """
     import hashlib
 
     source = tmp_path / "a-source.txt"
@@ -286,18 +297,17 @@ def test_source_add_does_not_store_bytes_through_a_link_that_leaves_the_root(pro
 # === what a pin is ====================================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: `git rev-parse --symbolic-full-name --upload-pack=x` exits 0 and echoes "
-    "its own argument, which is git's parse-options behaviour for an unrecognised "
-    "double-dash argument and not a refname; is_object_name() reads it as a symbolic ref, "
-    "so an option-shaped pin gets an unstable-pin flag and resolve's `does not resolve` "
-    "both — the two contradictory names LOW-36 was fixed to stop",
-)
 def test_an_option_shaped_pin_is_not_reported_as_an_unstable_pin(pinned):  # noqa: F811
-    """LOW-36's fix deleted OBJECT_NAME_RE and made git the arbiter for every pin. Pins
-    are free text in the schema (`\\S+`), so a pin beginning with a dash is a typo away,
-    and git answers a question it was not asked."""
+    r"""Fixed. The defect, as this pass wrote it: `git rev-parse --symbolic-full-name --upload-
+    pack=x` exits 0 and echoes its own argument, which is git's parse-options behaviour for an
+    unrecognised double-dash argument and not a refname; is_object_name() reads it as a
+    symbolic ref, so an option-shaped pin gets an unstable-pin flag and resolve's `does not
+    resolve` both — the two contradictory names LOW-36 was fixed to stop
+
+    LOW-36's fix deleted OBJECT_NAME_RE and made git the arbiter for every pin. Pins are free
+    text in the schema (`\S+`), so a pin beginning with a dash is a typo away, and git answers
+    a question it was not asked.
+    """
     path = pinned.entry_path()
     path.write_text(
         path.read_text(encoding="utf-8").replace(f"@{pinned.pin}", "@--upload-pack=x"),
@@ -306,22 +316,26 @@ def test_an_option_shaped_pin_is_not_reported_as_an_unstable_pin(pinned):  # noq
     assert pinned.p.cl("sha", "--write", str(path)) == 0
     flags = [m for o, _, m in outcomes(pinned.root) if "can never go stale" in m]
     assert not flags, f"one defect under two contradictory names: {flags}"
-    assert [o for o, _, _ in resolve.run(open_ledger(root=pinned.root))].count("fail") == 1
+    # `resolve.run()` answers with Reports, not the (outcome, part, message) triples
+    # `outcomes()` builds above. Written as an unpack, this line raised TypeError instead
+    # of asserting — reachable only once the flag above it stops firing, which is why the
+    # xfail check the pass ran (fails for the reason it names) did not reach it.
+    assert [r.outcome for r in resolve.run(open_ledger(root=pinned.root))].count("fail") == 1
 
 
 # === the record the package publishes about itself ====================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: README.md says `All 62 corpus seeds pass unchanged`; the corpus is 75. "
-    "MEDIUM-48's regression only matches a count directly adjacent to the word, so the "
-    "one site with a word in between stayed stale underneath a green test.",
-)
 def test_the_readme_states_the_seed_count_correctly_wherever_it_states_it():
-    """README.md is the PyPI long description. MEDIUM-48 was this defect at three sites;
-    the regression written for it guards exactly the phrasings that were already wrong.
-    A regression narrower than its finding is how a defect comes back."""
+    """Fixed. The defect, as this pass wrote it: README.md says `All 62 corpus seeds pass
+    unchanged`; the corpus is 75. MEDIUM-48's regression only matches a count directly
+    adjacent to the word, so the one site with a word in between stayed stale underneath a
+    green test.
+
+    README.md is the PyPI long description. MEDIUM-48 was this defect at three sites; the
+    regression written for it guards exactly the phrasings that were already wrong. A
+    regression narrower than its finding is how a defect comes back.
+    """
     from claims_ledger.corpus.run import CORPUS
 
     n = len([p for p in (Path(CORPUS) / "seeds").iterdir() if p.is_dir()])
@@ -333,14 +347,14 @@ def test_the_readme_states_the_seed_count_correctly_wherever_it_states_it():
     assert not wrong, f"README claims {wrong} seeds; there are {n}"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: README.md says CI runs `Python 3.11, 3.12 and 3.13`; ci.yml's matrix is "
-    "3.11, 3.12, 3.13 and 3.14, and 3.14 is in the package's own classifiers",
-)
 def test_the_readme_names_every_interpreter_ci_runs():
-    """The PyPI long description is where a user reads which interpreters this is held
-    to. Claiming fewer than are run is the harmless direction and still wrong."""
+    """Fixed. The defect, as this pass wrote it: README.md says CI runs `Python 3.11, 3.12 and
+    3.13`; ci.yml's matrix is 3.11, 3.12, 3.13 and 3.14, and 3.14 is in the package's own
+    classifiers
+
+    The PyPI long description is where a user reads which interpreters this is held to.
+    Claiming fewer than are run is the harmless direction and still wrong.
+    """
     ci = project_file(".github", "workflows", "ci.yml").read_text(encoding="utf-8")
     matrix = re.search(r"python:\s*\[([^\]]*)\]", ci)
     assert matrix is not None, "ci.yml has no interpreter matrix to compare against"
@@ -349,17 +363,16 @@ def test_the_readme_names_every_interpreter_ci_runs():
     assert not missing, f"README does not name {missing}, which CI runs"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: release.yml sends the operator to "
-    "pypi.org/manage/project/claims-ledger/settings/publishing/ to configure Trusted "
-    "Publishing. That page cannot exist before the first upload; a never-published "
-    "project needs the account-level pending publisher. Followed literally, the first "
-    "tag push fails at the publish step.",
-)
 def test_the_release_workflow_names_the_page_a_first_publish_actually_needs():
-    """The workflow's comment is the only written record of how to publish this package.
-    A first release has no project page to configure a publisher on."""
+    """Fixed. The defect, as this pass wrote it: release.yml sends the operator to
+    pypi.org/manage/project/claims- ledger/settings/publishing/ to configure Trusted
+    Publishing. That page cannot exist before the first upload; a never-published project
+    needs the account-level pending publisher. Followed literally, the first tag push fails at
+    the publish step.
+
+    The workflow's comment is the only written record of how to publish this package. A first
+    release has no project page to configure a publisher on.
+    """
     text = project_file(".github", "workflows", "release.yml").read_text(encoding="utf-8")
     assert "manage/account/publishing" in text, (
         "the only publishing instructions point at a project-settings page that does not "
@@ -367,15 +380,14 @@ def test_the_release_workflow_names_the_page_a_first_publish_actually_needs():
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: release.yml runs `twine check --strict`, ci.yml runs plain `twine check`, "
-    "so a metadata regression that only --strict catches passes every PR and first fails "
-    "at the tag, which is the run with no cheap way back",
-)
 def test_ci_checks_the_metadata_the_way_the_release_does():
-    """The value of a pre-merge gate is that it fails before the irreversible step. A
-    gate weaker than the one it stands in front of is not one."""
+    """Fixed. The defect, as this pass wrote it: release.yml runs `twine check --strict`, ci.yml
+    runs plain `twine check`, so a metadata regression that only --strict catches passes every
+    PR and first fails at the tag, which is the run with no cheap way back
+
+    The value of a pre-merge gate is that it fails before the irreversible step. A gate weaker
+    than the one it stands in front of is not one.
+    """
     ci = project_file(".github", "workflows", "ci.yml").read_text(encoding="utf-8")
     assert "twine check --strict" in ci
 
@@ -383,17 +395,16 @@ def test_ci_checks_the_metadata_the_way_the_release_does():
 # === what the corpus proves, against what it says it proves ===========================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: corpus/README.md says the corpus proves `every rule about not silently "
-    "passing`. Deleting references.py's `cites X, which does not exist` leaves the corpus "
-    "at 75/75 and the unit suite green — one of seven semantic rules an independent AST "
-    "sweep found held by neither gate",
-)
 def test_a_ground_citing_an_entry_that_does_not_exist_is_load_bearing(tmp_path):
-    """A Grounds pointer naming an entry the ledger does not have is the dead-pointer
-    class, which `corpus/README.md`'s Coverage table lists as `catch, loudly`. It is the
-    minimal case of the sweep's finding, and the cheapest one to keep."""
+    """Fixed. The defect, as this pass wrote it: corpus/README.md says the corpus proves `every
+    rule about not silently passing`. Deleting references.py's `cites X, which does not exist`
+    leaves the corpus at 75/75 and the unit suite green — one of seven semantic rules an
+    independent AST sweep found held by neither gate
+
+    A Grounds pointer naming an entry the ledger does not have is the dead-pointer class,
+    which `corpus/README.md`'s Coverage table lists as `catch, loudly`. It is the minimal case
+    of the sweep's finding, and the cheapest one to keep.
+    """
     from test_corpus_integrity import corpus_notices
 
     anchor = (
@@ -405,16 +416,15 @@ def test_a_ground_citing_an_entry_that_does_not_exist_is_load_bearing(tmp_path):
     assert corpus_notices(tmp_path, "references.py", anchor, "                pass")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a seed whose expected.json carries an empty `expect` array counts as a "
-    "full pass — `1/1 seeds pass`, exit 0, over a seed that checked nothing. HIGH-45 put "
-    "a floor under the corpus; there is none under a single seed.",
-)
 def test_a_seed_that_expects_nothing_is_not_a_pass(capsys, tmp_path):
-    """HIGH-45's own reasoning, one level down: a gate that can be made green by an
-    absence is not a gate. `run.py` is what an installed wheel runs, so a dev-time
-    assertion in `tests/` does not stand where this one has to."""
+    """Fixed. The defect, as this pass wrote it: a seed whose expected.json carries an empty
+    `expect` array counts as a full pass — `1/1 seeds pass`, exit 0, over a seed that checked
+    nothing. HIGH-45 put a floor under the corpus; there is none under a single seed.
+
+    HIGH-45's own reasoning, one level down: a gate that can be made green by an absence is
+    not a gate. `run.py` is what an installed wheel runs, so a dev-time assertion in `tests/`
+    does not stand where this one has to.
+    """
     import json
 
     from claims_ledger.corpus import run as corpus_run
@@ -430,16 +440,15 @@ def test_a_seed_that_expects_nothing_is_not_a_pass(capsys, tmp_path):
     assert code != 0, out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: matches() tests `message.casefold() in report.message.casefold()`, and "
-    '`"" in x` is always true, so an expectation row carrying `"message": ""` is '
-    "indistinguishable from one that omits the field and pins nothing",
-)
 def test_an_empty_expected_message_does_not_match_every_report():
-    """Not exploitable today — the one-row-one-report bijection catches HIGH-46's case
-    regardless of message content. Held so the next seed author who writes `""` meaning
-    `no message yet` is told rather than quietly satisfied."""
+    """Fixed. The defect, as this pass wrote it: matches() tests `message.casefold() in
+    report.message.casefold()`, and `"" in x` is always true, so an expectation row carrying
+    `"message": ""` is indistinguishable from one that omits the field and pins nothing
+
+    Not exploitable today — the one-row-one-report bijection catches HIGH-46's case regardless
+    of message content. Held so the next seed author who writes `""` meaning `no message yet`
+    is told rather than quietly satisfied.
+    """
     from types import SimpleNamespace
 
     from claims_ledger.corpus.run import matches

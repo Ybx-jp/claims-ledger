@@ -16,7 +16,7 @@ change to what it expects would dissolve the argument.
 First public release. Extracted from the claims ledger built for a research project on
 dynamic graph embedding refresh, where the schema, the checkers and the corpus were
 developed together. All 62 corpus seeds passed unchanged from the ledger it came out of;
-the release ships 75.
+the release ships 76.
 
 **Everything below is in this release, and this file has one version heading rather than
 several on purpose.** The five adversarial passes recorded in `QE-AUDIT.md`, the fifth
@@ -32,7 +32,7 @@ would have put a `0.1.0` on the record that nobody could ever install.
 - Five checkers — `validate`, `resolve`, `references`, `propagate`, `freshness` — and
   `check`, which runs all five. The first four are described here; `freshness` has its own
   section below, because it was written after this one.
-- A red-team corpus, 62 seeds at extraction and 75 at release, with committed expected
+- A red-team corpus, 62 seeds at extraction and 76 at release, with committed expected
   outcomes, shipped inside the package and runnable from an installed copy as
   `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
   the seed or the checker, never a bonus, and one row is satisfied by one report.
@@ -385,6 +385,120 @@ Written after the section above, and before anything was tagged.
   at all, which is one report followed by every check that needed a key cascading behind
   it. YAML permits it and editors leave it there.
 
+### Fixed by the sixth adversarial pass
+
+Four of these are in code the fifth pass's own fixes introduced one day earlier, which is
+why the pass ran a revert experiment over that commit rather than a seventh audit.
+
+- **A propagated discharge states what caused it, and is held to it** — `QE-AUDIT.md`
+  HIGH-53. Closing the wedge in MEDIUM-34 introduced `ever_drifted()`, which asked whether
+  any commit since the pin had *touched* the artifact and read a yes as proof that the
+  verdict was caused. That is a question the forger controls: one commit that edits the
+  artifact and one that puts it back — or a `chmod +x`, or a rename away and back —
+  laundered a pre-emptively written discharge permanently, while the artifact stayed
+  byte-identical to the blob at the pin. The rule had traded a loud false positive for a
+  silent false negative. `freshness --write` now records an `artifact:` line in the verdict
+  — the object id git would store the artifact under at the moment the drift was seen, or
+  `absent` for a ground that had been withdrawn — and the orphan rule asks whether the
+  artifact really was that between the pin and here. A verdict that records nothing, or
+  that records the artifact as the pin itself has it, is an orphan. The line is a new
+  optional field of the verdict schema; a propagated verdict written by an earlier
+  build carries none, and is reported as an orphan until the drift it names is
+  recorded — which is the correct reading of a discharge nothing states a cause for.
+- **A git that cannot say whether the drift happened says so** — HIGH-54. `ever_drifted()`
+  read a `rev-list` that failed, raised or outlived the 30-second timeout as "it drifted",
+  and retired the forged-discharge check with no report that it had not run. That is the
+  class the fourth pass closed across six findings, reopened in new code. The check now
+  reports that the cause *could not be established* and exits non-zero, the way every other
+  git question in the package already did.
+- **A file the filesystem says may not be written is not written** — HIGH-55. Routing every
+  write through a temporary file and `os.replace` — the fifth pass's fix for the truncating
+  writes — moved the permission question from the file to the directory, so `sha --write`
+  rewrote a mode-444 entry, exited 0, and left the mode still saying the file was
+  protected. The funnel now asks the kernel, by opening the target for writing without
+  truncating it, before anything is written.
+- **`source add` no longer writes outside the project root** — HIGH-56. A symlink planted
+  at the content-addressed cache slot sent the stored bytes wherever it led, exit 0, with
+  the run naming the in-root path it had not written to. Pre-existing rather than
+  introduced. `register_source` and `create_entry` now ask
+  `refuse_to_write_outside_the_root`, `append_verdict` requires the root rather than
+  defaulting it away, and a test now asks the question of every write site at once, so the
+  next one cannot be added without either asking or saying why it does not have to.
+- **A `#` inside a fenced code block is not a heading** — HIGH-58. `section_span()` read one
+  as a depth-1 heading, so a `## Observation` section ended at the fence and everything
+  below it — including the sentence the claim rests on — was outside the comparison for
+  `freshness` and `resolve` both. A Markdown lab note carrying a code snippet is the
+  ordinary shape of the artifact this checker compares. The entry parser was blind the same
+  way: a fenced `## Verdicts` after the real one replaced it with an empty section, so an
+  entry carrying a `refuted` verdict read as `open` (loudly — `validate` reported the
+  sections as out of order — but read as `open` by everything downstream of the parse).
+- **An option-shaped pin is one defect under one name** — LOW-65.
+  `git rev-parse --symbolic-full-name --upload-pack=x` exits 0 and echoes its own argument,
+  which is git's parse-options behaviour for an unrecognised double-dash argument and not a
+  refname; read as one, a pin beginning with a dash drew an unstable-pin flag *and*
+  `resolve`'s "does not resolve", which is the pair LOW-36 was fixed to stop. The answer is
+  now read as what `--symbolic-full-name` is documented to print.
+- **What the corpus says it proves is what it proves** — HIGH-59. The fifth pass narrowed
+  `corpus/README.md`'s claim rather than faking the coverage, which was the honest move —
+  but the narrowed claim was also false. An independent AST sweep counted 116 report sites
+  rather than the 99 a text grep had found, and 50 of them are caught by neither the corpus
+  nor the unit suite: most are the well-formedness guards the README says the unit suite
+  holds, and it did not hold the `kind`, `author`, `grade` or `verbatim_sha`-format ones at
+  all. Seven were not well-formedness at all but the "not silently passing" class the README
+  names outright. `D05-dead-pointer` now carries two more entries — an `entry:` ground
+  naming an id that does not exist, and a malformed `search:` line — the four sites a seed
+  cannot express (a git that cannot answer, a document that becomes unreadable between two
+  reads, `propagate --write`'s own report) have tests in
+  `tests/test_sweep_gap_closures.py`, the four unheld enums have tests in
+  `tests/test_schema.py`, and the README's Coverage section now names what is held instead
+  of asserting a class.
+- **A seed that expects nothing is not a seed that passed** — MEDIUM-64. An `expected.json`
+  with an empty `expect` array counted as a full pass — `1/1 seeds pass`, exit 0 — over a
+  seed that bound nothing to anything. HIGH-45 put a floor under an empty corpus; this is
+  the same floor one level down, and it is in `run.py`, which is what an installed wheel
+  runs, rather than in a dev-time assertion.
+- **An empty expected `message` pins nothing, and says so** — LOW-69. `matches()` tested
+  `message.casefold() in report.message.casefold()`, and `"" in x` is always true, so a row
+  written `"message": ""` was indistinguishable from one that omitted the field. It is now a
+  non-match, and the runner refuses the row outright rather than leaving the seed author to
+  find out downstream.
+- **The installed pre-commit hook asks freshness about the index** — HIGH-57. MEDIUM-33
+  gave `freshness` a `--cached` flag and wired it through `check`; `HOOK_TEMPLATE` never
+  got it, so the hook ran `validate --cached` beside four checkers reading the working
+  tree, and a drift staged and then undone before the commit went through in silence. The
+  hook's own comment now says which three checkers still read the working tree, because
+  `resolve`, `references` and `propagate` have no `--cached` to give them.
+- **The README says how many seeds there are, and which interpreters CI runs** —
+  MEDIUM-60 and MEDIUM-62. `All 62 corpus seeds pass unchanged` stood over a corpus of 75,
+  under a regression that only matched a count directly adjacent to the word; the
+  Provenance paragraph now separates what was true at extraction from what is true now.
+  The CI line named three interpreters where the matrix runs four.
+- **The pre-merge gate is as strong as the one it stands in front of** — MEDIUM-63.
+  `ci.yml` ran `twine check`, `release.yml` runs `twine check --strict`, so a metadata
+  regression only `--strict` catches passed every PR and first failed at the tag.
+- **The publishing instructions work for the publish they are for** — MEDIUM-61, and the
+  new `RELEASING.md`. `release.yml` sent the operator to a project-settings page that does
+  not exist until after a first upload; a never-published project needs the account-level
+  pending publisher, and the `pypi` GitHub environment the publish job names had to exist
+  beforehand and was written down nowhere. `RELEASING.md` now carries the whole sequence,
+  checked against the workflow rather than written from the generic version of it.
+- **The Quickstart is run, not illustrated** — LOW-67. The transcript printed
+  `0 failure(s)` over commands that produce a validation failure, and its digests were
+  placeholders. It now writes its own source file, fills in the entry, and shows real
+  digests — and `tests/test_readme_quickstart.py` parses the console block out of
+  `README.md` and runs every command in it against a fresh project, comparing output line
+  for line, so the transcript cannot drift from the tool again without the suite saying so.
+- **The link the CHANGELOG makes is a link the release makes true** — LOW-68. Every
+  version heading here points at `releases/tag/vX.Y.Z`, and nothing in `release.yml`
+  created a GitHub Release — only the tag and the PyPI upload. A `github_release` job now
+  does, after `publish` and under the same tag gate, with `contents: write` held to that
+  one job.
+- **The rename that completes an atomic write is flushed** — LOW-66. `write_bytes_atomically`
+  fsynced the temporary file and not the directory it was renamed into, so the replacement
+  survived a crash of the process and not a power loss. Every interruption the suite can
+  produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
+  reach.
+
 ### Methodology
 
 Recorded as methodology changes, with the seeds named, under this file's own rule.
@@ -409,7 +523,18 @@ Recorded as methodology changes, with the seeds named, under this file's own rul
   `D52-mid-sentence-start-without-elision` (the half of D06's class nothing covered). The
   corpus is 75 seeds, and the corpus README now says which rules it does *not* hold up —
   a mutation sweep found most of `validate`'s well-formedness guards survive their own
-  deletion, and the unit suite is what holds those.
+  deletion. That change said the unit suite held those; the sixth pass measured it and
+  found four of the named ones held by nothing, which is HIGH-59 above.
+- **One seed**, `D53-laundered-freshness-discharge`, for HIGH-53: a discharge written
+  before its ground moved, followed by a commit that edits the artifact and a commit that
+  puts it back. It is the forgery the orphan rule exists to refuse, in the history that
+  used to launder it, and it fails against the unfixed checker at `commit 04` and passes
+  against the fixed one. The corpus is 76 seeds.
+- **The corpus runner stages by content, not by timestamp.** `shutil.copytree` preserves
+  mtime, and git's index skips reading a file whose (mtime, size) pair is unchanged, so a
+  history seed that edits a line without changing its length staged a change git did not
+  see: `git add -A` picked up nothing and the run died with `nothing to commit`. Found
+  while writing `D53`, whose drift is `0.041` to `0.991`.
 
 ### Release
 

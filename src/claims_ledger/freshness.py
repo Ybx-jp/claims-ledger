@@ -33,6 +33,7 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from .propagate import append_verdict, grouped
@@ -66,7 +67,7 @@ def is_object_name(repo, pin):
     # object id, so a hex-looking branch is caught here rather than trusted.
     named = git_call(repo, "rev-parse", "--symbolic-full-name", pin)
     if named.ok:
-        return not named.out.strip(), None
+        return not names_a_ref(named.out), None
     # It also exits non-zero for a pin this repository does not have at all — `deadbe`, a
     # dangling symref — which is `resolve`'s finding and not this checker's. `--verify
     # --quiet` says that `no` with exit 1, where a git that cannot look exits 128 or does
@@ -78,6 +79,26 @@ def is_object_name(repo, pin):
     if git_call(repo, "rev-parse", "--verify", "--quiet", pin).code == 1:
         return True, None
     return None, named.why
+
+
+def names_a_ref(out):
+    """Whether `git rev-parse --symbolic-full-name` answered with a refname.
+
+    It is documented to print a *fully qualified* one — `refs/heads/main`, `refs/tags/v1`,
+    or the bare `HEAD` of a detached head — and nothing at all for an object id. It also
+    prints, verbatim and with exit 0, any argument it did not recognise: git's
+    parse-options echoes an unknown double-dash argument rather than refusing it, so
+    `rev-parse --symbolic-full-name --upload-pack=x` answers `--upload-pack=x`. Read as a
+    refname that gave an option-shaped pin an unstable-pin flag *and* `resolve`'s "does
+    not resolve" — the two contradictory names for one defect that LOW-36 was fixed to
+    stop. Pins are free text in the schema, so a leading dash is a typo away.
+
+    So the answer is read as what it is documented to be. Anything else git prints is git
+    talking about its own command line, and a pin that is not a ref is passed on as an
+    object name for `resolve` to find nothing at.
+    """
+    answer = out.strip()
+    return answer == "HEAD" or answer.startswith("refs/")
 
 
 def literal(path):
@@ -125,13 +146,48 @@ def has_acknowledged(entry, pointer, author):
     )
 
 
-def verdict_block(grade, pointer, note, author):
+ABSENT = "absent"
+OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
+NULL_OBJECT_ID = "0" * 40
+
+
+def verdict_block(grade, pointer, note, author, seen):
+    """The block `--write` appends, including what the artifact was when the drift was
+    seen — the object id git would store it under, or `absent` for a ground that had been
+    withdrawn. `orphans()` holds the verdict to that later, and it is the whole of what
+    separates a discharge this checker caused from one written pre-emptively."""
     stamp = datetime.now().astimezone().isoformat(timespec="seconds")
     return (
         f"- {stamp} · contested · grade: {grade} · author: {author}\n"
         f"  evidence: {pointer.raw}\n"
+        f"  artifact: {seen}\n"
         f"  note: {note}\n"
     )
+
+
+def seen_at(repo, pointer, path, cached, withdrawn):
+    """(what the artifact is as this run reads it, why git could not say).
+
+    The object id git would store the artifact under, which is what the comparison later
+    has to be against: a commit id would not do, because the ordinary case is a drift
+    that is in the working tree and not yet committed at all — that is what a pre-commit
+    hook is for. `hash-object --path` rather than a hash of the bytes, so that whatever
+    the repository does to a file on its way in, line endings and clean filters included,
+    is done here too and the id matches the one a commit would record.
+
+    A withdrawn ground has no artifact to hash, and its absence is the thing that
+    happened; `ABSENT` records that, and `caused()` looks for the deletion in history the
+    way it looks for a blob.
+    """
+    if withdrawn:
+        return ABSENT, None
+    if cached:
+        answer = git_call(repo, "rev-parse", "--verify", "--quiet", f":{pointer.target}")
+    else:
+        answer = git_call(repo, "hash-object", "--path", pointer.target, "--", str(path))
+    if answer.ok and OBJECT_ID_RE.match(answer.out.strip()):
+        return answer.out.strip(), None
+    return None, answer.why or f"git answered {answer.out.strip()!r}"
 
 
 def now_text(repo, pointer, path, cached):
@@ -340,7 +396,26 @@ def run(ledger, write=False, cached=False):
                 Report("flag", e.prefix, part, f"`{raw}` has moved: {since_phrase(detail, where)}")
             )
             note = "propagated from a moved ground"
-        pending.append((e, verdict_block(e.grade, p, note, author)))
+        if not write:
+            continue
+        # A verdict records what the artifact was when the drift was seen, and that record
+        # is the whole of what `orphans()` later holds it to. One this run cannot state is
+        # one nothing could ever check, so it is not written: the ledger is left as it was
+        # and the run says why, rather than appending a discharge that is unfalsifiable
+        # from the moment it is made.
+        seen, why = seen_at(repo, p, repo / p.target, cached, finding == "withdrawn")
+        if seen is None:
+            reports.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    part,
+                    f"no verdict was appended for `{raw}`: git could not say what the "
+                    f"artifact is, so the drift could not be recorded ({why})",
+                )
+            )
+            continue
+        pending.append((e, verdict_block(e.grade, p, note, author, seen)))
 
     reports += orphans(entries, config, repo, repo, author, cached=cached)
 
@@ -362,22 +437,89 @@ def run(ledger, write=False, cached=False):
     return reports
 
 
-def ever_drifted(repo, pointer):
-    """Whether the artifact has been touched by any commit between the pin and HEAD.
+def blobs_since(repo, pointer):
+    """(every object id the artifact has held between the pin and HEAD, why git could not
+    say).
+
+    `git log --raw` prints the before and after object id of the path at each commit that
+    changed it, so one call answers what a walk of the history would. `--full-history`
+    because the omission this is guarding against is the loud one: a version git declined
+    to list is a discharge called an orphan, which is MEDIUM-34's wedge again.
+    """
+    answer = git_call(
+        repo,
+        "log",
+        "--format=%H",
+        "--raw",
+        "--no-abbrev",
+        "--full-history",
+        f"{pointer.pin}..HEAD",
+        "--",
+        literal(pointer.target),
+    )
+    if not answer.ok:
+        return None, answer.why
+    seen = set()
+    for line in answer.out.splitlines():
+        if not line.startswith(":"):
+            continue  # a commit id on its own line, which is not a version of the path
+        seen |= {tok for tok in line.split() if OBJECT_ID_RE.match(tok)}
+    return seen - {NULL_OBJECT_ID}, None
+
+
+def caused(repo, pointer, verdict):
+    """(whether the drift this verdict states really happened, why git could not say).
 
     The orphan rule exists to stop a *pre-emptive* forgery — a verdict written before the
-    ground moved, so that the ground never has to be looked at again. A verdict this
-    checker wrote itself, because the ground had moved, is not that; and undoing the edit
-    afterwards used to turn the discharge into a failure no legal edit could clear, since
-    verdicts append and only append and the pin above the APPEND marker is frozen.
+    ground moved, so that the ground never has to be looked at again. `docs/FRESHNESS.md`:
+    "Otherwise the discharge is forgeable by writing the verdict pre-emptively." A verdict
+    this checker wrote itself, because the ground had moved, is not that; and undoing the
+    edit afterwards must not turn the discharge into a failure no legal edit could clear,
+    since verdicts append and only append and the pin above the APPEND marker is frozen.
 
-    So the question asked of a verdict whose ground is fresh right now is whether the
-    ground could have drifted since the pin at all. A pin nothing has touched cannot have
-    drifted, and a verdict naming it is the forgery the rule is for.
+    The question that separates the two is what the verdict *states*, and the verdict
+    states it: `artifact:` records what the ground was when the drift was seen. So this
+    asks whether the artifact really was that, between the pin and now — a blob the path
+    has actually held, or, for a withdrawn ground, a commit that really deleted it. Asking
+    instead whether anything has *touched* the artifact, which is what this function
+    replaces, answered a question the forger controls: one commit that edits the artifact
+    and one that puts it back laundered a pre-emptive discharge permanently, and a mode
+    change or a rename away and back did it just as well.
+
+    A verdict that records nothing is not caused. It cannot be: there is no drift for it
+    to name, and a verdict whose cause cannot be stated is exactly the pre-emptive one.
     """
-    out = git(repo, "rev-list", "--count", f"{pointer.pin}..HEAD", "--", literal(pointer.target))
-    count = (out or "").strip()
-    return not count.isdigit() or int(count) > 0
+    seen = (verdict.artifact or "").strip()
+    if not seen:
+        return False, None
+    if seen == ABSENT:
+        gone = git_call(
+            repo,
+            "log",
+            "--format=%H",
+            "--diff-filter=D",
+            "--full-history",
+            f"{pointer.pin}..HEAD",
+            "--",
+            literal(pointer.target),
+        )
+        if not gone.ok:
+            return None, gone.why
+        return bool(gone.out.strip()), None
+    if not OBJECT_ID_RE.match(seen):
+        return False, None
+    # The artifact as the pin has it is not a drift, whatever else is true of it, so a
+    # verdict recording the pin's own blob states nothing and is an orphan. Asked first,
+    # because it is the cheap half and the half a forger reaches for.
+    at_pin = git_call(repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}")
+    if at_pin.code not in (0, 1):
+        return None, at_pin.why
+    if at_pin.ok and at_pin.out.strip() == seen:
+        return False, None
+    held, why = blobs_since(repo, pointer)
+    if held is None:
+        return None, why
+    return seen in held, None
 
 
 def orphans(entries, config, repo, tree, author, cached=False):
@@ -406,11 +548,39 @@ def orphans(entries, config, repo, tree, author, cached=False):
                     continue
                 if finding not in (None, "unstable-pin"):
                     continue
-                if ever_drifted(repo, ground):
-                    # It has drifted since the pin, and the edit has been undone since.
-                    # The verdict was caused; nothing about it is pre-emptive.
+                established, could_not = caused(repo, ground, v)
+                if established:
+                    # The artifact really was what the verdict says it was, between the
+                    # pin and here. The verdict was caused; nothing about it is
+                    # pre-emptive, and undoing the edit afterwards does not make it one.
                     continue
+                if established is None:
+                    # A git that cannot answer is not a git answering no — the class the
+                    # fourth pass closed across six findings. Whether the drift happened
+                    # is exactly what git declined to say, and a check that did not run is
+                    # never a check that passed.
+                    reports.append(
+                        Report(
+                            "fail",
+                            e.prefix,
+                            "Verdicts",
+                            f"verdict {v.index} by {author} names `{q.raw}` as its cause "
+                            f"and whether that drift happened could not be established: "
+                            f"{could_not}",
+                        )
+                    )
+                    continue
+                # One finding, said precisely. A verdict that records nothing, and one
+                # whose record cannot be read, are both the shape a pre-emptive forgery
+                # has, and the reader is told which — here rather than from `validate`,
+                # because the rule this line belongs to is this one and one defect under
+                # two names is two defects to whoever reads the output.
+                recorded = (v.artifact or "").strip()
                 why = "that ground has not drifted"
+                if not recorded:
+                    why += " and the verdict records no artifact it was seen at"
+                elif recorded != ABSENT and not OBJECT_ID_RE.match(recorded):
+                    why += f" and `artifact: {recorded}` is neither an object id nor `absent`"
             reports.append(
                 Report(
                     "fail",

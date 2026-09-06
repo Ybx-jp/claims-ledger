@@ -8,6 +8,7 @@ names what it named.
 """
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -257,3 +258,125 @@ def test_an_uncommitted_edit_does_not_claim_that_no_commits_touched_it(scoped):
     (report,) = freshness.run(open_ledger(root=scoped.root))
     assert "uncommitted" in report.message
     assert "0 commit" not in report.message
+
+
+# --- what a heading is ------------------------------------------------------------------
+#
+# Sixth pass, HIGH-58. The `depth` group settled which headings end a section; it did not
+# settle what a heading is. A `#`-led line inside a fenced code block is a comment, a shell
+# prompt or a preprocessor directive, and a Markdown lab note carrying a code snippet is
+# the ordinary shape of the artifact this checker compares.
+
+
+FENCED = (
+    "# note 001\n\n"
+    "## Observation\n\n"
+    "At a stale fraction of 0.1 the measured error was 0.04.\n\n"
+    "```python\n"
+    "# a comment, not a heading\n"
+    "## nor is this\n"
+    "x = 1\n"
+    "```\n\n"
+    "Conclusion: the result holds.\n\n"
+    "## Method\n\n"
+    "Star graphs.\n"
+)
+
+
+def _lab(text, section="Observation"):
+    from claims_ledger.config import default_config
+
+    return section_text(
+        text, default_config(Path(__file__).resolve().parent.parent), "lab", section
+    )
+
+
+def test_a_fenced_hash_line_does_not_end_the_section():
+    span = _lab(FENCED)
+    assert "Conclusion: the result holds." in span
+    assert "## Method" not in span, "and the real next heading still ends it"
+
+
+def test_a_tilde_fence_hides_a_heading_too():
+    """`~~~` is the other fence CommonMark defines, and the one a document uses when its
+    code contains backticks."""
+    span = _lab(FENCED.replace("```python", "~~~python").replace("```", "~~~"))
+    assert "Conclusion: the result holds." in span
+
+
+def test_a_fence_opened_and_never_closed_swallows_the_rest_of_the_artifact():
+    """CommonMark's answer, and the safe one: text whose end nobody can see is text this
+    tool should not be finding headings in. The section runs to the end rather than
+    stopping at something that is not a heading."""
+    span = _lab(FENCED.replace("x = 1\n```\n", "x = 1\n"))
+    assert span.endswith("Star graphs.\n")
+
+
+def test_a_backtick_run_with_an_info_string_containing_a_backtick_is_not_a_fence():
+    """CommonMark: a backtick fence's info string may not contain a backtick, so such a
+    line is inline code in a paragraph. Read as a fence, it would hide the real headings
+    after it."""
+    text = (
+        "# note 001\n\n"
+        "## Observation\n\n"
+        "```js `x`\n\n"
+        "The measured error was 0.04.\n\n"
+        "## Method\n\n"
+        "Star graphs.\n"
+    )
+    span = _lab(text)
+    assert "Star graphs." not in span, (
+        f"the backtick run was read as an unclosed fence and swallowed the rest: {span!r}"
+    )
+    assert _lab(text, "Method").startswith("## Method")
+
+
+def test_a_section_heading_inside_a_fence_does_not_start_a_section():
+    """The other end of the same rule: a fenced `## Observation` before the real one must
+    not be found first, or the compared span begins inside a code block."""
+    text = "# note\n\n```\n## Observation\n\nnot the section\n```\n\n" + FENCED
+    span = _lab(text)
+    assert "not the section" not in span
+    assert "Conclusion: the result holds." in span
+
+
+def test_a_fenced_heading_in_an_entry_does_not_replace_the_section_it_names():
+    """The entry parser splits on the same kind of line. A fenced `## Verdicts` after the
+    real Verdicts section replaced it with an empty one, so an entry carrying a `refuted`
+    verdict read as `open` — the direction that matters, because a status that goes
+    backwards is a fallen claim readable as a live one."""
+    from claims_ledger.schema import parse_entry
+
+    entry = (
+        "---\nid: A0001-x\n---\n\n## Assertion\n\nx\n\n## Backing\n\n"
+        '- source: s · p\n  speaker: me\n  quote: "a quote"\n\n'
+        "<!-- APPEND BELOW THIS LINE ONLY -->\n\n## Verdicts\n\n"
+        "- 2026-01-01T00:00:00-08:00 · refuted · grade: measured · author: main\n"
+        "  evidence: defect: it did not replicate\n\n## References\n"
+    )
+    assert parse_entry("x.md", entry).status() == "refuted", "the control"
+    forged = entry + "\n```\n## Verdicts\n\n```\n"
+    assert parse_entry("x.md", forged).status() == "refuted"
+
+
+def test_a_fence_in_an_artifact_read_with_its_own_pattern_fails_loudly(tmp_path):
+    """The cost of applying Markdown's fence grammar to every artifact, pinned rather than
+    left to be discovered. A source file whose sections are `def <name>` and which has a
+    line of three backticks at the left margin has that line read as a fence — wrongly. It
+    is the loud direction: the section runs past its end, or is not found, and a checker
+    says so. Silence is what this package may not produce, and this is not it."""
+    from claims_ledger.config import from_table
+
+    config = from_table(
+        {"section-patterns": {"code": r"^def {name}\b"}, "evidence-sectioned": ["code"]},
+        tmp_path,
+    )
+    module = 'def alpha():\n    """One."""\n\n```\n\ndef beta():\n    """Two."""\n'
+    span = section_text(module, config, "code", "alpha")
+    assert span is not None
+    # The cost, stated as an assertion so that it is a decision on the record rather than
+    # a surprise: `alpha` runs past its end and takes `beta` with it, because the backtick
+    # line was read as an unclosed fence. What that produces downstream is an edit to
+    # `beta` reported as `alpha` moved — a false positive a reader can see and argue with,
+    # and not a ground reported fresh.
+    assert "def beta" in span

@@ -128,6 +128,7 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
 
       - <timestamp> · <status> · grade: <grade of the evidence> · author: <an allowed author>
         evidence: <typed pointer, held to the same resolution bar as Grounds>
+        artifact: <object id, or `absent`; optional, written by `freshness --write`>
         note: <optional>
 
   Verdict evidence adds two pointer forms Grounds do not have: `entry: <id> · fallen`,

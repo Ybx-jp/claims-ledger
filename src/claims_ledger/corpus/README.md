@@ -259,12 +259,30 @@ and a human judges; `review` means the machinery passes and only the human recor
 what is wrong.
 
 What the table does **not** claim, because a mutation sweep showed it was false: a seed
-per rule. Most of `validate`'s well-formedness guards — the kind, author and grade enums,
-a non-numeric credence, a `verbatim_sha` that is not 64 hex, a missing section — can be
-deleted with the corpus still green, and they are held by the unit suite instead. Two
-rules are unreachable from here by construction, and no seed can ever hold them: the
-`--write` reports of `propagate` and `freshness`, since the runner binds both checkers
-with `write=False`. The corpus proves the semantic classes; `tests/` proves the rest.
+per rule. Most of `validate`'s well-formedness guards — among them the kind, author and
+grade enums, a non-numeric credence, a `verbatim_sha` that is not 64 hex, and a missing
+section — can be deleted with the corpus still green. Each of those six now has its own
+test in `tests/`, and each was checked the way a seed above is: delete the report site,
+watch the test go red, restore it. The sixth pass's sweep found the `kind`, `grade` and
+frontmatter `author` enums and the hex check on `verbatim_sha` held by neither the corpus
+nor a test, which is what those four tests are for; the credence and missing-section
+guards were already held. The sweep also found other `validate` guards surviving the
+corpus that this paragraph does not name and no test yet closes — a claim wider than "these
+six" would be exactly the failure this paragraph exists to avoid, so it does not make one.
+`.qe/probe6/enumerate_sites.py` then `mutate_one.py` is the cheap way to ask of any other
+guard whether anything holds it.
+
+Four rules are unreachable from a seed by construction, and no seed can ever hold them,
+for two different reasons. The `--write` reports of `propagate` and `freshness` are
+unreachable because the runner binds both checkers with `write=False`, so `--write`'s own
+code path never runs inside it at all. `resolve`'s and `freshness`'s own `git_problem()`
+branches, and `references`'s re-check of a document that stopped being readable after the
+ledger already listed it, are unreachable for a different reason: what trips each of them
+is not a seed's *content* — a broken git binary, or a race between two reads of the same
+path — and a seed is files on disk, which cannot express either. Each of the four has its
+own test in `tests/test_sweep_gap_closures.py`, verified the same way. The corpus proves
+the semantic classes; `tests/` proves what is named above, and the sweep is the record of
+what else there is still to check.
 
 | class | seeds | machinery owes |
 |---|---|---|
@@ -273,11 +291,12 @@ with `write=False`. The corpus proves the semantic classes; `tests/` proves the 
 | text no source contains | D03 A0001 | catch |
 | distortion by reversal | D03 A0002 | catch as unresolvable; the class is review |
 | right quote, wrong source | D04 | catch |
-| dead pointer | D05 (a registry id with no row), D51 (an evidence pointer that does not resolve at its pin) | catch, loudly — a miss never passes silently |
+| dead pointer | D05 (a registry id with no row), D05 A0002 (an `entry:` ground naming an id that does not exist — resolve and references both catch it), D51 (an evidence pointer that does not resolve at its pin) | catch, loudly — a miss never passes silently |
 | mid-sentence cut without `[…]` | D06 (end of the span), D52 (start of it) | catch |
 | fusion of quote and inference | D07 | catch (no quotation marks in Assertion) |
 | grade inversion | D08 | catch the pointer-kind mismatch, both directions; a fixture note that calls its own numbers typed is not seen |
 | absence-scope widening | D09, D38, K04 | catch the missing `search:`, including on a priority word; the widening itself is review |
+| malformed search ground | D05 A0003 (a `search:` line that parses but whose `query=` is empty) | catch — a search of record with nothing searched for is not evidence |
 | speaker misidentified | D10, K13, D40 | catch the structural case; flag the relayed case; the name-free relay is a known miss |
 | load-bearing elision | D11 | review — the elision is marked and visible; the machinery passes |
 | refuted on weaker evidence | D12 | flag |
@@ -320,6 +339,7 @@ with `write=False`. The corpus proves the semantic classes; `tests/` proves the 
 | a pin that names a branch or a tag rather than a commit | D47 | flag — a pin that follows the work can never go stale |
 | a pin git can neither resolve nor classify | D51 | catch — a comparison that did not happen is never a fresh ground |
 | an orphan freshness verdict | D48 | catch |
+| a discharge laundered by a touch and a revert | D53 | catch — a verdict is held to the artifact it records, not to whether anything has touched the file |
 | a drift acknowledged by a propagated verdict | K20 | pass |
 | a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
 | an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |
@@ -380,8 +400,9 @@ outline; a test-oracle literature on corpora of this shape.
   class found in practice gets a seed before it gets a fix.
 - That every rule in the five checkers is load-bearing here. A mutation sweep — delete one
   report site, run the corpus — found that most of `validate`'s well-formedness guards
-  survive it. Those rules are held by the unit suite, and the Coverage section above says
-  so rather than leaving the reader to assume otherwise.
+  survive it. Some of those are held by a test instead, and the Coverage section above
+  names exactly which, rather than asserting all of them are — the sweep found several
+  that are not, and re-running it (`.qe/probe6/`) is how to find out which any one is.
 - That a quotation is *true*, or that its source is the right one. Resolution shows a
   span exists in the named artifact and nothing more.
 - That the load-bearing elision, the undercut, the datum attack, the reversal, the

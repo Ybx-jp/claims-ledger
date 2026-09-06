@@ -514,3 +514,101 @@ def test_entry_files_are_visited_in_filename_order(project):
     ledger = open_ledger(Path(project.root))
     names = [e.path.name for e in load_entries(ledger)]
     assert names == sorted(names)
+
+
+# --- the guard in front of the funnel ---------------------------------------------------
+
+
+# Where a write may land outside the project root by design, and why. `cmd_init` creates
+# the root and the ledger under it, so there is no project yet to be outside of; `cmd_hook`
+# writes into `.git/hooks`, which in a worktree or a `--separate-git-dir` clone genuinely
+# is outside the root, and refusing it there would refuse to install the hook at all.
+WRITES_THAT_ARE_NOT_LEDGER_FILES = {"cmd_init", "cmd_hook"}
+FUNNEL = {"write_bytes_atomically", "write_text_atomically"}
+GUARDS = {"refuse_to_write_outside_the_root", "leaves_root"}
+
+
+def _enclosing_functions_that_write(path):
+    """(function name, whether it asks `refuse_to_write_outside_the_root`) for every
+    function in `path` that calls the atomic-write funnel."""
+    import ast
+
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        called = {
+            c.func.id
+            for c in ast.walk(node)
+            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+        }
+        if called & FUNNEL:
+            # Two spellings of the one question: `authoring` asks it of a ledger, and
+            # `append_verdict` — which is handed a root rather than a ledger — asks
+            # `config.leaves_root` directly.
+            out.append((node.name, bool(called & GUARDS)))
+    return out
+
+
+def test_new_does_not_scaffold_an_entry_through_a_link_that_leaves_the_root(project, tmp_path):
+    """`create_entry` refuses a path that already exists, and a dangling symlink is not
+    one that exists — so that refusal steps aside here.
+
+    Two layers stand behind it, and this asserts the outcome rather than either one.
+    `load_entries`, which `create_entry` calls first, refuses the whole run over an entry
+    that is a symlink to nothing, and that is the layer that fires today. Behind it the
+    write now asks `refuse_to_write_outside_the_root`, which is what
+    `test_every_write_asks_where_the_link_leads` holds: the first layer is a property of
+    where the link happens to be planted, and the second is a property of the write. This
+    test stays green if the first is ever relaxed."""
+    outside = tmp_path / "outside" / "pwned.md"
+    outside.parent.mkdir(exist_ok=True)
+    (project.entries / "A0001-a-claim.md").symlink_to(outside)
+    assert project.cl("new", "a-claim") != 0
+    assert not outside.exists(), f"`new` scaffolded an entry at {outside}, outside the root"
+
+
+def test_appending_a_verdict_cannot_skip_the_root_it_is_checked_against():
+    """`append_verdict` is the one function in the package that writes into a *committed*
+    entry, and its root guard used to be behind `if root is not None` with `root=None` for
+    a default — so a caller closed the guard by not thinking about it. Both callers pass a
+    root, so nothing behavioural changes here and the revert experiment finds no regression
+    for it; what is held is that the next caller cannot be the one that forgets.
+
+    Kept as a signature test on purpose. The alternative — asserting that a call with
+    `root=None` writes outside the root — would be asserting the behaviour of a call that
+    the signature now refuses to let anyone make.
+    """
+    import inspect
+
+    from claims_ledger import propagate
+
+    root = inspect.signature(propagate.append_verdict).parameters["root"]
+    assert root.kind is inspect.Parameter.KEYWORD_ONLY
+    assert root.default is inspect.Parameter.empty
+    with pytest.raises(TypeError):
+        propagate.append_verdict(object(), "- a block\n")
+
+
+def test_every_write_asks_where_the_link_leads():
+    """The class, rather than the instance. HIGH-11, MEDIUM-19 and HIGH-56 were all one
+    caller of the write path that never asked whether the file it was about to land on is
+    inside the project — and the third of them was written *after* the funnel whose own
+    docstring says "where the link leads is the caller's question, and `leaves_root` is
+    where it is asked". A rule a caller can forget is a rule that comes back, so the
+    question is asked here of every caller at once: a new write site either asks, or names
+    itself above as a write that is deliberately not a ledger file.
+    """
+    src = Path(__file__).resolve().parent.parent / "src" / "claims_ledger"
+    unguarded = sorted(
+        f"{path.name}:{name}"
+        for path in src.rglob("*.py")
+        for name, guarded in _enclosing_functions_that_write(path)
+        if not guarded and name not in WRITES_THAT_ARE_NOT_LEDGER_FILES and name not in FUNNEL
+    )
+    assert not unguarded, (
+        f"{unguarded} write through the atomic-write funnel without asking "
+        "refuse_to_write_outside_the_root, and are not listed as writes that are not "
+        "ledger files"
+    )
