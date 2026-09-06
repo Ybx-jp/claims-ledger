@@ -7,7 +7,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 70 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 75 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -130,20 +130,24 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 70 seeds, each a small ledger with committed
-expected outcomes, one per defect class the audit found plus one per rule the schema's
-own structure creates, plus known-good seeds every checker must leave alone.
+the red-team corpus it was built against: 75 seeds, each a small ledger with committed
+expected outcomes, one per defect class the audit found, one per rule about not silently
+passing, plus known-good seeds every checker must leave alone. Its README says which
+rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
+claim nobody has tried to falsify is worth as little as an unfooled checker.
 
 ```console
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-70/70 seeds pass
+75/75 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
 named place **and** no checker trips where the seed does not say it should. An unlisted
-catch is a finding about the seed or the checker, never a bonus. See
+catch is a finding about the seed or the checker, never a bonus, one row is satisfied by
+one report and not by two, and a run that checked nothing — an empty corpus, a seed name
+that matches none — exits non-zero rather than reporting a clean run over nothing. See
 `src/claims_ledger/corpus/README.md` for the coverage table, including the rows where
 the machinery only makes a defect visible and a human has to judge it.
 

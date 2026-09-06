@@ -12,7 +12,8 @@
       "checker": "resolve",
       "outcome": "fail",
       "where": "A0001 Backing quote 1",
-      "why": "the quote ends at 'somewhat', inside a sentence, with no elision mark on that side"
+      "why": "the quote ends at 'somewhat', inside a sentence, with no elision mark on that side",
+      "message": "inside a sentence, with no elision mark"
     }
   ]
 }

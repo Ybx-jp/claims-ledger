@@ -1,12 +1,19 @@
 name: Release
 
-# A tag is the only thing that publishes. The wheel that goes to PyPI is the one this
-# job built and then proved from a clean environment: the corpus runs against the
-# installed artifact, not against the checkout, so a wheel that cannot prove itself
-# never reaches the index.
+# A tag is the only thing that publishes. Both artifacts that go to PyPI — the wheel and
+# the sdist — are the ones this job built and then proved from a clean environment: the
+# corpus runs against each installed artifact, not against the checkout, so a distribution
+# that cannot prove itself never reaches the index.
+#
+# Every action below is pinned to a commit. A tag and a branch are both mutable, and
+# `pypa/gh-action-pypi-publish@release/v1` was a branch, in the one job that holds
+# `id-token: write` and can mint a PyPI token for this project.
 on:
   push:
     tags: ["v*"]
+  # A dispatch builds and proves; it publishes only when it is dispatched from a tag ref,
+  # which is what the `publish` job's own condition says. Dispatching from a branch stops
+  # after `build`.
   workflow_dispatch:
 
 permissions:
@@ -16,10 +23,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
       - run: pip install build twine
@@ -45,22 +52,33 @@ jobs:
           version=$(/tmp/clean/bin/claims-ledger --version | awk '{print $2}')
           tag="${GITHUB_REF_NAME#v}"
           test "$version" = "$tag" || { echo "tag $tag, package $version"; exit 1; }
-      - name: The wheel proves itself from elsewhere
+      - name: Each distribution proves itself from elsewhere
+        # Both of them, not only the wheel: an sdist is what pip falls back to wherever a
+        # wheel is refused, and `twine check` reads its metadata rather than running it.
+        # The corpus rides inside the package, so a distribution that shipped a partial
+        # one fails here — and an empty corpus is a non-zero exit rather than `0/0 seeds
+        # pass`, which is what makes this step a gate at all.
         run: |
           test -d /tmp/clean || { python -m venv /tmp/clean; /tmp/clean/bin/pip install dist/*.whl; }
           mkdir -p /tmp/elsewhere && cd /tmp/elsewhere
           /tmp/clean/bin/claims-ledger corpus
-      - uses: actions/upload-artifact@v7
+          python -m venv /tmp/clean-sdist
+          /tmp/clean-sdist/bin/pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
+          /tmp/clean-sdist/bin/claims-ledger corpus
+          /tmp/clean-sdist/bin/claims-ledger --version
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: dist
           path: dist/
 
   publish:
     needs: build
-    # Only a tag publishes. Trusted Publishing binds the repository, the workflow file and
-    # the environment — never the ref — so without this a manual dispatch from any branch
-    # would publish whatever `__init__.py` said, with the tag-agrees-with-package check
-    # skipped for having no tag to compare against.
+    # Only a tag publishes — including a `workflow_dispatch`, which GitHub allows to name
+    # a tag ref and which then publishes exactly as a tag push does, with the
+    # tag-agrees-with-package check above having run. Trusted Publishing binds the
+    # repository, the workflow file and the environment — never the ref — so without this
+    # condition a dispatch from any branch would publish whatever `__init__.py` said, with
+    # that check skipped for having no tag to compare against.
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment: pypi
@@ -71,8 +89,8 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2

@@ -14,6 +14,7 @@ Nothing outside the standard library is imported, so the checkers run from a pla
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import fnmatch
 import glob
@@ -355,8 +356,17 @@ def section_span(text, config, type_name, section):
     if head is None:
         return None
     pattern = config.section_pattern(type_name).replace(NAME_SLOT, ANY_NAME)
-    nxt = re.compile(pattern, re.MULTILINE).search(text, head.end())
-    return head.start(), nxt.start() if nxt else len(text)
+    nxt = re.compile(pattern, re.MULTILINE)
+    depth = head.groupdict().get("depth")
+    at = head.end()
+    while (m := nxt.search(text, at)) is not None:
+        deeper = m.groupdict().get("depth")
+        if depth is None or deeper is None or len(deeper) <= len(depth):
+            return head.start(), m.start()
+        # A heading nested under this one is part of it, not the end of it: `## Method`
+        # ends `## Observation` and `### Detail` does not.
+        at = m.end()
+    return head.start(), len(text)
 
 
 def section_text(text, config, type_name, section):
@@ -642,6 +652,96 @@ def read_text_or_raise(path, what):
         raise LedgerError(f"{path}: cannot read {what} ({exc.strerror or exc})") from exc
 
 
+def read_text_exact(path, what="entry"):
+    """`path` as UTF-8 text with its own line endings intact.
+
+    `read_text_or_raise` reads through universal newlines, which is right for a parser —
+    every rule in this schema is written against `\\n` — and wrong for a writer: a file
+    read that way and written back has had every CRLF in it rewritten, which for a
+    committed entry is a rewrite of an immutable region. A path that is about to be
+    written is read through here instead, so the bytes it does not change come back out
+    as they went in.
+    """
+    problem = file_problem(path, what)
+    if problem is not None:
+        raise LedgerError(f"{path}: {problem}")
+    try:
+        with open(path, encoding="utf-8", newline="") as fh:
+            return fh.read()
+    except UnicodeDecodeError as exc:
+        raise LedgerError(
+            f"{path}: {what} is not UTF-8 text (byte {exc.start}: {exc.reason})"
+        ) from exc
+    except OSError as exc:
+        raise LedgerError(f"{path}: cannot read {what} ({exc.strerror or exc})") from exc
+
+
+def write_text_atomically(path, text, mode=None):
+    """Write `text` to `path` through a temporary file in the same directory.
+
+    The text is written with `newline=""`, so the endings the caller composed are the
+    endings on disk.
+    """
+    write_bytes_atomically(path, text.encode("utf-8"), mode=mode)
+
+
+def write_bytes_atomically(path, data, mode=None):
+    """Write `data` to `path` through a temporary file in the same directory.
+
+    Every write in this package used to truncate its destination before it knew it could
+    fill it, so a write that failed partway — a full disk, a quota, a resource limit —
+    left a committed entry cut off mid-verdict with the rest of it gone. `os.replace` is
+    atomic within a filesystem, which is where all of these writes land: the file a
+    reader sees is either the old one entire or the new one entire.
+
+    A symlink is resolved first: replacing the link itself would turn a ledger that
+    reaches an entry through one into a ledger with two copies of it. Where the link
+    leads is the caller's question, and `leaves_root` is where it is asked.
+    """
+    target = Path(os.path.realpath(path))
+    tmp = target.with_name(f".{target.name}.claims-ledger-{os.getpid()}")
+    try:
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        # The replacement keeps the permissions the file had. A file that is not there
+        # yet is left with what the umask already gave the temporary one.
+        if (keep := mode if mode is not None else _existing_mode(target)) is not None:
+            os.chmod(tmp, keep)
+        os.replace(tmp, target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def _existing_mode(path):
+    """The permissions `path` has, or None when it has none because it is not there."""
+    try:
+        return stat.S_IMODE(os.stat(path).st_mode)
+    except OSError:
+        return None
+
+
+# `---` opens and closes the frontmatter. YAML permits trailing space after a document
+# marker and editors leave it there, so the fence is matched as a line rather than as the
+# literal `\n---\n`: an entry that plainly has frontmatter must not be read as having
+# none, which is one report followed by every check that needed a key cascading behind it.
+FENCE_RE = re.compile(r"^---[ \t]*\n", re.MULTILINE)
+
+
+def split_frontmatter(text):
+    """(head, body) around the frontmatter fences, or None when there are none."""
+    opening = FENCE_RE.match(text)
+    if opening is None:
+        return None
+    closing = FENCE_RE.search(text, opening.end())
+    if closing is None:
+        return None
+    return text[opening.end() : closing.start()], text[closing.end() :]
+
+
 def parse_entry(path, text=None):
     path = Path(path)
     if text is None:
@@ -649,8 +749,8 @@ def parse_entry(path, text=None):
     problems = []
     front, front_order = {}, []
     body = text
-    if text.startswith("---\n") and "\n---\n" in text[4:]:
-        head, body = text[4:].split("\n---\n", 1)
+    if (split := split_frontmatter(text)) is not None:
+        head, body = split
         for ln in head.splitlines():
             if not ln.strip():
                 continue
@@ -810,6 +910,26 @@ def git(repo, *args):
     failure and a `no` are the same thing; `git_call` is for every other caller."""
     answer = git_call(repo, *args)
     return answer.out if answer.ok else None
+
+
+def git_bytes(repo, *args):
+    """stdout of a git command in `repo` as raw bytes, or None on failure.
+
+    `git_call` decodes, and decoding runs the bytes through universal newlines: a blob
+    committed with CRLF comes back with LF and compares equal to a working file that has
+    been rewritten. For the frozen-region check that comparison is the whole point, so
+    this is the one reader that never touches what it read.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True,
+            timeout=GIT_TIMEOUT,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    return out.stdout if out.returncode == 0 else None
 
 
 def git_available():

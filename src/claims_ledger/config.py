@@ -46,7 +46,15 @@ DEFAULT_ROSTER = "ROSTER.md"
 # section really has: `^(?:def|class)[ \t]+{name}\b` treats a top-level Python
 # definition as one section, while allowing leading whitespace would end that section at
 # the first nested definition and leave everything after it uncompared.
-DEFAULT_SECTION_PATTERN = r"^#+\s*{name}\s*$"
+#
+# A pattern that can nest says so with a group named `depth`: a match whose `depth` is
+# longer than the header's is a subsection of it rather than the start of the next one.
+# Without that group every match ends the section, which is what a flat pattern wants.
+# The Markdown default nests, because `## Observation` is not ended by `### Detail` under
+# it — a default that could not say so would leave every subsection of a pinned section
+# outside the comparison, and `#+` cannot be anchored to one depth the way a hand-written
+# pattern can.
+DEFAULT_SECTION_PATTERN = r"^(?P<depth>#+)\s*{name}\s*$"
 NAME_SLOT = "{name}"
 # What the name slot becomes when the question is "where does the next section start":
 # some name, not this one. Kept off `.` so a pattern anchored with `$` cannot run on.

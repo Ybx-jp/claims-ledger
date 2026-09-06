@@ -1064,7 +1064,10 @@ narrow — `workflow_dispatch` accepts a *tag* ref and therefore can publish, wh
 defensible, but the workflow's own comment reads as though dispatch cannot publish at all.
 Fix the comment or the condition; do not leave them disagreeing.
 
-## Disposition of the fifth pass — open
+## Disposition of the fifth pass — closed
+
+Written before the fixes, as the fourth pass's was. What follows the horizontal rule below
+was added after them.
 
 **Nothing here is fixed.** As with the fourth pass, this section is written before the
 fixes. The thirty-one tests are strict xfails so the suite fails the moment a fix lands
@@ -1086,3 +1089,99 @@ Three notes for the pass that fixes these:
   them.
 - LOW-52 is a **returning defect**. When it is fixed this time, the fix is a test, not an
   edit.
+
+---
+
+## Closing the fifth pass — 2026-09-06
+
+**All twenty-four findings are fixed.** The thirty-one strict xfails are thirty-one
+passing regressions; the suite is **737 passed, 0 xfailed**, the corpus is **75/75**, and
+`ruff`, `ruff format` and `ty` are clean. Both the wheel and the sdist were built and made
+to run the corpus from a clean environment in a directory that is not the checkout.
+
+No finding was rejected. Three were fixed differently from the shape the report suggested,
+and one control test had to move; each is recorded below rather than left for a later
+reader to notice.
+
+### The root the fixes shared
+
+The pass's own note said to look for it, and it was where it said. `schema.write_bytes_atomically`
+— write beside the target, `fsync`, `os.replace` — and `schema.read_text_exact` — read with
+`newline=""` so the bytes that are not being changed come back out unchanged — together
+close HIGH-39, MEDIUM-41, MEDIUM-42 and MEDIUM-43. Every write path in the package now goes
+through them: `create_entry`, `restamp`, `append_verdict`, `cmd_init`, `cmd_hook` and the
+source cache.
+
+The `is_committed` gate the report asked for is **not** what guards the two remaining
+`--write` paths, and this is the first of the three departures. `sha --write` refuses a
+committed entry because it edits the frozen region by design; `propagate --write` and
+`freshness --write` exist to append to committed entries, so the same gate would forbid
+their whole purpose. What they got instead is the property that gate was standing in for:
+`append_verdict` inserts below the APPEND marker or at the end of the file, never by the
+first `## References`, and then asserts that the bytes above the marker are unchanged
+before it writes. The invariant is checked rather than approximated.
+
+### The three departures, and the control that moved
+
+- **MEDIUM-32's fix is not `re.IGNORECASE` on `OBJECT_NAME_RE`.** The regex is gone. It was
+  a shape test standing in for a question only git can answer, and it was wrong in both
+  directions at once: it rejected an uppercase object id (MEDIUM-32) and it accepted the
+  question for `v9.9` without asking (LOW-36). `is_object_name()` now asks git about every
+  pin. Two findings, one deletion.
+- **MEDIUM-34's fix is the cheaper interim, not the blob object id.** `orphans()` asks
+  whether any commit between the pin and HEAD touched the artifact at all before calling a
+  discharge an orphan. A pin nothing has touched cannot have drifted, so the pre-emptive
+  forgery the rule exists for is still caught; an artifact that moved and moved back is a
+  discharge that was caused. Naming the blob the verdict was written against is the exact
+  answer and remains the open question `docs/FRESHNESS.md` records.
+- **HIGH-31's fix is a `depth` group, not a hard-coded `^#{1,N}`.** The section pattern is
+  configurable, so the terminator has to be too. A pattern that can nest declares it with a
+  group named `depth` and a deeper match is a subsection rather than the next section; a
+  pattern without the group ends at every match, exactly as before. `docs/FRESHNESS.md`
+  anticipated "a sibling later if a section needs its own terminator" — it arrived as a
+  group inside the pattern instead.
+- **`test_removing_the_orphaned_verdict_is_itself_a_failure` had to move.** Its middle
+  assertion was `outcomes(project) == ["fail"]` — the orphan that MEDIUM-34 says must not
+  be reported. The control's subject is the append-only guarantee, which is unchanged and
+  still fails when the verdict is taken out; that one line now asserts the fixed behaviour.
+  Two assertions in `tests/test_freshness.py` moved for HIGH-30 in the same way: the
+  `appended N contested verdict(s)` report is a `fail`, so `["fail", "flag"]` became
+  `["fail", "fail"]`.
+
+### HIGH-47, and what the corpus now claims about itself
+
+The report's qualification was right, and the fix follows it rather than the sweep's
+headline. Two of the four mutation-anchored rules had no seed and now have one — `D50`
+(a document `references` could not open) and `D51` (a ground `freshness` could not
+examine) — along with `D52` for the unseeded half of D06's class. The other two were seeds
+that passed for the wrong reason, and those were fixed in the runner: an expectation row's
+place is matched **exactly**, one row is satisfied by exactly **one** report, and a row may
+name a substring of the report's `message` for a rule the place alone does not identify.
+`D17` and `D19` were rewritten to name their rules.
+
+What did **not** happen is a seed per surviving mutant. The corpus README's claim to one
+was false, and the honest fix was to correct the claim: the corpus proves the semantic
+classes and every rule about not silently passing, the unit suite holds the
+well-formedness guards, and two rules — the `--write` reports of `propagate` and
+`freshness` — are unreachable from the corpus by construction, since the runner binds both
+checkers with `write=False`. All three statements are now in `corpus/README.md`.
+
+### The standing thread, and LOW-52
+
+`harden-release-publication-gates` is closed. The residue the pass named — a
+`workflow_dispatch` that can publish from a tag while the comment read as though it could
+not — is a comment that now says what the condition does. Both workflows pin every action
+to a commit, and the sdist is proven from a clean environment beside the wheel.
+
+LOW-52 was a returning defect, so its fix is the test that was already written for it:
+`test_the_changelog_has_no_unreleased_section_at_the_current_version`. The version is
+`0.2.0` — a fifth checker is a feature — and the section that was `[Unreleased]` is now
+`[0.2.0]`.
+
+### One thing this pass's fixes changed that no finding asked for
+
+`ruff` excludes `.qe` and `src/claims_ledger/corpus/seeds`. The first because reformatting
+a Python snippet inside a finding would edit the record of what an agent ran; the second
+because `D50`'s document is deliberately not UTF-8, and a formatter that reads every file
+cannot read it. `ty` already excluded the seeds for the same reason. Without this,
+`ruff format --check .` — which CI runs — exits 2 on the tree the pass itself committed.

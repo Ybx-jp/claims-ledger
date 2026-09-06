@@ -5,23 +5,23 @@ independent and append-only *when they complete*. This file is about the other c
 write that is interrupted, a write onto a file that is not quite what the writer assumed,
 and a write whose bytes are not the bytes that came in.
 
-Three things are established here that the rest of the suite does not reach.
+Three things are established here that the rest of the suite does not reach. Each was a
+defect of the fifth QE pass and is now the regression that holds its fix.
 
-1. No write path in the package uses a temporary file and a rename. `create_entry`,
-   `restamp`, `append_verdict`, `cmd_init` and `cmd_hook` all truncate the destination
-   before they know they can fill it, so a write that fails destroys what it was
-   appending to. The interruption is produced with a real `RLIMIT_FSIZE` in a child
-   process — a resource limit the kernel enforces, not a patched internal.
+1. Every write path goes through a temporary file and a rename. `create_entry`,
+   `restamp`, `append_verdict`, `cmd_init` and `cmd_hook` each used to truncate the
+   destination before they knew they could fill it, so a write that failed destroyed what
+   it was appending to. The interruption is produced with a real `RLIMIT_FSIZE` in a
+   child process — a resource limit the kernel enforces, not a patched internal.
 
-2. The `--write` paths read with `read_text` and write with `write_text`, both in text
-   mode with universal newlines, so a file whose line endings are not LF has every one of
-   its lines rewritten by an append that was supposed to add three. `check_history`
-   cannot see it, because `git_call` also runs `subprocess.run(text=True)` and translates
-   the blob's newlines the same way: the frozen region is not compared as bytes.
+2. The bytes that go in come back out. The `--write` paths read and write with universal
+   newlines, so a file whose line endings were not LF had every one of its lines rewritten
+   by an append that was supposed to add three — and `check_history` could not see it,
+   because `git_call` runs `subprocess.run(text=True)` and translated the blob's newlines
+   the same way, so the frozen region was not compared as bytes on either side.
 
-3. `source add` appends to `sources.jsonl` with `open("a")` and never checks that what is
-   already there ends in a newline, and it keeps a cache file that already exists without
-   asking whether it hashes to its own name.
+3. `source add` appends a line to `sources.jsonl` as a line, whatever state the file was
+   left in, and stores cache bytes that hash to the name it filed them under.
 
 Everything here builds a real project under `tmp_path` through the `project` fixture and
 drives the real CLI. Nothing under `src/` or the shipped corpus is touched.
@@ -137,12 +137,6 @@ needs_rlimit = pytest.mark.skipif(
 # === bytes in, bytes out =============================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: propagate --write reads with read_text and writes with write_text, both "
-    "with universal newlines, so appending one verdict to a committed CRLF entry rewrites "
-    "every line of its immutable frozen region",
-)
 def test_propagate_write_preserves_the_committed_frozen_region_bytes(project):
     """README: the region above the APPEND marker is immutable once the entry is
     committed. An append below the marker must not touch a byte above it."""
@@ -156,12 +150,6 @@ def test_propagate_write_preserves_the_committed_frozen_region_bytes(project):
     assert frozen_bytes(path) == before
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: check_history compares `git show` output (subprocess text mode, universal "
-    "newlines) against read_text output, so the frozen region is compared as normalized "
-    "text and every byte of it can be rewritten without a failure being reported",
-)
 def test_check_catches_a_frozen_region_rewritten_to_crlf(project):
     """`check_history`'s docstring: "the region above the APPEND marker equals the blob at
     the commit that created the file". Every byte of that region changes here."""
@@ -173,11 +161,6 @@ def test_check_catches_a_frozen_region_rewritten_to_crlf(project):
     assert project.cl("check") != 0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: sha --write rewrites a CRLF entry as LF; the one line it was asked to "
-    "change is not the only line it changes",
-)
 def test_sha_write_preserves_the_files_line_endings(project):
     """`sha --write` replaces one `verbatim_sha:` line. Every other byte of the file is
     none of its business."""
@@ -237,12 +220,6 @@ def test_an_edit_inside_the_frozen_region_is_still_caught(project):
 
 
 @needs_rlimit
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: no write path uses a temp file and a rename; append_verdict truncates the "
-    "committed entry before it knows it can write the new text, and a failed append leaves "
-    "it cut off mid-verdict with its References section gone",
-)
 def test_a_failed_append_leaves_the_entry_as_it_found_it(project):
     """An append-only ledger whose append fails has appended nothing. It has not
     truncated the entry it was appending to."""
@@ -298,12 +275,6 @@ def test_a_failed_source_add_exits_cleanly_with_a_message(project, tmp_path):
 
 
 @needs_rlimit
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: register_source copies only `if not stored.exists()`, so retrying an "
-    "interrupted `source add` keeps the truncated cache file, exits 0, and writes a "
-    "registry row whose sha256 does not describe the bytes it says it stored",
-)
 def test_retrying_an_interrupted_source_add_stores_the_right_bytes(project, tmp_path):
     """`register_source`'s docstring: "a registry row without its bytes is a check that
     cannot run, so registering a source stores the bytes in the same call that writes the
@@ -333,11 +304,6 @@ def test_retrying_an_interrupted_source_add_stores_the_right_bytes(project, tmp_
 # === the source registry =============================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: source add appends with open('a') without checking for a final newline, "
-    "so it glues its row onto the previous one, destroys both, and exits 0",
-)
 def test_source_add_onto_a_registry_without_a_final_newline(project, tmp_path):
     """`sources.jsonl` is JSON lines. A row appended to it is a line, whatever state the
     file was left in by an editor, a script, or this tool's own interrupted write."""
@@ -387,12 +353,6 @@ def test_source_add_appends_cleanly_to_a_well_formed_registry(project, tmp_path)
 # === where the verdict lands =========================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: append_verdict picks its insertion point from the first `## References` "
-    "alone and never consults the APPEND marker, so on an entry whose References heading "
-    "sits above the marker it writes into the committed frozen region",
-)
 def test_propagate_write_never_writes_above_the_append_marker(project):
     """propagate.py's own docstring: the missing verdicts "are appended". Below the
     marker, which is the only place anything is ever appended."""
@@ -439,12 +399,6 @@ def test_propagate_write_twice_appends_one_verdict(project):
 # === the scaffolding write paths =====================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: cmd_sha lets the AuthoringError from one path escape the loop, so the "
-    "paths after it are never attempted and never named — a half-done run that reads as a "
-    "run that stopped where it says it stopped",
-)
 def test_sha_write_over_several_paths_does_not_silently_skip_the_rest(project, capsys):
     """Three files named on one command line are three independent writes. The one that
     could not be written is reported; the one after it must not vanish."""

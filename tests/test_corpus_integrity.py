@@ -4,10 +4,11 @@
 reproduce it. These tests ask two harder questions the first file cannot:
 
 1. **Is a seed's pass load-bearing?** A seed passes when the named checker produces the
-   named outcome at the named place. The runner never compares the report's *message*,
-   so a place that two rules both fail at is claimed by whichever rule survives. The
-   mutation tests below delete one rule from a copy of the source tree and ask the corpus
-   to notice. Where it does not, the seed's coverage claim is decoration.
+   named outcome at the named place — and a place that two rules both fail at used to be
+   claimed by whichever rule survived, because the runner compared neither the message nor
+   the place exactly. The mutation tests below delete one rule from a copy of the source
+   tree and ask the corpus to notice. Where it does not, the seed's coverage claim is
+   decoration.
 
 2. **Does a transformation that must not change the verdict change it, and does one that
    must, not?** Line endings, Unicode normalization form, frontmatter key order, Backing
@@ -58,12 +59,6 @@ def project_file(*parts):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: an empty corpus prints `0/0 seeds pass` and exits 0. The release gate "
-    "is `claims-ledger corpus` run against the installed wheel; a wheel that shipped no "
-    "seeds would pass it.",
-)
 def test_an_empty_corpus_is_not_a_pass(capsys, tmp_path):
     (tmp_path / "seeds").mkdir()
     code = corpus_run.main(["--corpus", str(tmp_path)])
@@ -71,11 +66,6 @@ def test_an_empty_corpus_is_not_a_pass(capsys, tmp_path):
     assert code != 0, out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a seed filter that matches nothing prints `0/0 seeds pass` and exits 0, "
-    "so `claims-ledger corpus D3` (for the seed named D03) is a green run over nothing.",
-)
 def test_a_filter_that_matches_nothing_is_not_a_pass(capsys):
     code = corpus_run.main(["THERE-IS-NO-SUCH-SEED"])
     out = capsys.readouterr().out
@@ -119,13 +109,6 @@ def hits_for(row, produced):
     ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: D17 and D19 each have one expectation row that two different checker "
-    "reports satisfy. The runner matches on (commit, entry, part, outcome) and never on "
-    "the message, so the row is held up by whichever rule happens to exist — see "
-    "test_the_terminal_verdict_rule_is_load_bearing_in_the_corpus.",
-)
 def test_no_expectation_row_is_satisfied_by_more_than_one_report():
     ambiguous = []
     for seed in SEEDS:
@@ -139,12 +122,6 @@ def test_no_expectation_row_is_satisfied_by_more_than_one_report():
     assert not ambiguous, ambiguous
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: D19's row `A0001 frontmatter` is a prefix of the two reports it must "
-    "distinguish (`frontmatter credence`, `frontmatter resolves_when`), and "
-    "corpus_run.matches() accepts a prefix, so either rule alone satisfies the seed.",
-)
 def test_every_expectation_row_names_the_report_place_exactly():
     loose = []
     for seed in SEEDS:
@@ -178,9 +155,11 @@ def test_no_two_seeds_are_the_same_case():
         for path in sorted(p for p in seed.rglob("*") if p.is_file()):
             if path.name == "expected.json":
                 continue
-            text = re.sub(r"[A-Z]\d{4}", "ID", path.read_text(encoding="utf-8"))
-            parts.append(path.relative_to(seed).as_posix() + "\n" + text)
-        return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+            # Bytes, so that a seed whose whole point is a document that will not decode
+            # is signed like every other one.
+            data = re.sub(rb"[A-Z]\d{4}", b"ID", path.read_bytes())
+            parts.append(path.relative_to(seed).as_posix().encode("utf-8") + b"\n" + data)
+        return hashlib.sha256(b"\n".join(parts)).hexdigest()
 
     seen = {}
     for seed in SEEDS:
@@ -269,12 +248,6 @@ def corpus_notices(tmp_path, module, anchor, replacement):
     return result.returncode != 0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: deleting `follows a terminal verdict; nothing may follow it` from "
-    "validate.py leaves the corpus at 72/72. D17 is the only seed for the class and its "
-    "one row is also satisfied by the corroborating-ground fail at the same place.",
-)
 def test_the_terminal_verdict_rule_is_load_bearing_in_the_corpus(tmp_path):
     module, anchor = TERMINAL_VERDICT_RULE
     neutered = (
@@ -286,12 +259,6 @@ def test_the_terminal_verdict_rule_is_load_bearing_in_the_corpus(tmp_path):
     assert corpus_notices(tmp_path, module, anchor, neutered)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: deleting the `requires resolves_when` fail from validate.py leaves the "
-    "corpus at 72/72. D19's row names `A0001 frontmatter`, a prefix that the credence "
-    "fail at the same entry already satisfies.",
-)
 def test_the_resolves_when_rule_is_load_bearing_in_the_corpus(tmp_path):
     module, anchor = RESOLVES_WHEN_RULE
     assert corpus_notices(
@@ -302,24 +269,11 @@ def test_the_resolves_when_rule_is_load_bearing_in_the_corpus(tmp_path):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: no seed holds freshness's `was not checked` failure. That report is the "
-    "package's reason to exist — a ground the checker could not examine must not be "
-    "reported as a ground that passed — and the corpus stays at 72/72 without it.",
-)
 def test_the_freshness_not_checked_rule_is_load_bearing_in_the_corpus(tmp_path):
     module, anchor = FRESHNESS_NOT_CHECKED_RULE
     assert corpus_notices(tmp_path, module, anchor, '                    "",\n')
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: no seed holds references's report for a document that could not be "
-    "opened. That is the third pass's HIGH-17 fix; it has unit tests, but the corpus — "
-    "which is what the release workflow runs against the built wheel — stays at 72/72 "
-    "with the rule removed.",
-)
 def test_the_unreadable_document_rule_is_load_bearing_in_the_corpus(tmp_path):
     module, anchor = UNREADABLE_DOCUMENT_RULE
     assert corpus_notices(tmp_path, module, anchor, "        pass\n")
@@ -330,8 +284,20 @@ def test_the_unreadable_document_rule_is_load_bearing_in_the_corpus(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def is_text(path):
+    """Whether the file is a regular file this transformation can be applied to at all.
+    D50's document is deliberately not UTF-8 — rewriting its line endings or its
+    normalization form is not a transformation that says nothing new, it is a different
+    file."""
+    try:
+        path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return False
+    return True
+
+
 def seed_markdown(corpus):
-    return [p for p in (corpus / "seeds").rglob("*.md")]
+    return [p for p in (corpus / "seeds").rglob("*.md") if p.is_file() and is_text(p)]
 
 
 def to_crlf(corpus):
@@ -453,6 +419,8 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
         if seed.name == FINGERPRINT_NAMES_AN_ID:
             continue
         for path in sorted(p for p in seed.rglob("*") if p.is_file()):
+            if not is_text(path):
+                continue  # no id in it to rename, and nothing that reads it decodes it
             text = path.read_text(encoding="utf-8")
             renamed = ENTRY_ID.sub(bump, text)
             if renamed != text:
@@ -467,13 +435,6 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
     assert f"{len(SEEDS)}/{len(SEEDS)} seeds pass" in out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: `--- ` (a trailing space on the frontmatter fence) is read as no "
-    "frontmatter at all. schema.py splits on the literal `\\n---\\n`, so an entry that "
-    "plainly has frontmatter is reported as having none, plus eight cascading `None` "
-    "errors. YAML permits trailing space after a document marker and editors add it.",
-)
 def test_a_frontmatter_fence_with_trailing_whitespace_is_still_frontmatter(capsys, tmp_path):
     corpus = copy_corpus(tmp_path)
     for path in (corpus / "seeds" / "K01-measured-claim").rglob("*.md"):
@@ -492,24 +453,12 @@ def test_a_frontmatter_fence_with_trailing_whitespace_is_still_frontmatter(capsy
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: D45–D49 and K19–K23 — every freshness seed — appear nowhere in the "
-    "corpus README. Its Coverage table and known-good list stop at K18, while the same "
-    "file claims a seed for every rule the schema's structure creates.",
-)
 def test_every_seed_is_named_in_the_corpus_readme():
     readme = (CORPUS / "README.md").read_text(encoding="utf-8")
     missing = [n for n in SEED_NAMES if not re.search(rf"\b{n.split('-')[0]}\b", readme)]
     assert not missing, missing
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: README.md says the corpus is 70 seeds, in prose twice and in a "
-    "transcript of the command's output once. It is 72, and README.md is the package's "
-    "PyPI long description.",
-)
 def test_the_readme_seed_count_is_the_seed_count():
     readme = project_file("README.md").read_text(encoding="utf-8")
     wrong = sorted(
@@ -529,13 +478,6 @@ def test_the_version_is_the_same_in_every_place_it_is_written():
     assert f"[{claims_ledger.__version__}]: https://" in changelog
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: CHANGELOG.md carries an `## [Unreleased]` section whose whole content — "
-    "the freshness checker and ten seeds — is already in the tree, and therefore in any "
-    "wheel built today, which calls itself 0.1.0. The third pass fixed exactly this and "
-    "nothing stopped it coming back.",
-)
 def test_the_changelog_has_no_unreleased_section_at_the_current_version():
     changelog = project_file("CHANGELOG.md").read_text(encoding="utf-8")
     assert "## [Unreleased]" not in changelog
@@ -571,12 +513,6 @@ def test_a_tag_runs_the_whole_suite_before_anything_is_built():
     assert "needs: build" in text
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: release.yml proves only the wheel from a clean environment; the sdist is "
-    "uploaded to PyPI having been `twine check`ed and nothing more. An sdist is what pip "
-    "falls back to wherever wheels are refused.",
-)
 def test_the_sdist_is_proven_from_a_clean_environment_too():
     text = release_yml()
     build = text[text.index("\n  build:") : text.index("\n  publish:")]
@@ -584,12 +520,6 @@ def test_the_sdist_is_proven_from_a_clean_environment_too():
     assert "tar.gz" in proof, "no clean-environment install of the sdist"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: every `uses:` is a mutable ref, including "
-    "`pypa/gh-action-pypi-publish@release/v1` — a branch — in the one job holding "
-    "`id-token: write` and the pypi environment.",
-)
 def test_every_action_the_release_uses_is_pinned_to_a_commit():
     unpinned = [
         line.strip()
@@ -604,7 +534,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 72
+    assert len(SEEDS) == 75
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name

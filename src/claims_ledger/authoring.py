@@ -12,10 +12,11 @@ run, so registering a source stores the bytes in the same call that writes the r
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import os
 import re
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +31,9 @@ from .schema import (
     load_entries,
     load_registry,
     parse_entry,
+    read_text_exact,
+    write_bytes_atomically,
+    write_text_atomically,
 )
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -185,7 +189,7 @@ def create_entry(ledger, slug, **kwargs):
         if path.exists():
             raise AuthoringError(f"{path} already exists")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(render_entry(ident, slug, **kwargs), encoding="utf-8")
+        write_text_atomically(path, render_entry(ident, slug, **kwargs))
     except OSError as exc:
         raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return path
@@ -257,9 +261,14 @@ def restamp(ledger, path, write=False, force=False):
             "is immutable, and a new fingerprint there is a new entry. Supersede it, or pass "
             "--force if the commit is not yet pushed and you are fixing it in place."
         )
-    text = path.read_text(encoding="utf-8")
+    # Read and written with the file's own line endings: `sha --write` replaces one
+    # line, and every other byte of the entry — including the ones that say how its lines
+    # end — is none of its business. A CRLF entry rewritten as LF is a rewrite of an
+    # immutable frozen region that no checker used to be able to see.
+    text = read_text_exact(path)
     new, n = re.subn(
-        rf"^verbatim_sha: {re.escape(declared)}$",
+        # The trailing `\r` of a CRLF line is looked at and left alone.
+        rf"^verbatim_sha: {re.escape(declared)}(?=\r?$)",
         f"verbatim_sha: {computed}",
         text,
         count=1,
@@ -269,7 +278,7 @@ def restamp(ledger, path, write=False, force=False):
         raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
     refuse_to_write_outside_the_root(ledger, path)
     try:
-        path.write_text(new, encoding="utf-8")
+        write_text_atomically(path, new)
     except OSError as exc:
         raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return declared, computed, True
@@ -337,22 +346,60 @@ def register_source(
         stored = ledger.cache / digest
         try:
             ledger.cache.mkdir(parents=True, exist_ok=True)
-            if not stored.exists():
-                shutil.copyfile(bytes_path, stored)
+            # The cache is content-addressed, so a file already under this name should be
+            # these bytes — but an interrupted `source add` leaves one that is not, and
+            # trusting the name meant the retry exited 0 over bytes it never wrote and
+            # wrote a row whose sha256 described nothing on disk. The bytes are checked,
+            # and the copy goes through a temporary name so a second interruption cannot
+            # leave a third state.
+            if not stored.exists() or hashlib.sha256(stored.read_bytes()).hexdigest() != digest:
+                write_bytes_atomically(stored, data)
         except OSError as exc:
             raise AuthoringError(
                 f"cannot store the bytes at {ledger.config.relative(stored)} "
                 f"({exc.strerror or exc})"
             ) from exc
 
-    # A read-only ledger directory is an ordinary condition — a shared checkout, a
-    # directory owned by someone else — and not one to ask for a bug report over.
+    append_registry_row(ledger, row)
+    return row, stored
+
+
+def append_registry_row(ledger, row):
+    """One JSON line onto `sources.jsonl`, as a line.
+
+    The registry is JSON lines, and a line needs a newline before it. Appended without
+    one — after an editor, a script, or this command's own interrupted write left the
+    file without a final newline — the new row was glued onto the previous one, both were
+    destroyed, every later command exited 2 with `not a JSON object`, and the run that
+    did it printed `registered …` and exited 0.
+
+    A write that fails partway is undone rather than left: the file is put back to the
+    length it had, so a registry this command could not extend is still a registry. A
+    read-only ledger directory is an ordinary condition — a shared checkout, a directory
+    owned by someone else — and not one to ask for a bug report over.
+    """
+    addition = json.dumps(row, ensure_ascii=False) + "\n"
     try:
         ledger.registry.parent.mkdir(parents=True, exist_ok=True)
-        with ledger.registry.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        size = ledger.registry.stat().st_size if ledger.registry.exists() else 0
+        if size and not _ends_in_a_newline(ledger.registry):
+            addition = "\n" + addition
+        try:
+            with ledger.registry.open("a", encoding="utf-8") as fh:
+                fh.write(addition)
+        except OSError:
+            with contextlib.suppress(OSError), ledger.registry.open("r+b") as fh:
+                fh.truncate(size)
+            raise
     except OSError as exc:
         raise AuthoringError(
             f"cannot append to {ledger.config.relative(ledger.registry)} ({exc.strerror or exc})"
         ) from exc
-    return row, stored
+
+
+def _ends_in_a_newline(path):
+    """The last byte of a non-empty file, read as one byte rather than as the whole
+    registry: a project with thousands of sources appends to this file every time."""
+    with path.open("rb") as fh:
+        fh.seek(-1, os.SEEK_END)
+        return fh.read(1) == b"\n"

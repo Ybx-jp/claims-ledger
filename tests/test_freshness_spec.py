@@ -4,14 +4,13 @@ Fifth-pass QE, the `freshspec` dimension. Every case builds a real repository an
 real commits: the checker's whole subject is what git says about two revisions of a file,
 so nothing here patches git, the filesystem or the package.
 
-Each strict xfail names the sentence of the specification it holds the code to. The
-controls beside them are not decoration — they are what keeps a fix from being a
-weakening, and they record which surfaces were examined and found clean.
+Each test names the sentence of the specification it holds the code to. Nine of them were
+strict xfails when this file was written by the fifth QE pass and are the regressions for
+its findings; the controls beside them are not decoration — they are what kept the fixes
+from being weakenings, and they record which surfaces were examined and found clean.
 """
 
 import subprocess
-
-import pytest
 
 from claims_ledger import freshness, resolve, validate
 from claims_ledger.schema import exit_code, open_ledger
@@ -128,11 +127,6 @@ def test_a_verdict_naming_the_same_section_still_discharges_it(project):
     assert outcomes(project) == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: has_acknowledged() compares type/target/pin and not section, so one "
-    "verdict discharges every ground pointing at the same file and pin",
-)
 def test_a_verdict_naming_one_section_does_not_discharge_another(project):
     """`§ "<section>"` is part of a pointer's identity everywhere else in this checker —
     `scoped()` compares only that span, `orphans()` looks the pointer up by its raw text,
@@ -158,11 +152,6 @@ def test_a_verdict_naming_one_section_does_not_discharge_another(project):
 # --- --write and the exit code -----------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a --write run whose only findings are `moved` appends verdicts to the "
-    "ledger and exits 0; docs/FRESHNESS.md requires the run to exit non-zero afterwards",
-)
 def test_write_over_a_moved_ground_still_exits_non_zero(project):
     """docs/FRESHNESS.md: "so `freshness --write` appends it, and — following `propagate`
     — the run still exits non-zero afterwards so the appended text is looked at before it
@@ -208,12 +197,6 @@ def test_an_edit_directly_under_the_named_heading_is_still_caught(project):
     assert "section 'Observation'" in message
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: the default section pattern's terminator `^#+` matches a heading at any "
-    "depth, so a `###` subsection ends its parent `##` section and everything under it "
-    "is outside the comparison",
-)
 def test_an_edit_under_a_subheading_of_the_named_section_is_a_moved_ground(project):
     """docs/FRESHNESS.md documents the anchoring caveat for a *configured* pattern and
     says to "anchor at the granularity the section really has". The shipped Markdown
@@ -248,11 +231,6 @@ def test_a_duplicated_heading_compares_only_the_first(project):
 # --- what a pin is -----------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: OBJECT_NAME_RE is lowercase-only, so an uppercase object id is reported "
-    "as an unstable pin — git resolves it and resolve accepts it",
-)
 def test_an_uppercase_object_id_pin_is_not_a_name(project):
     """docs/FRESHNESS.md step 1: an unstable pin is one `git rev-parse
     --symbolic-full-name` names. Git resolves an uppercase object id and prints no
@@ -275,11 +253,6 @@ def test_an_uppercase_object_id_pin_is_not_a_name(project):
     assert outcomes(project) == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: an uppercase object id is short-circuited as an unstable pin, so the "
-    "artifact behind it is never compared at all — a deleted ground is never reported",
-)
 def test_a_withdrawn_ground_under_an_uppercase_pin_is_still_reported(project):
     """The severity of the previous test. `drift()` reports and stops for an unstable
     pin, so the flag is not merely wrong wording: the ground is never looked at."""
@@ -291,11 +264,6 @@ def test_a_withdrawn_ground_under_an_uppercase_pin_is_still_reported(project):
     assert [o for o, _, _ in outcomes(project)] == ["fail"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a non-hex pin that names nothing is reported as an unstable pin, so one "
-    "defect is reported under two names — resolve already fails it as unresolvable",
-)
 def test_a_named_pin_that_names_nothing_is_not_an_unstable_pin(project):
     """docs/FRESHNESS.md step 1: "`git rev-parse --symbolic-full-name <pin>` — **non-empty
     output** means unstable pin". For `v9.9` git prints nothing and exits non-zero, so
@@ -335,12 +303,6 @@ def test_an_annotated_tag_pin_is_an_unstable_pin(project):
 # --- --cached ----------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: freshness.run() takes no `cached` argument, so `check --cached` compares "
-    "the working tree while the rest of the run reads the index; a staged drift the "
-    "working tree does not carry is reported as 0 failures, 0 flags",
-)
 def test_cached_compares_the_index_not_the_working_tree(project, capsys):
     """docs/FRESHNESS.md, "The comparison, exactly", step 3: "The artifact as this run
     reads it: `git hash-object <path>` on the working tree, **or the index blob under
@@ -380,12 +342,6 @@ def test_check_without_cached_reads_the_working_tree(project, capsys):
 # --- the orphan rule ---------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: undoing the edit that caused a discharge turns the discharge into an "
-    "orphan failure that no legal edit can clear — removing the verdict fails the "
-    "append-only check",
-)
 def test_a_reverted_drift_does_not_wedge_the_ledger(project):
     """docs/FRESHNESS.md justifies the orphan rule as stopping a *pre-emptive* forgery:
     "Otherwise the discharge is forgeable by writing the verdict pre-emptively." A
@@ -407,15 +363,16 @@ def test_a_reverted_drift_does_not_wedge_the_ledger(project):
 
 
 def test_removing_the_orphaned_verdict_is_itself_a_failure(project):
-    """Why the one above is a wedge and not an inconvenience. Recorded as a control: the
-    append-only guarantee is correct and must not be relaxed to make room for a fix."""
+    """Why the one above had to be fixed in `orphans()` and not by letting the verdict be
+    taken out again. Recorded as a control: the append-only guarantee is correct and must
+    not be relaxed to make room for a fix."""
     path, _ = build(project, ["experiment: docs/note-001.md @{pin}"])
     note(project, NOTE.replace("0.04", "0.09"))
     freshness.run(open_ledger(root=project.root), write=True)
     project.git("add", "-A")
     project.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
     note(project, NOTE)
-    assert [o for o, _, _ in outcomes(project)] == ["fail"]
+    assert outcomes(project) == []  # the discharge is not an orphan; the drift happened
     text = path.read_text(encoding="utf-8")
     path.write_text(
         text[: text.index("- 20", text.index("## Verdicts"))] + text[text.index("## References") :],
@@ -455,11 +412,6 @@ def test_a_glob_metacharacter_in_a_path_is_still_compared(project):
     assert [o for o, _, _ in outcomes(project)] == ["flag"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: the artifact path is passed to `git diff` as a pathspec, so a different "
-    "file matching it as a glob is reported as this ground's drift",
-)
 def test_a_decoy_matching_the_pathspec_glob_is_not_this_grounds_drift(project):
     """`docs/note1.md` is not `docs/note[1].md` and no claim rests on it. The checker
     reports the untouched ground as moved because git read the path as a wildcard. A

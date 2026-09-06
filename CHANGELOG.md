@@ -11,7 +11,7 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [0.2.0] — 2026-09-06
 
 ### Added
 
@@ -26,8 +26,8 @@ change to what it expects would dissolve the argument.
   a difference matters. A `contested` verdict by the propagation author naming the
   pointer discharges the finding, `--write` appends it, and a verdict naming a ground
   that has not drifted is an orphan and fails. The specification is `docs/FRESHNESS.md`.
-- Eight corpus seeds for it — `D45`–`D48`, `K19`–`K22` — bringing the corpus to 70.
-  Every one was falsified by deleting the rule it covers and re-running the corpus.
+- Eight corpus seeds for it — `D45`–`D48`, `K19`–`K22`. Every one was falsified by
+  deleting the rule it covers and re-running the corpus.
 - History seeds may write `@commit01` in an entry; the runner substitutes that commit's
   real short object id before the state is committed. A seed cannot name an object the
   runner has not created yet, and drift, like immutability, is a property of history.
@@ -41,7 +41,7 @@ change to what it expects would dissolve the argument.
   compares only the named section, so an edit elsewhere in the artifact is no longer
   drift. A pattern that does not compile, does not mention `{name}`, or names a type that
   is not sectioned is refused where the configuration is read.
-- Two more seeds, `D49` and `K23`, bringing the corpus to 72.
+- Two more seeds, `D49` and `K23`.
 - A drifted ground in an uncommitted working tree says so, rather than reporting that
   `0 commits have touched it` — which, of a file the author is editing right now, reads
   as a checker that has lost track of its own subject.
@@ -96,6 +96,82 @@ change to what it expects would dissolve the argument.
   built from the same in-memory text, so the second overwrote the first — an entry citing
   two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by
   entry and written once. Found while building `freshness`, which would have inherited it.
+- **Every write is a temp file and a rename** — the fifth adversarial pass, `QE-AUDIT.md`
+  HIGH-39 … LOW-52. `create_entry`, `restamp`, `append_verdict`, `cmd_init` and `cmd_hook`
+  each truncated their destination before knowing they could fill it, so a write that
+  failed partway — a full disk, a quota, a resource limit — left a committed entry cut off
+  mid-verdict with its `## References` gone. The diagnostic was already right; the state
+  left behind was not.
+- **A `--write` no longer rewrites the frozen region of a CRLF entry, and `check` can see
+  it if anything does.** The write paths read and wrote through universal newlines, so
+  appending three lines to an entry committed with CRLF rewrote all forty above the APPEND
+  marker — and `check_history` compared `git show`'s decoded output against decoded text,
+  so the "compared as bytes" immutability check could not see a newline change on either
+  side. The write paths keep the file's own endings; the frozen region is compared as
+  bytes as well as as sections. `append_verdict` also chooses its insertion point below
+  the APPEND marker rather than by the first `## References`, which on a layout `validate`
+  rejects put the verdict inside the frozen region, and refuses the write outright if the
+  bytes above the marker would change.
+- **`source add` writes a line as a line.** Onto a `sources.jsonl` with no final newline it
+  glued its row onto the previous one, destroyed both, printed `registered …` and exited 0,
+  and every later command exited 2 with `not a JSON object`. A failed append is now rolled
+  back to the length the file had. Retrying an interrupted `source add` also kept the
+  truncated cache file — `if not stored.exists()` trusted the name of a content-addressed
+  file — and exited 0 over bytes it never wrote; the bytes are checked against the digest.
+- **`sha --write a b c` no longer stops at the first path it cannot write.** Each path is
+  its own write, and the ones after a refusal were neither attempted nor named.
+- **`freshness`:** a discharge verdict names a section, so one verdict no longer silences
+  every ground on the same file and pin; `--write` exits non-zero, so the verdicts it
+  appends are looked at before they are committed; `--cached` reaches it, so
+  `check --cached` compares the index the commit will carry rather than the working tree;
+  an uppercase object id is an object id and a `@v9.9` that names nothing is `resolve`'s
+  finding, because git is now asked about every pin rather than only the hex-shaped ones;
+  paths reach `git diff` as `:(literal)` pathspecs, so an edit to `docs/note1.md` is not
+  reported as drift in `docs/note[1].md`; and undoing an edit no longer turns the
+  checker's own discharge into an orphan failure that no legal edit could clear.
+- **A `###` subsection no longer ends its parent `##` section.** The shipped default
+  section pattern ended a section at a heading of *any* depth, so a claim's own evidence
+  could be inverted under a subheading with `resolve` and `freshness` both green — and a
+  project that had configured nothing had no anchoring available to it, because `#+` is
+  every depth. A pattern that can nest now says so with a group named `depth`.
+- **Frontmatter fences may carry trailing whitespace.** `--- ` was read as no frontmatter
+  at all, which is one report followed by every check that needed a key cascading behind
+  it. YAML permits it and editors leave it there.
+
+### Methodology
+
+Recorded as methodology changes, with the seeds named, under this file's own rule.
+
+- **The corpus runner matches a report's place exactly, and one row is satisfied by one
+  report.** A row naming a prefix of the place, or a place two rules both fail at, was held
+  up by whichever rule still existed: deleting the terminal-status rule or the
+  `resolves_when` rule from `validate` left the corpus at 72/72. A row may also name a
+  substring of the report's `message`, for a rule the place alone does not identify.
+  `D17-verdict-after-terminal`'s second verdict is `contested` rather than a bare
+  corroboration, so the terminal-status rule is the only rule failing at that place, and
+  `D19-prediction-without-credence`'s first row is split into the two rules it always
+  claimed to bind. No seed's outcome moves; what each row *proves* does.
+- **A run that checked nothing exits non-zero.** An empty corpus, or a seed filter matching
+  no seed, printed `0/0 seeds pass` and exited 0 — and that command is the release
+  workflow's proof that the built artifact still works, so a distribution that shipped no
+  seeds would have passed the gate.
+- **Three seeds**, for rules no seed held: `D50-document-that-is-not-text` (a document the
+  reference checker could not open — the third pass's HIGH-17 fix, which had unit tests and
+  no seed), `D51-pin-git-cannot-classify` (a ground the freshness checker could not
+  examine, which is this package's stated reason to exist), and
+  `D52-mid-sentence-start-without-elision` (the half of D06's class nothing covered). The
+  corpus is 75 seeds, and the corpus README now says which rules it does *not* hold up —
+  a mutation sweep found most of `validate`'s well-formedness guards survive their own
+  deletion, and the unit suite is what holds those.
+
+### Release
+
+- Every action in both workflows is pinned to a commit, including
+  `pypa/gh-action-pypi-publish@release/v1` — a mutable branch, in the one job holding
+  `id-token: write`.
+- The sdist is installed into a clean environment and made to run the corpus before
+  publication, as the wheel already was. An sdist is what pip falls back to wherever
+  wheels are refused, and `twine check` reads its metadata rather than running it.
 
 ## [0.1.0] — 2026-09-05
 
@@ -347,4 +423,5 @@ round asked of every fix which other surfaces reach the same code by a different
 - The tool does not decide whether a claim is true. See "What this does not do" in the
   README.
 
+[0.2.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0
