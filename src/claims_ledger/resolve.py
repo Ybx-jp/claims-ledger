@@ -34,6 +34,7 @@ from .schema import (
     normalize_with_map,
     parse_quote,
     read_document,
+    section_span,
     source_bytes,
 )
 
@@ -88,7 +89,7 @@ def resolve_pointer(p, e, part, index, sources, ledger):
             text = git(ledger.repo or ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:
             fail(f"{p.type}: {p.target} @{p.pin} does not resolve")
-        elif p.section and not re.search(rf"^#+\s*{re.escape(p.section)}\s*$", text, re.MULTILINE):
+        elif p.section and section_span(text, ledger.config, p.type, p.section) is None:
             fail(f"{p.target} @{p.pin} has no section {p.section!r}")
     elif p.type == "entry":
         if p.target not in index:

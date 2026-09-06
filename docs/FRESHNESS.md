@@ -254,20 +254,52 @@ latent bug that freshness would have inherited — two verdicts destined for one
 two writes from the same in-memory text, so the second silently overwrote the first. Both
 now group by entry and write once.
 
-**Stage 2 is section scoping**, and it is the answer to the noise floor. Today
-`§ "<section>"` matches a Markdown heading and nothing else — `resolve` looks for
-`^#+\s*<name>\s*$` — so a pointer at a Python function cannot be written at all. Making
-the matcher a per-type configuration value, with the current heading regex as its
-default, would let a project declare:
+**Stage 2 is section scoping**, and it is the answer to the noise floor. Before it,
+`§ "<section>"` matched a Markdown heading and nothing else — `resolve` looked for
+`^#+\s*<name>\s*$` — so a pointer at a Python function could not be written at all, and
+the drift comparison called every edit anywhere in an artifact a moved ground.
 
-    [[tool.claims-ledger.evidence]]
-    name = "code"
-    sectioned = true
-    section-pattern = '^\s*(?:def|class)\s+{name}\b'
+**Built.** A sectioned evidence type may carry a pattern:
 
-and freshness would then compare the *section's* bytes at the pin against the section's
-bytes now, so a comment elsewhere in the file stops being drift. This is a real schema
-change with its own corpus obligation and it should not be bundled into Stage 1.
+    evidence-sectioned = ["lab", "code"]
+
+    [tool.claims-ledger.section-patterns]
+    code = '^(?:def|class) +{name}'
+
+`resolve` and `freshness` read a section through the same pattern, so an entry cannot
+resolve against one span and be compared against another. Omitted, a type gets the
+Markdown heading `§` has always meant, which is why no existing ledger changes.
+
+Three things this differs from the sketch above, each for a reason:
+
+- **One `section-patterns` table, not a restructuring of `evidence` into an array of
+  tables.** The sketch was prettier and would have rewritten how every evidence type is
+  declared. This is additive: a project that writes no patterns is unaffected, and the
+  key can grow a sibling later if a section needs its own terminator.
+- **`{name}` is replaced, not formatted.** `str.format` would choke on `^#{1,3}` — regex
+  quantifiers are braces too — so the slot is a literal substring replacement and every
+  other brace in the pattern is left alone.
+- **The pattern decides both ends.** A section runs from its own header to the next match
+  of the same pattern with the name slot widened to some other name, or to the end of the
+  artifact. That needs no second configuration value, and it works for both the Markdown
+  default and a column-anchored code pattern.
+
+**The anchoring caveat is real and is documented rather than defended.** A pattern
+written as `^\s*(?:def|class)\s+{name}` — allowing leading whitespace, which is the
+obvious thing to write — ends a function at its first *nested* definition and leaves the
+rest of it uncompared. That is a silent miss, the worst kind for this package. The
+configuration comment, `SCHEMA.md` and `section_span`'s own docstring all say to anchor
+at the granularity the section really has. A checker cannot detect the mistake, because
+a pattern that matches less is indistinguishable from a section that is genuinely shorter.
+
+**What the corpus cannot prove here.** A seed is checked under `corpus_config()`, which
+is one fixed configuration for every seed; a seed cannot declare a pattern of its own. So
+the corpus proves section scoping under the default Markdown pattern — `D49` (a section
+gone from a file that remains) and `K23` (an edit outside the section) — and the custom
+pattern, the Python-definition case, is proven in `tests/test_section_scoping.py` against
+a real project and a real repository. Making seeds configurable is the honest fix and is
+not worth its cost yet; this paragraph exists so that the gap is a recorded decision
+rather than something a later reader has to notice.
 
 ## What this spec is not sure about
 

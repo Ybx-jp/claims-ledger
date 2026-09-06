@@ -28,7 +28,7 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path, PurePath
 
-from .config import Config, default_config, load_config
+from .config import ANY_NAME, NAME_SLOT, Config, default_config, load_config
 
 
 class LedgerError(Exception):
@@ -334,6 +334,34 @@ def fingerprint(scope_text, backing_blocks):
     )
     payload = "\n".join(scope) + "\n\n" + "\n".join(lines)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def section_header_re(config, type_name, section):
+    """Where the named section of an artifact of this type begins."""
+    pattern = config.section_pattern(type_name).replace(NAME_SLOT, re.escape(section))
+    return re.compile(pattern, re.MULTILINE)
+
+
+def section_span(text, config, type_name, section):
+    """(start, end) of the named section in `text`, or None when it is not there.
+
+    The section runs from its own header to wherever the next one begins — the same
+    pattern with the name slot widened to some other name — or to the end of the
+    artifact. One pattern therefore decides both ends, and a pattern anchored too loosely
+    ends the section early and leaves the rest of it uncompared, which is why the
+    configuration documents where to anchor.
+    """
+    head = section_header_re(config, type_name, section).search(text)
+    if head is None:
+        return None
+    pattern = config.section_pattern(type_name).replace(NAME_SLOT, ANY_NAME)
+    nxt = re.compile(pattern, re.MULTILINE).search(text, head.end())
+    return head.start(), nxt.start() if nxt else len(text)
+
+
+def section_text(text, config, type_name, section):
+    span = section_span(text, config, type_name, section)
+    return None if span is None else text[span[0] : span[1]]
 
 
 # --- pointers ------------------------------------------------------------------

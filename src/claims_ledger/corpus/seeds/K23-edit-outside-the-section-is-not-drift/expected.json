@@ -1,0 +1,13 @@
+{
+  "class": "an artifact that moved outside the section the claim names",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the artifact changed and the claim's section did not; a whole-file comparison would report this, and reporting it is the noise that gets a checker switched off"
+    }
+  ],
+  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

@@ -41,6 +41,8 @@ from .schema import (
     git,
     git_problem,
     load_entries,
+    read_document,
+    section_text,
 )
 
 # A pin that names an object rather than a name that follows the work. Git will resolve
@@ -96,7 +98,33 @@ def verdict_block(grade, pointer, note, author):
     )
 
 
-def drift(repo, pointer, tree):  # `tree` is the repository's working tree
+def scoped(repo, pointer, path, config):
+    """Whether the pointer's own section moved, for a pointer that names one.
+
+    The artifact changed; the question this answers is whether the change was inside the
+    section the claim actually rests on. `None` means the section is untouched and the
+    edit was somewhere else in the file — the whole reason for naming a section.
+    `withdrawn` means the file is still there and the section is not.
+
+    A side that cannot be read as text is not a finding of its own: the artifact did
+    change, and `moved` is what the comparison already said before sections narrowed it.
+    """
+    was = git(repo, "show", f"{pointer.pin}:{pointer.target}")
+    now = read_document(path)[0]
+    if was is None or now is None:
+        return "moved"
+    before = section_text(was, config, pointer.type, pointer.section)
+    after = section_text(now, config, pointer.type, pointer.section)
+    if before is None:
+        # The section was never there at the pin. `resolve` fails on that; saying it
+        # again here would make one defect look like two.
+        return None
+    if after is None:
+        return "withdrawn"
+    return None if before == after else "moved"
+
+
+def drift(repo, pointer, tree, config):  # `tree` is the repository's working tree
     """(finding, detail) for one pointer, or (None, None) when the ground is fresh.
 
     `finding` is `unstable-pin`, `withdrawn` or `moved`. A pin or a path that does not
@@ -108,19 +136,28 @@ def drift(repo, pointer, tree):  # `tree` is the repository's working tree
     if git(repo, "rev-parse", "--verify", f"{pointer.pin}:{pointer.target}") is None:
         return None, None
     path = tree / pointer.target
+
+    def since():
+        """Only asked once something has drifted: it walks history, and the answer is for
+        the message rather than for the finding."""
+        out = git(repo, "rev-list", "--count", f"{pointer.pin}..HEAD", "--", pointer.target)
+        return (out or "").strip()
+
     if not path.is_file():
         # Deleted, or replaced by something that is not a file to read. Either way there
         # is nothing left for a person to look at and judge.
-        since = git(repo, "rev-list", "--count", f"{pointer.pin}..HEAD", "--", pointer.target)
-        return "withdrawn", (since or "").strip()
+        return "withdrawn", since()
     # git's own comparison of the pin's tree against the working tree, so that whatever
     # the repository does to a file on its way in and out — line endings, clean filters —
-    # is done to both sides. Empty output means the path is unchanged there.
+    # is done to both sides. Empty output means the path is unchanged there, and no
+    # section inside it can have moved either, so the text is never read.
     changed = git(repo, "diff", "--name-only", pointer.pin, "--", pointer.target)
     if changed is None or not changed.strip():
         return None, None
-    since = git(repo, "rev-list", "--count", f"{pointer.pin}..HEAD", "--", pointer.target)
-    return "moved", (since or "").strip()
+    if pointer.sectioned:
+        finding = scoped(repo, pointer, path, config)
+        return (finding, since()) if finding else (None, None)
+    return "moved", since()
 
 
 def commits_phrase(count):
@@ -166,7 +203,7 @@ def run(ledger, write=False):
             # same reason.
             continue
         part = f"Grounds {i}"
-        finding, detail = drift(repo, p, repo)
+        finding, detail = drift(repo, p, repo, config)
         if finding is None:
             continue
         if finding == "unstable-pin":
@@ -182,14 +219,20 @@ def run(ledger, write=False):
             continue
         if has_acknowledged(e, p, author):
             continue
+        where = f"section {p.section!r}" if p.sectioned else "it"
         if finding == "withdrawn":
+            gone = (
+                f"section {p.section!r} is no longer in `{p.target}`"
+                if p.sectioned and (repo / p.target).is_file()
+                else f"`{raw}` is not in the working tree"
+            )
             reports.append(
                 Report(
                     "fail",
                     e.prefix,
                     part,
-                    f"`{raw}` is not in the working tree; {commits_phrase(detail)} touched "
-                    f"it since the pin, and the ground it names is gone",
+                    f"{gone}; {commits_phrase(detail)} touched the artifact since the pin, "
+                    "and the ground it names is gone",
                 )
             )
             note = "propagated from a withdrawn ground"
@@ -199,7 +242,7 @@ def run(ledger, write=False):
                     "flag",
                     e.prefix,
                     part,
-                    f"`{raw}` has moved: {commits_phrase(detail)} touched it since the pin",
+                    f"`{raw}` has moved: {commits_phrase(detail)} touched {where} since the pin",
                 )
             )
             note = "propagated from a moved ground"
@@ -235,7 +278,7 @@ def orphans(entries, config, repo, tree, author):
             ground = pointers.get(q.raw)
             if ground is None:
                 why = f"{e.id} carries no such ground"
-            elif drift(repo, ground, tree)[0] in (None, "unstable-pin"):
+            elif drift(repo, ground, tree, config)[0] in (None, "unstable-pin"):
                 why = "that ground has not drifted"
             else:
                 continue

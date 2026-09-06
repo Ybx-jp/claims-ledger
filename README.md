@@ -170,6 +170,15 @@ document-excludes = []
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
+# How a sectioned type finds its section. `{name}` is the only substitution; the rest is
+# an ordinary regex, matched line by line. Omitted, a type gets the Markdown heading that
+# `§` always meant. A section runs from its own header to the next one, so anchor the
+# pattern at the granularity the section really has — allowing leading whitespace in the
+# Python pattern below would end a function at its first nested definition and leave the
+# rest of it uncompared.
+[tool.claims-ledger.section-patterns]
+code = '^(?:def|class)[ \t]+{name}\b'
+
 verdict-authors = ["main", "propagation"]
 propagation-author = "propagation"   # the name machinery writes under
 

@@ -74,6 +74,12 @@ documents = ["*.md", "docs/*.md"]
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
+# How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
+# Markdown heading. A section runs from its own header to the next one, so anchor the
+# pattern at the granularity the section really has.
+# [tool.claims-ledger.section-patterns]
+# code = '^(?:def|class) +{{name}}'
+
 # Who may write a verdict, and which of those names the machinery writes under.
 verdict-authors = ["main", "propagation"]
 propagation-author = "propagation"

@@ -99,7 +99,14 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   `entry: <id> · <act>` · `source: <registry id> · <locator>` ·
   `search: corpus=…; query="…"; date=…`. The first two are evidence pointers and their
   names are the project's — `lab` and `experiment` are the defaults, a project may
-  declare `run`, `journal`, `notebook` instead, sectioned or plain. An absence claim
+  declare `run`, `journal`, `notebook`, `code` instead, sectioned or plain. What `§`
+  finds is the project's too: `section-patterns` gives a sectioned type a regex carrying
+  a `{name}` slot, defaulting to the Markdown heading `§` has always meant, so a claim
+  can rest on a named function of a source file as readily as on a heading of a note. The
+  section runs from its own header to wherever the next one begins, so a pattern anchored
+  too loosely ends it early; `resolve` and `freshness` read it through the same pattern,
+  and a pattern that does not compile or does not mention `{name}` is refused where the
+  configuration is read rather than at the first entry that uses it. An absence claim
   carries a `search:` ground instead of a positive pointer. The citation acts are
   `cites-as-live` (target open or corroborated), `cites-as-contested` (target
   contested), `cites-as-fallen` (any status; the only act legal against a fallen

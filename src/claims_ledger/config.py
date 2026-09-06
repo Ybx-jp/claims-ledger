@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import re
 import tomllib
 from pathlib import Path
 
@@ -33,6 +34,23 @@ DEFAULT_EVIDENCE_PLAIN = ("experiment",)
 DEFAULT_VERDICT_AUTHORS = ("main", "propagation")
 DEFAULT_PROPAGATION_AUTHOR = "propagation"
 DEFAULT_ROSTER = "ROSTER.md"
+
+# How a `§ "<section>"` pointer finds its section in the artifact it names. `{name}` is
+# the only substitution: it is replaced with the section name, escaped, and everything
+# else is an ordinary Python regular expression matched with re.MULTILINE. The default is
+# a Markdown heading, which is what every sectioned type meant before this was
+# configurable.
+#
+# A section runs from its own header to the next line matching the same pattern with the
+# name slot widened, so the pattern decides both ends. Anchor it at the granularity the
+# section really has: `^(?:def|class)[ \t]+{name}\b` treats a top-level Python
+# definition as one section, while allowing leading whitespace would end that section at
+# the first nested definition and leave everything after it uncompared.
+DEFAULT_SECTION_PATTERN = r"^#+\s*{name}\s*$"
+NAME_SLOT = "{name}"
+# What the name slot becomes when the question is "where does the next section start":
+# some name, not this one. Kept off `.` so a pattern anchored with `$` cannot run on.
+ANY_NAME = "[^\n]+?"
 
 
 class ConfigError(Exception):
@@ -55,6 +73,9 @@ class Config:
     archived_prefixes: tuple = ()
     evidence_sectioned: tuple = DEFAULT_EVIDENCE_SECTIONED
     evidence_plain: tuple = DEFAULT_EVIDENCE_PLAIN
+    # ((type name, pattern), …) rather than a dict, because a Config is frozen and is
+    # compared and hashed as a whole.
+    section_patterns: tuple = ()
     verdict_authors: tuple = DEFAULT_VERDICT_AUTHORS
     propagation_author: str = DEFAULT_PROPAGATION_AUTHOR
     source: Path | None = None  # the file these values were read from, when there was one
@@ -71,6 +92,15 @@ class Config:
 
     def is_sectioned(self, type_name):
         return type_name in self.evidence_sectioned
+
+    def section_pattern(self, type_name):
+        """The pattern that finds a section in an artifact of this type. Every sectioned
+        type has one; a type the project did not write a pattern for gets the Markdown
+        heading that sectioned types have always meant."""
+        for name, pattern in self.section_patterns:
+            if name == type_name:
+                return pattern
+        return DEFAULT_SECTION_PATTERN
 
     def relative(self, path):
         """`path` as the project sees it, for a message a reader has to act on."""
@@ -149,6 +179,7 @@ KEYS = {
     "roster": str,
     "archived-prefixes": list,
     "evidence-sectioned": list,
+    "section-patterns": dict,
     "evidence-plain": list,
     "verdict-authors": list,
     "propagation-author": str,
@@ -248,6 +279,37 @@ def confined_pattern(root, key, value):
     return value
 
 
+def _section_patterns(table, sectioned):
+    """((type, pattern), …), every one checked here rather than at the first entry that
+    uses it. A pattern that does not compile, or that never mentions the section it is
+    supposed to find, would otherwise become a checker that quietly matched the wrong
+    text or nothing at all."""
+    out = []
+    for name in sorted(table):
+        pattern = table[name]
+        if not isinstance(pattern, str):
+            raise ConfigError(
+                f"section-patterns.{name} is {type(pattern).__name__}, expected a string"
+            )
+        if name not in sectioned:
+            raise ConfigError(
+                f"section-patterns names `{name}`, which is not in evidence-sectioned "
+                f"{list(sectioned)}; a plain evidence type has no section to find"
+            )
+        if NAME_SLOT not in pattern:
+            raise ConfigError(
+                f"section-patterns.{name} does not contain {NAME_SLOT}, so it would find "
+                "the same text for every section; the pattern must say where the name goes"
+            )
+        for slot in (re.escape("x"), ANY_NAME):
+            try:
+                re.compile(pattern.replace(NAME_SLOT, slot))
+            except re.error as exc:
+                raise ConfigError(f"section-patterns.{name} is not a regex ({exc})") from None
+        out.append((name, pattern))
+    return tuple(out)
+
+
 def from_table(table, root, source=None):
     """A Config from a parsed table. Unknown keys are an error, not a silent no-op: a
     misspelled key that changes nothing is how a project ends up unchecked."""
@@ -272,6 +334,8 @@ def from_table(table, root, source=None):
     plain = tuple(table.get("evidence-plain", DEFAULT_EVIDENCE_PLAIN))
     authors = tuple(table.get("verdict-authors", DEFAULT_VERDICT_AUTHORS))
     propagation = table.get("propagation-author", DEFAULT_PROPAGATION_AUTHOR)
+
+    patterns = _section_patterns(table.get("section-patterns", {}), sectioned)
 
     clash = sorted(set(sectioned + plain) & set(RESERVED_POINTER_TYPES))
     if clash:
@@ -304,6 +368,7 @@ def from_table(table, root, source=None):
         archived_prefixes=tuple(table.get("archived-prefixes", ())),
         evidence_sectioned=sectioned,
         evidence_plain=plain,
+        section_patterns=patterns,
         verdict_authors=authors,
         propagation_author=propagation,
         source=Path(source) if source else None,
