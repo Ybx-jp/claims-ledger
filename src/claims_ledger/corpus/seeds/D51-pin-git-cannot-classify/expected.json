@@ -1,0 +1,27 @@
+{
+  "class": "a pin git can neither resolve nor classify",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 01, A0001 Grounds",
+      "why": "`git show HEAD@{99}:docs/note-100.md` answers nothing, so the pointer does not resolve"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "fail",
+      "where": "commit 01, A0001 Grounds 1",
+      "why": "git exits 128 rather than answering, so the comparison did not happen; a comparison that did not happen is never a fresh ground",
+      "message": "was not checked"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet",
+  "note": "a reflog pin in a repository with one commit is the cheapest way to make git decline to answer rather than answer no. The two reports are not one defect under two names: resolve says the pointer does not resolve, freshness says it could not be checked, and the second is the one that must never be silence"
+}

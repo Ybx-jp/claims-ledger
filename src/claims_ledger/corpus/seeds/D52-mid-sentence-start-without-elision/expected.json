@@ -1,0 +1,20 @@
+{
+  "class": "mid-sentence cut without […], at the start of the span",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Backing quote 1",
+      "why": "the quote starts inside a sentence with no elision mark on that side",
+      "message": "starts inside a sentence"
+    }
+  ],
+  "note": "D06 is the same class at the other end of the span. Both directions are seeded because they are two rules, and a seed for one of them proves nothing about the other"
+}

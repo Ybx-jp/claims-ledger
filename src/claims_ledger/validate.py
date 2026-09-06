@@ -17,6 +17,7 @@ from __future__ import annotations
 import itertools
 import os
 import re
+from pathlib import Path
 
 from .schema import (
     ACTS,
@@ -37,6 +38,7 @@ from .schema import (
     Report,
     by_id,
     git,
+    git_bytes,
     git_call,
     load_entries,
     normalize,
@@ -436,7 +438,25 @@ def _frozen_region(text):
     return head if marker else None
 
 
-def check_history(ledger, entries):
+def _read_bytes(path):
+    """The entry file's bytes, or None when it cannot be read. A file that will not read
+    is `resolve`'s and the parser's finding; here it only means there is nothing to
+    compare, and a comparison that did not happen is never reported as one that passed."""
+    try:
+        return Path(path).read_bytes()
+    except OSError:
+        return None
+
+
+def _frozen_bytes(data):
+    """The frozen region of an entry as raw bytes, or None when there is no marker."""
+    if data is None:
+        return None
+    head, marker, _ = data.partition(APPEND.encode("utf-8"))
+    return head if marker else None
+
+
+def check_history(ledger, entries, cached=False):
     """Immutability, from git. For each entry file: the region above the APPEND marker
     equals the blob at the commit that created the file, and across every consecutive
     pair of revisions the verdict blocks only ever grow."""
@@ -497,6 +517,7 @@ def check_history(ledger, entries):
                 )
         was, is_now = _frozen_region(original), _frozen_region(e.text)
         if not named and None not in (was, is_now) and was != is_now:
+            named = True
             out.append(
                 Report(
                     "fail",
@@ -505,6 +526,26 @@ def check_history(ledger, entries):
                     f"differs from the blob at the creating commit {creating[:7]} outside "
                     "any section; the region above the APPEND marker is immutable, "
                     "including the bytes no section owns",
+                )
+            )
+        # And the same comparison again, on the bytes. Everything above reads both sides
+        # as text, and text arrives here through universal newlines on both sides — `git
+        # show` decodes, `read_text` decodes — so a frozen region rewritten from CRLF to
+        # LF compared equal to itself while every byte of it had changed. "Immutable"
+        # means the bytes.
+        then_bytes = _frozen_bytes(git_bytes(ledger.repo, "show", f"{creating}:{rel}"))
+        now_bytes = _frozen_bytes(
+            git_bytes(ledger.repo, "show", f":{rel}") if cached else _read_bytes(e.path)
+        )
+        if not named and None not in (then_bytes, now_bytes) and then_bytes != now_bytes:
+            out.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    "the frozen region",
+                    f"has the same text as the blob at the creating commit {creating[:7]} "
+                    "and not the same bytes; the region above the APPEND marker is "
+                    "immutable, line endings included",
                 )
             )
         states = []
@@ -554,5 +595,5 @@ def run(ledger, cached=False):
         reports += check_sections(e, config)
         reports += check_verdicts(e, index, config)
         reports += check_supersession(e, index)
-    reports += check_history(ledger, entries)
+    reports += check_history(ledger, entries, cached=cached)
     return reports

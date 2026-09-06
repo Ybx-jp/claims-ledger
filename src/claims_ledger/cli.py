@@ -30,6 +30,7 @@ from .schema import (
     open_ledger,
     print_reports,
     source_bytes,
+    write_text_atomically,
 )
 
 CHECKERS = ("validate", "resolve", "references", "propagate", "freshness")
@@ -77,7 +78,9 @@ evidence-plain = ["experiment"]
 
 # How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
 # Markdown heading. A section runs from its own header to the next one, so anchor the
-# pattern at the granularity the section really has.
+# pattern at the granularity the section really has. A pattern that can nest says so with
+# a group named `depth`: a match whose `depth` is longer than the header's is a
+# subsection of it, not the start of the next one.
 # [tool.claims-ledger.section-patterns]
 # code = '^(?:def|class) +{{name}}'
 
@@ -122,6 +125,9 @@ def build_parser():
         "freshness", help="pinned grounds still name the artifact they were established on"
     )
     fr.add_argument("--write", action="store_true", help="append the missing verdicts")
+    fr.add_argument(
+        "--cached", action="store_true", help="compare the index rather than the working tree"
+    )
 
     c = sub.add_parser("check", help="run all five checkers")
     c.add_argument("--cached", action="store_true", help="read staged entries from the git index")
@@ -326,10 +332,10 @@ def cmd_propagate(args, ledger):
 
 
 def cmd_freshness(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    reports = freshness.run(ledger, write=args.write)
+    reports = freshness.run(ledger, write=args.write, cached=args.cached)
     return report_command("freshness", reports, load_entries(ledger), ledger)
 
 
@@ -348,7 +354,7 @@ def cmd_check(args, ledger):
         elif name == "propagate":
             reports = propagate.run(ledger, write=False)
         else:
-            reports = freshness.run(ledger, write=False)
+            reports = freshness.run(ledger, write=False, cached=args.cached)
         print_reports(reports, name)
         worst = max(worst, exit_code(reports))
     return worst
@@ -395,28 +401,40 @@ def cmd_new(args, ledger):
 def cmd_sha(args, ledger):
     worst = 0
     for raw in args.path:
-        path = Path(raw)
-        # A path argument is read from the current directory, as every other command-line
-        # tool reads one — but with --root pointing elsewhere, the same entry named two
-        # ways gave two answers and nothing said why. It says why now.
-        with contextlib.suppress(OSError):
-            if not path.exists() and (ledger.config.root / raw).exists():
-                print(
-                    f"claims-ledger: {raw} is read from the current directory, not from "
-                    f"the project root; {ledger.config.root / raw} is the entry there",
-                    file=sys.stderr,
-                )
-        declared, computed, changed = authoring.restamp(
-            ledger, path, write=args.write, force=args.force
-        )
-        if changed:
-            print(f"{path}: {declared[:12]}… → {computed[:12]}…")
-        elif declared == computed:
-            print(f"{path}: {computed}")
-        else:
-            print(f"{path}: declared {declared[:12]}…, computed {computed[:12]}… (not written)")
-            worst = 1
+        try:
+            worst = max(worst, sha_one(args, ledger, raw))
+        except authoring.AuthoringError as exc:
+            # Each path is its own write. Letting the first refusal out of the loop left
+            # the paths after it neither written nor named, which reads as a run that
+            # stopped where it says it stopped.
+            print(f"claims-ledger: {exc}", file=sys.stderr)
+            worst = 2
     return worst
+
+
+def sha_one(args, ledger, raw):
+    path = Path(raw)
+    # A path argument is read from the current directory, as every other command-line
+    # tool reads one — but with --root pointing elsewhere, the same entry named two
+    # ways gave two answers and nothing said why. It says why now.
+    with contextlib.suppress(OSError):
+        if not path.exists() and (ledger.config.root / raw).exists():
+            print(
+                f"claims-ledger: {raw} is read from the current directory, not from "
+                f"the project root; {ledger.config.root / raw} is the entry there",
+                file=sys.stderr,
+            )
+    declared, computed, changed = authoring.restamp(
+        ledger, path, write=args.write, force=args.force
+    )
+    if changed:
+        print(f"{path}: {declared[:12]}… → {computed[:12]}…")
+        return 0
+    if declared == computed:
+        print(f"{path}: {computed}")
+        return 0
+    print(f"{path}: declared {declared[:12]}…, computed {computed[:12]}… (not written)")
+    return 1
 
 
 def cmd_source(args, ledger):
@@ -480,10 +498,10 @@ def cmd_init(args, _ledger):
         (ledger_dir / "entries").mkdir(parents=True, exist_ok=True)
         cache = ledger_dir / "cache"
         cache.mkdir(parents=True, exist_ok=True)
-        ignore.write_text(CACHE_IGNORE, encoding="utf-8")
+        write_text_atomically(ignore, CACHE_IGNORE)
         if not registry.exists():
-            registry.write_text("", encoding="utf-8")
-        config_path.write_text(CONFIG_TEMPLATE.format(ledger=args.ledger), encoding="utf-8")
+            write_text_atomically(registry, "")
+        write_text_atomically(config_path, CONFIG_TEMPLATE.format(ledger=args.ledger))
     except OSError as exc:
         print(
             f"claims-ledger: cannot scaffold the ledger under {ledger_dir} "
@@ -512,8 +530,7 @@ def cmd_hook(args, ledger):
             print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
             print(hook_text(), end="")
             return 1
-        path.write_text(hook_text(), encoding="utf-8")
-        path.chmod(0o755)
+        write_text_atomically(path, hook_text(), mode=0o755)
     except OSError as exc:
         # A read-only .git/hooks is an ordinary thing in a locked-down or shared checkout.
         print(

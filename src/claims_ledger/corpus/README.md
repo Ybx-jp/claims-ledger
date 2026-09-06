@@ -63,8 +63,16 @@ five programs
 that live beside this directory — or `review`, which is not a program. A checker
 row's `outcome` is `pass`, `fail`, or `flag`; a `review` row's outcome is always `judge`.
 `where` names an entry and one part of it so a runner can match the checker's report to
-the row. `why` describes the outcome for the reader; where it names a mechanism, the
+the row, **exactly**: a row that named a prefix of the report's place (`A0001
+frontmatter` against `frontmatter credence`) was satisfied by whichever of two rules at
+that place still existed, so deleting the rule the seed was written for left the corpus
+green. `why` describes the outcome for the reader; where it names a mechanism, the
 mechanism is illustrative and the outcome is what binds.
+
+A row may also carry an optional `message`, a substring of what the report says. The
+place is where a rule fires, not which rule it is, so a row binds the message as well
+wherever the place alone does not name the rule — where two rules can fire at one place,
+or where the report would survive the rule being emptied of everything but its outcome.
 
 The runner's contract, fixed before the runner existed and implemented by `run.py`
 (`claims-ledger corpus [-v] [SEED ...]`):
@@ -74,6 +82,15 @@ The runner's contract, fixed before the runner existed and implemented by `run.p
   half is the known-negative: a defect seed that trips a checker the row does not name is
   a runner failure, not a bonus catch, because either the seed has a defect its author did
   not see or the checker has a false positive. Both are findings.
+- **One row, one report.** A row that two reports both satisfy is a runner failure too,
+  even though both of them are expected: a place two rules fail at is held up by whichever
+  rule still exists, and the seed goes on passing when the rule it was written for is
+  deleted. That is coverage as decoration, and it is what the exact place and the optional
+  `message` are for.
+- **A run that checked nothing is not a pass.** An empty corpus, or a seed filter that
+  matches no seed, exits non-zero: `claims-ledger corpus` is what the release workflow runs
+  against the built wheel, and a wheel that shipped no seeds would otherwise pass the gate
+  that exists to say the checkers still work.
 - `fail` means exit non-zero and a report naming the place. `flag` means exit zero with a
   report naming the place: the checker has made something visible and a human decides.
   `pass` means neither.
@@ -234,10 +251,20 @@ author implements what the seeds test rather than something stronger:
 
 ## Coverage
 
-Each defect class the audit found has at least one seed, and so does each rule the
-schema's own structure creates. The right column is the honest limit: `catch` means the checker
-fails; `flag` means it reports and a human judges; `review` means the machinery passes
-and only the human record says what is wrong.
+Each defect class the audit found has at least one seed, and so does every rule about
+*not silently passing* — a ground the freshness checker could not examine, a document the
+reference checker could not open, a pointer or a registry row that does not resolve. The
+right column is the honest limit: `catch` means the checker fails; `flag` means it reports
+and a human judges; `review` means the machinery passes and only the human record says
+what is wrong.
+
+What the table does **not** claim, because a mutation sweep showed it was false: a seed
+per rule. Most of `validate`'s well-formedness guards — the kind, author and grade enums,
+a non-numeric credence, a `verbatim_sha` that is not 64 hex, a missing section — can be
+deleted with the corpus still green, and they are held by the unit suite instead. Two
+rules are unreachable from here by construction, and no seed can ever hold them: the
+`--write` reports of `propagate` and `freshness`, since the runner binds both checkers
+with `write=False`. The corpus proves the semantic classes; `tests/` proves the rest.
 
 | class | seeds | machinery owes |
 |---|---|---|
@@ -246,8 +273,8 @@ and only the human record says what is wrong.
 | text no source contains | D03 A0001 | catch |
 | distortion by reversal | D03 A0002 | catch as unresolvable; the class is review |
 | right quote, wrong source | D04 | catch |
-| dead pointer | D05 | catch, loudly — a cache or registry miss never passes silently |
-| mid-sentence cut without `[…]` | D06 | catch |
+| dead pointer | D05 (a registry id with no row), D51 (an evidence pointer that does not resolve at its pin) | catch, loudly — a miss never passes silently |
+| mid-sentence cut without `[…]` | D06 (end of the span), D52 (start of it) | catch |
 | fusion of quote and inference | D07 | catch (no quotation marks in Assertion) |
 | grade inversion | D08 | catch the pointer-kind mismatch, both directions; a fixture note that calls its own numbers typed is not seen |
 | absence-scope widening | D09, D38, K04 | catch the missing `search:`, including on a priority word; the widening itself is review |
@@ -287,6 +314,16 @@ and only the human record says what is wrong.
 | roster status cell stale | D44 | catch |
 | fallen citer held to its immutable acts, or flagged after a terminal status | K16, K17 | pass — a fallen entry's Grounds are history |
 | creating commit misread by rename detection when a successor copies a kept predecessor | K18 | pass — the creating commit is the one that added the file |
+| a pinned ground moved after the claim rested on it | D45, K19, K23 | flag — the claim may or may not survive it, and a human decides |
+| a pinned ground withdrawn from the tree | D46 | catch |
+| a section withdrawn from a file that remains | D49 | catch |
+| a pin that names a branch or a tag rather than a commit | D47 | flag — a pin that follows the work can never go stale |
+| a pin git can neither resolve nor classify | D51 | catch — a comparison that did not happen is never a fresh ground |
+| an orphan freshness verdict | D48 | catch |
+| a drift acknowledged by a propagated verdict | K20 | pass |
+| a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
+| an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |
+| a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
@@ -298,8 +335,11 @@ words with the papers), K14 (a chain with no empirical base), K15 (a roster cons
 with its hypothesis), K16 and K17 (a dependent superseded after its live-cited ground
 fell, with and without the propagated flag), K18 (a successor written as a near-copy of
 a predecessor that stays in the tree, committed together with the predecessor's
-`superseded` verdict). K01–K03, K09 and K15–K18 test the schema's own rules and encode
-no claim from the canon; the others each stand for one.
+`superseded` verdict), K19 (a commit that touched nothing the claim rests on), K20 (a
+drift the propagation author has acknowledged), K21 (a fallen entry whose ground drifted),
+K22 (an unpinned ground), K23 (an edit outside the section a claim rests on). K01–K03,
+K09, K15–K18 and K19–K23 test the schema's own rules and encode no claim from the canon;
+the others each stand for one.
 
 ## What the corpus encodes from the canon
 
@@ -338,6 +378,10 @@ outline; a test-oracle literature on corpora of this shape.
 - That the checkers catch a defect class not seeded here. The classes are the ones the
   audited ledger actually exhibited plus the ones the schema's own rules create; a new
   class found in practice gets a seed before it gets a fix.
+- That every rule in the five checkers is load-bearing here. A mutation sweep — delete one
+  report site, run the corpus — found that most of `validate`'s well-formedness guards
+  survive it. Those rules are held by the unit suite, and the Coverage section above says
+  so rather than leaving the reader to assume otherwise.
 - That a quotation is *true*, or that its source is the right one. Resolution shows a
   span exists in the named artifact and nothing more.
 - That the load-bearing elision, the undercut, the datum attack, the reversal, the

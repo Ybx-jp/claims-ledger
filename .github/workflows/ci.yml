@@ -23,14 +23,14 @@ jobs:
         # of them was once recorded as fixed because it was checked on the other.
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           # validate reads git history for the frozen-region and append-only checks,
           # and the corpus builds real repositories. A shallow clone would leave those
           # checks silently doing nothing, which is the thing this package exists to
           # refuse.
           fetch-depth: 0
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --upgrade pip
@@ -51,8 +51,8 @@ jobs:
     # tree, from a directory that is not the checkout.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
       - run: pip install build twine
@@ -67,7 +67,7 @@ jobs:
           /tmp/clean/bin/claims-ledger corpus
           /tmp/clean/bin/claims-ledger --version
           /tmp/clean/bin/python -m claims_ledger --version
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: dist
           path: dist/

@@ -21,16 +21,20 @@ Proven against the red-team corpus by `claims-ledger corpus`.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from .config import leaves_root
 from .schema import (
+    APPEND,
     FALLEN,
     TERMINAL,
     LedgerError,
     Report,
     by_id,
     load_entries,
+    read_text_exact,
+    write_text_atomically,
 )
 
 
@@ -79,27 +83,57 @@ def grouped(pending):
     return [(blocks[k][0], "\n".join(blocks[k][1])) for k in order]
 
 
+REFERENCES_RE = re.compile(r"(?:\r\n|\n)## References")
+
+
 def append_verdict(entry, block, root=None):
     """The verdicts appended to the entry file. `root` refuses a write that lands outside
     the project — an entry inside `entries/` can be a symlink to anywhere, and following
-    one is the write outside the root that this package states it does not do."""
+    one is the write outside the root that this package states it does not do.
+
+    The file is re-read from disk with its own line endings, rather than written back
+    from the text the parser normalized: an entry committed with CRLF was otherwise
+    rewritten line for line by an append that was supposed to add three, and every byte
+    of its immutable frozen region changed with it.
+
+    The insertion point is looked for below the APPEND marker and nowhere else. `##
+    References` above the marker is a layout `validate` rejects — and `propagate --write`
+    does not require `validate` to be clean before it writes — so choosing the insertion
+    point by that heading alone put the verdict inside the frozen region of a committed
+    entry.
+    """
     if root is not None and (outside := leaves_root(root, entry.path)) is not None:
         raise LedgerError(
             f"{entry.path} leads to {outside}, outside the project root {root}; "
             "nothing is written through a link that leaves the project"
         )
-    text = entry.text
-    marker = "\n## References"
-    if marker in text:
-        head, tail = text.split(marker, 1)
-        head = head.rstrip("\n") + "\n"
-        if "## Verdicts" in head and head.rstrip().endswith("## Verdicts"):
-            head += "\n"
-        text = head + block + marker + tail
+    text = read_text_exact(entry.path)
+    newline = "\r\n" if "\r\n" in text else "\n"
+    if newline != "\n":
+        block = block.replace("\n", newline)
+    head, marker, appendable = text.partition(APPEND)
+    if not marker:
+        head, appendable = "", text
+    m = REFERENCES_RE.search(appendable)
+    if m:
+        before, after = appendable[: m.start()], appendable[m.start() :]
+        before = before.rstrip("\r\n") + newline
+        if before.rstrip().endswith("## Verdicts"):
+            before += newline
+        appendable = before + block + after
     else:
-        text = text.rstrip("\n") + "\n" + block
+        appendable = appendable.rstrip("\r\n") + newline + block
+    new_text = head + marker + appendable
+    if marker and new_text.partition(APPEND)[0] != head:
+        # Cannot happen with the insertion above, and asserted rather than trusted: this
+        # is the one function in the package that writes into a committed entry, and the
+        # region above the marker is what it may not touch.
+        raise LedgerError(
+            f"{entry.path}: appending the verdict would change the region above the "
+            "APPEND marker, which is immutable; nothing was written"
+        )
     try:
-        entry.path.write_text(text, encoding="utf-8")
+        write_text_atomically(entry.path, new_text)
     except OSError as exc:
         raise LedgerError(
             f"{entry.path}: cannot append the verdict ({exc.strerror or exc})"

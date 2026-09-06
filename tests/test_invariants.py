@@ -686,7 +686,13 @@ def _add_trailing_whitespace(text):
 def _transform_seed_tree(src, dst, transform):
     shutil.copytree(src, dst)
     for p in dst.rglob("*.md"):
-        p.write_text(transform(p.read_text(encoding="utf-8")), encoding="utf-8")
+        if not p.is_file():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue  # D50's document is not text; a transformation of text does not reach it
+        p.write_text(transform(text), encoding="utf-8")
 
 
 @pytest.mark.parametrize("seed", ALL_SEEDS, ids=lambda s: s.name)

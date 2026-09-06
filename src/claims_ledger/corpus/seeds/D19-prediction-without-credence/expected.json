@@ -5,8 +5,16 @@
     {
       "checker": "validate",
       "outcome": "fail",
-      "where": "A0001 frontmatter",
-      "why": "kind: prediction requires credence and resolves_when"
+      "where": "A0001 frontmatter credence",
+      "why": "kind: prediction requires credence",
+      "message": "requires credence"
+    },
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 frontmatter resolves_when",
+      "why": "kind: prediction requires resolves_when",
+      "message": "requires resolves_when"
     },
     {
       "checker": "validate",

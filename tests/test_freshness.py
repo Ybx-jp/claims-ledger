@@ -212,7 +212,9 @@ def test_a_verdict_naming_a_ground_the_entry_does_not_have_is_an_orphan(pinned):
 def test_write_appends_a_verdict_and_still_fails(pinned):
     (pinned.root / "docs" / "note-001.md").unlink()
     outcomes = pinned.outcomes(write=True)
-    assert [o for o, _, _ in outcomes] == ["fail", "flag"]
+    # The withdrawn ground, and then the append itself: a run that changed a file in the
+    # ledger exits non-zero so the appended text is looked at before it is committed.
+    assert [o for o, _, _ in outcomes] == ["fail", "fail"]
     text = pinned.entry_path().read_text(encoding="utf-8")
     assert "author: propagation" in text
     assert "propagated from a withdrawn ground" in text
@@ -244,7 +246,7 @@ def test_two_drifted_grounds_both_survive_one_write(project):
     (project.root / "docs" / "note-001.md").unlink()
     (project.root / "docs" / "note-002.md").unlink()
     reports = freshness.run(open_ledger(root=project.root), write=True)
-    assert [r.outcome for r in reports] == ["fail", "fail", "flag"]
+    assert [r.outcome for r in reports] == ["fail", "fail", "fail"]
     assert "appended 2 contested verdict(s)" in reports[-1].message
     text = path.read_text(encoding="utf-8")
     assert text.count("author: propagation") == 2

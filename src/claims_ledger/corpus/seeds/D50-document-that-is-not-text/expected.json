@@ -1,0 +1,20 @@
+{
+  "class": "a document that could not be read",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "well-formed"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/note-102.md",
+      "why": "the document is not UTF-8 text, so its citations were not checked; a document nobody could read is not a document with no citations in it",
+      "message": "its citations were not checked"
+    }
+  ],
+  "note": "the entry is K01's and is clean; the whole of this seed is the document beside it. references must report the file it could not open rather than counting it as checked, which is the rule the corpus could not reach while the runner handed every path over as though it had been read"
+}

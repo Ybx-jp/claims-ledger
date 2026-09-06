@@ -72,6 +72,18 @@ exclude = ["src/claims_ledger/corpus/seeds"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Two directories that hold no code this package maintains.
+#
+# `.qe` is an adversarial pass's own record: the brief it was given, the findings it wrote,
+# and the throwaway probes it actually ran, so a repro in a report can be re-run rather
+# than retyped from prose. Reformatting a snippet inside a finding would edit the record of
+# what was run. Every defect those probes found is held by a test under `tests/`.
+#
+# The red-team seeds are ledger fixtures, deliberately malformed, and contain no Python —
+# `[tool.ty.src]` excludes them for the same reason. One of them is deliberately not UTF-8,
+# which is the defect that seed exists for, and a formatter that reads every file cannot
+# read it.
+exclude = [".qe", "src/claims_ledger/corpus/seeds"]
 
 [tool.ruff.lint]
 # Pinned explicitly rather than tracking ruff's default select, which grows between

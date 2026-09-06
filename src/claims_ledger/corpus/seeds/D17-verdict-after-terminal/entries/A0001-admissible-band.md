@@ -39,8 +39,9 @@ Restates the expert's stated band.
 - 2026-09-02T09:00:00-07:00 · retracted · grade: asserted · author: main
   evidence: defect: Backing quote 1 is a paraphrase and does not verify against fx-consult-dl-r1
   note: paraphrase sealed inside quotation marks
-- 2026-09-02T10:00:00-07:00 · corroborated · grade: asserted · author: main
+- 2026-09-02T10:00:00-07:00 · contested · grade: asserted · author: main
   evidence: source: fx-consult-dl-r1 · on the ceiling
+  note: written after the retraction, which is the defect this seed carries
 
 ## References
 

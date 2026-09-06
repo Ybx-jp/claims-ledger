@@ -35,7 +35,7 @@ from pathlib import Path
 
 from .. import freshness, propagate, references, resolve, validate
 from ..config import Config
-from ..schema import GIT_TIMEOUT, Ledger, LedgerError
+from ..schema import GIT_TIMEOUT, Ledger, LedgerError, unreadable_document
 
 CORPUS = Path(__file__).resolve().parent
 
@@ -83,19 +83,49 @@ def parse_where(where):
     return commit, None, rest
 
 
-def matches(report, commit, entry, part):
+def matches(report, commit, entry, part, message=None):
+    """Whether a report is the one an expectation row names.
+
+    The place is compared exactly. A row that named a prefix of it — `A0001 frontmatter`
+    against `frontmatter credence` and `frontmatter resolves_when` — was satisfied by
+    either of the two rules it was meant to bind, so deleting one of them left the corpus
+    green. A row names the rule's place or it names nothing.
+
+    `message` is a row's optional handle on the rule itself, as a substring of what the
+    report said. The place is where a rule fires and not which rule it is, so a rule whose
+    place another rule can also occupy — or one whose report would survive being emptied
+    of everything but its outcome — is named here as well.
+    """
     if report.commit != commit or report.entry != entry:
         return False
-    rp, qp = report.part.casefold(), part.casefold()
-    return rp == qp or rp.startswith(qp + " ")
+    if report.part.casefold() != part.casefold():
+        return False
+    return message is None or message.casefold() in report.message.casefold()
 
 
 def seed_ledger(root, staged, repo=None):
-    docs = sorted((staged / "docs").glob("*.md")) if (staged / "docs").is_dir() else []
+    """The seed's `docs/` as `open_ledger` would present it: the documents that read, and
+    separately the ones that did not.
+
+    A document that could not be opened is not an empty document, and `references` has a
+    rule saying so. Handing every path over as though it had been read would have made
+    that rule unreachable from the corpus — a rule about not silently passing that no
+    seed could hold.
+    """
+    docs, unreadable = [], []
+    for path in sorted((staged / "docs").glob("*.md")) if (staged / "docs").is_dir() else []:
+        name = f"docs/{path.name}"
+        if not path.is_file():
+            unreadable.append((name, "is not a regular file; it was not checked"))
+        elif (problem := unreadable_document(path)) is not None:
+            unreadable.append((name, f"{problem}; its citations were not checked"))
+        else:
+            docs.append((name, path))
     return Ledger(
         config=corpus_config(root, staged / "entries"),
-        docs=[(f"docs/{p.name}", p) for p in docs],
+        docs=docs,
         repo=repo,
+        unreadable_docs=unreadable,
     )
 
 
@@ -193,7 +223,7 @@ def run_seed(seed, root):
     """(passed, lines, produced) for one seed directory."""
     expected = json.loads((seed / "expected.json").read_text(encoding="utf-8"))
     rows = [
-        (r["checker"], r["outcome"], *parse_where(r["where"]), r["why"])
+        (r["checker"], r["outcome"], *parse_where(r["where"]), r["why"], r.get("message"))
         for r in expected["expect"]
         if r["checker"] in CHECKERS and r["outcome"] in ("fail", "flag")
     ]
@@ -233,18 +263,28 @@ def run_seed(seed, root):
     for name in CHECKERS:
         mine = [r for r in rows if r[0] == name]
         reports = produced[name]
-        for _, outcome, commit, entry, part, why in mine:
-            hits = [r for r in reports if matches(r, commit, entry, part)]
-            if not any(r.outcome == outcome for r in hits):
+        for _, outcome, commit, entry, part, why, message in mine:
+            hits = [r for r in reports if matches(r, commit, entry, part, message)]
+            at_commit = f"commit {commit}, " if commit else ""
+            at_entry = f"{entry} " if entry else ""
+            place = f"{at_commit}{at_entry}{part}"
+            wanted = [r for r in hits if r.outcome == outcome]
+            if not wanted:
                 got = "; ".join(f"{r.outcome} {r.message}" for r in hits) or "nothing there"
-                at_commit = f"commit {commit}, " if commit else ""
-                at_entry = f"{entry} " if entry else ""
-                place = f"{at_commit}{at_entry}{part}"
                 lines.append(f"expected {name} {outcome} at {place} ({why}) — got {got}")
+            elif len(wanted) > 1:
+                # One row, one report. A place two rules both fail at is claimed by
+                # whichever of them still exists, so the seed goes on passing when the
+                # rule it was written for is deleted — coverage that is decoration.
+                both = "; ".join(r.message for r in wanted)
+                lines.append(
+                    f"ambiguous {name} {outcome} at {place} ({why}) — "
+                    f"{len(wanted)} reports satisfy one row: {both}"
+                )
         for r in reports:
             if not any(
-                matches(r, commit, entry, part) and r.outcome == outcome
-                for _, outcome, commit, entry, part, _ in mine
+                matches(r, commit, entry, part, message) and r.outcome == outcome
+                for _, outcome, commit, entry, part, _, message in mine
             ):
                 prefix = f"commit {r.commit}, " if r.commit else ""
                 lines.append(f"unexpected {name} {r.outcome} at {prefix}{r.place()}: {r.message}")
@@ -271,7 +311,20 @@ def main(argv=None):
         return 1
     seeds = sorted(p for p in seeds_dir.iterdir() if p.is_dir())
     if names:
+        unmatched = [n for n in names if not any(s.name.startswith(n) for s in seeds)]
+        if unmatched:
+            # `corpus D3` for the seed named `D03` used to print `0/0 seeds pass` and exit
+            # 0: a green run over nothing, which is the report this package exists to
+            # refuse.
+            print(f"no seed under {seeds_dir} matches {', '.join(unmatched)}")
+            return 1
         seeds = [s for s in seeds if any(s.name.startswith(n) for n in names)]
+    if not seeds:
+        # The release workflow proves the built wheel by running exactly this command, so
+        # a wheel that shipped no seeds would otherwise pass the gate that exists to say
+        # the checkers still work.
+        print(f"no seeds under {seeds_dir}; nothing was proven")
+        return 1
     passed = 0
     for seed in seeds:
         ok, lines, produced = run_seed(seed, root)

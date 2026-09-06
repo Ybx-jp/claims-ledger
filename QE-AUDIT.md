@@ -866,3 +866,322 @@ and a test that passes are the same colour in a summary line.
 Three of the five dimensions still produced no report, and their surfaces — freshness
 spec conformance, write paths and crash recovery, corpus and release gates — remain
 unexamined rather than examined-and-clear. Nothing in this disposition speaks for them.
+
+# Fifth pass — 2026-09-06, the three dimensions the fourth pass never reached
+
+The fourth pass launched five adversarial dimensions and recorded three of them as
+**unexamined rather than clear**, because the session ended before they reported. This
+pass is those three: freshness spec conformance, write paths and crash recovery, and the
+corpus and release gates. They were re-run against **merged main (`d82a969`)** rather than
+the tip they were first scoped on, so every finding here is against what shipped.
+
+Twenty-four defects — nine HIGH, ten MEDIUM, five LOW — as thirty-one strict xfails in
+`tests/test_freshness_spec.py`, `tests/test_write_paths.py` and
+`tests/test_corpus_integrity.py`. Suite is **692 passing, 31 strict xfails**; `ruff`,
+`ruff format` and `ty` clean.
+
+**The process fix worked.** The fourth pass lost three dimensions because its agents held
+their results for a final report they never got to write. This pass required findings to
+be appended to disk *as they were found*. All three reports survived, 1430 lines of them,
+in `.qe/findings-*.md`.
+
+## The shape of this pass
+
+Every one of the nine HIGHs is the same clause of the oracle: **a check that did not run,
+reported as a check that passed.** The fourth pass said that class was the reason the
+package exists. It is still where the defects are.
+
+Two of them deserve to be read before the rest, because they are about the checks that
+were *most recently believed to be fixed*:
+
+- **HIGH-39 defeats HIGH-22**, which merged hours before this pass ran. The frozen region
+  is "compared as bytes" in a comparison that normalizes newlines on both sides.
+- **HIGH-45 and HIGH-47 are about the corpus itself** — the artefact every other pass has
+  used as its evidence that the checkers work.
+
+## Freshness spec conformance — HIGH-29 … LOW-38
+
+The oracle is `docs/FRESHNESS.md`. The checker is the newest subsystem and the least
+audited, and three of these are places the document makes a promise the code does not keep.
+
+### HIGH-29 — one verdict discharges every ground on the same file and pin
+
+`has_acknowledged()` compares `type`, `target` and `pin`, and **not `section`** — while
+`orphans()` keys on `p.raw`, which includes it. So an entry grounded on `§ "Observation"`
+and `§ "Method"` of one note, both drifted, goes completely silent after a single
+propagation verdict naming only `"Observation"`. Verdicts do not expire, so the second
+drifted ground is reported fresh permanently. The function's own docstring says "naming
+this pointer", which is the check it does not make.
+
+*Fix shape*: compare the section too, or key on `p.raw` as `orphans()` already does. One
+comparison.
+
+### HIGH-30 — `freshness --write` writes into the ledger and exits 0
+
+The spec: a `--write` run "still exits non-zero afterwards so the appended text is looked
+at before it is committed." `exit_code()` returns 1 only when some report is a `fail`.
+`propagate` satisfies the promise by accident, because every block it queues sits beside a
+`fail`. Freshness queues the `moved` case beside a **`flag`**, and its own "appended N
+contested verdict(s)" report is a `flag` too. So the ledger is modified and the run exits
+0 — the appended text goes into a commit unlooked-at, which is the one thing the sentence
+exists to prevent.
+
+`test_write_appends_a_verdict_and_still_fails` misses this because it deletes the file,
+and `withdrawn` *is* a fail. The passing case was never the tested one.
+
+### HIGH-31 — a `###` subsection ends its parent `##` section
+
+`DEFAULT_SECTION_PATTERN = r"^#+\s*{name}\s*$"`. `#+` matches a heading at any depth, so a
+section's span ends at the first *sub*heading inside it and everything below that is
+outside the comparison — for `resolve` and for `freshness` both. Invert the claim's own
+evidence under a `### Detail` heading and every checker stays green.
+
+The spec documents the anchoring caveat, but for *configured* patterns, and tells the
+reader to "anchor at the granularity the section really has." The shipped default cannot
+take its own advice.
+
+| | |
+|---|---|
+| MEDIUM-32 | An **uppercase** object id is called an unstable pin. `OBJECT_NAME_RE` is lowercase-only and never asks git; git resolves the pin, `resolve` accepts it, freshness prints "pinned to a name … can never go stale" and `drift()` returns — so the artifact is never compared, and deleting it is never reported. |
+| MEDIUM-33 | `freshness` **ignores `--cached` entirely** — `run()` has no `cached` parameter. Under `check --cached`, `validate` reads the index and freshness reads the working tree, and `skipped_checks()` says nothing. This is the installed pre-commit hook, where HIGH-24 lived. |
+| MEDIUM-34 | **Reverting a drift wedges the ledger.** Undo the edit that caused a discharge and `orphans()` calls the checker's own verdict an orphan, forever: removing the verdict fails append-only, and the pin is frozen. Both halves verified. |
+| MEDIUM-35 | Artifact paths reach `git diff` / `git rev-list` as **pathspecs**, so `docs/note[1].md` is reported moved when an unrelated `docs/note1.md` is edited. The false-*negative* direction does not happen, and is kept as a control so a `:(literal)` fix has something holding it. |
+| LOW-36 | A non-hex pin naming nothing gets an unstable-pin flag *and* resolve's "does not resolve" — one defect under two contradictory names, while the hex equivalent is correctly silent. |
+| LOW-37 | The comparison is `git diff`, not the spec's `hash-object` blob identity, with an observable divergence on an untracked-but-identical file. |
+| LOW-38 | All three of the spec's **verbatim example messages** differ from what the code prints — and the code is better in each case. **The spec should move, not the code.** Recorded so a later pass does not "fix" working behaviour to match stale prose. |
+
+## Write paths and crash recovery — HIGH-39 … LOW-44
+
+### HIGH-39 — the frozen region is not compared as bytes, and `propagate --write` rewrites it
+
+HIGH-22's fix, merged hours earlier, compares "the bytes above the APPEND marker" against
+the creating blob. Both sides are newline-normalized before that comparison: the blob is
+read through `git()`, and `git_call` runs `subprocess.run(..., text=True)`, whose universal
+newlines translate CRLF to LF; the working file is read with `read_text`, which does the
+same. So the byte comparison cannot see a newline change.
+
+Verified by hand: commit an entry, rewrite *only* the newlines above the marker, and
+`git diff` reports 32 insertions and 32 deletions in the frozen region while `check`
+reports no immutability failure.
+
+The half that makes it more than a curiosity is that the tool does this to itself.
+`append_verdict` reads with `read_text` and writes with `write_text`, so `propagate --write`
+rewrites the **entire** frozen region of any CRLF-committed entry — 44 insertions, 40
+deletions to append one verdict — and nothing reports it. Neither `propagate --write` nor
+`freshness --write` has an `is_committed` guard at all, which is HIGH-26's class one
+surface over.
+
+*Fix shape*: read the blob and the working file as **bytes** for this comparison —
+`git_call` needs a binary mode, or this caller needs `subprocess.run` without `text=True`.
+Then give the two remaining `--write` paths the guard `sha --write` was given.
+
+### HIGH-40 — `source add` exits 0 while destroying the registry
+
+If `sources.jsonl` has no final newline, the append glues the new row onto the previous
+one: `open("a")` plus `json + "\n"`, with no check of what is already there. The run prints
+`registered <id> … in ledger/sources.jsonl` and **exits 0**. Both rows are destroyed, and
+every later command exits 2 with `not a JSON object (Extra data)`.
+
+| | |
+|---|---|
+| MEDIUM-41 | **No write path anywhere uses a temp file and a rename.** `create_entry`, `restamp`, `append_verdict`, `cmd_init` and `cmd_hook` all truncate first. Under a real `RLIMIT_FSIZE`, `propagate --write` leaves a committed entry truncated mid-verdict with `## References` gone. The *message* is right (`cannot append the verdict (File too large)`, exit 2); the state left behind is not. |
+| MEDIUM-42 | Retrying an interrupted `source add` **exits 0 over bytes it never wrote**: `register_source` copies only `if not stored.exists()`, so the truncated cache file survives the retry, the row is written with the real file's digest, and `resolve` then accuses the *source*. `source add` again answers "already registered" — the documented command cannot repair its own mess. |
+| MEDIUM-43 | `append_verdict` picks its insertion point from the first `## References` and **never consults the APPEND marker**, so on a layout `validate` rejects — which `propagate --write` does not require to be clean — the verdict lands inside the frozen `Backing` section. |
+| LOW-44 | `sha --write a b c` stops at the first unwritable path and never names the third. |
+
+## Corpus and release gates — HIGH-45 … LOW-52
+
+### HIGH-45 — the release gate cannot tell "the corpus passed" from "there was no corpus"
+
+`claims-ledger corpus` over a directory with an empty `seeds/` prints `0/0 seeds pass` and
+**exits 0**. So does `claims-ledger corpus NOSUCHSEED`. Both `ci.yml`'s wheel job and
+`release.yml`'s "the wheel proves itself from elsewhere" gate publication on exactly that
+command. A packaging change that dropped `corpus/seeds/**` would ship, and the gate would
+be green — the release process committing the same false pass the package exists to catch.
+
+*Fix shape*: a floor. Zero seeds is an error, and a named seed that matched nothing is an
+error.
+
+### HIGH-46 — two seeds pass for the wrong reason
+
+`corpus/run.py::matches()` compares `(commit, entry, part, outcome)` and **never the
+report's message**, and accepts a *prefix* of the place (`rp.startswith(qp + " ")`). So a
+seed's `why` field is decorative, and a row can be satisfied by a different failure at the
+same place. D17's single row is also satisfied by the corroborating-ground fail; D19's row
+`A0001 frontmatter` is a prefix the credence fail already satisfies.
+
+### HIGH-47 — 60 of 99 report sites can be deleted with the corpus still 72/72
+
+A full mutation sweep. The corpus README claims a seed for "each rule the schema's own
+structure creates"; it does not. The dangerous survivors are the rules about *not silently
+passing* — `freshness.py`'s `` `{raw}` was not checked `` and `references.py`'s two "its
+citations were not checked" reports, which are the third pass's HIGH-17 fix — and they have
+**no seed at all**. Half-covered classes: `dead pointer` is seeded only for `source:`
+pointers, `mid-sentence cut` only for the end-of-span direction.
+
+**One qualification, established by re-running the mutant rather than taken from the
+sweep**: deleting the terminal-verdict rule leaves the corpus at 72/72, but
+`tests/test_invariants.py::test_a_verdict_after_a_terminal_verdict_is_caught` fails. The
+unit suite catches what the corpus misses. So the finding is that **the corpus's claim
+about itself is false**, and that the wheel-proves-itself gate — which runs the corpus and
+nothing else — is far weaker than it reads. It is not that CI is blind.
+
+| | |
+|---|---|
+| MEDIUM-48 | `README.md`, which is the **PyPI long description**, says 70 seeds in three places, including a transcript reading `70/70 seeds pass`. There are 72. |
+| MEDIUM-49 | D45–D49 and K19–K23 appear nowhere in the corpus README's Coverage table. |
+| MEDIUM-50 | The **sdist** is uploaded to PyPI having been `twine check`ed and nothing more; only the wheel is installed and proven. |
+| MEDIUM-51 | `pypa/gh-action-pypi-publish@release/v1` is a mutable **branch** ref in the one job holding `id-token: write`. |
+| LOW-52 | `## [Unreleased]` is back in `CHANGELOG.md` carrying content already in the 0.1.0 artifacts — a **verbatim repeat of the third pass's packaging finding**, which nothing guards. A defect that returns is a missing regression, not a missing fix. |
+
+## What held
+
+Recorded so that an unexamined surface and a clean one do not look the same.
+
+- **Write paths**: `init` idempotency including `--force` byte-identical; read-only roots,
+  `entries/` and `.git/hooks`-as-a-file all clean exit-2 refusals; a directory occupying
+  the entry path; the write-outside-the-root symlink guard on both paths that have it;
+  `--write` idempotency under repetition; `sorted()` ordering independence; non-ASCII
+  (`é µ 中文`, emoji, the schema's `·`) round-tripping byte-exact through `sha --write`;
+  every interrupted-write *diagnostic* already correct.
+- **Freshness**: a section absent at the pin, reported once and by resolve; a blob-not-commit
+  pin; glob paths in the true-positive direction; annotated tags; `Grounds N` numbering over
+  reserved pointers; a fallen entry carrying a discharge; a second `--write`.
+- **Corpus**: CRLF, NFD, frontmatter key order, Backing block order and trailing whitespace
+  are all verdict-invariant at 72/72 each. A consistent id rename holds for 71/72 — the
+  exception, D28, is **correct**: its Scope line genuinely puts an id inside the frozen
+  region, and it is the only seed that does. No duplicate seeds; the five silent-defect
+  seeds are exactly the five documented as review-only. Both artifacts carry all 72 seeds,
+  `twine check --strict` passes, no host paths or e-mail addresses leak, wheel *and* sdist
+  each run 72/72 from a clean venv, and the version agrees everywhere it is written.
+
+## On `harden-release-publication-gates`
+
+The standing thread is **substantially closed** and should be recorded as such rather than
+carried: `publish` is tag-gated, and `build` runs ruff, ruff-format, ty and pytest
+unconditionally before `python -m build`, with `publish` depending on it. The residue is
+narrow — `workflow_dispatch` accepts a *tag* ref and therefore can publish, which is
+defensible, but the workflow's own comment reads as though dispatch cannot publish at all.
+Fix the comment or the condition; do not leave them disagreeing.
+
+## Disposition of the fifth pass — closed
+
+Written before the fixes, as the fourth pass's was. What follows the horizontal rule below
+was added after them.
+
+**Nothing here is fixed.** As with the fourth pass, this section is written before the
+fixes. The thirty-one tests are strict xfails so the suite fails the moment a fix lands
+without its xfail being flipped.
+
+Findings independently reproduced by the pass's own author before being written up, rather
+than taken from the agent that found them: HIGH-39, HIGH-40, HIGH-29, HIGH-30, HIGH-31,
+HIGH-45, HIGH-46, and the HIGH-47 mutant. The qualification on HIGH-47 exists because that
+re-run disagreed with the report's emphasis.
+
+Three notes for the pass that fixes these:
+
+- **HIGH-39 first.** It is the youngest defect, it defeats a fix that shipped the same day,
+  and until it is fixed the immutability guarantee is not held by anything.
+- The **six git findings of the fourth pass shared a root**, and were closed by one change
+  at the right granularity. Ask the same question here: HIGH-39, MEDIUM-41, MEDIUM-42 and
+  MEDIUM-43 are all *a write that is not atomic and not guarded*, and a temp-file-and-rename
+  funnel with a single `is_committed` gate in front of it is one change that reaches all of
+  them.
+- LOW-52 is a **returning defect**. When it is fixed this time, the fix is a test, not an
+  edit.
+
+---
+
+## Closing the fifth pass — 2026-09-06
+
+**All twenty-four findings are fixed.** The thirty-one strict xfails are thirty-one
+passing regressions; the suite is **737 passed, 0 xfailed**, the corpus is **75/75**, and
+`ruff`, `ruff format` and `ty` are clean. Both the wheel and the sdist were built and made
+to run the corpus from a clean environment in a directory that is not the checkout.
+
+No finding was rejected. Three were fixed differently from the shape the report suggested,
+and one control test had to move; each is recorded below rather than left for a later
+reader to notice.
+
+### The root the fixes shared
+
+The pass's own note said to look for it, and it was where it said. `schema.write_bytes_atomically`
+— write beside the target, `fsync`, `os.replace` — and `schema.read_text_exact` — read with
+`newline=""` so the bytes that are not being changed come back out unchanged — together
+close HIGH-39, MEDIUM-41, MEDIUM-42 and MEDIUM-43. Every write path in the package now goes
+through them: `create_entry`, `restamp`, `append_verdict`, `cmd_init`, `cmd_hook` and the
+source cache.
+
+The `is_committed` gate the report asked for is **not** what guards the two remaining
+`--write` paths, and this is the first of the three departures. `sha --write` refuses a
+committed entry because it edits the frozen region by design; `propagate --write` and
+`freshness --write` exist to append to committed entries, so the same gate would forbid
+their whole purpose. What they got instead is the property that gate was standing in for:
+`append_verdict` inserts below the APPEND marker or at the end of the file, never by the
+first `## References`, and then asserts that the bytes above the marker are unchanged
+before it writes. The invariant is checked rather than approximated.
+
+### The three departures, and the control that moved
+
+- **MEDIUM-32's fix is not `re.IGNORECASE` on `OBJECT_NAME_RE`.** The regex is gone. It was
+  a shape test standing in for a question only git can answer, and it was wrong in both
+  directions at once: it rejected an uppercase object id (MEDIUM-32) and it accepted the
+  question for `v9.9` without asking (LOW-36). `is_object_name()` now asks git about every
+  pin. Two findings, one deletion.
+- **MEDIUM-34's fix is the cheaper interim, not the blob object id.** `orphans()` asks
+  whether any commit between the pin and HEAD touched the artifact at all before calling a
+  discharge an orphan. A pin nothing has touched cannot have drifted, so the pre-emptive
+  forgery the rule exists for is still caught; an artifact that moved and moved back is a
+  discharge that was caused. Naming the blob the verdict was written against is the exact
+  answer and remains the open question `docs/FRESHNESS.md` records.
+- **HIGH-31's fix is a `depth` group, not a hard-coded `^#{1,N}`.** The section pattern is
+  configurable, so the terminator has to be too. A pattern that can nest declares it with a
+  group named `depth` and a deeper match is a subsection rather than the next section; a
+  pattern without the group ends at every match, exactly as before. `docs/FRESHNESS.md`
+  anticipated "a sibling later if a section needs its own terminator" — it arrived as a
+  group inside the pattern instead.
+- **`test_removing_the_orphaned_verdict_is_itself_a_failure` had to move.** Its middle
+  assertion was `outcomes(project) == ["fail"]` — the orphan that MEDIUM-34 says must not
+  be reported. The control's subject is the append-only guarantee, which is unchanged and
+  still fails when the verdict is taken out; that one line now asserts the fixed behaviour.
+  Two assertions in `tests/test_freshness.py` moved for HIGH-30 in the same way: the
+  `appended N contested verdict(s)` report is a `fail`, so `["fail", "flag"]` became
+  `["fail", "fail"]`.
+
+### HIGH-47, and what the corpus now claims about itself
+
+The report's qualification was right, and the fix follows it rather than the sweep's
+headline. Two of the four mutation-anchored rules had no seed and now have one — `D50`
+(a document `references` could not open) and `D51` (a ground `freshness` could not
+examine) — along with `D52` for the unseeded half of D06's class. The other two were seeds
+that passed for the wrong reason, and those were fixed in the runner: an expectation row's
+place is matched **exactly**, one row is satisfied by exactly **one** report, and a row may
+name a substring of the report's `message` for a rule the place alone does not identify.
+`D17` and `D19` were rewritten to name their rules.
+
+What did **not** happen is a seed per surviving mutant. The corpus README's claim to one
+was false, and the honest fix was to correct the claim: the corpus proves the semantic
+classes and every rule about not silently passing, the unit suite holds the
+well-formedness guards, and two rules — the `--write` reports of `propagate` and
+`freshness` — are unreachable from the corpus by construction, since the runner binds both
+checkers with `write=False`. All three statements are now in `corpus/README.md`.
+
+### The standing thread, and LOW-52
+
+`harden-release-publication-gates` is closed. The residue the pass named — a
+`workflow_dispatch` that can publish from a tag while the comment read as though it could
+not — is a comment that now says what the condition does. Both workflows pin every action
+to a commit, and the sdist is proven from a clean environment beside the wheel.
+
+LOW-52 was a returning defect, so its fix is the test that was already written for it:
+`test_the_changelog_has_no_unreleased_section_at_the_current_version`. The version is
+`0.2.0` — a fifth checker is a feature — and the section that was `[Unreleased]` is now
+`[0.2.0]`.
+
+### One thing this pass's fixes changed that no finding asked for
+
+`ruff` excludes `.qe` and `src/claims_ledger/corpus/seeds`. The first because reformatting
+a Python snippet inside a finding would edit the record of what an agent ran; the second
+because `D50`'s document is deliberately not UTF-8, and a formatter that reads every file
+cannot read it. `ty` already excluded the seeds for the same reason. Without this,
+`ruff format --check .` — which CI runs — exits 2 on the tree the pass itself committed.
