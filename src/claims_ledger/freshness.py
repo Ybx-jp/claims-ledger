@@ -71,9 +71,12 @@ def is_object_name(repo, pin):
         return not named.out.strip(), None
     # It also exits non-zero for a pin this repository does not have at all — `deadbe`, a
     # dangling symref — which is `resolve`'s finding and not this checker's. `--verify
-    # --quiet` says that clean `no` with exit 1 and nothing on stderr, so it is what tells
-    # a pin that is not there from a git that cannot look. A pin that is not there is
-    # passed on as an object name, for the next question to find nothing at.
+    # --quiet` says that `no` with exit 1, where a git that cannot look exits 128 or does
+    # not return, so the exit status is what tells a pin that is not there from a git that
+    # could not answer. (Not stderr: a dangling symref warns on it and a plainly absent
+    # name does not, which separates two kinds of `no` rather than `no` from a failure.) A
+    # pin that is not there is passed on as an object name, for the next question to find
+    # nothing at.
     if git_call(repo, "rev-parse", "--verify", "--quiet", pin).code == 1:
         return True, None
     return None, named.why
@@ -164,9 +167,9 @@ def drift(repo, pointer, tree, config):  # `tree` is the repository's working tr
         return "unknown", f"git could not say whether `{pointer.pin}` is a commit or a name: {why}"
     if not named:
         return "unstable-pin", None
-    # `--quiet` is what makes the difference between the two answers legible: exit 1 with
-    # nothing on stderr is `there is nothing at that pin`, which `resolve` reports, and
-    # anything else is git failing to look.
+    # `--quiet` is what makes the difference between the two answers legible, and the exit
+    # status is where it is read: exit 1 is `there is nothing at that pin`, which `resolve`
+    # reports, and 128 or no answer at all is git failing to look.
     at_pin = git_call(repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}")
     if at_pin.code == 1:
         return None, None

@@ -291,10 +291,11 @@ def test_f2_a_dangling_symref_pin_is_reported_where_the_pin_is_the_subject(proje
     """The configuration GITFAIL-4 was reported on, and what it actually is.
 
     A dangling symref is not a git that cannot answer. `rev-parse --verify --quiet` exits
-    1 over it with nothing on stderr, which is git saying the pin resolves to nothing —
-    and a pin that resolves to nothing is `resolve`'s subject. `freshness` stays quiet on
-    purpose: reporting one defect under two names would make it look like two. What must
-    never happen is that nobody reports it, and this is the test of that.
+    1 over it, where a git that cannot look exits 128 or does not return — so that exit 1
+    is git saying the pin resolves to nothing, and a pin that resolves to nothing is
+    `resolve`'s subject. `freshness` stays quiet on purpose: reporting one defect under
+    two names would make it look like two. What must never happen is that nobody reports
+    it, and this is the test of that.
     """
     p = make_pinned(project, pin_text="beef")
     p.p.git("branch", "beef")
@@ -305,9 +306,11 @@ def test_f2_a_dangling_symref_pin_is_reported_where_the_pin_is_the_subject(proje
     (p.root / ".git" / "refs" / "heads" / "beef").write_text("ref: refs/heads/gone\n")
     assert _git(p.root, "rev-parse", "--git-dir")[0] == 0, "git_problem() must still pass"
     assert _git(p.root, "rev-parse", "--symbolic-full-name", "beef")[0] != 0
-    assert _git(p.root, "rev-parse", "--verify", "--quiet", "beef")[0] == 1, (
-        "git's answer is `it does not resolve`, not `I cannot say`"
-    )
+    rc, _, err = _git(p.root, "rev-parse", "--verify", "--quiet", "beef")
+    assert rc == 1, "git's answer is `it does not resolve`, not `I cannot say`"
+    # Not read from stderr: git warns there over a broken ref and says nothing over an
+    # absent one, which tells two kinds of `no` apart rather than `no` from a failure.
+    assert "dangling symref" in err
     capsys.readouterr()
     assert p.p.cl("check") == 1
     assert "@beef does not resolve" in capsys.readouterr().out
