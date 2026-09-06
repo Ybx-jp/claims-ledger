@@ -340,7 +340,7 @@ what else there is still to check.
 | a pin that names a branch or a tag rather than a commit | D47 | flag — a pin that follows the work can never go stale |
 | a pin git can neither resolve nor classify | D51 | catch — a comparison that did not happen is never a fresh ground |
 | an orphan freshness verdict | D48 | catch |
-| a discharge laundered by a touch and a revert | D53 | catch — a verdict is held to the artifact it records, not to whether anything has touched the file |
+| a discharge laundered by a touch and a revert | D53 | catch — a verdict is held to the artifact it records, not to whether anything has touched the file, and the record it carries does not silence the drift the touch really makes |
 | a drift acknowledged by a propagated verdict | K20 | pass |
 | a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
 | an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |

@@ -100,10 +100,19 @@ def append(path, block):
     path.write_text(head.rstrip("\n") + "\n\n" + block + marker + tail, encoding="utf-8")
 
 
-def contested(pointer_line, note="propagated from a moved ground"):
+def contested(pointer_line, artifact=None, note="propagated from a moved ground"):
+    """A propagated verdict, as `freshness --write` writes one.
+
+    `artifact` is what the run recorded the ground as when it saw the drift. Omitted only
+    where the case is about a verdict that does not describe the drift in front of it —
+    which `validate` refuses on its own, and which is why the omission has to be
+    deliberate rather than the default it used to be.
+    """
+    line = f"  artifact: {artifact}\n" if artifact else ""
     return (
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f"  evidence: {pointer_line}\n"
+        f"{line}"
         f"  note: {note}\n"
     )
 
@@ -124,7 +133,13 @@ def test_a_verdict_naming_the_same_section_still_discharges_it(project):
     )
     note(project, TWO_SECTIONS.replace("0.04", "0.09"))
     assert [o for o, _, _ in outcomes(project)] == ["flag"]
-    append(path, contested(f'lab: docs/note-001.md § "Observation" @{pin}'))
+    append(
+        path,
+        contested(
+            f'lab: docs/note-001.md § "Observation" @{pin}',
+            artifact=project.blob("docs/note-001.md"),
+        ),
+    )
     assert outcomes(project) == []
 
 
@@ -144,7 +159,13 @@ def test_a_verdict_naming_one_section_does_not_discharge_another(project):
     )
     note(project, TWO_SECTIONS.replace("0.04", "0.09").replace("sixteen", "thirty-two"))
     assert len(outcomes(project)) == 2
-    append(path, contested(f'lab: docs/note-001.md § "Observation" @{pin}'))
+    append(
+        path,
+        contested(
+            f'lab: docs/note-001.md § "Observation" @{pin}',
+            artifact=project.blob("docs/note-001.md"),
+        ),
+    )
     still = outcomes(project)
     assert [o for o, _, _ in still] == ["flag"]
     assert "'Method'" in still[0][2]
@@ -389,7 +410,12 @@ def test_a_fallen_entry_carrying_a_discharge_is_not_an_orphan(project):
     exemption does not leak into an accusation."""
     path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
     note(project, NOTE.replace("0.04", "0.09"))
-    append(path, contested(f"experiment: docs/note-001.md @{pin}"))
+    append(
+        path,
+        contested(
+            f"experiment: docs/note-001.md @{pin}", artifact=project.blob("docs/note-001.md")
+        ),
+    )
     append(
         path,
         "- 2026-11-21T09:00:00-08:00 · refuted · grade: measured · author: main\n"
@@ -541,7 +567,8 @@ def test_a_touch_and_a_revert_do_not_launder_a_pre_emptive_discharge(project):
     and one that put it back. The ground is byte-identical to the pin throughout, and a
     verdict that states no drift states nothing."""
     path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
-    append(path, contested(f"experiment: docs/note-001.md @{pin}"))
+    at_pin = rev(project, f"{pin}:docs/note-001.md")
+    append(path, contested(f"experiment: docs/note-001.md @{pin}", artifact=at_pin))
     assert [o for o, _, _ in outcomes(project)] == ["fail"], "the control: it is an orphan"
 
     original = (project.root / "docs" / "note-001.md").read_bytes()
@@ -557,16 +584,29 @@ def test_a_touch_and_a_revert_do_not_launder_a_pre_emptive_discharge(project):
     )
 
 
-def test_a_discharge_recording_a_version_the_artifact_never_held_is_an_orphan(project):
+def test_a_discharge_recording_a_version_the_artifact_never_held_is_flagged(project):
     """The forger's other move: write the verdict pre-emptively *and* record something in
     its `artifact:` line. The id here is a real object in this very repository — the entry
     file's own blob — so being well formed, and even being findable, is not what is being
     asked. The question is whether *this artifact* was ever that between the pin and here.
+
+    **This was a `fail` and is now a `flag`, deliberately, and the trade is stated because
+    it is a weakening of this outcome.** The same shape is what an ordinary drift leaves
+    behind when it is never committed: `freshness --write` records the working-tree blob,
+    the ledger is committed, the author abandons the edit, and no later run appends
+    anything because the ground is fresh. Held as a failure, that was a permanent red no
+    legal edit could clear, on the documented workflow and an author who changed their
+    mind. What is not weakened is what the forgery *buys*: `discharges()` requires the
+    same `caused` this does, so a verdict nothing can confirm silences no drift either.
+    The half git can refute — the pin's own blob, `absent` over no deletion — still fails,
+    in the two tests below.
     """
     path, pin = build(project, ["experiment: docs/note-001.md @{pin}"])
     real_but_not_this_artifact = rev(project, "HEAD:ledger/entries/A0001-fraction-law.md")
     append(path, contested_at(f"experiment: docs/note-001.md @{pin}", real_but_not_this_artifact))
-    assert [o for o, _, _ in outcomes(project)] == ["fail"]
+    ((outcome, part, message),) = outcomes(project)
+    assert (outcome, part) == ("flag", "Verdicts")
+    assert "no commit between the pin and here ever held" in message
 
 
 def test_a_discharge_recording_the_artifact_as_the_pin_has_it_is_an_orphan(project):

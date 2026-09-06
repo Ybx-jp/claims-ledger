@@ -401,15 +401,47 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   — the object id git would store the artifact under at the moment the drift was seen, or
   `absent` for a ground that had been withdrawn — and the orphan rule asks whether the
   artifact really was that between the pin and here. A verdict that records nothing, or
-  that records the artifact as the pin itself has it, is an orphan. The line is a new
-  optional field of the verdict schema; a propagated verdict written by an earlier
-  build carries none, and is reported as an orphan once the ground it names is fresh again.
-  **That state cannot be repaired**: the verdict cannot be edited, because verdicts append
-  and only append and `validate` catches the edit; appending a second verdict does not
-  clear the first; and `freshness --write` writes nothing for a ground that has not
-  drifted. Nothing was ever published, so no ledger outside this repository holds one — but
-  ten corpus seed entries do, and they pass only because their grounds are still drifted.
-  See `QE-AUDIT.md`, QE7-74 and the `artifact:` ruling, for the correction this needs.
+  that records the artifact as the pin itself has it, is an orphan.
+- **The `artifact:` line is checked, in every state, and is required where it is
+  written** — QE7-70 and QE7-75, from the check that stands between the fixer and the
+  merge. As first written the field was consulted only once the ground looked fresh again,
+  and the rule that silences a `moved` report matched a verdict to a ground by the pointer
+  alone: over a live, committed drift a propagated verdict carrying forty zeros, a value
+  the artifact had never been, or no `artifact:` line at all held every checker at exit 0.
+  `validate` now holds every verdict's `artifact:` to a shape — required, and a 40-hex
+  object id or `absent`, on the propagated shape that records a drift; forbidden on every
+  other verdict, where it claims a check that did not run; and written twice is malformed
+  rather than resolved to the last one. A drift is silenced only by a verdict that
+  describes it: one recording what the run reads the artifact as, or one whose record the
+  artifact really was between the pin and here.
+- **The orphan question is asked of the ground, not of each verdict** — QE7-74. Two of
+  this pass's own fixes combined into a wedge: `freshness --cached --write` records the
+  *index* blob, `caused()` looks only at committed history, and staging one more edit
+  before the commit — `git add -p`, an amend, a formatter — left a verdict naming an id no
+  commit ever held. Held verdict by verdict, that was an orphan the moment the ground came
+  back, and unrepairable: verdicts append and only append, and the pin above the marker is
+  frozen. A ground is now an orphan when *no* propagated verdict against it states a cause
+  that happened, which is the question the rule was always about, and the second verdict
+  the next run appends repairs the record by ordinary means.
+- **"Not caused" is two answers, and only one of them is a forgery** — QE8-82, from the
+  second round of the same gate. The wedge above has a sibling the per-ground rule cannot
+  reach, because there is no second verdict to reach with: edit a ground, run
+  `freshness --write`, commit the ledger, and then *abandon* the edit. The recorded blob
+  was never in any commit, the ground is fresh, and `--write` appends nothing more — so
+  the discharge was a permanent failure no legal edit could clear, on the documented
+  workflow and an author who changed their mind. A record git can **refute** — the blob
+  the pin itself has, or `absent` over a history holding no deletion — is the pre-emptive
+  forgery and still fails. A record git can only fail to **confirm** now flags. This is a
+  weakening of one outcome and is recorded as one; what it does not weaken is what the
+  forgery buys, because the suppression rule requires the same `caused` and a verdict
+  nothing can confirm silences no drift either.
+- **The hook is installed where git actually looks for it** — QE8-83. `core.hooksPath`
+  moves the hooks directory, and `hook --install` wrote to `.git/hooks` regardless,
+  printing `installed …` and exiting 0 for a file git would never execute: a gate reported
+  as installed that does not exist, which is this package's own cardinal failure at the
+  surface the sixth pass had just fixed. `git rev-parse --git-path hooks` is the question
+  git asks itself, and it also fixes the linked-worktree and `--separate-git-dir` cases,
+  where `.git` is a file and the install failed with `Not a directory`.
 - **A git that cannot say whether the drift happened says so** — HIGH-54. `ever_drifted()`
   read a `rev-list` that failed, raised or outlived the 30-second timeout as "it drifted",
   and retired the forged-discharge check with no report that it had not run. That is the
@@ -429,6 +461,14 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   `refuse_to_write_outside_the_root`, `append_verdict` requires the root rather than
   defaulting it away, and a test now asks the question of every write site at once, so the
   next one cannot be added without either asking or saying why it does not have to.
+- **`init` and `hook --install` no longer write outside the project either** — QE7-72. The
+  test above had an allowlist, and both names on it were excused for a reason about the
+  *directory* rather than about the write: `init` creates the root, but the root exists by
+  the time the source registry lands in it, and `hook --install` must leave the root but
+  not leave the git directory. A symlink planted at `ledger/sources.jsonl` or at
+  `.git/hooks/pre-commit` took a scaffolded registry and 1690 bytes of mode-755 shell
+  outside, exit 0, each naming the in-root path it had not written to. Both now ask, each
+  against the boundary its own write has, and the allowlist is empty.
 - **A `#` inside a fenced code block is not a heading** — HIGH-58. `section_span()` read one
   as a depth-1 heading, so a `## Observation` section ended at the fence and everything
   below it — including the sentence the claim rests on — was outside the comparison for

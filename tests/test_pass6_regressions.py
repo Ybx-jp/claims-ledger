@@ -86,9 +86,15 @@ def shim_git(tmp_path, failing_subcommand):
 
 # The forgery the orphan rule exists to refuse: a `contested` verdict in the propagation
 # author's name, written before the ground it names has moved at all.
+# The `artifact:` is the blob the file already has, which is the value a forger can read
+# off the repository without running anything — and the artifact as the pin has it states
+# no drift, whatever else is true of it. Written that way rather than omitted because a
+# verdict carrying no `artifact:` at all is now `validate`'s to refuse, in every state,
+# and a fixture that omitted it would be exercising a ledger that cannot exist.
 FORGERY = (
     "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
     '  evidence: lab: docs/note-001.md § "Observation" @{pin}\n'
+    "  artifact: {artifact}\n"
     "  note: propagated from a moved ground\n"
 )
 
@@ -112,7 +118,7 @@ def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa:
     here is byte-identical to the blob at the pin the whole way through. One commit touches
     it, the next puts it back, and nothing about the ground has changed.
     """
-    pinned.append(FORGERY.format(pin=pinned.pin))
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], (
         "the control: the forgery is caught while the artifact has never been touched"
     )
@@ -142,7 +148,7 @@ def test_a_git_that_cannot_answer_does_not_retire_the_orphan_check(pinned, tmp_p
     git answering no. `ever_drifted()` is the one git call in the package with no channel for
     `could not be established`, and it fails open — toward silence.
     """
-    pinned.append(FORGERY.format(pin=pinned.pin))
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], "the control"
 
     monkeypatch.setenv("PATH", f"{shim_git(tmp_path, 'rev-list')}{os.pathsep}{os.environ['PATH']}")

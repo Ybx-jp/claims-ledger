@@ -60,6 +60,22 @@ class Project:
             text=True,
         )
 
+    def blob(self, rel):
+        """The object id git would store `rel` under, as the working tree has it.
+
+        What `freshness --write` records in a verdict's `artifact:` line, computed the way
+        the checker computes it. A hand-written verdict in a fixture needs the real value:
+        a discharge is a verdict that describes the drift in front of it, and a fixture
+        that names the wrong blob is a fixture whose verdict discharges nothing.
+        """
+        out = subprocess.run(
+            ["git", "-C", str(self.root), "hash-object", "--path", rel, "--", str(self.root / rel)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return out.stdout.strip()
+
     def write_full_entry(self, path):
         """Turn a scaffolded entry into one every checker passes."""
         text = path.read_text(encoding="utf-8")

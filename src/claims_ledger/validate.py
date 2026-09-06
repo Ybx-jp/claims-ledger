@@ -20,6 +20,7 @@ import re
 from pathlib import Path
 
 from .schema import (
+    ABSENT,
     ACTS,
     APPEND,
     DECIMAL_RE,
@@ -27,6 +28,8 @@ from .schema import (
     ID_RE,
     KINDS,
     MEASURED_AND_ABOVE,
+    NULL_OBJECT_ID,
+    OBJECT_ID_RE,
     SCOPE_KEYS,
     SECTIONS,
     SHA_RE,
@@ -332,6 +335,54 @@ def check_verdicts(e, entries, config):
                     "a corroborating verdict must point at a ground the entry does not "
                     "already cite",
                 )
+        # `artifact:` is machine provenance, and this is the only checker that looks at
+        # its shape. `freshness` writes it and `orphans()` holds the verdict to it — but
+        # `orphans()` asks only once the ground looks fresh again, so in the state a
+        # discharge normally lives in, the drift still live, no code read the value at
+        # all: a propagated verdict carrying forty zeros, a non-hash, or no `artifact:`
+        # line silenced a real ongoing drift with every checker at exit 0. Well-formedness
+        # is asked here instead, of every verdict, in every state, before git is asked
+        # anything.
+        records_drift = (
+            v.author == config.propagation_author
+            and v.status == "contested"
+            and p is not None
+            and p.type in config.evidence_types
+            and p.pin not in UNPINNED
+        )
+        if records_drift:
+            if v.artifact is None:
+                fail(
+                    part,
+                    "no artifact: line; a propagated verdict over a pinned ground records "
+                    "the object id the drift was seen at, or `absent` for a ground that "
+                    "was gone, and a discharge that states no cause is one nothing can check",
+                )
+            elif v.artifact != ABSENT and not OBJECT_ID_RE.match(v.artifact):
+                fail(
+                    part,
+                    f"artifact `{v.artifact}` is neither a 40-character object id nor `{ABSENT}`",
+                )
+            elif v.artifact == NULL_OBJECT_ID:
+                # Well-formed and naming nothing. Git's null object id is forty hex
+                # characters no artifact has ever hashed to, so it passes the shape while
+                # recording no artifact at all — and `blobs_since()` drops it from what
+                # the path has held, so the value is one nothing can ever confirm.
+                fail(part, "artifact is the null object id, which names no artifact")
+        elif v.artifact is not None:
+            # The other direction, and the one a person reaches for: `artifact:` on a
+            # hand-written `corroborated` verdict is machine provenance nothing machine
+            # produced. Stated as a shape rather than as an accusation, because the rule
+            # cannot tell a person fabricating provenance from a verdict the machinery
+            # really wrote under a `propagation-author` the configuration has since been
+            # changed away from — and it said "claims a check that did not run" about
+            # every tool-written verdict in the ledger after that one-line config edit.
+            fail(
+                part,
+                "artifact: is recorded by `freshness --write` on a propagated verdict "
+                "naming a pinned ground, and this verdict is not that shape; if the "
+                "machinery wrote it, `propagation-author` no longer names its author",
+            )
         if v.status == "non-comparable" and e.grade not in MEASURED_AND_ABOVE:
             fail(
                 part, f"non-comparable is legal only at measured and above; this entry is {e.grade}"

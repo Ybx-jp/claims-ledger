@@ -192,8 +192,22 @@ pointer, exactly as `propagate` writes one naming a fallen entry:
 The second is the one the checker can help with, so `freshness --write` appends it, and —
 following `propagate` — the run still exits non-zero afterwards so the appended text is
 looked at before it is committed. A pointer whose entry already carries such a verdict
-naming it, **including its `§ "<section>"`**, is discharged, and the checker is silent; a
-verdict naming one section of a file does not discharge a drift in another.
+naming it, **including its `§ "<section>"`**, and whose verdict **describes the drift in
+front of the run**, is discharged and the checker is silent; a verdict naming one section
+of a file does not discharge a drift in another.
+
+**Built — a pointer says which drift a verdict is about, and is not evidence that it is
+about this one.** Matching a verdict to a ground by the pointer alone was the whole of the
+suppression rule, and it left the `artifact:` line below unreachable in the state a
+discharge normally lives in: with the drift live, the orphan rule does not ask, so nothing
+read the value at all and a propagated verdict carrying forty zeros, a value the artifact
+has never been, or no `artifact:` line at all held a real, committed, ongoing drift at exit
+0 with every checker silent. A verdict discharges the drift in front of it when it
+**records what this run reads the artifact as** — the ordinary pre-commit case, where the
+drift is in the working tree or the index and is in no commit for the history question to
+find — **or** when the artifact really was what it says it was between the pin and here.
+A verdict that is neither does not silence the finding; that is not an accusation, and the
+orphan rule below is where a verdict is called a forgery.
 
 **Built — the non-zero exit had to be made true.** `propagate` gets it for free, because
 every block it queues sits beside a failure. Freshness queues the `moved` case beside a
@@ -212,6 +226,17 @@ build at the citation site.
 **Orphans.** As with `propagate`, a propagation-authored contested verdict naming a
 pointer that has *not* drifted is an orphan and fails. Otherwise the discharge is
 forgeable by writing the verdict pre-emptively.
+
+**Built — the question is asked of the ground, not of each verdict.** An entry may
+legitimately carry more than one propagated verdict against one ground, and the pre-commit
+path produces exactly that: the hook records the staged blob, the author stages one more
+edit before committing — `git add -p`, an amend, a formatter — and the next run appends a
+second verdict naming what was finally committed. The first records a blob no commit ever
+held, and holding each verdict separately made it an orphan the moment the ground came
+back: a failure no legal edit could clear. So a ground is an orphan when **no** propagated
+verdict against it states a cause that happened. It costs the rule nothing — a forger who
+has genuinely drifted the ground and named the blob has made a record a reader can follow,
+and a second, emptier verdict beside it buys nothing the first did not already buy.
 
 **Built — "has not drifted" is not the same question as "was never drifted".** Asked as
 the first, the rule wedged the ledger: undo the edit that caused a discharge and the
@@ -246,20 +271,30 @@ of this rule measured them; they are stated here rather than left for a reader t
 because a specification that overstates its own guarantee is the defect this package exists
 to refuse.
 
-- **The `artifact:` line is not consulted while the drift is live.** `orphans()` asks about
-  it only when the ground looks fresh again, and `has_acknowledged()` — which is what
-  silences a `moved` report — matches a verdict to a ground by the pointer alone. So a
-  propagation-authored verdict carrying any value, or none, silences a real, committed,
-  ongoing drift with every checker at exit 0. The gate is older than this rule; what is new
-  is that this rule depends on it.
+- ~~**The `artifact:` line is not consulted while the drift is live.**~~ Closed. It is
+  consulted twice now: `validate` holds every verdict's `artifact:` to a shape in every
+  state, before git is asked anything, and the suppression rule above requires the verdict
+  to describe the drift in front of the run. A propagated verdict carrying a value the
+  artifact has never been no longer silences a live drift, and one carrying no value at all
+  no longer parses as legal.
 - **`caused()` has no section awareness.** For a `§ "<section>"` ground it asks whether the
   *file* ever held the recorded blob, so one ordinary commit editing a different section of
   the same file supplies a blob a discharge can name, with the pinned section untouched.
 - **`absent` is checked against the file, not against the verdict.** A ground deleted and
   restored in two commits satisfies it, which is a touch-and-revert.
+- **A verdict that records what the run would have recorded is a discharge, whoever wrote
+  it.** `git hash-object --path <file> -- <file>` is one command, and a hand-written
+  verdict carrying its output holds a live drift at exit 0 across all five checkers. This
+  is inherent rather than a defect: without signing, no rule can separate "the tool wrote
+  this" from "a person wrote what the tool would have written", and *describing the drift*
+  is exactly what an honest discharge does. It is stated here because the rule above is
+  easy to read as an anti-forgery property, and it is not one — it is a rule about whether
+  the record is *true*, not about who made it.
 
 So the accidental forgery is narrowed rather than removed: the object-id case needs a
-deliberate `git rev-parse`, and the two above do not.
+deliberate `git rev-parse`, and the two above do not. Both remaining residuals require an
+author with commit access deliberately writing a verdict in the machine's name, and both
+are stated here rather than left for a reader to find.
 
 **A git that cannot answer is not a git answering no.** The history question can fail — a
 corrupt pack, a clean filter that exits non-zero, the per-call timeout. When it does, the
@@ -453,9 +488,10 @@ rather than something a later reader has to notice.
   whose evidence lives on a moving branch, and failing would make that project's ledger
   uncheckable rather than merely weaker.
 - **Whether the discharge should expire.** Nothing here re-flags a claim whose ground
-  moved a second time after being contested: `has_acknowledged()` matches a verdict to a
-  ground by the pointer, and the pointer has not changed. The verdict now carries the
-  object id it was written against, so the question can be asked — is the artifact still
-  the version this discharge judged? — but it is not asked yet, and asking it would mean
-  deciding what a project does about a discharge that has aged out, which is a policy this
-  has no experience to choose from.
+  moved a *second* time after being contested. The suppression rule does now read the
+  `artifact:` line — but it accepts a verdict whose record the artifact really held
+  between the pin and here, and a first drift that was committed satisfies that forever.
+  So the discharge covers every later version of the ground as well as the one it judged.
+  The question can be asked — is the artifact still the version this discharge judged? —
+  and asking it would mean deciding what a project does about a discharge that has aged
+  out, which is a policy this has no experience to choose from.
