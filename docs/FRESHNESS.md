@@ -239,9 +239,27 @@ which is what a pre-commit hook is for.
 A verdict that records nothing is an orphan, and so is one recording the artifact as the pin
 itself has it, which states no drift. This does not make the discharge unforgeable — the
 ledger is text a person writes, and a forger who genuinely drifts the artifact in a commit
-and names that blob has made a record a reader can follow. What it removes is the accidental
-forgery: a careless touch-and-revert launders nothing, because the verdict beside it names
-nothing the artifact was.
+and names that blob has made a record a reader can follow.
+
+**Three things it does not yet reach, and the first is the largest.** An adversarial review
+of this rule measured them; they are stated here rather than left for a reader to discover,
+because a specification that overstates its own guarantee is the defect this package exists
+to refuse.
+
+- **The `artifact:` line is not consulted while the drift is live.** `orphans()` asks about
+  it only when the ground looks fresh again, and `has_acknowledged()` — which is what
+  silences a `moved` report — matches a verdict to a ground by the pointer alone. So a
+  propagation-authored verdict carrying any value, or none, silences a real, committed,
+  ongoing drift with every checker at exit 0. The gate is older than this rule; what is new
+  is that this rule depends on it.
+- **`caused()` has no section awareness.** For a `§ "<section>"` ground it asks whether the
+  *file* ever held the recorded blob, so one ordinary commit editing a different section of
+  the same file supplies a blob a discharge can name, with the pinned section untouched.
+- **`absent` is checked against the file, not against the verdict.** A ground deleted and
+  restored in two commits satisfies it, which is a touch-and-revert.
+
+So the accidental forgery is narrowed rather than removed: the object-id case needs a
+deliberate `git rev-parse`, and the two above do not.
 
 **A git that cannot answer is not a git answering no.** The history question can fail — a
 corrupt pack, a clean filter that exits non-zero, the per-call timeout. When it does, the

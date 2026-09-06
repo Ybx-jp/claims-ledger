@@ -251,9 +251,10 @@ author implements what the seeds test rather than something stronger:
 
 ## Coverage
 
-Each defect class the audit found has at least one seed, and so does every rule about
-*not silently passing* — a ground the freshness checker could not examine, a document the
-reference checker could not open, a pointer or a registry row that does not resolve. The
+Each defect class the audit found has at least one seed. What the corpus holds of the
+*not silently passing* rules is stated below rather than claimed here — a mutation sweep
+found several of them held by no seed, two of them among the examples this paragraph used
+to name — and the paragraph after this table is where that limit is written down. The
 right column is the honest limit: `catch` means the checker fails; `flag` means it reports
 and a human judges; `review` means the machinery passes and only the human record says
 what is wrong.

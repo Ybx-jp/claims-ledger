@@ -403,8 +403,13 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   artifact really was that between the pin and here. A verdict that records nothing, or
   that records the artifact as the pin itself has it, is an orphan. The line is a new
   optional field of the verdict schema; a propagated verdict written by an earlier
-  build carries none, and is reported as an orphan until the drift it names is
-  recorded — which is the correct reading of a discharge nothing states a cause for.
+  build carries none, and is reported as an orphan once the ground it names is fresh again.
+  **That state cannot be repaired**: the verdict cannot be edited, because verdicts append
+  and only append and `validate` catches the edit; appending a second verdict does not
+  clear the first; and `freshness --write` writes nothing for a ground that has not
+  drifted. Nothing was ever published, so no ledger outside this repository holds one — but
+  ten corpus seed entries do, and they pass only because their grounds are still drifted.
+  See `QE-AUDIT.md`, QE7-74 and the `artifact:` ruling, for the correction this needs.
 - **A git that cannot say whether the drift happened says so** — HIGH-54. `ever_drifted()`
   read a `rev-list` that failed, raised or outlived the 30-second timeout as "it drifted",
   and retired the forged-discharge check with no report that it had not run. That is the
