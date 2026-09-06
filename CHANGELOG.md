@@ -61,6 +61,32 @@ change to what it expects would dissolve the argument.
 
 ### Fixed
 
+- **A git that stops answering is no longer read as good news** — the fourth adversarial
+  pass, `QE-AUDIT.md` HIGH-23 … MEDIUM-28. `git_problem()` was asked once at the start of
+  a run and every command after it was trusted, so a failure that `rev-parse --git-dir`
+  cannot see — a required clean filter that exits non-zero, a truncated index, a loose
+  object removed, a diff that outlives the timeout — came back as `None` from `git()` and
+  was read by its caller as a benign negative: unchanged, not staged, not committed. A
+  check that never ran, reported as a check that passed. `git_call()` answers with the
+  exit status beside the output, so a caller can tell *no* from *could not ask*, and each
+  surface was changed to ask in that form: `freshness` reports a comparison it could not
+  make instead of a fresh ground, and does not turn the same silence into an orphan
+  verdict; `validate` reports a revision whose blob it could not read instead of waiving
+  the append-only check across it, and says when `--cached` fell back to the working tree
+  because the index could not be parsed; `sha --write` refuses to rewrite an entry when
+  git cannot say whether it is committed, rather than rewriting an immutable frozen
+  region and exiting 0; and `resolve` reports a git it could not ask once, for the
+  ledger, rather than telling the author that every pinned pointer they wrote is wrong.
+  Two surfaces of the same class, found while fixing rather than reported: an entry whose
+  history `git log` cannot list was read as one that had never been committed, and so
+  dropped out of both history checks; and `drift()` could not tell a path that is not at
+  the pin from a git that could not look for it.
+- **The immutability check covers the whole frozen region** (`QE-AUDIT.md` HIGH-22). It
+  compared parsed sections, and a section runs from its own heading to the next — so
+  every byte above the first `## ` heading of a committed entry belonged to no section
+  and was compared against nothing. The scaffold leaves that region empty, which is what
+  made it a hiding place. The bytes above the APPEND marker are compared now, with the
+  section-by-section diff kept for the diagnostic so a changed section is still named.
 - The configuration `claims-ledger init` writes is now checked to be parseable TOML. The
   template is filled with `str.format` and then read by a parser, and an escape that
   survives one and not the other is unparseable in a way nothing else would notice: a

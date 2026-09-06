@@ -39,6 +39,7 @@ from .schema import (
     UNPINNED,
     Report,
     git,
+    git_call,
     git_problem,
     load_entries,
     read_document,
@@ -53,14 +54,29 @@ OBJECT_NAME_RE = re.compile(r"^[0-9a-f]{4,40}$")
 
 
 def is_object_name(repo, pin):
-    """Whether `pin` names a commit by its object id. A hex string long enough to be an
-    abbreviation is not proof on its own — `beef` is a legal branch name — so git is
-    asked whether the same text also resolves as a ref."""
+    """(whether `pin` names a commit by its object id, why git could not say).
+
+    A hex string long enough to be an abbreviation is not proof on its own — `beef` is a
+    legal branch name — so git is asked whether the same text also resolves as a ref.
+    The answer is None when git could not classify the pin at all, which is not the same
+    as `it is not a ref` and must not be read as one: a broken repository would otherwise
+    retire every unstable-pin flag in the ledger without saying a word.
+    """
     if not OBJECT_NAME_RE.match(pin):
-        return False
+        return False, None
     # `--symbolic-full-name` prints a refname for anything that is one and nothing for an
     # object id, so a hex-looking branch is caught here rather than trusted.
-    return not (git(repo, "rev-parse", "--symbolic-full-name", pin) or "").strip()
+    named = git_call(repo, "rev-parse", "--symbolic-full-name", pin)
+    if named.ok:
+        return not named.out.strip(), None
+    # It also exits non-zero for a pin this repository does not have at all — `deadbe`, a
+    # dangling symref — which is `resolve`'s finding and not this checker's. `--verify
+    # --quiet` says that clean `no` with exit 1 and nothing on stderr, so it is what tells
+    # a pin that is not there from a git that cannot look. A pin that is not there is
+    # passed on as an object name, for the next question to find nothing at.
+    if git_call(repo, "rev-parse", "--verify", "--quiet", pin).code == 1:
+        return True, None
+    return None, named.why
 
 
 def checked_pointers(entry, config):
@@ -131,14 +147,31 @@ def scoped(repo, pointer, path, config):
 def drift(repo, pointer, tree, config):  # `tree` is the repository's working tree
     """(finding, detail) for one pointer, or (None, None) when the ground is fresh.
 
-    `finding` is `unstable-pin`, `withdrawn` or `moved`. A pin or a path that does not
-    resolve at all is not this checker's finding — `resolve` reports it, and reporting it
-    twice under two names would make one defect look like two.
+    `finding` is `unstable-pin`, `withdrawn`, `moved` or `unknown`. A pin or a path that
+    does not resolve at all is not this checker's finding — `resolve` reports it, and
+    reporting it twice under two names would make one defect look like two.
+
+    `unknown` is git declining to answer a question this checker asked, and its detail is
+    the reason. `git_problem()` is asked once before the run and clears a git that cannot
+    work at all; these are the failures it cannot see, because `rev-parse --git-dir` goes
+    on succeeding through them — a required clean filter that exits non-zero, a pack the
+    reader can no longer open, an object removed from under a revision that names it. The
+    comparison did not happen, and a comparison that did not happen is never a fresh
+    ground.
     """
-    if not is_object_name(repo, pointer.pin):
+    named, why = is_object_name(repo, pointer.pin)
+    if named is None:
+        return "unknown", f"git could not say whether `{pointer.pin}` is a commit or a name: {why}"
+    if not named:
         return "unstable-pin", None
-    if git(repo, "rev-parse", "--verify", f"{pointer.pin}:{pointer.target}") is None:
+    # `--quiet` is what makes the difference between the two answers legible: exit 1 with
+    # nothing on stderr is `there is nothing at that pin`, which `resolve` reports, and
+    # anything else is git failing to look.
+    at_pin = git_call(repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}")
+    if at_pin.code == 1:
         return None, None
+    if not at_pin.ok:
+        return "unknown", f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
     path = tree / pointer.target
 
     def since():
@@ -155,8 +188,10 @@ def drift(repo, pointer, tree, config):  # `tree` is the repository's working tr
     # the repository does to a file on its way in and out — line endings, clean filters —
     # is done to both sides. Empty output means the path is unchanged there, and no
     # section inside it can have moved either, so the text is never read.
-    changed = git(repo, "diff", "--name-only", pointer.pin, "--", pointer.target)
-    if changed is None or not changed.strip():
+    changed = git_call(repo, "diff", "--name-only", pointer.pin, "--", pointer.target)
+    if not changed.ok:
+        return "unknown", f"git could not compare `{pointer.target}` against the pin: {changed.why}"
+    if not changed.out.strip():
         return None, None
     if pointer.sectioned:
         finding = scoped(repo, pointer, path, config)
@@ -217,6 +252,18 @@ def run(ledger, write=False):
         part = f"Grounds {i}"
         finding, detail = drift(repo, p, repo, config)
         if finding is None:
+            continue
+        if finding == "unknown":
+            # Not `has_acknowledged`-suppressed and not a flag: a verdict discharges a
+            # drift that was established, and nothing here was established.
+            reports.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    part,
+                    f"`{raw}` was not checked: {detail}",
+                )
+            )
             continue
         if finding == "unstable-pin":
             reports.append(
@@ -284,10 +331,17 @@ def orphans(entries, config, repo, tree, author):
             ground = pointers.get(q.raw)
             if ground is None:
                 why = f"{e.id} carries no such ground"
-            elif drift(repo, ground, tree, config)[0] in (None, "unstable-pin"):
-                why = "that ground has not drifted"
             else:
-                continue
+                finding = drift(repo, ground, tree, config)[0]
+                if finding == "unknown":
+                    # An orphan is a verdict whose stated cause did not happen. Whether it
+                    # happened is exactly what git declined to say, and `run()` reports
+                    # that; forging the accusation out of the silence would make a
+                    # correctly discharged verdict fail.
+                    continue
+                if finding not in (None, "unstable-pin"):
+                    continue
+                why = "that ground has not drifted"
             reports.append(
                 Report(
                     "fail",
