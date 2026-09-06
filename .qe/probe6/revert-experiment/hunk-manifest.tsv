@@ -1,0 +1,94 @@
+1	.github/workflows/ci.yml	@@ -23,14 +23,14 @@ jobs:
+2	.github/workflows/ci.yml	@@ -51,8 +51,8 @@ jobs:
+3	.github/workflows/ci.yml	@@ -67,7 +67,7 @@ jobs:
+4	.github/workflows/release.yml	@@ -1,12 +1,19 @@
+5	.github/workflows/release.yml	@@ -16,10 +23,10 @@ jobs:
+6	.github/workflows/release.yml	@@ -45,22 +52,33 @@ jobs:
+7	.github/workflows/release.yml	@@ -71,8 +89,8 @@ jobs:
+8	CHANGELOG.md	@@ -11,7 +11,7 @@ change to what it expects would dissolve the argumen
+9	CHANGELOG.md	@@ -26,8 +26,8 @@ change to what it expects would dissolve the argumen
+10	CHANGELOG.md	@@ -41,7 +41,7 @@ change to what it expects would dissolve the argumen
+11	CHANGELOG.md	@@ -96,6 +96,82 @@ change to what it expects would dissolve the argume
+12	CHANGELOG.md	@@ -347,4 +423,5 @@ round asked of every fix which other surfaces reac
+13	README.md	@@ -7,7 +7,7 @@ An entry separates the four roles a sentence in a rese
+14	README.md	@@ -130,20 +130,24 @@ and a document that still cites a refuted entry 
+15	docs/FRESHNESS.md	@@ -15,8 +15,9 @@ checker stays green — the evidence is still there,
+16	docs/FRESHNESS.md	@@ -48,54 +49,102 @@ reader can understand.
+17	docs/FRESHNESS.md	@@ -143,7 +192,14 @@ pointer, exactly as `propagate` writes one naming
+18	docs/FRESHNESS.md	@@ -157,6 +213,15 @@ build at the citation site.
+19	docs/FRESHNESS.md	@@ -201,7 +266,9 @@ Defect seeds:
+20	docs/FRESHNESS.md	@@ -211,6 +278,7 @@ Known-good seeds:
+21	docs/FRESHNESS.md	@@ -228,8 +296,9 @@ that survives its own rule being deleted is not pr
+22	docs/FRESHNESS.md	@@ -292,6 +361,22 @@ configuration comment, `SCHEMA.md` and `section_s
+23	docs/FRESHNESS.md	@@ -324,4 +409,6 @@ rather than something a later reader has to notice
+24	docs/SCHEMA.md	@@ -104,9 +104,11 @@ or an id), `verbatim_sha`, and optionally `verbat
+25	pyproject.toml	@@ -72,6 +72,18 @@ exclude = ["src/claims_ledger/corpus/seeds"]
+26	src/claims_ledger/__init__.py	@@ -30,7 +30,7 @@ from .schema import (
+27	src/claims_ledger/authoring.py	@@ -12,10 +12,11 @@ run, so registering a source stores the bytes in t
+28	src/claims_ledger/authoring.py	@@ -30,6 +31,9 @@ from .schema import (
+29	src/claims_ledger/authoring.py	@@ -185,7 +189,7 @@ def create_entry(ledger, slug, **kwargs):
+30	src/claims_ledger/authoring.py	@@ -257,9 +261,14 @@ def restamp(ledger, path, write=False, force=Fals
+31	src/claims_ledger/authoring.py	@@ -269,7 +278,7 @@ def restamp(ledger, path, write=False, force=False
+32	src/claims_ledger/authoring.py	@@ -337,22 +346,60 @@ def register_source(
+33	src/claims_ledger/cli.py	@@ -30,6 +30,7 @@ from .schema import (
+34	src/claims_ledger/cli.py	@@ -77,7 +78,9 @@ evidence-plain = ["experiment"]
+35	src/claims_ledger/cli.py	@@ -122,6 +125,9 @@ def build_parser():
+36	src/claims_ledger/cli.py	@@ -326,10 +332,10 @@ def cmd_propagate(args, ledger):
+37	src/claims_ledger/cli.py	@@ -348,7 +354,7 @@ def cmd_check(args, ledger):
+38	src/claims_ledger/cli.py	@@ -395,30 +401,42 @@ def cmd_new(args, ledger):
+39	src/claims_ledger/cli.py	@@ -480,10 +498,10 @@ def cmd_init(args, _ledger):
+40	src/claims_ledger/cli.py	@@ -512,8 +530,7 @@ def cmd_hook(args, ledger):
+41	src/claims_ledger/config.py	@@ -46,7 +46,15 @@ DEFAULT_ROSTER = "ROSTER.md"
+42	src/claims_ledger/corpus/README.md	@@ -63,9 +63,17 @@ five programs
+43	src/claims_ledger/corpus/README.md	@@ -74,6 +82,15 @@ The runner's contract, fixed before the runner exis
+44	src/claims_ledger/corpus/README.md	@@ -234,10 +251,20 @@ author implements what the seeds test rather tha
+45	src/claims_ledger/corpus/README.md	@@ -246,8 +273,8 @@ and only the human record says what is wrong.
+46	src/claims_ledger/corpus/README.md	@@ -287,6 +314,16 @@ and only the human record says what is wrong.
+47	src/claims_ledger/corpus/README.md	@@ -298,8 +335,11 @@ words with the papers), K14 (a chain with no empi
+48	src/claims_ledger/corpus/README.md	@@ -338,6 +378,10 @@ outline; a test-oracle literature on corpora of t
+49	src/claims_ledger/corpus/run.py	@@ -35,7 +35,7 @@ from pathlib import Path
+50	src/claims_ledger/corpus/run.py	@@ -83,19 +83,49 @@ def parse_where(where):
+51	src/claims_ledger/corpus/run.py	@@ -193,7 +223,7 @@ def run_seed(seed, root):
+52	src/claims_ledger/corpus/run.py	@@ -233,18 +263,28 @@ def run_seed(seed, root):
+53	src/claims_ledger/corpus/run.py	@@ -271,7 +311,20 @@ def main(argv=None):
+54	src/claims_ledger/corpus/seeds/D06-mid-sentence-cut-without-elision/expected.json	@@ -12,7 +12,8 @@
+55	src/claims_ledger/corpus/seeds/D17-verdict-after-terminal/entries/A0001-admissible-band.md	@@ -39,8 +39,9 @@ Restates the expert's stated band.
+56	src/claims_ledger/corpus/seeds/D17-verdict-after-terminal/expected.json	@@ -6,8 +6,9 @@
+57	src/claims_ledger/corpus/seeds/D19-prediction-without-credence/expected.json	@@ -5,8 +5,16 @@
+58	src/claims_ledger/corpus/seeds/D50-document-that-is-not-text/docs/note-102.md	@@ -0,0 +1,7 @@
+59	src/claims_ledger/corpus/seeds/D50-document-that-is-not-text/entries/A0001-stale-fraction-governs-mean-aggregation-error.md	@@ -0,0 +1,45 @@
+60	src/claims_ledger/corpus/seeds/D50-document-that-is-not-text/expected.json	@@ -0,0 +1,20 @@
+61	src/claims_ledger/corpus/seeds/D51-pin-git-cannot-classify/commits/01/docs/note-100.md	@@ -0,0 +1,7 @@
+62	src/claims_ledger/corpus/seeds/D51-pin-git-cannot-classify/commits/01/entries/A0001-stale-fraction-governs-mean-aggregation-error.md	@@ -0,0 +1,42 @@
+63	src/claims_ledger/corpus/seeds/D51-pin-git-cannot-classify/expected.json	@@ -0,0 +1,27 @@
+64	src/claims_ledger/corpus/seeds/D52-mid-sentence-start-without-elision/entries/A0001-gather-pattern-moves.md	@@ -0,0 +1,41 @@
+65	src/claims_ledger/corpus/seeds/D52-mid-sentence-start-without-elision/expected.json	@@ -0,0 +1,20 @@
+66	src/claims_ledger/freshness.py	@@ -17,11 +17,14 @@ pointer, which `--write` appends; a verdict naming
+67	src/claims_ledger/freshness.py	@@ -30,7 +33,6 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/do
+68	src/claims_ledger/freshness.py	@@ -46,24 +48,20 @@ from .schema import (
+69	src/claims_ledger/freshness.py	@@ -82,6 +80,16 @@ def is_object_name(repo, pin):
+70	src/claims_ledger/freshness.py	@@ -96,7 +104,15 @@ def checked_pointers(entry, config):
+71	src/claims_ledger/freshness.py	@@ -104,6 +120,7 @@ def has_acknowledged(entry, pointer, author):
+72	src/claims_ledger/freshness.py	@@ -117,7 +134,23 @@ def verdict_block(grade, pointer, note, author):
+73	src/claims_ledger/freshness.py	@@ -129,7 +162,7 @@ def scoped(repo, pointer, path, config):
+74	src/claims_ledger/freshness.py	@@ -147,7 +180,7 @@ def scoped(repo, pointer, path, config):
+75	src/claims_ledger/freshness.py	@@ -180,24 +213,28 @@ def drift(repo, pointer, tree, config):  # `tree
+76	src/claims_ledger/freshness.py	@@ -218,8 +255,8 @@ def since_phrase(count, where):
+77	src/claims_ledger/freshness.py	@@ -253,7 +290,7 @@ def run(ledger, write=False):
+78	src/claims_ledger/freshness.py	@@ -283,10 +320,11 @@ def run(ledger, write=False):
+79	src/claims_ledger/freshness.py	@@ -304,21 +342,45 @@ def run(ledger, write=False):
+80	src/claims_ledger/freshness.py	@@ -335,7 +397,7 @@ def orphans(entries, config, repo, tree, author):
+81	src/claims_ledger/freshness.py	@@ -344,6 +406,10 @@ def orphans(entries, config, repo, tree, author):
+82	src/claims_ledger/propagate.py	@@ -21,16 +21,20 @@ Proven against the red-team corpus by `claims-ledg
+83	src/claims_ledger/propagate.py	@@ -79,27 +83,57 @@ def grouped(pending):
+84	src/claims_ledger/schema.py	@@ -14,6 +14,7 @@ Nothing outside the standard library is imported, so
+85	src/claims_ledger/schema.py	@@ -355,8 +356,17 @@ def section_span(text, config, type_name, section
+86	src/claims_ledger/schema.py	@@ -642,6 +652,96 @@ def read_text_or_raise(path, what):
+87	src/claims_ledger/schema.py	@@ -649,8 +749,8 @@ def parse_entry(path, text=None):
+88	src/claims_ledger/schema.py	@@ -812,6 +912,26 @@ def git(repo, *args):
+89	src/claims_ledger/validate.py	@@ -17,6 +17,7 @@ from __future__ import annotations
+90	src/claims_ledger/validate.py	@@ -37,6 +38,7 @@ from .schema import (
+91	src/claims_ledger/validate.py	@@ -436,7 +438,25 @@ def _frozen_region(text):
+92	src/claims_ledger/validate.py	@@ -497,6 +517,7 @@ def check_history(ledger, entries):
+93	src/claims_ledger/validate.py	@@ -507,6 +528,26 @@ def check_history(ledger, entries):
+94	src/claims_ledger/validate.py	@@ -554,5 +595,5 @@ def run(ledger, cached=False):

@@ -1538,6 +1538,67 @@ it is the only thing that converts "thirty-one passing regressions" from a count
 claim. Passes 1–3 validated their regressions against unfixed code; the fifth pass's
 closing never claims it did.
 
+## The revert experiment — run, and what it found
+
+The section above proposed this rather than a seventh pass. It has been run. Harness and
+raw results in `.qe/probe6/revert-experiment/`.
+
+**Method.** `cd19b86` — the fifth pass's fix commit — was split into **94 hunks** across
+`src/`, `.github/`, `docs/`, `README.md`, `CHANGELOG.md` and `pyproject.toml`. Each hunk was
+reverse-applied, alone, to a clean `git archive` of the tree, and the **31 regressions the
+fifth pass flipped** were run against it. The test files stay at HEAD throughout, so a
+regression going red means the flipped test actually detects the loss of its own fix.
+
+Two controls, because a sweep that silently tested the wrong tree would report exactly what
+one hopes to see: the module import is asserted to resolve inside the copy rather than to
+the editable install pointing at the checkout, and a no-revert control run gives **31
+passed**.
+
+Where a hunk could not stand alone the experiment widened rather than gave up:
+
+| | |
+|---|---|
+| hunks reverted individually | 86 of 94 ran |
+| 4 could not be reverse-applied | 3 `CHANGELOG.md` hunks and the `__init__.py` version bump — all superseded by `776500b`, which rewrote both |
+| 4 were not independently revertible | `freshness.py` and `propagate.py` import blocks, `schema.py`'s new helpers, and `git_bytes` — reverting one alone breaks the module, so they were reached at file level instead |
+| whole-file reverts | 26 of 29 files ran; `schema.py` breaks every importer, so it was reached by the full-`src/` revert |
+| full `src/` revert | 28 of 31 red; the 3 survivors are the three regressions whose subject is not in `src/` at all |
+
+**The result: 30 of the 31 are load-bearing. One is not.**
+
+- **29** go red under some single-hunk or single-file revert.
+- **`test_the_changelog_has_no_unreleased_section_at_the_current_version`** could not be
+  reverted by the harness at all, because `776500b` rewrote `CHANGELOG.md` out from under
+  `cd19b86`'s hunks. Checked directly instead by reinjecting the defect — re-adding a
+  `## [Unreleased]` heading — and it goes red. Load-bearing; the gap was the harness's.
+- **`test_sha_write_over_several_paths_does_not_silently_skip_the_rest` is not
+  load-bearing**, and this is now measured rather than argued:
+
+```
+$ patch -R < (cd19b86's changes to src/claims_ledger/cli.py)
+$ grep -c "def sha_one"                       → 0   (the LOW-44 fix is gone)
+$ grep -c "except authoring.AuthoringError"   → 0   (the per-path catch is gone)
+$ pytest tests/test_write_paths.py::test_sha_write_over_several_paths_does_not_silently_skip_the_rest
+1 passed
+```
+
+Its own fix — the whole of it — can be deleted and the regression written for it stays
+green. Reverting `authoring.py` alone leaves it green too; it goes red only when **both**
+are reverted, and then for `authoring.py`'s reason rather than its own. This is HIGH-55
+stated at its sharpest, and it is a stronger claim than the one HIGH-55 makes: the test does
+not merely have an inert failure injection, it does not detect the removal of the code it
+was written to hold.
+
+**What the experiment does not find is a second one**, and that matters as much as what it
+does. The fifth pass's regression corpus has exactly one hole, in the place this pass had
+already identified, and the other thirty were verified against unfixed code by machine.
+`## What this means for the release` above is corrected accordingly.
+
+The experiment is also a fix→regression map — `results-by-hunk.jsonl` records, for every
+hunk of the fix commit, which regressions its removal breaks. That is worth keeping: it is
+what makes the next pass's "N passing regressions" a claim rather than a count, and re-running
+it costs three minutes.
+
 ## What this means for the release
 
 **Do not publish yet.** Not because the artifacts are wrong — they are not; the wheel and
@@ -1547,8 +1608,13 @@ the sdist are the cleanest part of this package — but because:
    pre-existing rather than new, which makes it older than the audit, not smaller.
 2. **HIGH-53 turns the checker's core forgery rule into one a careless committer defeats by
    accident**, and it is a defect the last fix introduced.
-3. **HIGH-55 means the publication gate contains at least one vacuously green test**, and
-   until the revert experiment runs, nobody knows whether it contains one or several.
+3. ~~**HIGH-55 means the publication gate contains at least one vacuously green test**, and
+   until the revert experiment runs, nobody knows whether it contains one or several.~~
+   **Settled by the experiment, and in the reassuring direction**: exactly one of the
+   thirty-one is not load-bearing, it is the one HIGH-55 named, and the other thirty were
+   verified against unfixed code by machine. HIGH-55 is still a defect and its regression
+   still needs a failure injection that fires — but it is no longer an unknown, and it is
+   no longer a reason on its own to hold the release.
 4. **MEDIUM-61 means the first tag push fails anyway**, at the `publish` step, for a reason
    that has nothing to do with any of the above.
 
@@ -1575,9 +1641,11 @@ trees), HIGH-57, HIGH-58, HIGH-59's minimal mutant, and MEDIUM-60.
 
 Three notes for the pass that fixes these:
 
-- **The revert experiment first.** Before fixing anything below, run it. HIGH-55 says the
-  regression corpus has at least one hole in it, and fixing findings on top of a gate you
-  have not measured is how the fifth pass's own repairs got here.
+- **The revert experiment has been run** — see the section above. The gate has exactly one
+  hole and it is HIGH-55's; the other thirty regressions are load-bearing, verified by
+  machine against unfixed code. Nothing below is blocked on it any more, and the harness in
+  `.qe/probe6/revert-experiment/` should be re-run against *this* pass's fixes before the
+  next one calls them done.
 - **HIGH-53 and HIGH-54 share a root**, and it is `ever_drifted` answering a question
   nobody asked. Both close with one change at the right granularity — the blob object id —
   and neither closes properly without it. The fourth pass's six git findings had this shape
