@@ -23,6 +23,7 @@ from .schema import (
     file_problem,
     git_available,
     git_problem,
+    index_problem,
     list_entry_files,
     load_entries,
     load_registry,
@@ -230,6 +231,15 @@ def skipped_checks(ledger, cached=False):
         notes.append(f"{problem}, so the frozen-region and append-only checks did not run")
     if cached and (not ledger.repo or problem):
         notes.append("--cached had no effect: there is no git index to read")
+    elif cached and (index := index_problem(ledger.repo)):
+        # `git show :<path>` fails identically for a path that is not staged and for an
+        # index nothing can parse, and `load_entries` reads the first as its answer. The
+        # entries were read, but off the working tree — which for the pre-commit hook is
+        # a report about something other than what is being committed.
+        notes.append(
+            f"the git index cannot be read ({index}), so --cached fell back to the "
+            "working tree; what is staged was not checked"
+        )
     for name, problem in ledger.unreadable_docs:
         notes.append(f"{name} {problem}")
     return notes

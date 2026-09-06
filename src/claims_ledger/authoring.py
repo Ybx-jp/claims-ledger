@@ -26,6 +26,7 @@ from .schema import (
     PREFIX_RE,
     fingerprint,
     git,
+    git_problem,
     load_entries,
     load_registry,
     parse_entry,
@@ -213,16 +214,24 @@ def computed_sha(path):
 
 
 def is_committed(repo, path):
-    """Whether git already holds this file at HEAD. An entry that is committed has an
-    immutable frozen region, and rewriting its fingerprint there is not an edit the
-    checkers will forgive."""
+    """(whether git already holds this file at HEAD, why it could not be asked).
+
+    An entry that is committed has an immutable frozen region, and rewriting its
+    fingerprint there is not an edit the checkers will forgive. `git()` answers None for
+    a file git does not have and for a git that could not be run, and read as the first,
+    a `sha --write` with no git on PATH rewrote the frozen region of a committed entry,
+    exited 0 and said nothing. The answer is None when git could not be asked, which is
+    not a `no`.
+    """
     if not repo:
-        return False
+        return False, None  # no repository: nothing is committed and nothing was skipped
     try:
         rel = Path(path).resolve().relative_to(Path(repo).resolve())
     except ValueError:
-        return False  # outside the repository: git has nothing to say about it
-    return git(repo, "cat-file", "-e", f"HEAD:{rel}") is not None
+        return False, None  # outside the repository: git has nothing to say about it
+    if (problem := git_problem(repo)) is not None:
+        return None, problem
+    return git(repo, "cat-file", "-e", f"HEAD:{rel}") is not None, None
 
 
 def restamp(ledger, path, write=False, force=False):
@@ -234,7 +243,15 @@ def restamp(ledger, path, write=False, force=False):
     computed = entry.computed_sha()
     if declared == computed or not write:
         return declared, computed, False
-    if is_committed(ledger.repo, path) and not force:
+    committed, unasked = is_committed(ledger.repo, path)
+    if unasked is not None and not force:
+        raise AuthoringError(
+            f"{unasked}, so whether git already has {ledger.config.relative(path)} could not "
+            "be established. The region above the APPEND marker is immutable once the entry "
+            "is committed, and this run has no way to find out whether it is; nothing was "
+            "written. Pass --force to write anyway."
+        )
+    if committed and not force:
         raise AuthoringError(
             f"{ledger.config.relative(path)} is committed: the region above the APPEND marker "
             "is immutable, and a new fingerprint there is a new entry. Supersede it, or pass "

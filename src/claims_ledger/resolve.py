@@ -28,6 +28,7 @@ from .schema import (
     Report,
     by_id,
     git,
+    git_problem,
     load_entries,
     load_registry,
     normalize,
@@ -71,8 +72,20 @@ class Sources:
         return names
 
 
-def resolve_pointer(p, e, part, index, sources, ledger):
-    """Reports for one typed pointer; empty when it resolves."""
+def pinned_evidence(entry, config):
+    """The pointers of an entry that are read out of git rather than off the disk."""
+    pointers = [p for _, p in entry.grounds] + [v.pointer for v in entry.verdicts]
+    return [
+        p
+        for p in pointers
+        if p is not None and p.type in config.evidence_types and p.pin not in UNPINNED
+    ]
+
+
+def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
+    """Reports for one typed pointer; empty when it resolves. `unasked` is why git could
+    not be asked at all, in which case a pinned pointer is left unjudged: `run()` has
+    already said so once, for the ledger."""
     out = []
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     if p.type in ledger.config.evidence_types:
@@ -81,6 +94,8 @@ def resolve_pointer(p, e, part, index, sources, ledger):
             # read_document, not read_text: an evidence file that is unreadable or not
             # UTF-8 is a pointer that does not resolve, reported below, never a crash.
             text = read_document(path)[0] if path.is_file() else None
+        elif unasked:
+            return out
         else:
             # `git show <pin>:<path>` reads the path from the repository's root, so the
             # question goes to the repository holding the entries rather than to the
@@ -261,14 +276,35 @@ def run(ledger):
     index = by_id(entries)
     sources = Sources(ledger)
     reports = []
+    # A pinned pointer is read out of git, and `git()` answers None both for a pin that
+    # is not there and for a git that could not be asked. Read as the first, a git that
+    # is not on PATH turns every pinned pointer in the ledger into `does not resolve` — a
+    # diagnosis of the pointer for a question nobody put, and a person sent to look at
+    # pins that are perfectly good. Asked once, for the ledger, and the pinned pointers
+    # are then left unjudged rather than blamed.
+    unasked = None
+    if any(pinned_evidence(e, ledger.config) for e in entries):
+        unasked = git_problem(ledger.repo or ledger.tree)
+    if unasked:
+        reports.append(
+            Report(
+                "fail",
+                None,
+                "Grounds",
+                f"{unasked}, so the pinned pointers were not read out of git; whether "
+                "each still names its artifact is unknown, not settled",
+            )
+        )
     for e in entries:
         for _, p in e.grounds:
             if p is not None:
-                reports += resolve_pointer(p, e, "Grounds", index, sources, ledger)
+                reports += resolve_pointer(p, e, "Grounds", index, sources, ledger, unasked)
         for v in e.verdicts:
             p = v.pointer
             if p is not None and p.type != "defect":
-                reports += resolve_pointer(p, e, f"verdict {v.index}", index, sources, ledger)
+                reports += resolve_pointer(
+                    p, e, f"verdict {v.index}", index, sources, ledger, unasked
+                )
         if e.status() == "retracted":
             reports += check_retraction(e, sources)
         else:

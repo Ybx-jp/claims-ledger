@@ -37,6 +37,7 @@ from .schema import (
     Report,
     by_id,
     git,
+    git_call,
     load_entries,
     normalize,
     parse_entry,
@@ -422,6 +423,19 @@ def _frozen_sections(text):
     return parts, e
 
 
+def _frozen_region(text):
+    """The bytes above the APPEND marker, or None when there is no marker to be above.
+
+    The sections are what a report can name, but they are not the whole of what is
+    frozen: a section runs from its own heading to the next, so every byte before the
+    first heading belongs to no section and left the parsed comparison untouched. The
+    scaffold leaves that region empty, which is what made it a hiding place — nothing
+    legitimate is ever written there, so nothing legitimate ever changes there.
+    """
+    head, marker, _ = text.partition(APPEND)
+    return head if marker else None
+
+
 def check_history(ledger, entries):
     """Immutability, from git. For each entry file: the region above the APPEND marker
     equals the blob at the commit that created the file, and across every consecutive
@@ -429,6 +443,11 @@ def check_history(ledger, entries):
     out = []
     if not ledger.repo:
         return out
+    # `git log` exits non-zero over a repository with no commits in it at all, which is
+    # the ordinary state of a ledger being scaffolded and is not a failure to report. It
+    # is also how a repository that cannot be read fails, so the two are separated once,
+    # here, rather than collapsed into the empty revision list they both produce.
+    committed_anything = git_call(ledger.repo, "rev-parse", "--verify", "--quiet", "HEAD").ok
     for e in entries:
         rel = os.path.relpath(e.path, ledger.repo)
         # No --follow: it runs rename detection against every file in the parent, so a
@@ -436,8 +455,21 @@ def check_history(ledger, entries):
         # reported as "renamed" from it, and the creating commit comes back as one where
         # this file did not exist (corpus K18). An entry is never renamed: its id is its
         # filename.
-        log = git(ledger.repo, "log", "--format=%H", "--", rel)
-        revisions = [h for h in (log or "").split() if h]
+        log = git_call(ledger.repo, "log", "--format=%H", "--", rel)
+        if not log.ok:
+            if not committed_anything:
+                continue  # nothing has ever been committed here: nothing to be immutable
+            out.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    "frontmatter",
+                    f"cannot read the history of {rel} ({log.why}); the frozen-region and "
+                    "append-only checks did not run over this entry",
+                )
+            )
+            continue
+        revisions = [h for h in log.out.split() if h]
         if not revisions:
             continue  # not yet committed: nothing to be immutable against
         revisions.reverse()  # oldest first
@@ -450,8 +482,10 @@ def check_history(ledger, entries):
             continue
         then, _ = _frozen_sections(original)
         now, _ = _frozen_sections(e.text)
+        named = False
         for name in then:
             if then[name].strip() != now[name].strip():
+                named = True
                 out.append(
                     Report(
                         "fail",
@@ -461,11 +495,37 @@ def check_history(ledger, entries):
                         "the region above the APPEND marker is immutable",
                     )
                 )
-        states = [(h, git(ledger.repo, "show", f"{h}:{rel}")) for h in revisions]
+        was, is_now = _frozen_region(original), _frozen_region(e.text)
+        if not named and None not in (was, is_now) and was != is_now:
+            out.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    "the frozen region",
+                    f"differs from the blob at the creating commit {creating[:7]} outside "
+                    "any section; the region above the APPEND marker is immutable, "
+                    "including the bytes no section owns",
+                )
+            )
+        states = []
+        for h in revisions:
+            answer = git_call(ledger.repo, "show", f"{h}:{rel}")
+            if not answer.ok:
+                out.append(
+                    Report(
+                        "fail",
+                        e.prefix,
+                        "Verdicts",
+                        f"cannot read {rel} at {h[:7]} ({answer.why}); verdicts append and "
+                        "only append, and across that revision it was not checked that "
+                        "they did",
+                    )
+                )
+            states.append((h, answer.out if answer.ok else None))
         states.append(("working tree", e.text))
         for (h_old, t_old), (h_new, t_new) in itertools.pairwise(states):
             if t_old is None or t_new is None or t_old == t_new:
-                continue
+                continue  # a revision that could not be read is reported above, not waived
             old = [v.raw.rstrip() for v in parse_entry("x.md", t_old).verdicts]
             new = [v.raw.rstrip() for v in parse_entry("x.md", t_new).verdicts]
             label = h_new[:7] if h_new != "working tree" else h_new

@@ -759,8 +759,29 @@ def parse_timestamp(value):
 GIT_TIMEOUT = 30
 
 
-def git(repo, *args, check=False):
-    """stdout of a git command in `repo`, or None on failure."""
+@dataclasses.dataclass(frozen=True)
+class GitAnswer:
+    """What a git command did, rather than only what it printed.
+
+    `git()` returns None for a command that failed and for one that answered `no`, and a
+    caller that reads None as a benign negative — not committed, not in the index,
+    unchanged — turns a git that could not answer into an answer that a check passed.
+    That is the one report this tool must never produce, so the exit status is kept and
+    each caller says for itself which non-zero exits are answers (a revision that is
+    simply not there) and which are git failing to answer at all.
+    """
+
+    code: int | None  # None when git never ran or never finished
+    out: str = ""
+    why: str = ""  # why it could not answer, in a form a message can carry
+
+    @property
+    def ok(self):
+        return self.code == 0
+
+
+def git_call(repo, *args):
+    """A git command in `repo`, as a GitAnswer."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), *args],
@@ -772,11 +793,23 @@ def git(repo, *args, check=False):
             # frozen-region and append-only checks down with a UnicodeDecodeError.
             encoding="utf-8",
             errors="replace",
-            check=check,
+            check=False,
         )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return None
-    return out.stdout if out.returncode == 0 else None
+    except subprocess.TimeoutExpired:
+        return GitAnswer(None, "", f"git did not answer within {GIT_TIMEOUT}s")
+    except OSError as exc:
+        return GitAnswer(None, "", f"git could not be run ({exc.strerror or exc})")
+    if out.returncode == 0:
+        return GitAnswer(0, out.stdout)
+    detail = (out.stderr or "").strip().splitlines()
+    return GitAnswer(out.returncode, "", detail[-1] if detail else f"git exited {out.returncode}")
+
+
+def git(repo, *args):
+    """stdout of a git command in `repo`, or None on failure. For a caller to whom a
+    failure and a `no` are the same thing; `git_call` is for every other caller."""
+    answer = git_call(repo, *args)
+    return answer.out if answer.ok else None
 
 
 def git_available():
@@ -797,25 +830,26 @@ def git_problem(repo):
     """
     if not git_available():
         return "git is not on PATH"
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo), "rev-parse", "--git-dir"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=GIT_TIMEOUT,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return f"git did not answer within {GIT_TIMEOUT}s"
-    except OSError as exc:
-        return f"git could not be run ({exc.strerror or exc})"
-    if out.returncode != 0:
-        detail = (out.stderr or "").strip().splitlines()
-        why = detail[-1] if detail else f"exit {out.returncode}"
-        return f"git cannot read the repository ({why})"
-    return None
+    answer = git_call(repo, "rev-parse", "--git-dir")
+    if answer.ok:
+        return None
+    if answer.code is None:  # never ran, or never finished; its own words are the reason
+        return answer.why
+    return f"git cannot read the repository ({answer.why})"
+
+
+def index_problem(repo):
+    """Why the git index cannot be read, or None when it can.
+
+    `--cached` reads staged entries out of the index, and `git show :<path>` fails the
+    same way for a path that is not staged as for an index no git can parse. Read as the
+    first, a truncated index makes `validate --cached` — the installed pre-commit hook —
+    report on the working tree while saying it read what was staged. Asked once, of the
+    index itself, with a pathspec that matches nothing: the index is parsed in full and
+    a repository with a hundred thousand files still prints nothing.
+    """
+    answer = git_call(repo, "ls-files", "--", ".git")
+    return None if answer.ok else answer.why
 
 
 def entries_dir_listing_error(entries_dir):

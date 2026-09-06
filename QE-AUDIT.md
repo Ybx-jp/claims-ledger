@@ -661,3 +661,208 @@ of an earlier fix, one surface over. Every fix in this round was applied by aski
 other surfaces reach the same code by a different route — which is how `propagate --write`
 came to be guarded alongside `sha --write`, and the registry's read path alongside its
 write path, without either being reported.
+
+# Fourth pass — 2026-09-06, against the freshness checker and the third round of fixes
+
+The third pass closed on a method rather than a finding: *every new defect was the class
+of an old fix, one surface over.* This pass took that as its instruction and pointed it
+at the two things the third pass left newest — `git_problem()`, the fix for HIGH-16, and
+the freshness checker, which had just landed. Both turned out to have surfaces the fix
+does not reach.
+
+Seven defects, eleven strict xfails, in two files that pytest actually collects:
+`tests/test_git_degradation.py` and `tests/test_immutability.py`. Suite is **635 passing,
+11 strict xfails** at `2312f9a`; `ruff`, `ruff format` and `ty` clean.
+
+## What this pass is, and what it is not
+
+It was run as five parallel adversarial dimensions. **Two finished and are recorded
+below. Three were terminated mid-flight** when the session ended, after 47–77 turns
+each, before writing a report:
+
+| Dimension | Status |
+|---|---|
+| `gitfail` — a git that stops answering | **landed** — HIGH-23 … MEDIUM-28 |
+| immutability / preamble | **landed** — HIGH-22 |
+| `freshspec` — freshness spec conformance | cut off; left probes, no assertions |
+| write paths and crash recovery | cut off; nothing on disk |
+| corpus and release gates | cut off; nothing on disk |
+
+So this pass is **not** a clean bill for the three dimensions it names. Their surfaces are
+unexamined, not examined-and-clear. The freshness spec dimension left its instrument in
+`.qe/probe/probe_freshness_spec.py` — print-only exploration, no oracle — and whoever
+resumes should start there rather than from scratch. `.qe/BRIEF.md` is the brief all five
+worked from.
+
+The one thing that *is* established across the whole tip: the 635-test suite passes, and
+none of the eleven new xfails XPASS, so the two commits that landed after the blitz
+(`4a99b49`, `2312f9a`) fixed none of these by accident.
+
+## HIGH-22 — the frozen region's preamble is outside the comparison
+
+`check_history`'s docstring says "the region above the APPEND marker equals the blob at
+the commit that created the file". **It does not compare that region.** `_frozen_sections`
+re-parses both sides and compares `Assertion`, `Scope`, `Grounds`, `Warrant`, `Backing`
+and the frontmatter dict — so any byte of the frozen region that no section owns is
+outside the comparison, and `_split_sections` gives no section the text before the first
+`## ` heading.
+
+Every byte between the frontmatter and `## Assertion` can therefore change in a committed
+entry while every checker reports success — `check`, and `validate` reached directly.
+
+The scaffold leaves that region empty, which is exactly what makes it a hiding place:
+nothing legitimate is ever written there, so nothing legitimate ever changes there. A
+paragraph of prose inserted above the first heading of a committed entry is the whole
+repro.
+
+This is a **false pass on the immutability guarantee the package exists to make** — the
+same class as HIGH-16, and the reason that one was a release gate.
+
+*Fix shape*: compare the frozen region as **bytes** — everything above the APPEND marker,
+against the blob at the creating commit — and keep the parsed-section comparison only to
+produce the per-section diagnostic. The docstring already describes the correct behaviour;
+the code is what disagrees with it.
+*Tests*: `test_prose_added_above_the_first_heading_of_a_committed_entry_is_caught`,
+`test_validate_reports_the_preamble_edit_by_name`. The file's third test,
+`test_an_edit_inside_a_frozen_section_is_still_caught`, passes today and is the control:
+it holds the fix to *widening* the comparison rather than replacing it.
+
+## The git-degradation class — HIGH-23 … MEDIUM-28
+
+HIGH-16's fix added `git_problem(repo)`, asked **once** per command, so `skipped_checks()`
+could name a git that cannot answer at all. These are the cases that fix does not reach:
+`git rev-parse --git-dir` still succeeds, so `git_problem()` says git is fine, and the
+**next** git command fails, is read as an answer, and a check that never ran is reported
+as a check that passed.
+
+Every repository in these tests is real and every failure is produced by **configuring
+git, not by patching it**: a required clean filter whose command exits non-zero or sleeps,
+a truncated `.git/index`, one loose object removed, a dangling symref. Nothing here
+monkeypatches anything.
+
+> Note for whoever fixes this: `freshness.py` does `from .schema import git`, so patching
+> `claims_ledger.schema.git` does not reach it.
+
+### HIGH-23 — a diff git refused to make is read as a fresh ground
+
+`freshness.drift()` reads `changed is None` from a failed `git diff` as *fresh*. A moved
+ground is reported as `0 failure(s), 0 flag(s)`, and the CLI exits 0 over a comparison git
+refused to make. `GIT_TIMEOUT` is per call, so one slow `git diff` times out *after*
+`git_problem()` has already passed. The same `(None, None)` runs the other way in
+`orphans()`, which calls `drift()` again per verdict and reads the failure as *that ground
+has not drifted* — forging an orphan out of a correctly discharged verdict and exiting 1.
+So the identical failure produces both a false pass and a false accusation, depending on
+which caller sees it.
+
+*Tests*: `test_a_diff_git_refused_to_make_is_not_a_fresh_ground`,
+`test_b_a_diff_that_outlived_the_timeout_is_not_a_fresh_ground`,
+`test_c_the_cli_does_not_print_zero_flags_over_a_comparison_git_refused`,
+`test_g_a_failed_diff_does_not_forge_an_orphan`.
+
+### HIGH-24 — `validate --cached` reports 0 failures over a staged entry it never read
+
+`load_entries(cached=True)` reads a failed `git show :<path>` as **`not in the index`** and
+silently checks the working tree instead. `validate --cached` is *the installed pre-commit
+hook* — so the hook passes over a staged entry it never read, and `skipped_checks()` says
+nothing. This is the surface where a false pass is least likely to be noticed and most
+likely to matter.
+
+*Test*: `test_d_cached_says_so_when_the_index_cannot_be_read`.
+
+### HIGH-25 — append-only is waived by a blob git cannot read
+
+`validate.check_history()` skips any consecutive pair whose blob it could not read —
+literally `if t_old is None or t_new is None: continue`. Remove one loose object and an
+edited verdict between two commits stops being reported. The append-only guarantee is
+waived by the same condition that should raise the alarm.
+
+*Test*: `test_e_append_only_is_not_waived_by_a_blob_git_cannot_read`.
+
+### HIGH-26 — `sha --write` rewrites a committed entry's frozen region when git cannot say
+
+`cmd_sha()` never calls `guard()` or `skipped_checks()` at all, and `is_committed()` reads
+a failed `git cat-file -e HEAD:<path>` as *not committed*. With no git on `PATH`,
+`sha --write` **rewrites the immutable frozen region of a committed entry, exits 0, and
+says nothing.** This is the only one of the seven that is a destructive write rather than
+a false report, and it is reachable with no hostility beyond an unset `PATH`.
+
+*Test*: `test_h_sha_write_does_not_rewrite_a_committed_entry_when_git_cannot_say`.
+
+### MEDIUM-27 — a pin git could not classify is taken for a commit
+
+`is_object_name()` reads a failed `rev-parse --symbolic-full-name` as *not a ref* and
+accepts the pin as a commit. With the same pin then failing to resolve, freshness reports
+0 findings over a pin it never classified.
+
+*Test*: `test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit`.
+
+### MEDIUM-28 — a missing git is diagnosed as a pointer that does not resolve
+
+With no git on `PATH`, resolve reports `@<pin> does not resolve` — a false diagnosis of a
+pointer nobody could ask about — while `skipped_checks()` names only the frozen-region and
+append-only checks. The user is told their pin is wrong when the truth is that nothing
+asked.
+
+*Test*: `test_i_a_missing_git_is_not_a_pointer_that_does_not_resolve`.
+
+## What this means for the release
+
+HIGH-22 and HIGH-26 are release gates on the terms the second and third passes already
+set: one is a false pass on the immutability guarantee, the other is a silent destructive
+write to the region that guarantee protects. HIGH-24 is a gate on the same reasoning as
+HIGH-9 — the pre-commit hook is the surface users actually rely on.
+
+The shape shared by all six git findings is that `git_problem()` is asked **once, up
+front**, and every command after it is trusted. A per-command answer — every `git()` call
+distinguishing *no* from *could not ask* — is one change that closes HIGH-23 … MEDIUM-28
+together, and it is the same fix shape HIGH-16 was given, applied at the right
+granularity.
+
+## Disposition of the fourth pass — 2026-09-06
+
+Six of the seven are fixed. The seventh, MEDIUM-27, is **rejected as reported** and
+re-tested as what it actually is; the hardening it asked for was made anyway. Ten of the
+eleven strict xfails flipped and are kept as the regressions; the eleventh was rewritten
+into two tests, one for the hardening and one for the behaviour the finding mistook for
+silence. Suite is **647 passing, 0 xfailed**; `ruff`, `ruff format` and `ty` clean;
+72/72 corpus seeds pass.
+
+The six git findings were closed by one change, as this pass recommended. `schema.git()`
+kept its signature and its meaning — stdout, or None for a caller to whom a failure and a
+`no` are the same thing — and `git_call()` was added beside it, returning a `GitAnswer`
+of *exit status, stdout, and why it could not answer*. Every surface that was reading
+None as a benign negative now asks the question in the form that can tell them apart.
+
+| Finding | What was done |
+|---|---|
+| HIGH-22 | `check_history()` compares the bytes above the APPEND marker, and keeps the section-by-section diff for the diagnostic: a section that changed is still reported by name, and anything the sections do not own — the preamble, the headings, the text between them — is reported as `the frozen region`. Widened rather than replaced, which `test_an_edit_inside_a_frozen_section_is_still_caught` is the control for. |
+| HIGH-23 | `drift()` returns a fourth finding, `unknown`, carrying the reason git gave, and `freshness.run()` reports it as a failure naming the ground. `orphans()` treats `unknown` as *not established* rather than as *has not drifted*, so a comparison nobody could make no longer forges an accusation out of its own silence — the same defect pointing the other way. |
+| HIGH-24 | `index_problem(repo)` asks the index itself, once, with a pathspec that matches nothing, and `skipped_checks()` says that `--cached` fell back to the working tree and that what is staged was not checked. `load_entries()` is unchanged: the fallback is not the defect, reporting it as a check of the index was. |
+| HIGH-25 | A revision whose blob cannot be read is a failure naming the revision, in the entry's `Verdicts`, instead of a `continue`. The pair is still skipped — there is nothing to compare — but it is skipped out loud. |
+| HIGH-26 | `is_committed()` answers `(committed, why it could not be asked)`, and `restamp()` refuses to write when git could not be asked, naming `--force` as the way to overrule it. The only destructive finding of the pass, and the only fix here that stops a run rather than adding to its report. |
+| MEDIUM-27 | **Rejected as reported.** Freshness's silence over a dangling symref is not a check that did not run: `git rev-parse --verify --quiet` exits 1 over that pin, where a git that cannot look exits 128 or does not return — so that exit 1 is git answering that the pin resolves to nothing — `resolve`'s subject, which reports it as `@beef does not resolve`, and `check` exits 1. Reported twice it would look like two defects, which `drift()`'s docstring already refuses. What was real underneath it: `is_object_name()` could not distinguish *not a ref* from *could not ask*, so a git that genuinely cannot answer would retire an unstable-pin flag in silence. It answers None for that case now, `drift()` turns None into `unknown`, and the finding's own repro is kept as the test that the pin is reported *somewhere*. |
+| MEDIUM-28 | `resolve.run()` asks `git_problem()` once when the ledger holds any pinned pointer, reports it as one failure for the ledger, and leaves the pinned pointers unjudged rather than blaming each of them for a question nobody put. |
+
+Two surfaces of the same class were found while fixing, by the method this pass was run
+under — *which other surfaces reach this code by a different route* — and are fixed and
+tested here rather than left for a fifth pass:
+
+- `check_history()` asked `git log` for an entry's revisions and read a failed command as
+  an empty list, which it takes for `not yet committed`. A repository with no commits in
+  it at all fails that command the same way and is the ordinary state of a ledger being
+  scaffolded, so the two are separated by asking once whether anything has ever been
+  committed. `test_e2_an_entry_whose_history_git_cannot_read_is_not_read_as_uncommitted`.
+- `drift()` asked `rev-parse --verify <pin>:<path>` without `--quiet`, so a path that is
+  not at the pin (`resolve`'s finding, exit 1) and a git that could not look (exit 128)
+  arrived as the same None. `--quiet` makes the two legible.
+
+The process notes stand as written, and one is worth restating because it nearly repeated
+itself in the fixing: the flip from strict xfail to passing test was first attempted with
+a regex over the decorator blocks, which matched across the gap between two tests and
+deleted the body of one of them. It was caught by reading the diff. A pass that flips
+another pass's xfails should diff the test files, not only run them — a test that is gone
+and a test that passes are the same colour in a summary line.
+
+Three of the five dimensions still produced no report, and their surfaces — freshness
+spec conformance, write paths and crash recovery, corpus and release gates — remain
+unexamined rather than examined-and-clear. Nothing in this disposition speaks for them.
