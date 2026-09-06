@@ -587,8 +587,14 @@ def test_appending_a_verdict_cannot_skip_the_root_it_is_checked_against():
     root = inspect.signature(propagate.append_verdict).parameters["root"]
     assert root.kind is inspect.Parameter.KEYWORD_ONLY
     assert root.default is inspect.Parameter.empty
+    # Reached through `getattr` so that the call is invisible to `ty`, which otherwise
+    # refuses the file with `No argument provided for required parameter root`. That
+    # refusal is the guard working — a caller who forgets is stopped before the suite
+    # runs, by a check that is in CI — and it is worth saying so here rather than
+    # deleting the runtime half, which is what holds an installed copy that `ty` never
+    # saw.
     with pytest.raises(TypeError):
-        propagate.append_verdict(object(), "- a block\n")
+        getattr(propagate, "append_verdict")(object(), "- a block\n")  # noqa: B009
 
 
 def test_every_write_asks_where_the_link_leads():
