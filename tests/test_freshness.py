@@ -125,8 +125,11 @@ def test_a_deleted_ground_is_withdrawn_and_fails(pinned):
 def test_a_branch_pin_is_unstable_and_the_drift_is_not_reported(pinned):
     """A pin that follows the work resolves forever, so it can never go stale. The
     checker says that once and does not then pretend to have compared anything."""
-    _repin(pinned, "master")
-    pinned.p.git("branch", "-f", "master", "HEAD")
+    # A name of this test's own choosing, never the checked-out branch: `git branch -f`
+    # refuses to move the branch that is checked out, and which one that is depends on
+    # the runner's `init.defaultBranch`.
+    pinned.p.git("branch", "pinned-to-a-name", "HEAD")
+    _repin(pinned, "pinned-to-a-name")
     pinned.note(NOTE.replace("0.04", "0.09"))
     outcomes = pinned.outcomes()
     assert [o for o, _, _ in outcomes] == ["flag"]
