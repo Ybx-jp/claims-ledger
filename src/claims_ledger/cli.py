@@ -36,6 +36,7 @@ from .schema import (
 
 CHECKERS = ("validate", "resolve", "references", "propagate", "freshness")
 
+# Ledger: (L0001-hook-names-the-interpreter-absolutely, cites-as-live).
 HOOK_TEMPLATE = """#!/bin/sh
 # Installed by `claims-ledger hook --install`.
 # The ledger's rules, held before the commit that would break them.
@@ -78,7 +79,7 @@ ledger = "{ledger}"
 # cache = "cache"
 
 # Documents that may cite an entry, as globs from the project root. A citation reads
-# `(A0001-slug, cites-as-live)` and is held to the entry's current status at every check.
+# `(A0001-<slug>, cites-as-live)` and is held to the entry's current status at every check.
 documents = ["*.md", "docs/*.md"]
 # document-excludes = []
 
@@ -276,6 +277,8 @@ def guard(ledger, cached=False):
     we have no way to see, and `is_dir()` says yes to it while `glob()` says it is empty.
     That combination is how a checker comes to print `0 failure(s)` over a ledger full of
     failures, so listability is established here rather than assumed.
+
+    Ledger: (L0005-a-missing-entries-directory-stops-the-command, cites-as-live).
     """
     where = ledger.config.relative(ledger.entries_dir)
     error = entries_dir_listing_error(ledger.entries_dir)

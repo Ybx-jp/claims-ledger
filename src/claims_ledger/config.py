@@ -238,6 +238,8 @@ def confined(root, key, value):
     says yes to it. So the path is checked twice — as written, and with its symlinks
     followed — and the value returned is the one as written, so a ledger reached through a
     symlink that stays inside the root goes on working.
+
+    Ledger: (L0004-configured-paths-stay-under-the-root, cites-as-live).
     """
     lexical = Path(os.path.normpath(root / value))
     if _escapes(root, lexical):
@@ -320,7 +322,8 @@ def _section_patterns(table, sectioned):
 
 def from_table(table, root, source=None):
     """A Config from a parsed table. Unknown keys are an error, not a silent no-op: a
-    misspelled key that changes nothing is how a project ends up unchecked."""
+    misspelled key that changes nothing is how a project ends up unchecked.
+    Ledger: (L0003-unknown-configuration-key-is-an-error, cites-as-live)."""
     unknown = sorted(set(table) - set(KEYS))
     if unknown:
         raise ConfigError(f"unknown key(s) {', '.join(unknown)}; known keys are {sorted(KEYS)}")

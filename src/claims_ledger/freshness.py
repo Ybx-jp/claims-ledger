@@ -246,6 +246,8 @@ def scoped(repo, pointer, path, config, cached=False):
 
     A side that cannot be read as text is not a finding of its own: the artifact did
     change, and `moved` is what the comparison already said before sections narrowed it.
+
+    Ledger: (L0008-a-section-pin-compares-only-its-section, cites-as-live).
     """
     was = git(repo, "show", f"{pointer.pin}:{pointer.target}")
     now = now_text(repo, pointer, path, cached)

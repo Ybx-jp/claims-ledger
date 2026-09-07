@@ -132,7 +132,8 @@ not in `UNPINNED`, and whose entry's status is not terminal:
    reading the index. Empty output means fresh, and the checker says nothing.
 5. Any output means **moved** — or, for a `§ "<section>"` pointer, the two texts are read
    and only the named section is compared, so an edit elsewhere in the artifact is not this
-   ground's drift. Only now, and only for the message, run
+   ground's drift (L0008-a-section-pin-compares-only-its-section, cites-as-live). Only
+   now, and only for the message, run
    `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count.
 
 **Built — `git diff`, and not the blob identity this specification first described.** An

@@ -16,7 +16,8 @@ and a red-team corpus of 76 seeds with committed expected outcomes proves the ch
 Nothing is installed alongside it: the checkers use the standard library only, so
 `python3 -m claims_ledger check` runs from a plain interpreter — which is how the
 pre-commit hook invokes them, rather than by console-script name that git's own
-environment may not have on PATH. Python 3.11 or newer.
+environment may not have on PATH. Python 3.11 or newer
+(L0002-no-runtime-dependencies, cites-as-live).
 
 ## Why
 
@@ -194,11 +195,13 @@ flag, because a flag is a report a human judges rather than a gate.
 A check that could not run never reports that it passed. Pointed at a directory with no
 entries directory in it — the wrong `--root`, a configuration file moved away from its
 ledger — every checking command stops with exit 2 and says nothing was checked, rather
-than printing five clean lines over an empty room. Where a check is genuinely skipped
+than printing five clean lines over an empty room
+(L0005-a-missing-entries-directory-stops-the-command, cites-as-live). Where a check is genuinely skipped
 rather than passed, it is named on stderr: outside a git repository, or with no `git` on
 PATH, validate's frozen-region and append-only checks cannot run and say so.
 
-Statuses are never stored. They are derived from the last verdict — `open`,
+Statuses are never stored (L0006-status-is-derived-from-the-verdicts, cites-as-live).
+They are derived from the last verdict — `open`,
 `corroborated`, `contested`, `refuted`, `superseded`, `retracted`, `non-comparable` —
 so the filter a reader would otherwise have to apply by hand is applied at check time,
 and a document that still cites a refuted entry as live fails.
@@ -279,10 +282,12 @@ fingerprint and the immutability rules are the claims model, not a project's nam
 a project that changed them would no longer be running the checks the corpus proves.
 
 An unknown key is an error rather than a silent no-op: a misspelled key that quietly
-changes nothing is how a project ends up unchecked.
+changes nothing is how a project ends up unchecked
+(L0003-unknown-configuration-key-is-an-error, cites-as-live).
 
 Every path a configuration names — `ledger`, `entries`, `registry`, `cache`, and the
-`documents` globs — has to stay under the project root. An absolute path, one that walks
+`documents` globs — has to stay under the project root
+(L0004-configured-paths-stay-under-the-root, cites-as-live). An absolute path, one that walks
 out through `..`, and a `ledger` that is a symlink to somewhere else are all refused by
 name rather than honoured: cloning a repository should not hand its `claims-ledger.toml`
 the right to say where this tool writes, or point the checkers at a file the project does
@@ -310,7 +315,8 @@ to somewhere else; reads follow such a link, writes refuse it.
 | `claims-ledger hook` | print the pre-commit hook; `--install` writes it |
 | `claims-ledger --version` | the installed version |
 
-`sha --write` refuses on an entry git already has. The region above the APPEND marker is
+`sha --write` refuses on an entry git already has
+(L0007-sha-write-refuses-a-committed-entry, cites-as-live). The region above the APPEND marker is
 immutable once committed, so a new fingerprint there is a new entry: supersede it, or
 pass `--force` if the commit has not left the machine.
 
@@ -326,7 +332,8 @@ bytes named by each row's url and extraction, and `claims-ledger source list` wi
 bytes were produced from its url is a decision with a record, not a download.
 
 The hook `--install` writes names the interpreter it was installed by, absolutely, and
-reaches the package with `-m`. Git runs hooks with its own environment: a hook that said
+reaches the package with `-m`
+(L0001-hook-names-the-interpreter-absolutely, cites-as-live). Git runs hooks with its own environment: a hook that said
 `claims-ledger` would fail with `not found` on every commit for anyone who installed
 into a virtualenv that was not active.
 

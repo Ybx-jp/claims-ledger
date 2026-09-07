@@ -26,6 +26,7 @@ classifiers = [
 # No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
 # pre-commit hook, on a checkout with nothing installed; tomllib is standard library
 # from 3.11, which is what sets the floor.
+# Ledger: (L0002-no-runtime-dependencies, cites-as-live).
 dependencies = []
 
 [project.optional-dependencies]
@@ -93,3 +94,28 @@ max-line-length = 100
 
 [tool.ruff.lint.flake8-implicit-str-concat]
 allow-multiline = true
+
+# The package keeps a ledger of the claims about itself, under `ledger/`: the design
+# commitments its README and its comments state, each pinned to the function or table
+# that keeps it true, so `claims-ledger check` fails the citing sentence when the pinned
+# code moves. A citation in a document or a comment reads `(L0001-<slug>, cites-as-live)`.
+# The documents are named one by one rather than as `*.md`: the corpus seeds and the
+# example templates carry citations of ids that live in other ledgers, and an audit report
+# at the root that shows the syntax is not citing anything.
+[tool.claims-ledger]
+documents = [
+    "README.md",
+    "CHANGELOG.md",
+    "docs/*.md",
+    "pyproject.toml",
+    "src/claims_ledger/*.py",
+]
+evidence-sectioned = ["code", "toml"]
+evidence-plain = []
+
+[tool.claims-ledger.section-patterns]
+# A section of a source file is a top-level def, class or assignment, and runs to the next
+# one. The lookahead keeps an indented assignment from ending a function at its first
+# local. A section of a TOML file is a table.
+code = '^(?![ \t])(?:(?:def|class)[ \t]+{name}\b|{name}[ \t]*=)'
+toml = '^\[{name}\]'

@@ -245,7 +245,8 @@ def is_committed(repo, path):
 
 def restamp(ledger, path, write=False, force=False):
     """(declared, computed, changed). With `write`, the declared value is replaced by
-    the computed one — refused on an entry git already has, unless `force`."""
+    the computed one — refused on an entry git already has, unless `force`.
+    Ledger: (L0007-sha-write-refuses-a-committed-entry, cites-as-live)."""
     path = Path(path)
     entry = parse_entry(path)
     declared = entry.front.get("verbatim_sha", "")
