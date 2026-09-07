@@ -41,7 +41,7 @@ the stored bytes of its registered source.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/nothing-falls-silently-dark.svg">
-  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying each document citation to a claim and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="docs/figures/nothing-falls-silently.svg" width="960">
+  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying every document citation to a claim, every claim to a document that cites it, and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="docs/figures/nothing-falls-silently.svg" width="960">
 </picture>
 
 ## Quickstart
