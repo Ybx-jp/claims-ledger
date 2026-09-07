@@ -1,7 +1,7 @@
 import {Easing} from 'remotion';
 
 /**
- * then-and-later — the film's timing authority.
+ * nothing-falls-silently — the film's timing authority.
  *
  * Every number with a time or a coordinate in it lives here. The film, the
  * contact sheet and the track matte all import from this file, so a diagnostic
@@ -11,7 +11,7 @@ import {Easing} from 'remotion';
 export const FPS = 30;
 export const WIDTH = 1920;
 export const HEIGHT = 1080;
-export const DURATION_IN_FRAMES = 720; // 24.000 s
+export const DURATION_IN_FRAMES = 1380; // 46.000 s
 
 /** The figures' light palette, verbatim from docs/figures/build.py. */
 export const T = {
@@ -25,84 +25,94 @@ export const T = {
   accentSoft: '#F7DED2',
 } as const;
 
-/**
- * The words. The claim is the Nimbus portfolio's threshold claim and the
- * source is its API contract; the change is the one examples/ is built around.
- */
 export const COPY = {
-  assertion: 'Scores at or above 0.72 go to review.',
-  quotePrefix: 'Scores greater than or equal to ',
-  quoteSuffix: ' require review.',
-  before: '0.72',
-  after: '0.75',
-  sourceName: 'backend-service · openapi.yaml',
-  shaBefore: 'sha256 · 3f9a2c…',
-  shaAfter: 'sha256 · c71e08…',
-  corroborated: 'corroborated',
-  contested: 'contested',
-  nothing: 'nothing happens',
-  caught: 'caught',
-  whenWritten: 'WHEN WRITTEN',
-  later: 'LATER',
-  prose: 'PROSE',
-  ledger: 'LEDGER',
-  thesis: 'A sentence outlives what made it true.',
+  thesis: 'Nothing falls silently.',
   signature: 'claims-ledger',
+  repo: 'research-repo',
 } as const;
 
 // ------------------------------------------------------------------ beats
 
 export const BEATS = [
-  {id: 'establish', start: 0, end: 75, understanding: 'here is a sentence someone wrote'},
-  {id: 'source', start: 75, end: 165, understanding: 'the sentence quotes this line'},
-  {id: 'split', start: 165, end: 225, understanding: 'two worlds, same starting point'},
-  {id: 'bind', start: 225, end: 315, understanding: 'the ledger keeps the link'},
-  {id: 'time', start: 315, end: 405, understanding: 'the world moved under the sentence'},
-  {id: 'outcome', start: 405, end: 495, understanding: 'one world noticed'},
-  {id: 'hold', start: 495, end: 600, understanding: 'compare at leisure'},
-  {id: 'thesis', start: 600, end: 720, understanding: 'the title, earned'},
+  {id: 'entry', step: '1 · a claim', start: 0, end: 240, understanding: 'a claim file, with its evidence, and its status'},
+  {id: 'check', step: '2 · check', start: 240, end: 360, understanding: 'five checkers, all clean'},
+  {id: 'verdict', step: '3 · a verdict', start: 360, end: 630, understanding: 'one row appended; the status follows it'},
+  {id: 'fail', step: '4 · what fails', start: 630, end: 810, understanding: 'everything that cited it live now fails'},
+  {id: 'propagate', step: '5 · propagate', start: 810, end: 1110, understanding: 'the machine writes the dependents their row'},
+  {id: 'gate', step: '6 · the gate', start: 1110, end: 1260, understanding: 'the commit is refused until the citations are fixed'},
+  {id: 'thesis', step: '', start: 1260, end: 1380, understanding: 'the sentence'},
 ] as const;
 
 export type Interval = readonly [number, number];
 
 /** Every motion in the film as a global frame interval. */
 export const MOVES = {
-  sentenceIn: [0, 20],
-  cardRise: [75, 99],
-  matchIn: [105, 120],
-  panelSlide: [165, 195],
-  copyIn: [190, 215],
-  labelsIn: [205, 225],
-  proseForgets: [225, 255],
-  tetherDraw: [225, 255],
-  shaIn: [255, 270],
-  chipIn: [270, 285],
-  timeSweep: [315, 375],
-  laterIn: [370, 385],
-  digitsFlip: [385, 405],
-  tetherAccent: [410, 440],
-  ghostIn: [410, 440],
-  shaFlip: [425, 440],
-  chipFlip: [440, 455],
-  captionsIn: [460, 480],
-  worldsOut: [600, 630],
-  thesisIn: [625, 655],
+  fileIn: [0, 40],
+  status1Cmd: [40, 50],
+  status1Out: [55, 85],
+  check1Cmd: [240, 250],
+  check1Out: [255, 285],
+  check1Exit: [290, 300],
+  fileScroll: [360, 405],
+  verdictLands: [415, 445],
+  verdictSettles: [455, 495],
+  status2Cmd: [520, 530],
+  status2Out: [535, 560],
+  check2Cmd: [630, 640],
+  check2Out: [645, 720],
+  check2Exit: [725, 735],
+  propCmd: [810, 820],
+  propOut: [825, 870],
+  fileCut: [920, 920],
+  dependentLands: [925, 955],
+  dependentSettles: [965, 1005],
+  status3Cmd: [1020, 1030],
+  status3Out: [1035, 1060],
+  commitCmd: [1110, 1120],
+  hookOut: [1125, 1190],
+  commitExit: [1195, 1205],
+  storyOut: [1260, 1290],
+  thesisIn: [1285, 1315],
 } as const satisfies Record<string, Interval>;
 
 export type MoveName = keyof typeof MOVES;
 
+/**
+ * Spotlights: the frame dims to one region and a caption names it in the
+ * product's own vocabulary. `on` is the interval the spotlight is fully up;
+ * it fades over SPOT_FADE frames on either side. Targets are resolved by the
+ * film against its own geometry.
+ */
+export const SPOT_FADE = 10;
+export type SpotTarget =
+  | {kind: 'fileRows'; anchor: 'grounds' | 'verdict' | 'dependentVerdict'}
+  | {kind: 'termLines'; from: number; count: number}
+  | {kind: 'termCommand'};
+
+export const SPOTS: {id: string; on: Interval; target: SpotTarget; caption: string; below: boolean}[] = [
+  {id: 'grounds', on: [100, 160], target: {kind: 'fileRows', anchor: 'grounds'}, caption: 'Grounds: the evidence this claim rests on.', below: true},
+  {id: 'open', on: [175, 232], target: {kind: 'termLines', from: 0, count: 1}, caption: 'Status is derived from its verdicts. None yet: open.', below: true},
+  {id: 'clean', on: [305, 352], target: {kind: 'termLines', from: 0, count: 5}, caption: 'Five checkers. A clean run exits 0.', below: true},
+  {id: 'appended', on: [450, 512], target: {kind: 'fileRows', anchor: 'verdict'}, caption: 'A verdict is appended. Nothing above the line changes.', below: true},
+  {id: 'refuted', on: [568, 622], target: {kind: 'termLines', from: 0, count: 1}, caption: 'The status follows the last verdict: refuted.', below: true},
+  {id: 'fails', on: [715, 800], target: {kind: 'termLines', from: 2, count: 4}, caption: 'Two entries and two documents cite R0001 as live. All four fail.', below: false},
+  {id: 'flagged', on: [868, 915], target: {kind: 'termLines', from: 2, count: 2}, caption: 'propagate writes the dependents their verdict.', below: true},
+  {id: 'cause', on: [960, 1015], target: {kind: 'fileRows', anchor: 'dependentVerdict'}, caption: 'R0003 rests on R0001. Its row names the cause.', below: true},
+  {id: 'contested', on: [1068, 1105], target: {kind: 'termLines', from: 1, count: 2}, caption: 'Both dependents are now contested.', below: true},
+  {id: 'refused', on: [1208, 1255], target: {kind: 'termCommand'}, caption: 'The pre-commit hook runs the same check. Refused.', below: true},
+];
+
 // ---------------------------------------------------------------- easings
 
 /**
- * Dragicevic et al., CHI 2011: slow-in/slow-out as a quadratic transformation
- * of linear pacing had the lowest object-tracking error of the four pacings
- * measured. It is used on the one move in this film that asks the viewer to
- * track an object it already knows — the panel's slide at the split.
+ * Dragicevic et al., CHI 2011: quadratic slow-in/slow-out had the lowest
+ * object-tracking error of the four pacings measured. It is used on the one
+ * move that asks the viewer to follow text it is already reading — the file
+ * pane's scroll to the APPEND marker.
  */
 export const slowInSlowOutQuad = (t: number): number =>
   t <= 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
 
-/** Fades are not tracked moves; they are linear and monotonic. */
 export const linear = Easing.linear;
 
 /** 0 before the interval, 1 after it, eased progress inside it. */
@@ -116,83 +126,50 @@ export const ramp = (
   return easing((frame - start) / (end - start));
 };
 
+/** Lines arrive one after another: line i fades over `dur` frames starting `step` after line i-1. */
+export const lineIn = (frame: number, [start, end]: Interval, i: number, n: number): number => {
+  const dur = 8;
+  const step = n <= 1 ? 0 : Math.max(1, (end - start - dur) / (n - 1));
+  return ramp(frame, [start + i * step, start + i * step + dur]);
+};
+
 // ------------------------------------------------------------------ layout
 
-export const PANEL_W = 860;
-export const PANEL_Y = 150;
-export const PANEL_CENTER_X = (WIDTH - PANEL_W) / 2; // 530
-export const LEFT_X = 100;
-export const RIGHT_X = WIDTH - 100 - PANEL_W; // 960
+/**
+ * Stacked, not side by side: every real line the film shows — a status row of
+ * 79 characters, a FAIL line of 150 — fits its pane unwrapped at the size it
+ * is drawn, so the surface is shown as the shell would show it.
+ */
+export const MARGIN = 60;
+export const PANE_X = MARGIN;
+export const PANE_W = WIDTH - 2 * MARGIN; // 1800
+export const FILE_TOP = 120;
+export const FILE_H = 460;
+export const TERM_TOP = FILE_TOP + FILE_H + 60; // 640
+export const TERM_H = HEIGHT - TERM_TOP - MARGIN; // 380
+export const LABEL_OFFSET = 34;
+export const STEP_Y = 34;
 
-/** How far the panel travels at the split: half its own width. */
-export const SLIDE_PX = PANEL_CENTER_X - LEFT_X; // 430
+export const FILE_FONT = 22;
+export const FILE_LINE = 30;
+export const TERM_FONT = 18;
+export const TERM_LINE = 24;
+export const PANE_PAD = 28;
 
-/** The panel's x at a frame — the function the track matte is checked against. */
-export const panelX = (frame: number): number =>
-  PANEL_CENTER_X - SLIDE_PX * ramp(frame, MOVES.panelSlide, slowInSlowOutQuad);
+/** The file pane opens on the Assertion, not the frontmatter: the id is in the label. */
+export const FILE_FIRST_ROW = 12;
+/** The scroll lands the APPEND marker this many rows from the pane's top. */
+export const SCROLL_TARGET_ROW = 1;
 
-/** Positions inside a panel. */
-export const P = {
-  chipY: 0,
-  chipH: 36,
-  assertionY: 50,
-  assertionSize: 46,
-  quoteY: 120,
-  quoteH: 48,
-  quoteSize: 24,
-  cardY: 300,
-  cardH: 340,
-  cardHeaderY: 24,
-  cardLineY: 160,
-  cardLineSize: 24,
-  cardPad: 32,
-  greekAbove: [
-    {y: 80, w: 560},
-    {y: 110, w: 640},
-  ],
-  greekBelow: [
-    {y: 220, w: 600},
-    {y: 250, w: 700},
-    {y: 280, w: 420},
-  ],
-  shaY: 664,
-  shaSize: 20,
-  captionY: 712,
-  captionSize: 28,
-} as const;
-
-/** The mono advance at the sizes used, measured for IBM Plex Mono (0.6 em). */
-export const MONO_ADVANCE = 0.6;
-
-/** The tether, in panel coordinates: from under the quotation to the top of the span. */
-export const TETHER = (() => {
-  const quoteChars = COPY.quotePrefix.length + COPY.before.length + COPY.quoteSuffix.length + 2;
-  const quoteW = quoteChars * P.quoteSize * MONO_ADVANCE + 32;
-  const lineChars = COPY.quotePrefix.length + COPY.before.length + COPY.quoteSuffix.length;
-  const lineW = lineChars * P.cardLineSize * MONO_ADVANCE;
-  const from = {x: quoteW / 2, y: P.quoteY + P.quoteH + 2};
-  const to = {x: P.cardPad + lineW / 2, y: P.cardY + P.cardLineY - 8};
-  const c1 = {x: from.x, y: from.y + 90};
-  const c2 = {x: to.x, y: to.y - 60};
-  return {
-    quoteW,
-    lineW,
-    from,
-    to,
-    d: `M ${from.x} ${from.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${to.x} ${to.y}`,
-    dReversed: `M ${to.x} ${to.y} C ${c2.x} ${c2.y} ${c1.x} ${c1.y} ${from.x} ${from.y}`,
-  };
-})();
-
-export const TIME_RULE = {y: 60, x0: 60, x1: WIDTH - 60};
-export const COLUMN_LABEL_Y = 118;
+/** The scroll, in px, at a frame — the function the track matte is checked against. */
+export const fileScrollPx = (frame: number, appendLineIndex: number): number => {
+  const from = FILE_FIRST_ROW * FILE_LINE;
+  const to = (appendLineIndex - SCROLL_TARGET_ROW) * FILE_LINE;
+  return from + (to - from) * ramp(frame, MOVES.fileScroll, slowInSlowOutQuad);
+};
 
 // ------------------------------------------------------------ diagnostics
 
-/**
- * The frames the contact sheet renders: start, midpoint and end of every move,
- * the midpoint of every hold between beats, the first and last frame.
- */
 export const DIAGNOSTIC_FRAMES: {frame: number; label: string}[] = (() => {
   const out = new Map<number, string>();
   const put = (f: number, label: string) => {
@@ -202,7 +179,7 @@ export const DIAGNOSTIC_FRAMES: {frame: number; label: string}[] = (() => {
   put(0, 'first');
   for (const [name, [s, e]] of Object.entries(MOVES) as [MoveName, Interval][]) {
     put(s, `${name} · start`);
-    put(Math.floor((s + e) / 2), `${name} · mid`);
+    if (e > s) put(Math.floor((s + e) / 2), `${name} · mid`);
     put(e, `${name} · end`);
   }
   for (const b of BEATS) put(Math.floor((b.start + b.end) / 2), `${b.id} · hold mid`);

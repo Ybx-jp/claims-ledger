@@ -1,38 +1,51 @@
 #!/usr/bin/env python3
-"""Measure the panel's slide from the TrackMatte image sequence and check it
-against the film's own position function.
+"""Measure the file pane's scroll from the TrackMatte image sequence and check
+it against the film's own scroll function.
 
     npx remotion render TrackMatte out/matte --sequence --image-format=png --scale=0.25 \
-        --frames=160-200
+        --frames=355-410
     python3 tools/track-centroid.py out/matte --scale 0.25
 
-The matte draws the moving panel alone, white on black. The intensity-weighted
-centroid of each frame, weighted by pixel centres, is the panel's centre; the
-expected centre is PANEL_CENTER_X - SLIDE_PX * siso((f - 165) / 30) + PANEL_W / 2,
-reimplemented here from timing.ts so the two can disagree.
+The matte draws the APPEND marker's row alone, white on black, as the pane
+scrolls it. The intensity-weighted centroid of each frame, weighted by pixel
+centres, is the row's centre; the expected centre is reimplemented here from
+timing.ts (fileScrollPx) so the two can disagree.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import struct
 import sys
 import zlib
 from pathlib import Path
 
-PANEL_W, PANEL_CENTER_X, LEFT_X = 860, 530, 100
-SLIDE = (165, 195)
+FILE_TOP, PANE_PAD, FILE_LINE, FILE_FIRST_ROW, TARGET_ROW = 120, 28, 30, 12, 1
+SLIDE = (360, 405)
 
 
 def siso(t: float) -> float:
     return 2 * t * t if t <= 0.5 else 1 - 2 * (1 - t) * (1 - t)
 
 
-def expected_cx(frame: int) -> float:
+def append_index() -> int:
+    """The APPEND marker's line index in the captured entry, read from captures.ts."""
+    text = (Path(__file__).resolve().parent.parent / "src" / "captures.ts").read_text(
+        encoding="utf-8"
+    )
+    body = json.loads(text[text.index("{") : text.rindex("}") + 1])
+    return body["entryAfter"].split("\n").index("<!-- APPEND BELOW THIS LINE ONLY -->")
+
+
+def expected_cy(frame: int) -> float:
     s, e = SLIDE
     t = 0.0 if frame <= s else 1.0 if frame >= e else siso((frame - s) / (e - s))
-    return PANEL_CENTER_X - (PANEL_CENTER_X - LEFT_X) * t + PANEL_W / 2
+    start = FILE_FIRST_ROW * FILE_LINE
+    end = (append_index() - TARGET_ROW) * FILE_LINE
+    scroll = start + (end - start) * t
+    return FILE_TOP + PANE_PAD + append_index() * FILE_LINE - scroll + FILE_LINE / 2
 
 
 def read_png_gray(path: Path) -> tuple[int, int, list[list[int]]]:
@@ -107,14 +120,14 @@ def main() -> int:
         m = re.search(r"(\d+)\.png$", f.name)
         frame = int(m.group(1)) if m else 0
         _, _, rows = read_png_gray(f)
-        cx, _ = centroid(rows)
-        cx /= a.scale
-        exp = expected_cx(frame)
-        d = cx - exp
+        _, cy = centroid(rows)
+        cy /= a.scale
+        exp = expected_cy(frame)
+        d = cy - exp
         worst = max(worst, abs(d))
-        travel = "" if prev is None else f"{cx - prev:+.2f}"
-        print(f"{frame:5d}  {cx:8.2f}  {exp:8.2f}  {d:+6.2f}  {travel}")
-        prev = cx
+        travel = "" if prev is None else f"{cy - prev:+.2f}"
+        print(f"{frame:5d}  {cy:8.2f}  {exp:8.2f}  {d:+6.2f}  {travel}")
+        prev = cy
     print(f"worst |delta| = {worst:.2f} px (tolerance {a.tolerance})")
     return 0 if worst <= a.tolerance else 1
 
