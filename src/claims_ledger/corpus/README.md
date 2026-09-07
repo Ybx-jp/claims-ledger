@@ -275,8 +275,10 @@ nor a test, which is what those four tests are for; the credence and missing-sec
 guards were already held. The sweep also found other `validate` guards surviving the
 corpus that this paragraph does not name and no test yet closes — a claim wider than "these
 six" would be exactly the failure this paragraph exists to avoid, so it does not make one.
-`.qe/probe6/enumerate_sites.py` then `mutate_one.py` is the cheap way to ask of any other
-guard whether anything holds it.
+Asking that of any other guard is a sweep — `enumerate_sites.py` then `mutate_one.py`,
+under `.qe/probe6/` in the source repository at https://github.com/Ybx-jp/claims-ledger.
+This file travels inside the installed package and those scripts do not, so a reader who
+has the wheel and not the checkout has the claim above without the means to re-test it.
 
 Four rules are unreachable from a seed by construction, and no seed can ever hold them,
 for two different reasons. The `--write` reports of `propagate` and `freshness` are
@@ -410,7 +412,8 @@ outline; a test-oracle literature on corpora of this shape.
   report site, run the corpus — found that most of `validate`'s well-formedness guards
   survive it. Some of those are held by a test instead, and the Coverage section above
   names exactly which, rather than asserting all of them are — the sweep found several
-  that are not, and re-running it (`.qe/probe6/`) is how to find out which any one is.
+  that are not, and re-running it (`.qe/probe6/`, in the source repository and not in the
+  installed package) is how to find out which any one is.
 - That a quotation is *true*, or that its source is the right one. Resolution shows a
   span exists in the named artifact and nothing more.
 - That the load-bearing elision, the undercut, the datum attack, the reversal, the

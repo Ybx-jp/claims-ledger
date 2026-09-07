@@ -23,6 +23,7 @@ Findings are written up in `.qe/findings-corpus-release.md`.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -556,3 +557,75 @@ def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
     subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
     with pytest.raises(LedgerError, match="not a file in this seed"):
         corpus_run.blob_id(repo, tmp_path / "commits", "07", "docs/nope.md", {})
+
+
+# ---------------------------------------------------------------------------
+# The inventory: a report site nobody has swept
+# ---------------------------------------------------------------------------
+
+
+REPORT_SITE_COUNTS = {
+    "validate.py": 75,
+    "resolve.py": 16,
+    "references.py": 15,
+    "propagate.py": 5,
+    "freshness.py": 13,
+}
+
+
+def report_sites(module):
+    """Every statement in `module` that emits a Report, by the same definition the sweep
+    under `.qe/probe6/enumerate_sites.py` uses: a bare `fail(...)`/`flag(...)` call, a
+    bare `<list>.append(Report(...))`, or a `return [Report(...), ...]`.
+
+    Duplicated here rather than imported because `.qe/` is the record of an adversarial
+    pass and does not ship; this file has to answer the question from the package alone.
+    """
+    path = project_file("src", "claims_ledger", module)
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+    def emits(node):
+        return (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in ("fail", "flag", "Report")
+        )
+
+    sites = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Expr):
+            value = node.value
+            if emits(value) or (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Attribute)
+                and value.func.attr == "append"
+                and value.args
+                and emits(value.args[0])
+            ):
+                sites.append(node)
+        elif isinstance(node, ast.Return) and isinstance(node.value, ast.List):
+            if any(emits(elt) for elt in node.value.elts):
+                sites.append(node)
+    return sites
+
+
+def test_every_report_site_has_been_through_the_sweep():
+    """A report site is a sentence the checkers promise to say. Whether anything holds
+    one up is not knowable by reading it -- it is answered by deleting it and seeing
+    whether the corpus or this suite goes red, which is what the sweep does.
+
+    The sweep is not run in CI: it is minutes per site, and it needs a copy of the tree
+    per mutant. So this stands in its place. It does not prove a site is held; it proves
+    nobody added one *without being asked the question*. Fourteen sites accumulated
+    unswept between the sixth pass and here, and two of those turned out to be held by
+    nothing at all -- both silent-pass paths under a checkout whose git had stopped
+    answering.
+
+    When this goes red you have added or removed a report site. Sweep it before you
+    change the number: `.qe/probe6/enumerate_sites.py` lists the sites, `mutate_one.py`
+    deletes one and runs both gates against the result. A site that survives both needs
+    a test, or a documented reason it cannot have one -- `corpus/README.md` names the
+    four that cannot.
+    """
+    counts = {module: len(report_sites(module)) for module in REPORT_SITE_COUNTS}
+    assert counts == REPORT_SITE_COUNTS

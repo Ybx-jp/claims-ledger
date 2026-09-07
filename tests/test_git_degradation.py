@@ -477,3 +477,82 @@ def test_a_broken_git_is_not_a_freshness_check_that_ran(pinned, tmp_path, monkey
     assert [r.outcome for r in reports] == ["fail"]
     assert reports[0].part == "freshness"
     assert "freshness did not run" in reports[0].message
+
+
+# ---------------------------------------------------------------------------
+# The live-drift path's own two "git could not answer" branches.
+# ---------------------------------------------------------------------------
+#
+# `drift()` reports what moved; these two are asked afterwards, about a ground that has
+# already moved, and each is the moment a *different* git call fails. They are the same
+# rule as everything above -- a check that did not run is never a check that passed --
+# at the one surface where failing it costs the ledger its suppression rule rather than
+# a diagnosis.
+#
+# Neither is reachable from a corpus seed: a seed is files on disk and cannot express
+# "the git binary answers badly", so only a shimmed PATH can put the question.
+
+
+def test_a_git_that_cannot_weigh_the_acknowledgement_does_not_silence_the_drift(
+    pinned, tmp_path, monkeypatch
+):
+    """A drifted ground whose acknowledgement does not record what this run reads: the
+    cheap half of `discharges()` cannot settle it, so `caused()` asks history. When git
+    cannot answer, the verdict neither discharges the drift nor fails to.
+
+    Silence retires the suppression rule -- the drift is live and reported as nothing.
+    An accusation forges one against what may be a correct discharge. The branch exists
+    to do neither.
+    """
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.run(write=True)  # the discharge, recording the artifact at this drift
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
+    # Moved again, so the acknowledgement records an artifact that is not what this run
+    # reads and the comparison falls through to history.
+    pinned.note(NOTE.replace("0.04", "0.11"))
+    assert pinned.outcomes() == [], (
+        "precondition: with a working git the acknowledgement is weighed against history "
+        "and stands, so the drift is discharged and nothing is reported"
+    )
+
+    monkeypatch.setenv(
+        "PATH", f"{_shim_git_that_cannot(tmp_path, 'log')}{os.pathsep}{os.environ['PATH']}"
+    )
+    got = pinned.outcomes()
+    assert "fail" in [o for o, _, _ in got], (
+        f"the drift is live and whether the verdict discharges it could not be "
+        f"established; the run reported no failure: {got}"
+    )
+    assert [m for _, _, m in got if "could not be established" in m], (
+        f"the run failed without saying that git is what could not answer: {got}"
+    )
+
+
+def test_write_does_not_append_a_verdict_it_cannot_state_and_says_why(
+    pinned, tmp_path, monkeypatch
+):
+    """`--write` records what the artifact was when the drift was seen, and `orphans()`
+    holds the verdict to exactly that afterwards. A verdict this run cannot state is one
+    nothing could ever check, so it is not appended -- and a `--write` that declines to
+    write must not decline in silence, or the drift is left unrecorded and unreported at
+    once.
+    """
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    before = pinned.entry_path().read_text(encoding="utf-8")
+    monkeypatch.setenv(
+        "PATH", f"{_shim_git_that_cannot(tmp_path, 'hash-object')}{os.pathsep}{os.environ['PATH']}"
+    )
+    got = pinned.outcomes(write=True)
+
+    assert pinned.entry_path().read_text(encoding="utf-8") == before, (
+        "precondition for the rule: git could not say what the artifact is, so no verdict "
+        "is appended"
+    )
+    assert "fail" in [o for o, _, _ in got], (
+        f"nothing was written and the run did not fail: the drift is now neither "
+        f"recorded nor reported: {got}"
+    )
+    assert [m for _, _, m in got if "no verdict was appended" in m], (
+        f"the run failed without saying that no verdict was appended, or why: {got}"
+    )
