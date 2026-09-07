@@ -29,6 +29,11 @@ allowed in it**, Grounds that are typed pointers, a Warrant that states the rule
 Backing that holds the verbatim quotations — each one resolved, at check time, against
 the stored bytes of its registered source.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/four-roles-dark.svg">
+  <img alt="A single frozen statement, where a faithful quotation runs seamlessly into unsourced inference, against an entry whose Assertion, Grounds, Warrant and Backing each sit on their own line and whose quotation is resolved against the stored source bytes." src="docs/figures/four-roles.svg" width="960">
+</picture>
+
 ## Quickstart
 
 Every command below is run by `tests/test_readme_quickstart.py` against a fresh project
@@ -153,6 +158,11 @@ supports the assertion over this cohort.
 ## References
 ```
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/entry-anatomy-dark.svg">
+  <img alt="An entry file annotated part by part: frontmatter, then Assertion, Scope, Grounds, Warrant and Backing in a region that is frozen once committed; the APPEND marker as a seam; then Verdicts and References, which only ever grow." src="docs/figures/entry-anatomy.svg" width="960">
+</picture>
+
 The schema in full — every field, every rule, and what each heuristic is known to miss —
 is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md).
 
@@ -165,6 +175,11 @@ is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SC
 | `claims-ledger references` | citation acts agree with the target's current status, entry to entry and document to entry, both directions |
 | `claims-ledger propagate` | when an entry falls or is challenged, its dependents carry the `contested` flag that says why (`--write` appends them) |
 | `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and its bytes match the pin, and the pin is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/five-checks-dark.svg">
+  <img alt="A matrix of the five checkers against what each reads: entries, git history, the source registry and cache, the documents, and the working tree or index; with what each holds, and the two, propagate and freshness, that write a contested verdict under --write." src="docs/figures/five-checks.svg" width="960">
+</picture>
 
 `claims-ledger check` runs all five. Each exits non-zero on a failure and zero on a
 flag, because a flag is a report a human judges rather than a gate.

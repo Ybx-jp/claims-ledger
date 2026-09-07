@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">The five checks: what each reads, what each holds</title>
+<desc id="d">A matrix of the five checkers — validate, resolve, references, propagate, freshness — against what each reads: entries, git history, the source registry and cache, the documents, and the working tree or index; with what each holds, and which two write a contested verdict under --write.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1}
+.dot{fill:var(--ink)} .nodot{fill:none;stroke:var(--rule);stroke-width:1}
+.tag{fill:none;stroke:var(--accent);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:13px} .code11{font-size:11px}
+</style>
+<rect class="paper" width="960" height="580"/>
+
+<text class="serif ink title" x="40" y="46">Five checks, one gate.</text>
+<text class="serif muted sub" x="40" y="70">Each exits non-zero on a failure and zero on a flag, because a flag is a report a human judges.</text>
+
+<!-- column headers -->
+<text class="serif muted h" x="40" y="118">CHECK</text>
+<text class="serif muted h" x="342" y="118" text-anchor="middle">READS</text>
+<text class="serif muted h" x="530" y="118">HOLDS</text>
+<text class="serif muted h" x="880" y="118" text-anchor="middle">WRITES</text>
+
+<g class="serif muted small" text-anchor="middle">
+  <text x="212" y="140">entries</text>
+  <text x="277" y="140">git</text><text x="277" y="153">history</text>
+  <text x="342" y="140">sources</text><text x="342" y="153">+ cache</text>
+  <text x="407" y="140">documents</text>
+  <text x="472" y="140">working</text><text x="472" y="153">tree / index</text>
+</g>
+<path class="rule" d="M40 164 H 920"/>
+
+<!-- row 1: validate -->
+<text class="mono ink code" x="40" y="197">validate</text>
+<circle class="dot" cx="212" cy="193" r="5.5"/><circle class="dot" cx="277" cy="193" r="5.5"/>
+<circle class="nodot" cx="342" cy="193" r="5.5"/><circle class="nodot" cx="407" cy="193" r="5.5"/><circle class="nodot" cx="472" cy="193" r="5.5"/>
+<g class="serif ink body"><text x="530" y="189">Entries are well-formed; the region above the marker</text><text x="530" y="206">never changed after its creating commit; verdicts only grew.</text></g>
+<path class="rule" d="M40 228 H 920"/>
+
+<!-- row 2: resolve -->
+<text class="mono ink code" x="40" y="261">resolve</text>
+<circle class="dot" cx="212" cy="257" r="5.5"/><circle class="dot" cx="277" cy="257" r="5.5"/><circle class="dot" cx="342" cy="257" r="5.5"/>
+<circle class="nodot" cx="407" cy="257" r="5.5"/><circle class="nodot" cx="472" cy="257" r="5.5"/>
+<g class="serif ink body"><text x="530" y="253">Every pointer resolves; every quote is a contiguous span</text><text x="530" y="270">of its source's stored bytes, elisions marked.</text></g>
+<path class="rule" d="M40 292 H 920"/>
+
+<!-- row 3: references -->
+<text class="mono ink code" x="40" y="325">references</text>
+<circle class="dot" cx="212" cy="321" r="5.5"/><circle class="nodot" cx="277" cy="321" r="5.5"/><circle class="nodot" cx="342" cy="321" r="5.5"/>
+<circle class="dot" cx="407" cy="321" r="5.5"/><circle class="nodot" cx="472" cy="321" r="5.5"/>
+<g class="serif ink body"><text x="530" y="317">Citation acts agree with the target's current status,</text><text x="530" y="334">entry to entry and document to entry, both directions.</text></g>
+<path class="rule" d="M40 356 H 920"/>
+
+<!-- row 4: propagate -->
+<text class="mono ink code" x="40" y="389">propagate</text>
+<circle class="dot" cx="212" cy="385" r="5.5"/><circle class="nodot" cx="277" cy="385" r="5.5"/><circle class="nodot" cx="342" cy="385" r="5.5"/>
+<circle class="nodot" cx="407" cy="385" r="5.5"/><circle class="nodot" cx="472" cy="385" r="5.5"/>
+<g class="serif ink body"><text x="530" y="381">A dependent of a fallen entry, and the target of a challenge,</text><text x="530" y="398">carry the contested verdict that says why.</text></g>
+<rect class="tag" x="852.5" y="374.5" width="55" height="20" rx="10"/><text class="mono accent code11" x="880" y="388" text-anchor="middle">--write</text>
+<path class="rule" d="M40 420 H 920"/>
+
+<!-- row 5: freshness -->
+<text class="mono ink code" x="40" y="453">freshness</text>
+<circle class="dot" cx="212" cy="449" r="5.5"/><circle class="dot" cx="277" cy="449" r="5.5"/><circle class="nodot" cx="342" cy="449" r="5.5"/>
+<circle class="nodot" cx="407" cy="449" r="5.5"/><circle class="dot" cx="472" cy="449" r="5.5"/>
+<g class="serif ink body"><text x="530" y="445">Every pinned ground still names the artifact the claim was</text><text x="530" y="462">established on; a pin that follows the work is flagged.</text></g>
+<rect class="tag" x="852.5" y="438.5" width="55" height="20" rx="10"/><text class="mono accent code11" x="880" y="452" text-anchor="middle">--write</text>
+<path class="rule" d="M40 484 H 920"/>
+
+<!-- footer -->
+<text class="mono ink code11" x="40" y="512">claims-ledger check</text>
+<text class="serif muted small" x="176" y="512">runs all five. A check that could not run never reports that it passed.</text>
+<text class="serif muted small" x="40" y="536"><tspan class="ink">fail</tspan> — exit ≠ 0; the gate closes.   <tspan class="ink">flag</tspan> — exit 0; something is made visible and a human decides.</text>
+<text class="serif muted small" x="40" y="556"><tspan class="accent">--write</tspan> — the two places machinery writes into an entry: a contested verdict under the propagation author, naming its cause.</text>
+</svg>
