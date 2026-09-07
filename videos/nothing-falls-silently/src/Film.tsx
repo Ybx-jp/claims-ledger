@@ -306,21 +306,20 @@ type Box = {x: number; y: number; w: number; h: number};
  * The dimming is four paper rectangles around the box, so the box itself is
  * untouched pixels of the film.
  */
-const Spotlight: React.FC<{box: Box; caption: string; below: boolean; opacity: number}> = ({box, caption, below, opacity}) => {
-  const dim = 0.62 * opacity;
+const Spotlight: React.FC<{box: Box; dim: number; captions: {text: string; below: boolean; opacity: number}[]}> = ({box, dim, captions}) => {
+  const shade = 0.62 * dim;
   const pad = 10;
   const bx = box.x - pad;
   const by = box.y - pad;
   const bw = box.w + 2 * pad;
   const bh = box.h + 2 * pad;
   const capH = 56;
-  const capY = below ? by + bh + 18 : by - 18 - capH;
   return (
     <>
-      <div style={{position: 'absolute', left: 0, top: 0, width: WIDTH, height: by, background: T.paper, opacity: dim}} />
-      <div style={{position: 'absolute', left: 0, top: by + bh, width: WIDTH, height: HEIGHT - by - bh, background: T.paper, opacity: dim}} />
-      <div style={{position: 'absolute', left: 0, top: by, width: bx, height: bh, background: T.paper, opacity: dim}} />
-      <div style={{position: 'absolute', left: bx + bw, top: by, width: WIDTH - bx - bw, height: bh, background: T.paper, opacity: dim}} />
+      <div style={{position: 'absolute', left: 0, top: 0, width: WIDTH, height: by, background: T.paper, opacity: shade}} />
+      <div style={{position: 'absolute', left: 0, top: by + bh, width: WIDTH, height: HEIGHT - by - bh, background: T.paper, opacity: shade}} />
+      <div style={{position: 'absolute', left: 0, top: by, width: bx, height: bh, background: T.paper, opacity: shade}} />
+      <div style={{position: 'absolute', left: bx + bw, top: by, width: WIDTH - bx - bw, height: bh, background: T.paper, opacity: shade}} />
       <div
         style={{
           position: 'absolute',
@@ -331,32 +330,35 @@ const Spotlight: React.FC<{box: Box; caption: string; below: boolean; opacity: n
           boxSizing: 'border-box',
           border: `2px solid ${T.accent}`,
           borderRadius: 8,
-          opacity,
+          opacity: dim,
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          left: bx,
-          top: capY,
-          height: capH,
-          padding: '0 22px',
-          display: 'flex',
-          alignItems: 'center',
-          background: T.paper,
-          borderLeft: `4px solid ${T.accent}`,
-          borderRadius: 6,
-          boxShadow: `0 2px 12px rgba(28, 27, 24, 0.12)`,
-          fontFamily: SERIF,
-          fontSize: 30,
-          color: T.ink,
-          whiteSpace: 'nowrap',
-          opacity,
-          ...STABLE,
-        }}
-      >
-        {caption}
-      </div>
+      {captions.map((c) => (
+        <div
+          key={c.text}
+          style={{
+            position: 'absolute',
+            left: bx,
+            top: c.below ? by + bh + 18 : by - 18 - capH,
+            height: capH,
+            padding: '0 22px',
+            display: 'flex',
+            alignItems: 'center',
+            background: T.paper,
+            borderLeft: `4px solid ${T.accent}`,
+            borderRadius: 6,
+            boxShadow: `0 2px 12px rgba(28, 27, 24, 0.12)`,
+            fontFamily: SERIF,
+            fontSize: 30,
+            color: T.ink,
+            whiteSpace: 'nowrap',
+            opacity: c.opacity,
+            ...STABLE,
+          }}
+        >
+          {c.text}
+        </div>
+      ))}
     </>
   );
 };
@@ -462,43 +464,40 @@ const Story: React.FC = () => {
   const appendIndex = beforeCut ? APPEND_INDEX : DEPENDENT_APPEND_INDEX;
   const scroll = beforeCut ? fileScrollPx(frame, appendIndex) : (appendIndex - 1) * FILE_LINE;
 
+  // The rows that land: the verdict occupies APPEND + 4 .. APPEND + 6 (marker, blank, heading, blank, then the row).
+  const NEW_FIRST = (beforeCut ? APPEND_INDEX : DEPENDENT_APPEND_INDEX) + 4;
+  const NEW_COUNT = beforeCut ? VERDICT_LINES.length : 3;
+  const isNew = (i: number) => i >= NEW_FIRST && i < NEW_FIRST + NEW_COUNT;
+  const landing = beforeCut ? MOVES.verdictLands : MOVES.dependentLands;
+  const settling = beforeCut ? MOVES.verdictSettles : MOVES.dependentSettles;
+
   const lineOpacity = (i: number): number => {
-    if (!beforeCut) {
-      return i > DEPENDENT_APPEND_INDEX + 2 && i <= DEPENDENT_APPEND_INDEX + 2 + 3
-        ? lineIn(frame, MOVES.dependentLands, i - DEPENDENT_APPEND_INDEX - 3, 3)
-        : 1;
-    }
-    if (verdictLanded && i > APPEND_INDEX + 2 && i <= APPEND_INDEX + 2 + VERDICT_LINES.length) {
-      return lineIn(frame, MOVES.verdictLands, i - APPEND_INDEX - 3, VERDICT_LINES.length);
-    }
+    if (!beforeCut) return isNew(i) ? lineIn(frame, landing, i - NEW_FIRST, NEW_COUNT) : 1;
+    if (verdictLanded && isNew(i)) return lineIn(frame, landing, i - NEW_FIRST, NEW_COUNT);
     return lineIn(frame, MOVES.fileIn, Math.min(i, 24), 25);
   };
   const soft = (i: number): number => {
-    if (!beforeCut) {
-      const isNew = i > DEPENDENT_APPEND_INDEX + 2 && i <= DEPENDENT_APPEND_INDEX + 2 + 3;
-      return isNew ? ramp(frame, MOVES.dependentLands) * (1 - ramp(frame, MOVES.dependentSettles)) : 0;
-    }
-    const isNew = verdictLanded && i > APPEND_INDEX + 2 && i <= APPEND_INDEX + 2 + VERDICT_LINES.length;
-    return isNew ? ramp(frame, MOVES.verdictLands) * (1 - ramp(frame, MOVES.verdictSettles)) : 0;
+    if (!isNew(i)) return 0;
+    if (beforeCut && !verdictLanded) return 0;
+    return ramp(frame, landing) * (1 - ramp(frame, settling));
   };
 
-  // The spotlight up at this frame, if any, and its box in frame coordinates.
-  const spot = SPOTS.find((s) => frame >= s.on[0] - SPOT_FADE && frame < s.on[1] + SPOT_FADE);
-  let spotBox: Box | null = null;
-  let spotOpacity = 0;
-  if (spot) {
-    spotOpacity = Math.min(ramp(frame, [spot.on[0] - SPOT_FADE, spot.on[0]]), 1 - ramp(frame, [spot.on[1], spot.on[1] + SPOT_FADE]));
-    const t = spot.target;
+  // The spotlights up at this frame — two during a crossfade — each with its box in frame coordinates.
+  const boxFor = (t: (typeof SPOTS)[number]['target']): Box => {
     if (t.kind === 'fileRows') {
-      const first = t.anchor === 'grounds' ? GROUNDS_INDEX + 2 : t.anchor === 'verdict' ? APPEND_INDEX + 4 : DEPENDENT_APPEND_INDEX + 4;
-      const count = t.anchor === 'grounds' ? 2 : 3;
-      spotBox = fileRowsBox(first, count, lines, scroll);
-    } else if (t.kind === 'termLines') {
-      spotBox = termLineBox(frame, t.from, t.count);
-    } else {
-      spotBox = termCommandBox(frame);
+      if (t.anchor === 'grounds') return fileRowsBox(GROUNDS_INDEX + 2, 2, lines, scroll);
+      if (t.anchor === 'verdictsEmpty') return fileRowsBox(APPEND_INDEX, 3, lines, scroll);
+      if (t.anchor === 'verdict') return fileRowsBox(APPEND_INDEX + 4, 3, ENTRY_AFTER, scroll);
+      return fileRowsBox(DEPENDENT_APPEND_INDEX + 4, 3, lines, scroll);
     }
-  }
+    if (t.kind === 'termLines') return termLineBox(frame, t.from, t.count);
+    return termCommandBox(frame);
+  };
+  const active = SPOTS.filter((s) => frame >= s.on[0] - SPOT_FADE && frame < s.on[1] + SPOT_FADE).map((s) => ({
+    spot: s,
+    box: boxFor(s.target),
+    opacity: Math.min(ramp(frame, [s.on[0] - SPOT_FADE, s.on[0]]), 1 - ramp(frame, [s.on[1], s.on[1] + SPOT_FADE])),
+  }));
 
   return (
     <AbsoluteFill style={{backgroundColor: T.paper, ...STABLE}}>
@@ -512,7 +511,13 @@ const Story: React.FC = () => {
         soft={soft}
       />
       <Terminal blocks={BLOCKS} opacity={fileIn} />
-      {spot && spotBox && <Spotlight box={spotBox} caption={spot.caption} below={spot.below} opacity={spotOpacity} />}
+      {active.length > 0 && (
+        <Spotlight
+          box={active[active.length - 1].box}
+          dim={Math.max(...active.map((a) => a.opacity))}
+          captions={active.map((a) => ({text: a.spot.caption, below: a.spot.below, opacity: a.opacity}))}
+        />
+      )}
     </AbsoluteFill>
   );
 };

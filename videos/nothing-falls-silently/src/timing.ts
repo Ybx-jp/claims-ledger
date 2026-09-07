@@ -11,7 +11,7 @@ import {Easing} from 'remotion';
 export const FPS = 30;
 export const WIDTH = 1920;
 export const HEIGHT = 1080;
-export const DURATION_IN_FRAMES = 1380; // 46.000 s
+export const DURATION_IN_FRAMES = 2160; // 72.000 s
 
 /** The figures' light palette, verbatim from docs/figures/build.py. */
 export const T = {
@@ -34,13 +34,13 @@ export const COPY = {
 // ------------------------------------------------------------------ beats
 
 export const BEATS = [
-  {id: 'entry', step: '1 · a claim', start: 0, end: 240, understanding: 'a claim file, with its evidence, and its status'},
-  {id: 'check', step: '2 · check', start: 240, end: 360, understanding: 'five checkers, all clean'},
-  {id: 'verdict', step: '3 · a verdict', start: 360, end: 630, understanding: 'one row appended; the status follows it'},
-  {id: 'fail', step: '4 · what fails', start: 630, end: 810, understanding: 'everything that cited it live now fails'},
-  {id: 'propagate', step: '5 · propagate', start: 810, end: 1110, understanding: 'the machine writes the dependents their row'},
-  {id: 'gate', step: '6 · the gate', start: 1110, end: 1260, understanding: 'the commit is refused until the citations are fixed'},
-  {id: 'thesis', step: '', start: 1260, end: 1380, understanding: 'the sentence'},
+  {id: 'entry', step: '1 · a claim', start: 0, end: 330, understanding: 'a claim file, with its evidence, and its status'},
+  {id: 'check', step: '2 · check', start: 330, end: 500, understanding: 'five checkers, all clean'},
+  {id: 'verdict', step: '3 · a verdict', start: 500, end: 1060, understanding: 'a decision is written down as a row; the status follows it'},
+  {id: 'fail', step: '4 · what fails', start: 1060, end: 1300, understanding: 'everything that cited it live now fails'},
+  {id: 'propagate', step: '5 · propagate', start: 1300, end: 1800, understanding: 'the machine writes the dependents their row'},
+  {id: 'gate', step: '6 · the gate', start: 1800, end: 2010, understanding: 'the commit is refused until the citations are fixed'},
+  {id: 'thesis', step: '', start: 2010, end: 2160, understanding: 'the sentence'},
 ] as const;
 
 export type Interval = readonly [number, number];
@@ -50,29 +50,29 @@ export const MOVES = {
   fileIn: [0, 40],
   status1Cmd: [40, 50],
   status1Out: [55, 85],
-  check1Cmd: [240, 250],
-  check1Out: [255, 285],
-  check1Exit: [290, 300],
-  fileScroll: [360, 405],
-  verdictLands: [415, 445],
-  verdictSettles: [455, 495],
-  status2Cmd: [520, 530],
-  status2Out: [535, 560],
-  check2Cmd: [630, 640],
-  check2Out: [645, 720],
-  check2Exit: [725, 735],
-  propCmd: [810, 820],
-  propOut: [825, 870],
-  fileCut: [920, 920],
-  dependentLands: [925, 955],
-  dependentSettles: [965, 1005],
-  status3Cmd: [1020, 1030],
-  status3Out: [1035, 1060],
-  commitCmd: [1110, 1120],
-  hookOut: [1125, 1190],
-  commitExit: [1195, 1205],
-  storyOut: [1260, 1290],
-  thesisIn: [1285, 1315],
+  check1Cmd: [330, 340],
+  check1Out: [345, 375],
+  check1Exit: [380, 390],
+  fileScroll: [500, 545],
+  verdictLands: [730, 760],
+  verdictSettles: [770, 810],
+  status2Cmd: [905, 915],
+  status2Out: [920, 945],
+  check2Cmd: [1060, 1070],
+  check2Out: [1075, 1150],
+  check2Exit: [1155, 1165],
+  propCmd: [1300, 1310],
+  propOut: [1315, 1360],
+  fileCut: [1480, 1480],
+  dependentLands: [1485, 1515],
+  dependentSettles: [1525, 1565],
+  status3Cmd: [1650, 1660],
+  status3Out: [1665, 1690],
+  commitCmd: [1800, 1810],
+  hookOut: [1815, 1880],
+  commitExit: [1885, 1895],
+  storyOut: [2010, 2040],
+  thesisIn: [2035, 2065],
 } as const satisfies Record<string, Interval>;
 
 export type MoveName = keyof typeof MOVES;
@@ -80,26 +80,29 @@ export type MoveName = keyof typeof MOVES;
 /**
  * Spotlights: the frame dims to one region and a caption names it in the
  * product's own vocabulary. `on` is the interval the spotlight is fully up;
- * it fades over SPOT_FADE frames on either side. Targets are resolved by the
- * film against its own geometry.
+ * it fades over SPOT_FADE frames on either side. Consecutive spotlights on
+ * the same box keep the box and change the caption. Targets are resolved by
+ * the film against its own geometry.
  */
 export const SPOT_FADE = 10;
 export type SpotTarget =
-  | {kind: 'fileRows'; anchor: 'grounds' | 'verdict' | 'dependentVerdict'}
+  | {kind: 'fileRows'; anchor: 'grounds' | 'verdictsEmpty' | 'verdict' | 'dependentVerdict'}
   | {kind: 'termLines'; from: number; count: number}
   | {kind: 'termCommand'};
 
 export const SPOTS: {id: string; on: Interval; target: SpotTarget; caption: string; below: boolean}[] = [
-  {id: 'grounds', on: [100, 160], target: {kind: 'fileRows', anchor: 'grounds'}, caption: 'Grounds: the evidence this claim rests on.', below: true},
-  {id: 'open', on: [175, 232], target: {kind: 'termLines', from: 0, count: 1}, caption: 'Status is derived from its verdicts. None yet: open.', below: true},
-  {id: 'clean', on: [305, 352], target: {kind: 'termLines', from: 0, count: 5}, caption: 'Five checkers. A clean run exits 0.', below: true},
-  {id: 'appended', on: [450, 512], target: {kind: 'fileRows', anchor: 'verdict'}, caption: 'A verdict is appended. Nothing above the line changes.', below: true},
-  {id: 'refuted', on: [568, 622], target: {kind: 'termLines', from: 0, count: 1}, caption: 'The status follows the last verdict: refuted.', below: true},
-  {id: 'fails', on: [715, 800], target: {kind: 'termLines', from: 2, count: 4}, caption: 'Two entries and two documents cite R0001 as live. All four fail.', below: false},
-  {id: 'flagged', on: [868, 915], target: {kind: 'termLines', from: 2, count: 2}, caption: 'propagate writes the dependents their verdict.', below: true},
-  {id: 'cause', on: [960, 1015], target: {kind: 'fileRows', anchor: 'dependentVerdict'}, caption: 'R0003 rests on R0001. Its row names the cause.', below: true},
-  {id: 'contested', on: [1068, 1105], target: {kind: 'termLines', from: 1, count: 2}, caption: 'Both dependents are now contested.', below: true},
-  {id: 'refused', on: [1208, 1255], target: {kind: 'termCommand'}, caption: 'The pre-commit hook runs the same check. Refused.', below: true},
+  {id: 'grounds', on: [100, 220], target: {kind: 'fileRows', anchor: 'grounds'}, caption: 'Grounds: the evidence this claim rests on.', below: true},
+  {id: 'open', on: [235, 325], target: {kind: 'termLines', from: 0, count: 1}, caption: 'Status is derived from its verdicts. None yet: open.', below: true},
+  {id: 'clean', on: [395, 495], target: {kind: 'termLines', from: 0, count: 5}, caption: 'Five checkers. A clean run exits 0.', below: true},
+  {id: 'verdictsEmpty', on: [555, 665], target: {kind: 'fileRows', anchor: 'verdictsEmpty'}, caption: 'Verdicts: what has happened to the claim since. Nothing yet.', below: true},
+  {id: 'decision', on: [680, 800], target: {kind: 'fileRows', anchor: 'verdict'}, caption: 'A rerun puts the miss rate at 0.09: the claim is refuted.', below: true},
+  {id: 'appended', on: [800, 900], target: {kind: 'fileRows', anchor: 'verdict'}, caption: 'Appended by hand. Nothing above the line changes.', below: true},
+  {id: 'refuted', on: [955, 1045], target: {kind: 'termLines', from: 0, count: 1}, caption: 'The status follows the last verdict: refuted.', below: true},
+  {id: 'fails', on: [1160, 1290], target: {kind: 'termLines', from: 2, count: 4}, caption: 'Two entries and two documents cite R0001 as live. All four fail.', below: false},
+  {id: 'flagged', on: [1365, 1465], target: {kind: 'termLines', from: 2, count: 2}, caption: 'propagate writes the dependents their verdict.', below: true},
+  {id: 'cause', on: [1520, 1640], target: {kind: 'fileRows', anchor: 'dependentVerdict'}, caption: 'R0003 rests on R0001. Its row names the cause.', below: true},
+  {id: 'contested', on: [1700, 1790], target: {kind: 'termLines', from: 1, count: 2}, caption: 'Both dependents are now contested.', below: true},
+  {id: 'refused', on: [1900, 2000], target: {kind: 'termCommand'}, caption: 'The pre-commit hook runs the same check. Refused.', below: true},
 ];
 
 // ---------------------------------------------------------------- easings

@@ -3,7 +3,7 @@
 it against the film's own scroll function.
 
     npx remotion render TrackMatte out/matte --sequence --image-format=png --scale=0.25 \
-        --frames=355-410
+        --frames=495-550
     python3 tools/track-centroid.py out/matte --scale 0.25
 
 The matte draws the APPEND marker's row alone, white on black, as the pane
@@ -23,7 +23,7 @@ import zlib
 from pathlib import Path
 
 FILE_TOP, PANE_PAD, FILE_LINE, FILE_FIRST_ROW, TARGET_ROW = 120, 28, 30, 12, 1
-SLIDE = (360, 405)
+SLIDE = (500, 545)
 
 
 def siso(t: float) -> float:

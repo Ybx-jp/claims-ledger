@@ -57,17 +57,19 @@ export const ContactSheet: React.FC = () => (
  * approval before a render. Same instrument as the contact sheet.
  */
 export const STORYBOARD_FRAMES: {frame: number; label: string}[] = [
-  {frame: 130, label: 'entry · Grounds'},
-  {frame: 205, label: 'entry · status open'},
-  {frame: 330, label: 'check · clean'},
-  {frame: 480, label: 'verdict · appended'},
-  {frame: 595, label: 'verdict · status refuted'},
-  {frame: 760, label: 'fail · four cite it live'},
-  {frame: 890, label: 'propagate · flagged'},
-  {frame: 990, label: 'propagate · the cause'},
-  {frame: 1085, label: 'propagate · contested'},
-  {frame: 1230, label: 'gate · refused'},
-  {frame: 1340, label: 'thesis'},
+  {frame: 160, label: 'entry · Grounds'},
+  {frame: 280, label: 'entry · status open'},
+  {frame: 445, label: 'check · clean'},
+  {frame: 610, label: 'verdict · nothing yet'},
+  {frame: 740, label: 'verdict · the decision, landing'},
+  {frame: 850, label: 'verdict · appended'},
+  {frame: 1000, label: 'verdict · status refuted'},
+  {frame: 1225, label: 'fail · four cite it live'},
+  {frame: 1415, label: 'propagate · flagged'},
+  {frame: 1580, label: 'propagate · the cause'},
+  {frame: 1745, label: 'propagate · contested'},
+  {frame: 1950, label: 'gate · refused'},
+  {frame: 2120, label: 'thesis'},
 ];
 const SB_COLS = 2;
 const SB_SCALE = 0.46;
