@@ -15,8 +15,8 @@ import sys
 
 import pytest
 
-from claims_ledger import cli
-from claims_ledger.schema import LedgerError, load_registry
+from claims_ledger import cli, references
+from claims_ledger.schema import LedgerError, load_registry, open_ledger
 
 CHECKING_COMMANDS = ["validate", "resolve", "references", "propagate", "check"]
 
@@ -173,3 +173,24 @@ def test_the_package_is_runnable_with_dash_m(project):
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
+
+
+def test_a_document_unreadable_only_after_the_ledger_listed_it_is_not_silent(project):
+    """references.py's comment: "A document that could not be opened at all, and one
+    that fails at the read: either way its citations were not checked." The first half
+    is `ledger.unreadable_docs`, seeded by D50; this is the second half, which fires only
+    when a document that passed the ledger's own listing stops being readable before the
+    checker gets to it -- the race `tree_documents()`'s one-time filter cannot itself
+    prevent."""
+    doc = project.root / "docs" / "cites-nothing-special.md"
+    doc.write_text("An ordinary document, citing nothing in particular.\n", encoding="utf-8")
+    ledger = open_ledger(root=project.root)
+    assert any(name == "docs/cites-nothing-special.md" for name, _ in ledger.docs), (
+        "the document must be listed as readable for the re-check below to mean anything"
+    )
+    doc.unlink()  # the race: gone between the listing above and references.run() below
+    reports = references.run(ledger)
+    assert any(
+        r.part == "docs/cites-nothing-special.md" and "its citations were not checked" in r.message
+        for r in reports
+    ), reports

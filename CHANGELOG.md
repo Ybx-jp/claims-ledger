@@ -19,7 +19,7 @@ developed together. All 62 corpus seeds passed unchanged from the ledger it came
 the release ships 76.
 
 **Everything below is in this release, and this file has one version heading rather than
-several on purpose.** The five adversarial passes recorded in `QE-AUDIT.md`, the fifth
+several on purpose.** The five adversarial passes recorded in `docs/audits/0.1.0.md`, the fifth
 checker and section scoping all landed before anything was tagged or uploaded, so there
 was no earlier release for any of them to be a change to. Splitting them across versions
 would have put a `0.1.0` on the record that nobody could ever install.
@@ -81,7 +81,7 @@ Found by walking the package as a first-time user would, from a clean install.
 
 ### Found and fixed by the pre-publication audit
 
-Three adversarial passes, recorded in `QE-AUDIT.md`: nine defects, then nine more found
+Three adversarial passes, recorded in `docs/audits/0.1.0.md`: nine defects, then nine more found
 by attacking those fixes, then six more found by attacking the second round. All
 twenty-four are fixed, and every one of them is a strict-xfail test that flipped and is
 kept as the regression for its fix in `tests/test_hostile_inputs.py` — sections A-E for
@@ -309,7 +309,7 @@ Written after the section above, and before anything was tagged.
 ### Fixed by the fourth and fifth adversarial passes
 
 - **A git that stops answering is no longer read as good news** — the fourth adversarial
-  pass, `QE-AUDIT.md` HIGH-23 … MEDIUM-28. `git_problem()` was asked once at the start of
+  pass, `docs/audits/0.1.0.md` HIGH-23 … MEDIUM-28. `git_problem()` was asked once at the start of
   a run and every command after it was trusted, so a failure that `rev-parse --git-dir`
   cannot see — a required clean filter that exits non-zero, a truncated index, a loose
   object removed, a diff that outlives the timeout — came back as `None` from `git()` and
@@ -328,7 +328,7 @@ Written after the section above, and before anything was tagged.
   history `git log` cannot list was read as one that had never been committed, and so
   dropped out of both history checks; and `drift()` could not tell a path that is not at
   the pin from a git that could not look for it.
-- **The immutability check covers the whole frozen region** (`QE-AUDIT.md` HIGH-22). It
+- **The immutability check covers the whole frozen region** (`docs/audits/0.1.0.md` HIGH-22). It
   compared parsed sections, and a section runs from its own heading to the next — so
   every byte above the first `## ` heading of a committed entry belonged to no section
   and was compared against nothing. The scaffold leaves that region empty, which is what
@@ -343,7 +343,7 @@ Written after the section above, and before anything was tagged.
   built from the same in-memory text, so the second overwrote the first — an entry citing
   two fallen grounds kept one flag and silently lost the other. Blocks are now grouped by
   entry and written once. Found while building `freshness`, which would have inherited it.
-- **Every write is a temp file and a rename** — the fifth adversarial pass, `QE-AUDIT.md`
+- **Every write is a temp file and a rename** — the fifth adversarial pass, `docs/audits/0.1.0.md`
   HIGH-39 … LOW-52. `create_entry`, `restamp`, `append_verdict`, `cmd_init` and `cmd_hook`
   each truncated their destination before knowing they could fill it, so a write that
   failed partway — a full disk, a quota, a resource limit — left a committed entry cut off
@@ -390,7 +390,7 @@ Written after the section above, and before anything was tagged.
 Four of these are in code the fifth pass's own fixes introduced one day earlier, which is
 why the pass ran a revert experiment over that commit rather than a seventh audit.
 
-- **A propagated discharge states what caused it, and is held to it** — `QE-AUDIT.md`
+- **A propagated discharge states what caused it, and is held to it** — `docs/audits/0.1.0.md`
   HIGH-53. Closing the wedge in MEDIUM-34 introduced `ever_drifted()`, which asked whether
   any commit since the pin had *touched* the artifact and read a yes as proof that the
   verdict was caused. That is a question the forger controls: one commit that edits the

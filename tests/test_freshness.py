@@ -11,7 +11,7 @@ import subprocess
 
 import pytest
 
-from claims_ledger import freshness, references, validate
+from claims_ledger import freshness, references, resolve, validate
 from claims_ledger.schema import open_ledger
 
 NOTE = """# note 001
@@ -328,3 +328,33 @@ def _repin(pinned, new):
     path = pinned.entry_path()
     text = path.read_text(encoding="utf-8").replace(f"@{pinned.pin}", f"@{new}")
     path.write_text(text, encoding="utf-8")
+
+
+def outcomes(root):
+    return [(r.outcome, r.part, r.message) for r in freshness.run(open_ledger(root=root))]
+
+
+def test_an_option_shaped_pin_is_not_reported_as_an_unstable_pin(pinned):
+    r"""Fixed. The defect, as this pass wrote it: `git rev-parse --symbolic-full-name --upload-
+    pack=x` exits 0 and echoes its own argument, which is git's parse-options behaviour for an
+    unrecognised double-dash argument and not a refname; is_object_name() reads it as a
+    symbolic ref, so an option-shaped pin gets an unstable-pin flag and resolve's `does not
+    resolve` both — the two contradictory names LOW-36 was fixed to stop
+
+    LOW-36's fix deleted OBJECT_NAME_RE and made git the arbiter for every pin. Pins are free
+    text in the schema (`\S+`), so a pin beginning with a dash is a typo away, and git answers
+    a question it was not asked.
+    """
+    path = pinned.entry_path()
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(f"@{pinned.pin}", "@--upload-pack=x"),
+        encoding="utf-8",
+    )
+    assert pinned.p.cl("sha", "--write", str(path)) == 0
+    flags = [m for o, _, m in outcomes(pinned.root) if "can never go stale" in m]
+    assert not flags, f"one defect under two contradictory names: {flags}"
+    # `resolve.run()` answers with Reports, not the (outcome, part, message) triples
+    # `outcomes()` builds above. Written as an unpack, this line raised TypeError instead
+    # of asserting — reachable only once the flag above it stops firing, which is why the
+    # xfail check the pass ran (fails for the reason it names) did not reach it.
+    assert [r.outcome for r in resolve.run(open_ledger(root=pinned.root))].count("fail") == 1

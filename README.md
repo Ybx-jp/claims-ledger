@@ -232,6 +232,9 @@ the machinery only makes a defect visible and a human has to judge it.
   <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="docs/figures/corpus-contract.svg" width="960">
 </picture>
 
+The corpus is one of four things holding the checkers; `QUALITY.md` is the short account
+of all four, and of what happens to a defect once it is found.
+
 ## Configuration
 
 `claims-ledger.toml` at the project root, or a `[tool.claims-ledger]` table in

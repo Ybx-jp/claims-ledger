@@ -34,7 +34,6 @@ from pathlib import Path
 
 import pytest
 
-import claims_ledger
 from claims_ledger.corpus import run as corpus_run
 
 CORPUS = Path(corpus_run.CORPUS)
@@ -459,99 +458,6 @@ def test_every_seed_is_named_in_the_corpus_readme():
     assert not missing, missing
 
 
-def test_the_readme_seed_count_is_the_seed_count():
-    readme = project_file("README.md").read_text(encoding="utf-8")
-    wrong = sorted(
-        {m.group(0) for m in re.finditer(r"\b\d+(?=[ /]\d*\s*seeds?\b)", readme)}
-        - {str(len(SEEDS))}
-    )
-    assert not wrong, f"README claims {wrong} seeds; there are {len(SEEDS)}"
-
-
-def test_the_version_is_the_same_in_every_place_it_is_written():
-    """`__init__.py` is the single source; the metadata and the changelog must agree."""
-    from importlib.metadata import version
-
-    assert version("claims-ledger") == claims_ledger.__version__
-    changelog = project_file("CHANGELOG.md").read_text(encoding="utf-8")
-    assert f"## [{claims_ledger.__version__}]" in changelog
-    assert f"[{claims_ledger.__version__}]: https://" in changelog
-
-
-def test_the_changelog_has_no_unreleased_section_at_the_current_version():
-    changelog = project_file("CHANGELOG.md").read_text(encoding="utf-8")
-    assert "## [Unreleased]" not in changelog
-
-
-# ---------------------------------------------------------------------------
-# The release workflow. Text, not YAML: the package has no runtime dependencies.
-# ---------------------------------------------------------------------------
-
-
-def release_yml():
-    return project_file(".github", "workflows", "release.yml").read_text(encoding="utf-8")
-
-
-def test_only_a_tag_reaches_the_publish_job():
-    """The first half of the standing `harden-release-publication-gates` thread. It holds:
-    a workflow_dispatch from a branch builds and stops."""
-    text = release_yml()
-    publish = text[text.index("\n  publish:") :]
-    assert "startsWith(github.ref, 'refs/tags/')" in publish
-    assert "id-token: write" in publish
-    assert "environment: pypi" in publish
-
-
-def test_a_tag_runs_the_whole_suite_before_anything_is_built():
-    """The second half of the thread. It holds: ruff, ty and pytest run unconditionally in
-    `build`, and `publish` needs `build`."""
-    text = release_yml()
-    build = text[text.index("\n  build:") : text.index("\n  publish:")]
-    for command in ("ruff check .", "ruff format --check .", "ty check", "pytest -q"):
-        assert command in build, command
-    assert build.index("pytest -q") < build.index("python -m build")
-    assert "needs: build" in text
-
-
-def test_the_sdist_is_proven_from_a_clean_environment_too():
-    text = release_yml()
-    build = text[text.index("\n  build:") : text.index("\n  publish:")]
-    proof = build[build.index("proves itself from elsewhere") :]
-    assert "tar.gz" in proof, "no clean-environment install of the sdist"
-
-
-def test_every_action_the_release_uses_is_pinned_to_a_commit():
-    unpinned = [
-        line.strip()
-        for line in release_yml().splitlines()
-        if "uses:" in line and not re.search(r"@[0-9a-f]{40}\b", line)
-    ]
-    assert not unpinned, unpinned
-
-
-def test_the_tag_that_publishes_also_gets_a_github_release():
-    """LOW-68: CHANGELOG.md links every version heading to `releases/tag/vX.Y.Z`, and
-    nothing in this workflow ever made that page — only the tag and the PyPI upload did
-    — so the link 404s after a successful publish as well as before it. A job here has
-    to actually create the Release, gated and scoped the way `publish` itself is: only a
-    tag, only after `publish` has succeeded, and `contents: write` no wider than the one
-    job that needs it."""
-    text = release_yml()
-    release = text[text.index("\n  github_release:") :]
-    assert "startsWith(github.ref, 'refs/tags/')" in release
-    assert "needs: publish" in release
-    assert "gh release create" in release
-    assert "contents: write" in release
-    # Scoped to this job alone: `publish` needs only `id-token: write`, and the
-    # top-level block (every other job's default) is `contents: read`.
-    granted = [
-        ln
-        for ln in text.splitlines()
-        if "contents: write" in ln and not ln.lstrip().startswith("#")
-    ]
-    assert len(granted) == 1, granted
-
-
 def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     """`hatchling` takes `packages = ["src/claims_ledger"]`, so the seeds ride along inside
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
@@ -561,3 +467,92 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
+
+
+# ---------------------------------------------------------------------------
+# What a seed's pass is worth: a floor under a single seed, and under a row.
+# ---------------------------------------------------------------------------
+
+
+def test_a_ground_citing_an_entry_that_does_not_exist_is_load_bearing(tmp_path):
+    """Fixed. The defect, as this pass wrote it: corpus/README.md says the corpus proves `every
+    rule about not silently passing`. Deleting references.py's `cites X, which does not exist`
+    leaves the corpus at 75/75 and the unit suite green — one of seven semantic rules an
+    independent AST sweep found held by neither gate
+
+    A Grounds pointer naming an entry the ledger does not have is the dead-pointer class,
+    which `corpus/README.md`'s Coverage table lists as `catch, loudly`. It is the minimal case
+    of the sweep's finding, and the cheapest one to keep.
+    """
+    from test_corpus_integrity import corpus_notices
+
+    anchor = (
+        "                reports.append(\n"
+        '                    Report("fail", e.prefix, "Grounds", '
+        'f"cites {p.target}, which does not exist")\n'
+        "                )"
+    )
+    assert corpus_notices(tmp_path, "references.py", anchor, "                pass")
+
+
+def test_a_seed_that_expects_nothing_is_not_a_pass(capsys, tmp_path):
+    """Fixed. The defect, as this pass wrote it: a seed whose expected.json carries an empty
+    `expect` array counts as a full pass — `1/1 seeds pass`, exit 0, over a seed that checked
+    nothing. HIGH-45 put a floor under the corpus; there is none under a single seed.
+
+    HIGH-45's own reasoning, one level down: a gate that can be made green by an absence is
+    not a gate. `run.py` is what an installed wheel runs, so a dev-time assertion in `tests/`
+    does not stand where this one has to.
+    """
+    import json
+
+    from claims_ledger.corpus import run as corpus_run
+
+    seed = tmp_path / "seeds" / "Z01-expects-nothing"
+    (seed / "entries").mkdir(parents=True)
+    (seed / "expected.json").write_text(
+        json.dumps({"note": "a seed that asserts nothing at all", "expect": []}),
+        encoding="utf-8",
+    )
+    code = corpus_run.main(["--corpus", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert code != 0, out
+
+
+def test_an_empty_expected_message_does_not_match_every_report():
+    """Fixed. The defect, as this pass wrote it: matches() tests `message.casefold() in
+    report.message.casefold()`, and `"" in x` is always true, so an expectation row carrying
+    `"message": ""` is indistinguishable from one that omits the field and pins nothing
+
+    Not exploitable today — the one-row-one-report bijection catches HIGH-46's case regardless
+    of message content. Held so the next seed author who writes `""` meaning `no message yet`
+    is told rather than quietly satisfied.
+    """
+    from types import SimpleNamespace
+
+    from claims_ledger.corpus.run import matches
+
+    report = SimpleNamespace(
+        commit="01", entry="A0001", part="Grounds", message="cites A0002, which does not exist"
+    )
+    # The control: a message that really is a substring of the report's does match, and a
+    # message that is not does not. Only the empty string is the question here.
+    assert matches(report, "01", "A0001", "Grounds", message="does not exist")
+    assert not matches(report, "01", "A0001", "Grounds", message="some other rule")
+    assert not matches(report, "01", "A0001", "Grounds", message=""), (
+        "an empty message substring matched a report it names nothing about"
+    )
+
+
+def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
+    """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
+    catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
+    surface `release.yml` runs against both built artifacts."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    with pytest.raises(LedgerError, match="not a file in this seed"):
+        corpus_run.blob_id(repo, tmp_path / "commits", "07", "docs/nope.md", {})

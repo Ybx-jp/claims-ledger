@@ -286,9 +286,11 @@ branches, and `references`'s re-check of a document that stopped being readable 
 ledger already listed it, are unreachable for a different reason: what trips each of them
 is not a seed's *content* — a broken git binary, or a race between two reads of the same
 path — and a seed is files on disk, which cannot express either. Each of the four has its
-own test in `tests/test_sweep_gap_closures.py`, verified the same way. The corpus proves
-the semantic classes; `tests/` proves what is named above, and the sweep is the record of
-what else there is still to check.
+own test, verified the same way, in the file whose subject it is: the two `git_problem()`
+branches in `tests/test_git_degradation.py`, the `references` re-check in
+`tests/test_failure_paths.py`, and `propagate --write` in `tests/test_write_paths.py`. The
+corpus proves the semantic classes; `tests/` proves what is named above, and the sweep is
+the record of what else there is still to check.
 
 | class | seeds | machinery owes |
 |---|---|---|
