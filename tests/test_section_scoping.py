@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from claims_ledger import freshness, resolve
-from claims_ledger.config import ConfigError, load_config
+from claims_ledger.config import ConfigError, default_config, load_config
 from claims_ledger.schema import open_ledger, section_text
 
 PY_FILE = '''"""A synthetic module, written for these tests."""
@@ -380,3 +380,34 @@ def test_a_fence_in_an_artifact_read_with_its_own_pattern_fails_loudly(tmp_path)
     # `beta` reported as `alpha` moved — a false positive a reader can see and argue with,
     # and not a ground reported fresh.
     assert "def beta" in span
+
+
+PROJECT = Path(__file__).resolve().parent.parent
+
+
+def test_a_hash_inside_a_fenced_code_block_does_not_end_the_section():
+    """Fixed. The defect, as this pass wrote it: section_span() has no fence awareness, so a
+    `#`-led line inside a ```fenced``` code block is read as a heading and ends the section it
+    sits in; everything below it is outside the comparison for both freshness and resolve
+
+    HIGH-31's `depth` group settled which *headings* end a section. It did not settle what a
+    heading is. A Markdown lab note carrying a code snippet is the ordinary shape of the
+    artifact this checker compares, and `# a comment` is the ordinary content of one.
+    """
+    doc = (
+        "# note 001\n\n"
+        "## Observation\n\n"
+        "At a stale fraction of 0.1 the measured error was 0.04.\n\n"
+        "```python\n"
+        "# a comment, not a heading\n"
+        "x = 1\n"
+        "```\n\n"
+        "Conclusion: the result holds.\n\n"
+        "## Method\n\n"
+        "Star graphs, one layer, sixteen dimensions.\n"
+    )
+    span = section_text(doc, default_config(PROJECT), "lab", "Observation")
+    assert span is not None
+    assert "Conclusion: the result holds." in span, (
+        f"the section ended at the fence; the compared span was {span!r}"
+    )

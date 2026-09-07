@@ -12,6 +12,7 @@ import pytest
 
 from claims_ledger import cli
 from claims_ledger.authoring import AuthoringError, next_id, register_source, restamp
+from claims_ledger.cli import hook_text
 from claims_ledger.schema import load_entries, open_ledger, parse_entry
 
 
@@ -205,3 +206,29 @@ def test_the_configuration_init_writes_is_parseable_toml(tmp_path):
     written = (root / "claims-ledger.toml").read_bytes()
     tomllib.loads(written.decode("utf-8"))
     assert not [c for c in written.decode("utf-8") if c < " " and c not in "\n\t"]
+
+
+def test_the_installed_hook_asks_freshness_about_the_index():
+    """Fixed. The defect, as this pass wrote it: MEDIUM-33 gave `freshness` a --cached flag and
+    gave `check` the wiring, but HOOK_TEMPLATE still runs bare `freshness`, so the installed
+    pre-commit hook — the surface MEDIUM-33's own writeup named as the one that matters —
+    reads the working tree while validate reads the index
+
+    A pre-commit hook checks what is being committed. `validate --cached` reads the index; the
+    freshness line beside it reads the working tree, so a drift that is staged and then undone
+    in the working tree commits through the hook silently.
+    """
+    text = hook_text(python="/usr/bin/python3")
+    # The lines the hook actually runs, and not the comment above them. Selected by
+    # `endswith("freshness")`, as this was first written, the test read a comment line
+    # instead — the comment says `--cached` because it explains the fix, so the assertion
+    # was satisfied by prose while the invocation below it went unexamined. That is
+    # HIGH-55's shape exactly: a test green over a mechanism that never fired.
+    invocations = [
+        ln.strip()
+        for ln in text.splitlines()
+        if "-m claims_ledger" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(invocations) == 5, invocations
+    (line,) = [ln for ln in invocations if " freshness" in ln]
+    assert "--cached" in line, f"the hook runs {line!r}"

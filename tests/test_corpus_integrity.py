@@ -574,3 +574,92 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
+
+
+# ---------------------------------------------------------------------------
+# What a seed's pass is worth: a floor under a single seed, and under a row.
+# ---------------------------------------------------------------------------
+
+
+def test_a_ground_citing_an_entry_that_does_not_exist_is_load_bearing(tmp_path):
+    """Fixed. The defect, as this pass wrote it: corpus/README.md says the corpus proves `every
+    rule about not silently passing`. Deleting references.py's `cites X, which does not exist`
+    leaves the corpus at 75/75 and the unit suite green — one of seven semantic rules an
+    independent AST sweep found held by neither gate
+
+    A Grounds pointer naming an entry the ledger does not have is the dead-pointer class,
+    which `corpus/README.md`'s Coverage table lists as `catch, loudly`. It is the minimal case
+    of the sweep's finding, and the cheapest one to keep.
+    """
+    from test_corpus_integrity import corpus_notices
+
+    anchor = (
+        "                reports.append(\n"
+        '                    Report("fail", e.prefix, "Grounds", '
+        'f"cites {p.target}, which does not exist")\n'
+        "                )"
+    )
+    assert corpus_notices(tmp_path, "references.py", anchor, "                pass")
+
+
+def test_a_seed_that_expects_nothing_is_not_a_pass(capsys, tmp_path):
+    """Fixed. The defect, as this pass wrote it: a seed whose expected.json carries an empty
+    `expect` array counts as a full pass — `1/1 seeds pass`, exit 0, over a seed that checked
+    nothing. HIGH-45 put a floor under the corpus; there is none under a single seed.
+
+    HIGH-45's own reasoning, one level down: a gate that can be made green by an absence is
+    not a gate. `run.py` is what an installed wheel runs, so a dev-time assertion in `tests/`
+    does not stand where this one has to.
+    """
+    import json
+
+    from claims_ledger.corpus import run as corpus_run
+
+    seed = tmp_path / "seeds" / "Z01-expects-nothing"
+    (seed / "entries").mkdir(parents=True)
+    (seed / "expected.json").write_text(
+        json.dumps({"note": "a seed that asserts nothing at all", "expect": []}),
+        encoding="utf-8",
+    )
+    code = corpus_run.main(["--corpus", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert code != 0, out
+
+
+def test_an_empty_expected_message_does_not_match_every_report():
+    """Fixed. The defect, as this pass wrote it: matches() tests `message.casefold() in
+    report.message.casefold()`, and `"" in x` is always true, so an expectation row carrying
+    `"message": ""` is indistinguishable from one that omits the field and pins nothing
+
+    Not exploitable today — the one-row-one-report bijection catches HIGH-46's case regardless
+    of message content. Held so the next seed author who writes `""` meaning `no message yet`
+    is told rather than quietly satisfied.
+    """
+    from types import SimpleNamespace
+
+    from claims_ledger.corpus.run import matches
+
+    report = SimpleNamespace(
+        commit="01", entry="A0001", part="Grounds", message="cites A0002, which does not exist"
+    )
+    # The control: a message that really is a substring of the report's does match, and a
+    # message that is not does not. Only the empty string is the question here.
+    assert matches(report, "01", "A0001", "Grounds", message="does not exist")
+    assert not matches(report, "01", "A0001", "Grounds", message="some other rule")
+    assert not matches(report, "01", "A0001", "Grounds", message=""), (
+        "an empty message substring matched a report it names nothing about"
+    )
+
+
+def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
+    """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
+    catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
+    surface `release.yml` runs against both built artifacts."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    with pytest.raises(LedgerError, match="not a file in this seed"):
+        corpus_run.blob_id(repo, tmp_path / "commits", "07", "docs/nope.md", {})

@@ -1,29 +1,30 @@
-"""The check between the fixer and the merge, and the five HIGHs it found in the sixth
-pass's fixes.
+"""The discharge protocol: what a verdict over a pinned ground must record, and what
+silences a drift.
 
-The sixth pass argued against a seventh adversarial pass and for a gate on the fix
-instead. The gate ran, changed nothing under `src/`, and returned five HIGH findings —
-two of them in fix code one day old, three of them unreachable from a green 785-test
-suite. This file is the regression for each, kept in the pass that found it the way
-`test_pass6_regressions.py` is.
+`docs/FRESHNESS.md` specifies it. A propagated verdict names the artifact it was written
+against; a hand-written one may not; the orphan rule refuses a ground no verdict caused;
+and a drift is silenced only by a verdict that actually describes it. The `artifact:`
+line is the field the whole rule rests on, and the tests below are the only thing holding
+it to a shape.
 
-Two of the five are held elsewhere and are not repeated here: QE7-72's write funnel is in
-`test_write_paths.py`, beside the funnel's other callers, and QE7-73 was a false number in
-the fixer's own evidence rather than a defect in the package. What is here is the
-`artifact:` line — the field the sixth pass's largest fix rests on, which until now no
-code read in the state a discharge normally lives in, and which no checker held to a shape
-at all.
+The three residuals at the end are strict xfails: `docs/FRESHNESS.md` states them in
+prose, and prose does not go red when it becomes false. Each asserts the report the
+checker *would* make if the residual were closed, so half-closing one says so.
 
 Every case builds a real repository and makes real commits. Nothing patches git, the
-filesystem or the package.
+filesystem or the package — a git that cannot answer is produced by putting a shim on
+PATH, because `freshness.py` does `from .schema import git` and patching the module
+attribute would not reach it.
 """
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import pytest
 from test_freshness import pinned  # noqa: F401  — the fixture, reused as-is
+from test_freshness_spec import build
 
 from claims_ledger import freshness, validate
 from claims_ledger.schema import NULL_OBJECT_ID, open_ledger
@@ -55,12 +56,47 @@ def failures(pinned, checker=validate):  # noqa: F811
     ]
 
 
-# === QE7-75 — the field no checker held to a shape ====================================
-#
-# `grep -n artifact src/claims_ledger/validate.py` returned nothing. A non-hex value, a
-# wrong-case `absent`, two `artifact:` lines, and an `artifact:` on a hand-written verdict
-# by a person all gave `validate: 0 failures` — in the commit that closed seven findings
-# of exactly this class.
+FENCED_NOTE = (
+    "# note 001\n\n"
+    "## Observation\n\n"
+    "At a stale fraction of 0.1 the measured error was 0.04.\n\n"
+    "```python\n"
+    "# the sweep, as run\n"
+    "sweep(stale=0.1)\n"
+    "```\n\n"
+    "The error does not grow with degree.\n"
+)
+
+
+def outcomes(root):
+    return [(r.outcome, r.part, r.message) for r in freshness.run(open_ledger(root=root))]
+
+
+def shim_git(tmp_path, failing_subcommand):
+    """A `git` on PATH that fails one subcommand and delegates everything else to the real one. A
+    repository this git cannot fully answer is an ordinary condition — a corrupted object, a
+    clean filter that fails, a history too large for the timeout — and the package's own rule
+    is that a git which cannot answer is not a git saying no.
+    """
+    d = tmp_path / "shim-bin"
+    d.mkdir(exist_ok=True)
+    real = subprocess.run(["which", "git"], capture_output=True, text=True, check=True)
+    (d / "git").write_text(
+        "#!/bin/sh\n"
+        f'for a in "$@"; do [ "$a" = "{failing_subcommand}" ] && exit 128; done\n'
+        f'exec {real.stdout.strip()} "$@"\n',
+        encoding="utf-8",
+    )
+    (d / "git").chmod(0o755)
+    return d
+
+
+FORGERY = (
+    "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+    '  evidence: lab: docs/note-001.md § "Observation" @{pin}\n'
+    "  artifact: {artifact}\n"
+    "  note: propagated from a moved ground\n"
+)
 
 
 def test_a_propagated_verdict_over_a_pinned_ground_must_record_an_artifact(pinned):  # noqa: F811
@@ -122,6 +158,19 @@ def test_a_second_artifact_line_is_malformed(pinned):  # noqa: F811
     assert any("a second `artifact:` line" in m for _, m in failures(pinned))
 
 
+def _drop_last_verdict(pinned):  # noqa: F811
+    """Remove the block this test just appended, so the next value is asked on its own.
+
+    The entry is uncommitted here, so this is an edit a person could make; `check_history`
+    holds the append-only rule over what git has, and git has none of these.
+    """
+    path = pinned.entry_path()
+    text = path.read_text(encoding="utf-8")
+    head, marker, tail = text.partition("\n## References")
+    blocks = [b for b in head.split("\n\n- ")]
+    path.write_text("\n\n- ".join(blocks[:-1]) + "\n" + marker + tail, encoding="utf-8")
+
+
 def test_a_well_formed_artifact_is_accepted(pinned):  # noqa: F811
     """The control for all five above. Neither of the two legal values is a failure, and a
     rule that refused them would refuse every verdict the machinery writes."""
@@ -132,14 +181,6 @@ def test_a_well_formed_artifact_is_accepted(pinned):  # noqa: F811
     (pinned.root / "docs" / "note-001.md").unlink()
     pinned.append(propagated(pinned.pin, "absent"))
     assert failures(pinned) == []
-
-
-# === QE7-70 — the field nothing read while the drift was live =========================
-#
-# `orphans()` asks about `artifact:` only once the ground looks fresh again, and the
-# suppression rule matched a verdict to a ground by the pointer alone. So over a real,
-# committed, ongoing drift a propagated verdict carrying any value at all silenced every
-# checker at exit 0 — which is the one thing this checker promises never to happen.
 
 
 def test_a_verdict_that_does_not_describe_the_drift_does_not_silence_it(pinned):  # noqa: F811
@@ -168,16 +209,6 @@ def test_a_verdict_recording_the_pins_own_blob_does_not_silence_a_drift(pinned):
     pinned.p.git("commit", "-qm", "remeasure")
     pinned.append(propagated(pinned.pin, at_pin))
     assert [o for o, _, _ in pinned.outcomes()] == ["flag"]
-
-
-# === QE7-74 — the wedge two of the sixth pass's fixes made between them ================
-#
-# `seen_at(cached=True)` records the *index* blob and `caused()` looks only at committed
-# history, so a drift that is staged, discharged, and then staged again before the commit
-# is made leaves a verdict naming an id no commit ever held. Once the ground came back the
-# discharge was an orphan permanently: verdicts append and only append, and the pin above
-# the marker is frozen, so no legal edit could clear it. MEDIUM-34's wedge, reopened on
-# the flag path HIGH-57's fix had just made the installed hook's default.
 
 
 def test_a_staged_drift_edited_again_before_the_commit_does_not_wedge(pinned):  # noqa: F811
@@ -242,26 +273,6 @@ def test_a_forged_verdict_is_named_even_beside_a_caused_sibling(pinned):  # noqa
     assert "states no drift" in message
 
 
-def _drop_last_verdict(pinned):  # noqa: F811
-    """Remove the block this test just appended, so the next value is asked on its own.
-
-    The entry is uncommitted here, so this is an edit a person could make; `check_history`
-    holds the append-only rule over what git has, and git has none of these.
-    """
-    path = pinned.entry_path()
-    text = path.read_text(encoding="utf-8")
-    head, marker, tail = text.partition("\n## References")
-    blocks = [b for b in head.split("\n\n- ")]
-    path.write_text("\n\n- ".join(blocks[:-1]) + "\n" + marker + tail, encoding="utf-8")
-
-
-# === QE8 — what round 2 of the same gate found in the fixes above ======================
-#
-# The gate ran again over these fixes and returned two HIGHs. One is QE7-74's sibling,
-# reached with no legacy data, no forgery and no `--cached`; the other is a gate the tool
-# reports as installed that git will never run.
-
-
 def test_an_abandoned_pre_commit_discharge_does_not_wedge(pinned):  # noqa: F811
     """QE8-82. The whole sequence is documented workflow and an author who changed their
     mind: edit a note, run `freshness --write`, commit the ledger the way the docs say to,
@@ -285,12 +296,85 @@ def test_an_abandoned_pre_commit_discharge_does_not_wedge(pinned):  # noqa: F811
     assert pinned.p.cl("check") == 0
 
 
-# === The residuals, held by something that goes red when they close ====================
+def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa: F811
+    """Fixed. The defect, as this pass wrote it: ever_drifted() asks whether the artifact was
+    ever touched since the pin, not whether this verdict was caused, so one no-op commit that
+    edits the artifact and puts it back launders a pre-emptively written discharge permanently
+
+    docs/FRESHNESS.md justifies the orphan rule as stopping a *pre-emptive* forgery:
+    "Otherwise the discharge is forgeable by writing the verdict pre-emptively." The artifact
+    here is byte-identical to the blob at the pin the whole way through. One commit touches
+    it, the next puts it back, and nothing about the ground has changed.
+    """
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
+    assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], (
+        "the control: the forgery is caught while the artifact has never been touched"
+    )
+
+    note = pinned.root / "docs" / "note-001.md"
+    original = note.read_bytes()
+    note.write_bytes(original.replace(b"0.04", b"0.99"))
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "a touch")
+    note.write_bytes(original)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "and back again")
+    assert note.read_bytes() == original
+
+    assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], (
+        "the ground is where the pin left it; the discharge names a drift that never "
+        "happened and is still an orphan"
+    )
+
+
+def test_a_git_that_cannot_answer_does_not_retire_the_orphan_check(pinned, tmp_path, monkeypatch):  # noqa: F811
+    """Fixed. The defect, as this pass wrote it: ever_drifted() reads a git that could not answer
+    as `it drifted` — `not count.isdigit() or int(count) > 0` — so a rev-list that fails or
+    times out retires the forged-discharge check silently, with no report that it did not run
+
+    The fourth pass closed this class across six findings: a git that cannot answer is not a
+    git answering no. `ever_drifted()` is the one git call in the package with no channel for
+    `could not be established`, and it fails open — toward silence.
+    """
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
+    assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], "the control"
+
+    monkeypatch.setenv("PATH", f"{shim_git(tmp_path, 'rev-list')}{os.pathsep}{os.environ['PATH']}")
+    got = outcomes(pinned.root)
+    assert got, "a check that could not run is not a check that passed; this run said nothing"
+    assert [o for o, _, _ in got] == ["fail"]
+
+
+def test_an_edit_below_a_fence_inside_the_pinned_section_is_still_caught(project):
+    """Fixed. The defect, as this pass wrote it: the same defect end to end — an edit below a
+    fenced code block inside the pinned section is invisible to freshness and to resolve, so a
+    claim's own evidence can be inverted with every checker green
+
+    The severity of the one above. This is not a wording question: the sentence that is
+    inverted is the one the claim rests on. The fence is in the note *at the pin*, so the only
+    thing that changes afterwards is the conclusion below it.
+    """
+    note = project.root / "docs" / "note-001.md"
+    note.write_text(FENCED_NOTE, encoding="utf-8")
+    build(project, ['lab: docs/note-001.md § "Observation" @{pin}'])
+    note.write_text(
+        FENCED_NOTE.replace(
+            "The error does not grow with degree.",
+            "The error GROWS with degree, which is the claim inverted.",
+        ),
+        encoding="utf-8",
+    )
+    assert [o for o, _, _ in outcomes(project.root)] == ["flag"], (
+        "the pinned section's own evidence was inverted and the checker said nothing"
+    )
+
+
+# === The residuals, held by something that goes red when they close ===================
 #
-# QE8-91. `docs/FRESHNESS.md` states three residuals of the discharge rule, and prose does
-# not go red when it becomes false. A strict xfail asserts the report the checker *would*
-# make if the residual were closed, so the day someone half-closes one of these the suite
-# says so instead of the specification quietly drifting away from the code.
+# `docs/FRESHNESS.md` states three residuals of the discharge rule. A strict xfail
+# asserts the report the checker *would* make if the residual were closed, so the day
+# someone half-closes one of these the suite says so instead of the specification
+# quietly drifting away from the code.
 
 
 TWO_SECTIONS = NOTE + "\n## Method\n\nStar graphs, one layer, sixteen dimensions.\n"
@@ -339,17 +423,3 @@ def test_a_delete_and_restore_does_not_discharge_a_withdrawal(pinned):  # noqa: 
     assert [o for o, _, _ in pinned.outcomes()] == ["flag"], (
         "a delete-and-restore laundered a discharge into silencing a later drift"
     )
-
-
-def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
-    """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
-    catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
-    surface `release.yml` runs against both built artifacts."""
-    from claims_ledger.corpus import run as corpus_run
-    from claims_ledger.schema import LedgerError
-
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
-    with pytest.raises(LedgerError, match="not a file in this seed"):
-        corpus_run.blob_id(repo, tmp_path / "commits", "07", "docs/nope.md", {})

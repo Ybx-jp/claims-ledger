@@ -24,7 +24,7 @@ from datetime import datetime
 
 import pytest
 
-from claims_ledger import freshness, schema, validate
+from claims_ledger import freshness, resolve, schema, validate
 from claims_ledger.config import default_config
 from claims_ledger.schema import open_ledger, parse_pointer
 
@@ -434,3 +434,60 @@ def test_j_a_git_that_cannot_say_whether_the_drift_happened_says_so(pinned, tmp_
     got = pinned.outcomes()
     assert [o for o, _, _ in got] == ["fail"], f"the silence of a git that could not answer: {got}"
     assert "could not be established" in got[0][2]
+
+
+# ---------------------------------------------------------------------------
+# The one command `git_problem()` asks, broken: `git rev-parse --git-dir`.
+# ---------------------------------------------------------------------------
+
+
+def shim_git(tmp_path, failing_arg):
+    """A `git` on PATH that fails whenever `failing_arg` appears among its arguments and
+    delegates everything else to the real one -- the same shape of failure
+    test_git_degradation.py and test_pass6_regressions.py both use, so a repository this
+    git cannot fully answer is produced by configuring git, not by patching it."""
+    d = tmp_path / "shim-bin"
+    d.mkdir(exist_ok=True)
+    real = subprocess.run(["which", "git"], capture_output=True, text=True, check=True)
+    (d / "git").write_text(
+        "#!/bin/sh\n"
+        f'for a in "$@"; do [ "$a" = "{failing_arg}" ] && exit 128; done\n'
+        f'exec {real.stdout.strip()} "$@"\n',
+        encoding="utf-8",
+    )
+    (d / "git").chmod(0o755)
+    return d
+
+
+def break_git_dir(tmp_path, monkeypatch):
+    """After this, `git rev-parse --git-dir` fails in every repository -- the one
+    command `git_problem()` asks -- while every other git command still runs for real."""
+    shim = shim_git(tmp_path, "--git-dir")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+
+
+def test_a_broken_git_is_not_settled_as_pointers_that_do_not_resolve(pinned, tmp_path, monkeypatch):
+    """resolve.py's own comment: a git that could not be asked leaves pinned pointers
+    "unjudged rather than blamed" -- `run()` asks `git_problem()` once, for the ledger,
+    and says so in one report naming `Grounds`. Deleting that report left every pinned
+    pointer silently unjudged, which is indistinguishable, at the CLI, from every one of
+    them resolving cleanly."""
+    break_git_dir(tmp_path, monkeypatch)
+    reports = resolve.run(pinned.ledger())
+    assert reports, "a git that could not answer produced no report at all"
+    assert [r.outcome for r in reports] == ["fail"]
+    assert reports[0].part == "Grounds"
+    assert "pinned pointers were not read out of git" in reports[0].message
+
+
+def test_a_broken_git_is_not_a_freshness_check_that_ran(pinned, tmp_path, monkeypatch):
+    """freshness.py's docstring reserves silence for exactly the case this refuses:
+    `run()` returns one `fail` report naming `freshness` and saying the check did not
+    run, rather than the empty list a clean run and a check that never ran are
+    otherwise identical to."""
+    break_git_dir(tmp_path, monkeypatch)
+    reports = pinned.run()
+    assert reports, "a git that could not answer produced no report at all"
+    assert [r.outcome for r in reports] == ["fail"]
+    assert reports[0].part == "freshness"
+    assert "freshness did not run" in reports[0].message

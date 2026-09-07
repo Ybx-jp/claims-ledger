@@ -37,9 +37,11 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from conftest import Project
+from conftest import QUOTE, Project
+from test_invariants import append_verdict_text, fill_entry, set_stated
 
-from claims_ledger.schema import APPEND
+from claims_ledger import propagate
+from claims_ledger.schema import APPEND, open_ledger
 
 # === helpers =========================================================================
 
@@ -711,3 +713,109 @@ def test_hook_install_leaves_a_deliberate_shared_hook_link_alone(project):
     (hooks / "pre-commit").symlink_to(shared)
     assert project.cl("hook", "--install") == 1
     assert not shared.exists(), f"the install wrote through the link to {shared}"
+
+
+# --------------------------------------------------------------------------
+# Two write sites the funnel went past, and the flag that names what it wrote.
+# --------------------------------------------------------------------------
+
+
+def test_sha_write_refuses_an_entry_whose_mode_forbids_writing(project):
+    """Fixed. The defect, as this pass wrote it: write_bytes_atomically never opens the target —
+    it writes a temp file beside it and os.replace()s, which needs permission on the directory
+    and not on the file — so `sha --write` now rewrites a mode-444 entry, exits 0, and leaves
+    the mode saying the file is protected. The truncating write it replaced exited 2.
+
+    A file the filesystem says may not be written is not written. This is also what
+    `test_sha_write_over_several_paths_does_not_silently_skip_the_rest` uses as its only
+    failure injection, so while this is broken that regression is vacuously green.
+    """
+    assert project.cl("new", "a-claim") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("verbatim_sha: ", "verbatim_sha: 0"),
+        encoding="utf-8",
+    )
+    before = path.read_bytes()
+    os.chmod(path, 0o444)
+    try:
+        code = project.cl("sha", "--write", str(path))
+    finally:
+        os.chmod(path, 0o644)
+    assert path.read_bytes() == before, "a mode-444 entry was rewritten"
+    assert code == 2
+
+
+def test_source_add_does_not_store_bytes_through_a_link_that_leaves_the_root(project, tmp_path):
+    """Fixed. The defect, as this pass wrote it: register_source's cache write never asks
+    refuse_to_write_outside_the_root, and write_bytes_atomically resolves the path before
+    writing, so a dangling symlink planted at the content-addressed cache slot sends `source
+    add` outside the project root; it exits 0 and names the in-root path it did not write to
+
+    README, and the docstring of `write_bytes_atomically` itself: "where the link leads is the
+    caller's question, and `leaves_root` is where it is asked." `restamp` and `append_verdict`
+    ask it. This caller never has — the funnel was routed past the one write site with no
+    guard in front of it.
+    """
+    import hashlib
+
+    source = tmp_path / "a-source.txt"
+    source.write_bytes(b"the source text, quoted by an entry.\n")
+    outside = tmp_path / "outside" / "pwned.txt"
+    outside.parent.mkdir(exist_ok=True)
+    slot = project.root / "ledger" / "cache" / hashlib.sha256(source.read_bytes()).hexdigest()
+    slot.symlink_to(outside)
+
+    project.cl(
+        "source", "add", "--id", "fx-planted", "--type", "paper",
+        "--citation", "A paper (2026)", str(source),
+    )  # fmt: skip
+    assert not outside.exists(), (
+        f"`source add` wrote {outside}, outside the project root {project.root}"
+    )
+
+
+def test_the_write_flag_names_what_propagate_appended(project):
+    """propagate.py's module docstring: "--write appends the missing verdicts ... the
+    run still exits non-zero so the change is looked at before it is committed." The
+    exit-code half of that promise is already proven by
+    test_invariants.py's fixed-point tests; this proves the other half, that the report
+    a person is meant to look at actually names what was appended and by whom."""
+    project.cl("new", "base-claim")
+    base = project.write_full_entry(project.entry("A0001-base-claim.md"))
+    set_stated(base, "2020-01-01T00:00:00+00:00")
+    append_verdict_text(
+        base,
+        timestamp="2020-02-01T00:00:00+00:00",
+        status="refuted",
+        grade="measured",
+        author="main",
+        evidence="source: fx-source · whole text",
+        note="a later sweep contradicts it",
+    )
+
+    project.cl("new", "dependent-claim")
+    dep = project.entry("A0002-dependent-claim.md")
+    fill_entry(
+        project,
+        dep,
+        assertion="A dependent claim that rests in part on the base claim.",
+        grounds=(
+            '- lab: docs/note-001.md § "Observation" @working\n'
+            "- source: fx-source · whole text\n"
+            "- entry: A0001-base-claim · cites-as-live"
+        ),
+        warrant="The base claim, if it holds, supports this one under the same regime.",
+        backing=f'- source: fx-source · whole text\n  speaker: Okafor\n  quote: "{QUOTE}"',
+    )
+
+    reports = propagate.run(open_ledger(root=project.root), write=True)
+    flags = [r for r in reports if r.outcome == "flag"]
+    assert flags, "propagate --write appended a verdict and reported nothing about it"
+    assert any(
+        "appended" in r.message
+        and "contested verdict" in r.message
+        and "by propagation" in r.message
+        for r in flags
+    ), flags
