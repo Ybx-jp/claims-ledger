@@ -3,6 +3,11 @@
 A checked ledger of claims, in plain Markdown files, for a project that wants its
 written record to be verifiable rather than merely earnest.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/then-and-later-dark.svg">
+  <img alt="A two-by-two grid. Columns: when written, and later. Rows: prose, and ledger. In every cell a paragraph sits above a source document, and one sentence in the paragraph quotes a span of the source. Prose, when written: the quoted span is present in the source, and nothing connects the two. Prose, later: the source has been rewritten and the span is gone, but the sentence is unchanged and nothing marks it; the caption reads nothing happens. Ledger, when written: a line ties the quotation to the exact span in the source, the source carries its sha256, and the claim is corroborated. Ledger, later: the source has changed, its sha256 is different, the line now ends at the empty place where the span was, and the claim is marked contested; the caption reads caught." src="docs/figures/then-and-later.svg" width="960">
+</picture>
+
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
@@ -32,6 +37,11 @@ the stored bytes of its registered source.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/four-roles-dark.svg">
   <img alt="A single frozen statement, where a faithful quotation runs seamlessly into unsourced inference, against an entry whose Assertion, Grounds, Warrant and Backing each sit on their own line and whose quotation is resolved against the stored source bytes." src="docs/figures/four-roles.svg" width="960">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/nothing-falls-silently-dark.svg">
+  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying each document citation to a claim and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="docs/figures/nothing-falls-silently.svg" width="960">
 </picture>
 
 ## Quickstart

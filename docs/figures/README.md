@@ -26,6 +26,8 @@ The light file is the source of truth. Edit it, run the build, commit both.
 | `references.svg` | A document's inline citation and the entry's References line, checked against each other; the four acts against the statuses each is legal for | SCHEMA.md *The entry*, after the References bullet; examples/FEATURES.md §5 |
 | `portfolio.svg` | One cross-repository bridge end to end — origin, byte-identical snapshot, registry row, ground — and the matrix of all seven origin/snapshot pairs | examples/README.md *The repository boundary*; examples/FEATURES.md §3 |
 | `corpus-contract.svg` | A defect seed's expected rows matched one-to-one to the run's reports, the unnamed checkers that must exit clean, and the three ways a run fails the runner | README *Proving the checkers*; `src/claims_ledger/corpus/README.md` after the contract |
+| `then-and-later.svg` | The hero: prose against ledger, when written against later; the source changes under the sentence, prose says nothing, the ledger's tether lands on the empty place and flags | README, before the install line |
+| `nothing-falls-silently.svg` | The second hero: documents on claims on sources; one claim refuted, and the accent traces exactly what rested on it | README, end of *Why* |
 
 ## Embedding
 
@@ -45,7 +47,9 @@ because an `<img>` does not expose the SVG's own text to a screen reader.
 
 ## The system
 
-One family, so the figures read as one document rather than eleven.
+One family, so the figures read as one document rather than thirteen. The two heroes carry a title and a handful of
+labels and nothing else: they are meant to be read at a glance, and the prose after them
+does the explaining.
 
 | token | light | dark | used for |
 |---|---|---|---|

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">A sentence outlives what made it true</title>
+<desc id="d">A two-by-two grid. Columns: when written, and later. Rows: prose, and ledger. In every cell a paragraph sits above a source document, and one sentence in the paragraph quotes a span of the source. Prose, when written: the quoted span is present in the source, and nothing connects the two. Prose, later: the source has been rewritten and the span is gone, but the sentence is unchanged and nothing marks it; the caption reads nothing happens. Ledger, when written: a line ties the quotation to the exact span in the source, the source carries its sha256, and the claim is corroborated. Ledger, later: the source has changed, its sha256 is different, the line now ends at the empty place where the span was, and the claim is marked contested; the caption reads caught.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.greek{fill:var(--rule)} .bar{fill:var(--ink)} .mark{fill:var(--mark);stroke:var(--ink);stroke-width:1} .soft{fill:var(--accent-soft);stroke:var(--ink);stroke-width:1}
+.card{fill:var(--paper);stroke:var(--rule);stroke-width:1} .rule{stroke:var(--rule);fill:none;stroke-width:1}
+.tether{stroke:var(--ink);fill:none;stroke-width:1.25} .atether{stroke:var(--accent);fill:none;stroke-width:1.25}
+.ghost{fill:none;stroke:var(--rule);stroke-width:1;stroke-dasharray:3 3} .aghost{fill:none;stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3}
+.dot{fill:var(--ink)} .adot{fill:var(--accent)}
+.chip{fill:var(--paper);stroke:var(--muted);stroke-width:1} .achip{fill:var(--paper);stroke:var(--accent);stroke-width:1}
+.lead{stroke:var(--muted);fill:none;stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .h{font-size:11px;letter-spacing:.14em} .small{font-size:11px} .code11{font-size:11px}
+</style>
+<defs><marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="muted" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="640"/>
+
+<text class="serif ink title" x="40" y="46">A sentence outlives what made it true.</text>
+
+<!-- column heads and the passage of time -->
+<text class="serif muted h" x="300" y="104" text-anchor="middle">WHEN WRITTEN</text>
+<path class="lead" d="M400 100 H 692" marker-end="url(#am)"/>
+<text class="serif muted h" x="740" y="104" text-anchor="middle">LATER</text>
+
+<!-- row heads -->
+<text class="serif muted h" transform="rotate(-90 62 240)" x="62" y="240" text-anchor="middle">PROSE</text>
+<text class="serif muted h" transform="rotate(-90 62 500)" x="62" y="500" text-anchor="middle">LEDGER</text>
+<path class="rule" d="M110 370 H 930"/>
+
+<!-- ===== A: prose, when written ===== -->
+<g transform="translate(110 120)">
+  <rect class="greek" x="16" y="16" width="300" height="6" rx="3"/>
+  <rect class="bar" x="16" y="32" width="260" height="10" rx="5"/>
+  <rect class="mark" x="150.5" y="32.5" width="110" height="9" rx="4.5"/>
+  <rect class="greek" x="16" y="54" width="220" height="6" rx="3"/>
+  <rect class="card" x="16.5" y="96.5" width="348" height="110" rx="3"/>
+  <rect class="greek" x="32" y="112" width="300" height="6" rx="3"/>
+  <rect class="greek" x="32" y="128" width="280" height="6" rx="3"/>
+  <rect class="greek" x="32" y="144" width="316" height="6" rx="3"/>
+  <rect class="mark" x="110.5" y="141.5" width="140" height="11" rx="3"/>
+  <rect class="greek" x="32" y="160" width="260" height="6" rx="3"/>
+  <rect class="greek" x="32" y="176" width="296" height="6" rx="3"/>
+  <rect class="greek" x="32" y="192" width="180" height="6" rx="3"/>
+</g>
+
+<!-- ===== B: prose, later ===== -->
+<g transform="translate(550 120)">
+  <rect class="greek" x="16" y="16" width="300" height="6" rx="3"/>
+  <rect class="bar" x="16" y="32" width="260" height="10" rx="5"/>
+  <rect class="mark" x="150.5" y="32.5" width="110" height="9" rx="4.5"/>
+  <rect class="greek" x="16" y="54" width="220" height="6" rx="3"/>
+  <rect class="card" x="16.5" y="96.5" width="348" height="110" rx="3"/>
+  <rect class="greek" x="32" y="112" width="240" height="6" rx="3"/>
+  <rect class="greek" x="32" y="128" width="316" height="6" rx="3"/>
+  <rect class="greek" x="32" y="144" width="70" height="6" rx="3"/>
+  <rect class="ghost" x="110.5" y="141.5" width="140" height="11" rx="3"/>
+  <rect class="greek" x="258" y="144" width="80" height="6" rx="3"/>
+  <rect class="greek" x="32" y="160" width="300" height="6" rx="3"/>
+  <rect class="greek" x="32" y="176" width="250" height="6" rx="3"/>
+  <rect class="greek" x="32" y="192" width="120" height="6" rx="3"/>
+  <text class="serif muted small" x="16" y="226">nothing happens</text>
+</g>
+
+<!-- ===== C: ledger, when written ===== -->
+<g transform="translate(110 380)">
+  <rect class="greek" x="16" y="16" width="300" height="6" rx="3"/>
+  <rect class="bar" x="16" y="32" width="260" height="10" rx="5"/>
+  <rect class="soft" x="150.5" y="32.5" width="110" height="9" rx="4.5"/>
+  <rect class="chip" x="290.5" y="28.5" width="82" height="17" rx="8.5"/><text class="mono muted code11" x="331.5" y="40" text-anchor="middle">corroborated</text>
+  <rect class="greek" x="16" y="54" width="220" height="6" rx="3"/>
+  <rect class="card" x="16.5" y="96.5" width="348" height="110" rx="3"/>
+  <rect class="greek" x="32" y="112" width="300" height="6" rx="3"/>
+  <rect class="greek" x="32" y="128" width="280" height="6" rx="3"/>
+  <rect class="greek" x="32" y="144" width="316" height="6" rx="3"/>
+  <rect class="soft" x="110.5" y="141.5" width="140" height="11" rx="3"/>
+  <rect class="greek" x="32" y="160" width="260" height="6" rx="3"/>
+  <rect class="greek" x="32" y="176" width="296" height="6" rx="3"/>
+  <rect class="greek" x="32" y="192" width="180" height="6" rx="3"/>
+  <path class="tether" d="M205 42 C 205 95 180 95 180 141"/>
+  <circle class="dot" cx="205" cy="42" r="2.5"/><circle class="dot" cx="180" cy="141" r="2.5"/>
+  <text class="mono muted code11" x="364" y="226" text-anchor="end">sha256 · 3f9a2c…</text>
+</g>
+
+<!-- ===== D: ledger, later ===== -->
+<g transform="translate(550 380)">
+  <rect class="greek" x="16" y="16" width="300" height="6" rx="3"/>
+  <rect class="bar" x="16" y="32" width="260" height="10" rx="5"/>
+  <rect class="soft" x="150.5" y="32.5" width="110" height="9" rx="4.5"/>
+  <rect class="achip" x="290.5" y="28.5" width="69" height="17" rx="8.5"/><text class="mono accent code11" x="325" y="40" text-anchor="middle">contested</text>
+  <rect class="greek" x="16" y="54" width="220" height="6" rx="3"/>
+  <rect class="card" x="16.5" y="96.5" width="348" height="110" rx="3"/>
+  <rect class="greek" x="32" y="112" width="240" height="6" rx="3"/>
+  <rect class="greek" x="32" y="128" width="316" height="6" rx="3"/>
+  <rect class="greek" x="32" y="144" width="70" height="6" rx="3"/>
+  <rect class="aghost" x="110.5" y="141.5" width="140" height="11" rx="3"/>
+  <rect class="greek" x="258" y="144" width="80" height="6" rx="3"/>
+  <rect class="greek" x="32" y="160" width="300" height="6" rx="3"/>
+  <rect class="greek" x="32" y="176" width="250" height="6" rx="3"/>
+  <rect class="greek" x="32" y="192" width="120" height="6" rx="3"/>
+  <path class="atether" d="M205 42 C 205 95 180 95 180 141"/>
+  <circle class="dot" cx="205" cy="42" r="2.5"/><circle class="adot" cx="180" cy="141" r="2.5"/>
+  <text class="serif accent small" x="16" y="226">caught</text>
+  <text class="mono accent code11" x="364" y="226" text-anchor="end">sha256 · c71e08…</text>
+</g>
+</svg>
