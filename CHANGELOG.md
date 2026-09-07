@@ -37,6 +37,9 @@ would have put a `0.1.0` on the record that nobody could ever install.
   `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
   the seed or the checker, never a bonus, and one row is satisfied by one report.
 - Authoring: `init`, `new`, `sha`, `source add`, `source list`, `status`, `hook`.
+- An executable four-repository example portfolio demonstrates every entry kind, evidence
+  grade, derived status and citation act, custom section scoping, real Git pins, hooks,
+  and content-addressed provenance across repository boundaries.
 - No runtime dependencies. Python 3.11 or newer.
 
 ### Fixed before release

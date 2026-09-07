@@ -1,0 +1,4 @@
+Nimbus synthetic research summary
+
+In the invented pilot cohort, the 0.72 threshold had a false-review rate of 0.14 and a
+miss rate of 0.05. These numbers are demonstration data, not empirical findings.

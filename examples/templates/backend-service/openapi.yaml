@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info:
+  title: Nimbus Claims API
+  version: 0.0.0-example
+paths:
+  /claims/{id}/risk:
+    get:
+      summary: Return the evidence-risk decision for one claim.
+      description: Scores greater than or equal to 0.72 require review.

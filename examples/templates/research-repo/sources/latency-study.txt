@@ -1,0 +1,5 @@
+Synthetic latency study — Rao and Bell (2026)
+
+This source exists only to exercise checked quotation provenance. In the demonstration
+cohort, the median review latency remained below two minutes at a threshold of 0.72.
+No claim in this file describes a real system or real participants.

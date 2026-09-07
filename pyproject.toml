@@ -73,10 +73,11 @@ exclude = ["src/claims_ledger/corpus/seeds"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Neither holds code this package maintains. `.qe` is an audit pass's own record — its
-# probes are evidence, and reformatting one would edit what was run. The seeds are
-# malformed on purpose, and one is deliberately not UTF-8, which no formatter can read.
-exclude = [".qe", "src/claims_ledger/corpus/seeds"]
+# None holds code this package maintains. `.qe` and `docs/audits` are an audit pass's own
+# record — its probes and the snippets in its findings are evidence, and reformatting one
+# would edit what was run. The seeds are malformed on purpose, and one is deliberately
+# not UTF-8, which no formatter can read.
+exclude = [".qe", "docs/audits", "src/claims_ledger/corpus/seeds"]
 
 [tool.ruff.lint]
 # Pinned rather than tracking ruff's default select, which grows between releases: CI fails

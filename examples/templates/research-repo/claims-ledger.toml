@@ -1,0 +1,9 @@
+[tool.claims-ledger]
+ledger = "ledger"
+documents = ["README.md", "reports/*.md", "ROSTER.md"]
+evidence-sectioned = ["lab"]
+evidence-plain = ["experiment"]
+verdict-authors = ["main", "propagation"]
+propagation-author = "propagation"
+roster = "ROSTER.md"
+archived-prefixes = ["Q"]

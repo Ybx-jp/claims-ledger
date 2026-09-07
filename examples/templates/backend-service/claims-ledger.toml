@@ -1,0 +1,11 @@
+[tool.claims-ledger]
+ledger = "ledger"
+documents = ["README.md", "docs/*.md"]
+evidence-sectioned = ["code"]
+evidence-plain = ["run"]
+verdict-authors = ["main", "propagation"]
+propagation-author = "propagation"
+roster = "ROSTER.md"
+
+[tool.claims-ledger.section-patterns]
+code = '^(?:async[ \t]+)?def[ \t]+{name}\b'

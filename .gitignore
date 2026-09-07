@@ -9,3 +9,6 @@ build/
 
 # Scratch worktrees created by agent sessions. Never part of the package.
 .claude/worktrees/
+
+# Local design notes for unreleased work. Never part of the package.
+docs/design/

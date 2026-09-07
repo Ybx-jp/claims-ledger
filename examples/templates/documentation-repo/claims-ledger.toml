@@ -1,0 +1,10 @@
+[tool.claims-ledger]
+ledger = "ledger"
+documents = ["README.md", "docs/*.md"]
+document-excludes = ["docs/draft-*.md"]
+evidence-sectioned = ["note"]
+evidence-plain = ["run"]
+verdict-authors = ["main", "propagation"]
+propagation-author = "propagation"
+roster = "ROSTER.md"
+archived-prefixes = ["Z"]
