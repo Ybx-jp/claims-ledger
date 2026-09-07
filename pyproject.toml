@@ -53,7 +53,9 @@ packages = ["src/claims_ledger"]
 # is how an installed copy proves itself. See QUALITY.md.
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "docs", "README.md", "QUALITY.md", "CHANGELOG.md", "LICENSE"]
+# Anchored with a leading `/`: an unanchored `README.md` is a gitignore-style pattern that
+# matches at any depth, and pulled a stray README out of `.qe` into the sdist.
+include = ["/src", "/tests", "/docs", "/README.md", "/QUALITY.md", "/CHANGELOG.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
