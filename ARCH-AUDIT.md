@@ -10,6 +10,16 @@ The findings are ranked by consequence, not by effort to fix.
 > thousand-entry, thousand-commit ledger went from **5m18s to 2.79s**; the process count
 > for `validate` is 4 at any size, held by `tests/test_history_batch.py`. Findings 2–8
 > are open, and belong to their own branches.
+>
+> **The fix-review gate on finding 1** (`qe`, ticket `a04b8860f9764902`) returned
+> merge-but-fix-first, and the branch merged before any of it was fixed. First repaired:
+> the rewrite had dropped the text-level comparison of the frozen region, so a preamble
+> edit was reported as a line-endings difference and, under `--cached` with no staged
+> blob, not reported at all. Restored, with both cases pinned in
+> `tests/test_immutability.py`. Still to do from that round: the `-m` mechanism is stated
+> wrongly below (it is `--full-history`, and the extras are not merges only), the
+> `--cached` byte check and its reference blob are unpinned by any test, and there is no
+> sha256-repository or walk-timeout test.
 
 ---
 

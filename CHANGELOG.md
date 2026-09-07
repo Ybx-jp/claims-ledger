@@ -560,7 +560,11 @@ with what it found and left open.
   whenever the file differs from either parent, so a verdict a branch committed and a
   merge resolution left out is caught; the frozen-region check is unchanged. Measured
   and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
-  open.
+  open. The rewrite first landed without the text-level comparison of the frozen
+  region — a preamble edit was reported with the line-endings message, and under
+  `--cached` passed outright when the index held no blob for the entry — which the
+  fix-review gate found and `tests/test_immutability.py` now pins, both cases checked
+  red against the code that dropped it.
 
 ### Methodology
 

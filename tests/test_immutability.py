@@ -54,6 +54,32 @@ def test_validate_reports_the_preamble_edit_by_name(project, capsys):
     assert "immutable" in out
 
 
+def test_a_preamble_edit_is_reported_as_outside_any_section(project, capsys):
+    """Fixed: the batched history reader dropped the text-level comparison of the frozen
+    region, and a preamble edit was caught only by the byte comparison, whose report says
+    the text is the same — over a region whose text changed. The named report is back."""
+    path = sealed_entry(project)
+    head, rest = path.read_text(encoding="utf-8").split("\n## Assertion", 1)
+    path.write_text(head + PAYLOAD + "\n## Assertion" + rest, encoding="utf-8")
+    capsys.readouterr()
+    assert project.cl("validate") != 0
+    out = capsys.readouterr().out
+    assert "outside any section" in out
+    assert "same text" not in out
+
+
+def test_a_preamble_edit_is_caught_under_cached_when_the_index_holds_no_blob(project):
+    """Fixed: under --cached the byte comparison reads the entry's staged blob and has
+    nothing to compare when the index holds none, so a preamble edit over an entry that
+    had been `git rm --cached` passed the hook's path. The text comparison reads what the
+    loader read, and the loader falls back to the working tree — so it still sees it."""
+    path = sealed_entry(project)
+    head, rest = path.read_text(encoding="utf-8").split("\n## Assertion", 1)
+    path.write_text(head + PAYLOAD + "\n## Assertion" + rest, encoding="utf-8")
+    project.git("rm", "-q", "--cached", str(path))
+    assert project.cl("validate", "--cached") != 0
+
+
 def test_an_edit_inside_a_frozen_section_is_still_caught(project):
     """The half that works, kept so a fix for the above cannot regress it."""
     path = sealed_entry(project)

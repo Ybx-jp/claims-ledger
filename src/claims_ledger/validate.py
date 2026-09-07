@@ -586,6 +586,25 @@ def check_history(ledger, entries, cached=False):
                         "region above the APPEND marker is immutable",
                     )
                 )
+        # The sections are what a report can name; they are not the whole of the frozen
+        # region. Every byte above the first heading belongs to no section, so the parsed
+        # comparison above cannot see it. Compare the region itself, as text, and say so
+        # by name — this is the comparison the batched rewrite dropped, and the one that
+        # still runs under --cached when the index holds no blob for the entry and the
+        # byte comparison below has nothing to read.
+        was, is_now = _frozen_region(blob_text(original_bytes)), _frozen_region(e.text)
+        if not named and None not in (was, is_now) and was != is_now:
+            named = True
+            out.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    "the frozen region",
+                    f"differs from the blob at the creating commit {creating[:7]} outside "
+                    "any section; the region above the APPEND marker is immutable, "
+                    "including the bytes no section owns",
+                )
+            )
         # And the same comparison again, on the bytes. Everything above reads both sides
         # as text, and text arrives here through universal newlines on both sides — the
         # blob is decoded that way above, `read_text` decodes — so a frozen region
