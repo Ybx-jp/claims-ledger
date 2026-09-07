@@ -8,7 +8,7 @@ legal against a fallen one. The filter a reader must apply every time is applied
 them here. An entry that has itself fallen is exempt: its Grounds are immutable history,
 and a dependent whose live-cited ground fell is superseded rather than repaired.
 
-Document to entry: a document cites an entry inline as `(A0007-slug, cites-as-live)`.
+Document to entry: a document cites an entry inline as `(A0007-<slug>, cites-as-live)`.
 Every cited id exists, the act is compatible with the target's status, and the entry's
 References section lists the citing document; every location an entry lists really
 cites it. No document may cite an id in a quarantined series, by prefix alone. A

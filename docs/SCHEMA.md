@@ -157,7 +157,7 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   the occasion, and a verdict under the wrong agent is malformed whatever it says.
 - *References* lists the documents (not entries) that cite this entry:
   `- <path> · standing | record · <act>`. Entry-to-entry edges are read from Grounds and
-  are not repeated here. A document cites an entry inline as `(A0007-slug, cites-as-live)`,
+  are not repeated here. A document cites an entry inline as `(A0007-<slug>, cites-as-live)`,
   and the two views are checked against each other both ways, so a status lives in
   exactly one place: the act a document declares is held to the entry's current status at
   every check, and a copied id cannot go stale silently.

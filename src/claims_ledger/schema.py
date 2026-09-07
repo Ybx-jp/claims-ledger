@@ -80,7 +80,7 @@ HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
-# A citation in a document: `(A0007-slug, cites-as-live)`.
+# A citation in a document: `(A0007-<slug>, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
 
 # Pins that name no revision: the artifact is read from the working tree as it stands.
@@ -979,7 +979,8 @@ def derive_status(verdicts):
     """The status of the last legal verdict. Terminal statuses stop the walk; a verdict
     appended after one is malformed (validate reports it) and does not move the
     status — with the one exception that `refuted` or `non-comparable` may be followed by
-    exactly one `superseded`, because reinstatement is supersession."""
+    exactly one `superseded`, because reinstatement is supersession.
+    Ledger: (L0006-status-is-derived-from-the-verdicts, cites-as-live)."""
     status, terminal, reinstated = "open", False, False
     for v in verdicts:
         if v.malformed or v.status not in STATUSES or v.status == "open":
