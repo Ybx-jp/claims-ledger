@@ -1,0 +1,4 @@
+Synthetic consultation with reviewer
+
+The threshold comparison is narrow enough to preregister, provided the cohort and both
+error rates are fixed before the run. This is fictional review advice.

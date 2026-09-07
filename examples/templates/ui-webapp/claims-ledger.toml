@@ -1,0 +1,12 @@
+[tool.claims-ledger]
+ledger = "ledger"
+documents = ["README.md", "docs/*.md"]
+document-excludes = ["docs/internal-*.md"]
+evidence-sectioned = ["code"]
+evidence-plain = ["run"]
+verdict-authors = ["main", "propagation"]
+propagation-author = "propagation"
+roster = "ROSTER.md"
+
+[tool.claims-ledger.section-patterns]
+code = '^export function[ \t]+{name}\b'

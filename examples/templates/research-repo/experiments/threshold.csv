@@ -1,0 +1,4 @@
+cohort,threshold,false_review_rate,miss_rate
+pilot-a,0.68,0.21,0.03
+pilot-a,0.72,0.14,0.05
+pilot-a,0.76,0.09,0.11

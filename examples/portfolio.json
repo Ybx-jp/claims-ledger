@@ -1,0 +1,17 @@
+{
+  "repositories": [
+    "ui-webapp",
+    "backend-service",
+    "research-repo",
+    "documentation-repo"
+  ],
+  "snapshots": [
+    ["backend-service/openapi.yaml", "ui-webapp/evidence/backend-openapi.yaml"],
+    ["research-repo/reports/summary.txt", "ui-webapp/evidence/research-summary.txt"],
+    ["ui-webapp/docs/behavior-contract.txt", "backend-service/evidence/ui-behavior-contract.txt"],
+    ["research-repo/reports/summary.txt", "backend-service/evidence/research-summary.txt"],
+    ["ui-webapp/docs/behavior-contract.txt", "documentation-repo/evidence/ui-behavior-contract.txt"],
+    ["backend-service/openapi.yaml", "documentation-repo/evidence/backend-openapi.yaml"],
+    ["research-repo/reports/summary.txt", "documentation-repo/evidence/research-summary.txt"]
+  ]
+}

@@ -418,3 +418,13 @@ which documents may cite it, what an evidence pointer is called, who may write a
 the corpus held at extraction still passes unchanged; it has since grown to 76.
 
 MIT licensed.
+
+## Examples
+
+[`examples/`](examples/) contains an executable four-repository portfolio: a TypeScript
+UI, a Python backend, a research repository, and an operator-handbook repository. The
+content is synthetic, but materialization creates real Git histories, real commit pins,
+registered cross-repository source snapshots, installed hooks, and four ledgers that pass
+all five checks.
+The [concept-grouped feature guide](examples/FEATURES.md) documents every exercised
+capability with exact repository excerpts.

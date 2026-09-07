@@ -1,0 +1,4 @@
+Nimbus Console behavior contract
+
+The console displays a review banner when the API risk score is at least 0.72.
+The banner always includes the score rounded to two decimal places.
