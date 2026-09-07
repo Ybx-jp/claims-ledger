@@ -43,3 +43,26 @@ would scroll it away. Fades are linear and monotonic.
 12–20 cps that is 7.5–12.5 s, and the beat that shows six of them holds 5 s. The intent
 is that the viewer reads `FAIL`, the four names and the exit code, not every clause;
 the clauses are there because they are what the product says.
+
+## Render contract, and what it found
+
+1920 × 1080, 30 fps, 1380 frames = 46.000 s, H.264, no audio stream. Two renders of the
+same source are byte-identical, the scroll matte agrees with `fileScrollPx` to within
+its quantization floor (worst 0.96 px), the faces are verified by advance width, and
+the contact sheet samples start, midpoint and end of every move plus every hold.
+
+Determinism was not free. The first full renders differed on 213 frames at ~57 dB.
+Lossless stills of the same frames were identical, and ffmpeg encoded the same PNG
+sequence identically with and without threads, so the encoder was cleared; PNG
+sequences from the video path were not — the same frame came back in two variants at
+random. Two causes, both measured by diffing the variants pixel by pixel:
+
+- Text rows in the file pane, |Δ| up to 12 levels: LCD text antialiasing switching on
+  and off with compositor layer promotion, which is timing-dependent for an element
+  whose opacity changes every frame. Fixed by pinning `-webkit-font-smoothing:
+  antialiased` and `will-change: opacity` on everything that fades (`STABLE`).
+- Two pixels at (60,127) and (60,647), |Δ| 1: the antialiased top-left corners of the
+  two clipping panes. Fixed by giving the panes square corners.
+
+Neither is visible at playback; both would have made "the same source renders the same
+pixels" a false statement, which is the contract the ladder holds films to.

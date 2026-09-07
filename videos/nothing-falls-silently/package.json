@@ -1,8 +1,8 @@
 {
-  "name": "then-and-later",
+  "name": "nothing-falls-silently",
   "version": "0.0.0",
   "private": true,
-  "description": "claims-ledger hero film: a sentence outlives what made it true. Artifact source only.",
+  "description": "claims-ledger hero film: nothing falls silently. Artifact source only.",
   "scripts": {
     "studio": "remotion studio",
     "render": "remotion render",
