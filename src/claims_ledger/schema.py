@@ -1121,12 +1121,16 @@ def git_history(repo, pathspec):
     One walk rather than one `git log -- <path>` per entry: each of those walks the whole
     commit graph, so a ledger of a thousand entries with a thousand commits behind it
     asked git to diff a million trees and `check` took five minutes. The walk here lists
-    the same commits for a path as the per-path log does, with one difference at a merge
-    commit: `-m` lists a file under the merge whenever it differs from *either* parent,
-    where the per-path log dropped a merge that agreed with one of them. A verdict that a
-    branch committed and a merge resolution then left out is therefore compared here and
-    was not before; the region above the APPEND marker is unaffected, because the
-    creating commit is the oldest either way.
+    every commit the per-path log lists for a path, in the same order, and more: `-m` is
+    a `--diff-merges` option, and any of those turns history simplification off, so this
+    is a `--full-history` walk. It follows every parent of a merge and lists a merge
+    under a file whenever the file differs from either parent — and it lists the commits
+    on a line a resolution discarded, which the per-path log pruned because the merge
+    was TREESAME to the other parent. A verdict that a branch committed and a merge
+    resolution then left out is therefore compared here and was not before; the region
+    above the APPEND marker is unaffected, because the creating commit is the oldest
+    either way. `tests/test_history_batch.py` holds this as equality with
+    `git log --full-history -m -- <path>`.
 
     No `--follow`, for the reason `check_history` gives; `--no-renames`, so a file git
     would pair with another is listed under its own name on both sides of the pairing.

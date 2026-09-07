@@ -163,6 +163,33 @@ def test_check_catches_a_frozen_region_rewritten_to_crlf(project):
     assert project.cl("check") != 0
 
 
+def test_a_staged_crlf_rewrite_of_the_frozen_region_is_caught_under_cached(project):
+    """The hook's path. Under --cached the byte comparison reads the entry's staged blob,
+    and text arrives through universal newlines on both sides, so a staged CRLF rewrite is
+    caught by the byte comparison or not at all. Fails when `check_history` stops asking
+    the batch for `:<path>`."""
+    path = a_sealed_claim(project)
+    seal(project, path)
+    assert project.cl("validate", "--cached") == 0
+    head, marker, tail = path.read_bytes().partition(APPEND.encode("utf-8"))
+    path.write_bytes(head.replace(b"\n", b"\r\n") + marker + tail)
+    project.git("add", "-A")
+    assert project.cl("validate", "--cached") != 0
+
+
+def test_a_frozen_region_rewritten_to_crlf_and_committed_is_still_caught(project):
+    """The reference side of the byte comparison is the blob at the commit that created
+    the entry, not the newest one: a rewrite that has itself been committed is still a
+    rewrite. Fails when the comparison is made against HEAD's blob."""
+    path = a_sealed_claim(project)
+    seal(project, path)
+    head, marker, tail = path.read_bytes().partition(APPEND.encode("utf-8"))
+    path.write_bytes(head.replace(b"\n", b"\r\n") + marker + tail)
+    project.git("commit", "-qam", "the frozen region, rewritten and committed")
+    assert project.cl("validate") != 0
+    assert project.cl("validate", "--cached") != 0
+
+
 def test_sha_write_preserves_the_files_line_endings(project):
     """`sha --write` replaces one `verbatim_sha:` line. Every other byte of the file is
     none of its business."""

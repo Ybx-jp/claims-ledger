@@ -556,9 +556,12 @@ with what it found and left open.
   One walk of the entries directory and one `cat-file --batch` answer the same questions
   in 2.79s, and the process count no longer grows with the ledger. `validate --cached`,
   the pre-commit hook's path, reads the index the same way — 1,005 processes to 5 at that
-  size. One difference in what is compared: a merge commit is now listed under an entry
-  whenever the file differs from either parent, so a verdict a branch committed and a
-  merge resolution left out is caught; the frozen-region check is unchanged. Measured
+  size. One difference in what is compared: the walk is a full-history walk — `-m` turns
+  history simplification off — so a merge is listed under an entry whenever the file
+  differs from either parent, and the commits on a line a merge resolution discarded are
+  listed too. A verdict a branch committed and a merge resolution left out is caught, and
+  stays caught, since the removal is in the history. The frozen-region check is
+  unchanged. Measured
   and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
   open. The rewrite first landed without the text-level comparison of the frozen
   region — a preamble edit was reported with the line-endings message, and under

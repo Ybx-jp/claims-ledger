@@ -47,8 +47,12 @@ def _commits_touching(root, rel):
     return out.split()
 
 
-def _is_merge(root, commit):
-    return len(_git(root, "rev-list", "--parents", "-n", "1", commit)[1].split()) > 2
+def _full_history(root, rel):
+    """What the directory walk is, per path: every commit on every parent line that
+    changed the file, `--full-history -m`, newest first, a merge once."""
+    code, out = _git(root, "log", "--format=%H", "--full-history", "-m", "--", rel)
+    assert code == 0
+    return list(dict.fromkeys(out.split()))
 
 
 def _branching_history(root):
@@ -87,13 +91,27 @@ def _branching_history(root):
     _git(root, "commit", "-qm", "merge-resolved")
     _git(root, "mv", str(c), str(entries / "A0004-d.md"))
     _git(root, "commit", "-qm", "rename")
+    # And the one shape where the per-path log prunes a whole parent line: a branch
+    # edits the file, and the merge keeps the other side's version (`-s ours`). The
+    # merge is TREESAME to main, so history simplification follows main only and the
+    # branch's commit is never listed — by the per-path log or, with plain `-m`, by
+    # anything. A directory walk with `-m` is a full-history walk and lists it.
+    _git(root, "checkout", "-qb", "dropped")
+    a.write_text("a\na2\na3\ndropped\n")
+    _git(root, "commit", "-qam", "dropped1")
+    _git(root, "checkout", "-q", "main")
+    assert _git(root, "merge", "-q", "-s", "ours", "--no-edit", "dropped")[0] == 0
     return [os.path.relpath(p, root) for p in (a, b, c, entries / "A0004-d.md")]
 
 
 def test_one_walk_lists_every_commit_the_per_entry_walk_listed(tmp_path):
-    """For every entry, the batch names the same creating commit, every commit the
-    per-path log named, in the same order; anything it names beyond those is a merge
-    commit, which `-m` lists whenever the file differs from either parent."""
+    """For every entry, the batch names the same creating commit and every commit the
+    per-path log named, in the same order — and what it names beyond those is exactly
+    what `--full-history -m` names for that path. `-m` is a `--diff-merges` option, and
+    any of those turns history simplification off: the walk follows every parent of a
+    merge, so a commit on a line a resolution discarded is listed, and it need not be
+    a merge. The first version of this test said "extras are merges only" over a fixture
+    with no discarded line in it; the `-s ours` shape is there now."""
     rels = _branching_history(tmp_path)
     revisions, why = git_history(tmp_path, "ledger/entries")
     assert revisions is not None, why
@@ -103,8 +121,10 @@ def test_one_walk_lists_every_commit_the_per_entry_walk_listed(tmp_path):
         batch = revisions[rel]
         assert batch[-1] == reference[-1], f"{rel}: the creating commit"
         assert [h for h in batch if h in reference] == reference, f"{rel}: order and coverage"
-        for extra in set(batch) - set(reference):
-            assert _is_merge(tmp_path, extra), f"{rel}: {extra[:7]} is not a merge"
+        assert batch == _full_history(tmp_path, rel), f"{rel}: the walk is full history"
+    a = rels[0]
+    dropped = set(revisions[a]) - set(_commits_touching(tmp_path, a))
+    assert dropped, "precondition: the fixture has a line the per-path log pruned"
     assert set(rels) <= set(revisions), "the renamed-away name is still listed"
 
 
