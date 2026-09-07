@@ -1089,6 +1089,125 @@ def git_bytes(repo, *args):
     return out.stdout if out.returncode == 0 else None
 
 
+def _git_raw(repo, args, stdin=None):
+    """(code, stdout bytes, why) for a git command in `repo`: `git_call` without the
+    decoding, for the two readers below that answer for a whole ledger at once."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            input=stdin,
+            capture_output=True,
+            timeout=GIT_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return None, b"", f"git did not answer within {GIT_TIMEOUT}s"
+    except OSError as exc:
+        return None, b"", f"git could not be run ({exc.strerror or exc})"
+    if out.returncode == 0:
+        return 0, out.stdout, ""
+    detail = out.stderr.decode("utf-8", errors="replace").strip().splitlines()
+    return out.returncode, b"", detail[-1] if detail else f"git exited {out.returncode}"
+
+
+_COMMIT_RE = re.compile(rb"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+
+
+def git_history(repo, pathspec):
+    """(revisions, why): the commits that touched each path under `pathspec`, as
+    `{path: [commit, ...]}` newest first, from one walk of the history — or `(None, why)`
+    when git could not walk it.
+
+    One walk rather than one `git log -- <path>` per entry: each of those walks the whole
+    commit graph, so a ledger of a thousand entries with a thousand commits behind it
+    asked git to diff a million trees and `check` took five minutes. The walk here lists
+    the same commits for a path as the per-path log does, with one difference at a merge
+    commit: `-m` lists a file under the merge whenever it differs from *either* parent,
+    where the per-path log dropped a merge that agreed with one of them. A verdict that a
+    branch committed and a merge resolution then left out is therefore compared here and
+    was not before; the region above the APPEND marker is unaffected, because the
+    creating commit is the oldest either way.
+
+    No `--follow`, for the reason `check_history` gives; `--no-renames`, so a file git
+    would pair with another is listed under its own name on both sides of the pairing.
+    Paths come back NUL-terminated and unquoted, decoded the way the filesystem's own
+    listing was, so a name is matched byte for byte and never against git's C-quoting.
+    """
+    code, data, why = _git_raw(
+        repo, ["log", "-z", "--format=%H", "--name-only", "--no-renames", "-m", "--", pathspec]
+    )
+    if code != 0:
+        return None, why
+    revisions = {}
+    commit = None
+    for raw in data.split(b"\0"):
+        token = raw.lstrip(b"\n")  # the first path after a commit carries the separator
+        if not token:
+            continue
+        if _COMMIT_RE.match(token):
+            commit = token.decode("ascii")
+            continue
+        if commit is None:
+            continue  # cannot happen: git prints the commit before its paths
+        found = revisions.setdefault(os.fsdecode(token), [])
+        if not found or found[-1] != commit:  # `-m` prints a merge once per parent
+            found.append(commit)
+    return revisions, ""
+
+
+def git_blobs(repo, specs):
+    """(blobs, failures) for the object names in `specs` — `<commit>:<path>`, or `:<path>`
+    for the index — read through one `git cat-file --batch`: `{spec: bytes}` for each that
+    git produced, and `{spec: why}` for each it did not, so that a blob that could not be
+    read is reported by the caller and never taken for a comparison that passed.
+
+    Positional: cat-file answers in the order it was asked, and a name it cannot resolve
+    is echoed back with a word (`missing`, `ambiguous`) rather than an object id. Output
+    that ends before the last answer — git killed by the timeout, or dying on a pack it
+    cannot open — leaves every unanswered name in `failures` with the reason git gave.
+    """
+    specs = list(specs)
+    if not specs:
+        return {}, {}
+    code, data, why = _git_raw(
+        repo, ["cat-file", "--batch"], stdin=b"".join(os.fsencode(s) + b"\n" for s in specs)
+    )
+    blobs, failures = {}, {}
+    pos = 0
+    for spec in specs:
+        if code != 0:
+            failures[spec] = why
+            continue
+        end = data.find(b"\n", pos)
+        if end < 0:
+            failures[spec] = "git stopped answering before it"
+            continue
+        header = data[pos:end].split(b" ")
+        pos = end + 1
+        if len(header) == 3 and header[2].isdigit():
+            size = int(header[2])
+            body = data[pos : pos + size]
+            pos += size + 1  # the newline cat-file prints after every object
+            if len(body) < size:
+                failures[spec] = "git stopped answering partway through it"
+            elif header[1] != b"blob":
+                failures[spec] = f"it is a {header[1].decode('ascii', 'replace')}, not a file"
+            else:
+                blobs[spec] = body
+        else:
+            word = header[-1].decode("utf-8", errors="replace") if header else "unanswered"
+            failures[spec] = f"git says it is {word}"
+    return blobs, failures
+
+
+def blob_text(data):
+    """Blob bytes the way `git show` hands them to a text-mode caller: decoded with
+    replacement, then through universal newlines — which is also how `read_text` reads
+    the working side, so the two compare as the same text. The byte comparison that
+    `check_history` makes as well is made on the bytes themselves."""
+    return data.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+
+
 def git_available():
     """Whether a `git` binary is on PATH. `git()` swallows its absence and returns None,
     which the history checks read as `not yet committed` — so a caller that reports what
@@ -1175,12 +1294,18 @@ def load_entries(ledger, cached=False):
         entries_dir_listing_error(ledger.entries_dir), (FileNotFoundError, NotADirectoryError)
     ):
         return entries  # a ledger not created yet; `guard()` is what refuses to report
-    for path in sorted(list_entry_files(ledger.entries_dir)):
-        text = None
-        if cached and ledger.repo:
-            rel = os.path.relpath(path, ledger.repo)
-            text = git(ledger.repo, "show", f":{rel}")
-        entries.append(parse_entry(path, text))
+    paths = sorted(list_entry_files(ledger.entries_dir))
+    staged = {}
+    if cached and ledger.repo:
+        # One `cat-file --batch` for every entry rather than one `git show` each: the
+        # pre-commit hook runs this over the whole ledger on every commit. A path that is
+        # not in the index gets no blob and is read from the working tree, as before.
+        rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
+        blobs, _ = git_blobs(ledger.repo, (f":{rel}" for rel in rels.values()))
+        staged = {path: blobs.get(f":{rel}") for path, rel in rels.items()}
+    for path in paths:
+        data = staged.get(path)
+        entries.append(parse_entry(path, None if data is None else blob_text(data)))
     return entries
 
 

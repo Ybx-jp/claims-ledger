@@ -39,10 +39,11 @@ from .schema import (
     UNPINNED,
     VERDICT_ENTRY_ACTS,
     Report,
+    blob_text,
     by_id,
-    git,
-    git_bytes,
+    git_blobs,
     git_call,
+    git_history,
     load_entries,
     normalize,
     parse_entry,
@@ -510,48 +511,67 @@ def _frozen_bytes(data):
 def check_history(ledger, entries, cached=False):
     """Immutability, from git. For each entry file: the region above the APPEND marker
     equals the blob at the commit that created the file, and across every consecutive
-    pair of revisions the verdict blocks only ever grow."""
+    pair of revisions the verdict blocks only ever grow.
+
+    Three git processes for the whole ledger — one to ask whether anything is committed,
+    one walk of the history under the entries directory, one `cat-file --batch` for every
+    blob the walk named — rather than two plus one per revision for each entry. The walk
+    is the part that scaled worst: `git log -- <path>` visits every commit however few
+    touched the path, so the old per-entry loop cost the product of entries and commits.
+    """
     out = []
     if not ledger.repo:
         return out
+    repo = ledger.repo
     # `git log` exits non-zero over a repository with no commits in it at all, which is
     # the ordinary state of a ledger being scaffolded and is not a failure to report. It
     # is also how a repository that cannot be read fails, so the two are separated once,
     # here, rather than collapsed into the empty revision list they both produce.
-    committed_anything = git_call(ledger.repo, "rev-parse", "--verify", "--quiet", "HEAD").ok
-    for e in entries:
-        rel = os.path.relpath(e.path, ledger.repo)
-        # No --follow: it runs rename detection against every file in the parent, so a
-        # successor written as a near-copy of a predecessor that is still in the tree is
-        # reported as "renamed" from it, and the creating commit comes back as one where
-        # this file did not exist (corpus K18). An entry is never renamed: its id is its
-        # filename.
-        log = git_call(ledger.repo, "log", "--format=%H", "--", rel)
-        if not log.ok:
-            if not committed_anything:
-                continue  # nothing has ever been committed here: nothing to be immutable
+    committed_anything = git_call(repo, "rev-parse", "--verify", "--quiet", "HEAD").ok
+    rels = [(e, os.path.relpath(e.path, repo)) for e in entries]
+    # No --follow: it runs rename detection against every file in the parent, so a
+    # successor written as a near-copy of a predecessor that is still in the tree is
+    # reported as "renamed" from it, and the creating commit comes back as one where
+    # this file did not exist (corpus K18). An entry is never renamed: its id is its
+    # filename.
+    history, why = git_history(repo, os.path.relpath(ledger.entries_dir, repo))
+    if history is None:
+        if committed_anything:
+            for e, rel in rels:
+                out.append(
+                    Report(
+                        "fail",
+                        e.prefix,
+                        "frontmatter",
+                        f"cannot read the history of {rel} ({why}); the frozen-region and "
+                        "append-only checks did not run over this entry",
+                    )
+                )
+        return out
+    revisions = {rel: list(reversed(history.get(rel, []))) for _, rel in rels}  # oldest first
+    wanted = []
+    for _, rel in rels:
+        wanted += [f"{h}:{rel}" for h in revisions[rel]]
+        if cached and revisions[rel]:
+            wanted.append(f":{rel}")
+    blobs, unread = git_blobs(repo, wanted)
+    for e, rel in rels:
+        revs = revisions[rel]
+        if not revs:
+            continue  # not yet committed: nothing to be immutable against
+        creating = revs[0]
+        original_bytes = blobs.get(f"{creating}:{rel}")
+        if original_bytes is None:
             out.append(
                 Report(
                     "fail",
                     e.prefix,
                     "frontmatter",
-                    f"cannot read the history of {rel} ({log.why}); the frozen-region and "
-                    "append-only checks did not run over this entry",
+                    f"cannot read {rel} at {creating[:7]} ({unread[f'{creating}:{rel}']})",
                 )
             )
             continue
-        revisions = [h for h in log.out.split() if h]
-        if not revisions:
-            continue  # not yet committed: nothing to be immutable against
-        revisions.reverse()  # oldest first
-        creating = revisions[0]
-        original = git(ledger.repo, "show", f"{creating}:{rel}")
-        if original is None:
-            out.append(
-                Report("fail", e.prefix, "frontmatter", f"cannot read {rel} at {creating[:7]}")
-            )
-            continue
-        then, _ = _frozen_sections(original)
+        then, _ = _frozen_sections(blob_text(original_bytes))
         now, _ = _frozen_sections(e.text)
         named = False
         for name in then:
@@ -562,32 +582,17 @@ def check_history(ledger, entries, cached=False):
                         "fail",
                         e.prefix,
                         name,
-                        f"differs from the blob at the creating commit {creating[:7]}; "
-                        "the region above the APPEND marker is immutable",
+                        f"differs from the blob at the creating commit {creating[:7]}; the "
+                        "region above the APPEND marker is immutable",
                     )
                 )
-        was, is_now = _frozen_region(original), _frozen_region(e.text)
-        if not named and None not in (was, is_now) and was != is_now:
-            named = True
-            out.append(
-                Report(
-                    "fail",
-                    e.prefix,
-                    "the frozen region",
-                    f"differs from the blob at the creating commit {creating[:7]} outside "
-                    "any section; the region above the APPEND marker is immutable, "
-                    "including the bytes no section owns",
-                )
-            )
         # And the same comparison again, on the bytes. Everything above reads both sides
-        # as text, and text arrives here through universal newlines on both sides — `git
-        # show` decodes, `read_text` decodes — so a frozen region rewritten from CRLF to
-        # LF compared equal to itself while every byte of it had changed. "Immutable"
-        # means the bytes.
-        then_bytes = _frozen_bytes(git_bytes(ledger.repo, "show", f"{creating}:{rel}"))
-        now_bytes = _frozen_bytes(
-            git_bytes(ledger.repo, "show", f":{rel}") if cached else _read_bytes(e.path)
-        )
+        # as text, and text arrives here through universal newlines on both sides — the
+        # blob is decoded that way above, `read_text` decodes — so a frozen region
+        # rewritten from CRLF to LF compared equal to itself while every byte of it had
+        # changed. "Immutable" means the bytes.
+        then_bytes = _frozen_bytes(original_bytes)
+        now_bytes = _frozen_bytes(blobs.get(f":{rel}") if cached else _read_bytes(e.path))
         if not named and None not in (then_bytes, now_bytes) and then_bytes != now_bytes:
             out.append(
                 Report(
@@ -600,20 +605,20 @@ def check_history(ledger, entries, cached=False):
                 )
             )
         states = []
-        for h in revisions:
-            answer = git_call(ledger.repo, "show", f"{h}:{rel}")
-            if not answer.ok:
+        for h in revs:
+            data = blobs.get(f"{h}:{rel}")
+            if data is None:
                 out.append(
                     Report(
                         "fail",
                         e.prefix,
                         "Verdicts",
-                        f"cannot read {rel} at {h[:7]} ({answer.why}); verdicts append and "
-                        "only append, and across that revision it was not checked that "
-                        "they did",
+                        f"cannot read {rel} at {h[:7]} ({unread[f'{h}:{rel}']}); verdicts "
+                        "append and only append, and across that revision it was not "
+                        "checked that they did",
                     )
                 )
-            states.append((h, answer.out if answer.ok else None))
+            states.append((h, None if data is None else blob_text(data)))
         states.append(("working tree", e.text))
         for (h_old, t_old), (h_new, t_new) in itertools.pairwise(states):
             if t_old is None or t_new is None or t_old == t_new:
