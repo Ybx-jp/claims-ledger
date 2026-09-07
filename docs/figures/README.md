@@ -22,6 +22,10 @@ The light file is the source of truth. Edit it, run the build, commit both.
 | `resolution.svg` | The quote grammar — spans resolved in order against the stored bytes, elisions marked — and the `verbatim_sha` fingerprint over normalized Scope and sorted Backing | SCHEMA.md before *Immutability* |
 | `freshness.svg` | The pin on a git timeline against the tree this run reads; the five findings with exit and discharge | FRESHNESS.md *The findings*; SCHEMA.md after *Freshness* |
 | `propagation.svg` | The one machine-written verdict shape from its two causes, a challenge and a fallen dependency; why the dependent cannot climb back | SCHEMA.md after *Propagation* |
+| `supersession.svg` | The predecessor's verdict pointing forward and the successor's frontmatter pointing back; a chain, not a tree; the three shapes the checker rejects | SCHEMA.md after the status figure; examples/FEATURES.md §6 |
+| `references.svg` | A document's inline citation and the entry's References line, checked against each other; the four acts against the statuses each is legal for | SCHEMA.md *The entry*, after the References bullet; examples/FEATURES.md §5 |
+| `portfolio.svg` | One cross-repository bridge end to end — origin, byte-identical snapshot, registry row, ground — and the matrix of all seven origin/snapshot pairs | examples/README.md *The repository boundary*; examples/FEATURES.md §3 |
+| `corpus-contract.svg` | A defect seed's expected rows matched one-to-one to the run's reports, the unnamed checkers that must exit clean, and the three ways a run fails the runner | README *Proving the checkers*; `src/claims_ledger/corpus/README.md` after the contract |
 
 ## Embedding
 
@@ -41,14 +45,14 @@ because an `<img>` does not expose the SVG's own text to a screen reader.
 
 ## The system
 
-One family, so the figures read as one document rather than four.
+One family, so the figures read as one document rather than eleven.
 
 | token | light | dark | used for |
 |---|---|---|---|
 | paper | `#FAF8F3` | `#161513` | the ground |
 | ink | `#1C1B18` | `#ECE8DF` | text, edges, nodes |
-| muted | `#77726A` | `#9C968B` | annotations, headings, section markers |
-| rule | `#D9D4C7` | `#3A3732` | hairlines, cell borders, empty dots |
+| muted | `#77726A` | `#9C968B` | annotations, headings, section markers, empty dots |
+| rule | `#D9D4C7` | `#3A3732` | hairlines, cell borders, ghost boxes |
 | panel | `#F0ECE2` | `#201E1B` | the frozen region, stored bytes, terminal nodes |
 | mark | `#E6E0D2` | `#2E2B26` | a faithful quotation |
 | accent | `#B8451F` | `#F0855A` | the one thing a check catches: the seam, the marker, `--write`, the exception |
@@ -62,6 +66,8 @@ One family, so the figures read as one document rather than four.
 - Leading indents inside mono lines are non-breaking spaces, because renderers
   collapse ordinary leading whitespace in SVG text.
 - Contrast: ink on paper is 15.6:1 light and 14.3:1 dark; muted on paper 4.6:1 and
-  5.6:1; accent on paper 5.0:1 and 7.0:1. Accent is never the only carrier of meaning —
+  5.6:1; accent on paper 5.0:1 and 7.0:1. Rule is a hairline at 1.4:1 and 1.5:1 and so
+  never carries meaning on its own: an empty matrix cell is a muted ring, not a rule one.
+- Accent is never the only carrier of meaning —
   every accent element also has a label.
 - Canvas is 960 wide; the `<img width="960">` above keeps GitHub from upscaling it.

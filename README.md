@@ -220,6 +220,11 @@ that matches none — exits non-zero rather than reporting a clean run over noth
 `src/claims_ledger/corpus/README.md` for the coverage table, including the rows where
 the machinery only makes a defect visible and a human has to judge it.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/corpus-contract-dark.svg">
+  <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="docs/figures/corpus-contract.svg" width="960">
+</picture>
+
 ## Configuration
 
 `claims-ledger.toml` at the project root, or a `[tool.claims-ledger]` table in
