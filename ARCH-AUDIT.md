@@ -16,10 +16,17 @@ The findings are ranked by consequence, not by effort to fix.
 > the rewrite had dropped the text-level comparison of the frozen region, so a preamble
 > edit was reported as a line-endings difference and, under `--cached` with no staged
 > blob, not reported at all. Restored, with both cases pinned in
-> `tests/test_immutability.py`. Still to do from that round: the `-m` mechanism is stated
-> wrongly below (it is `--full-history`, and the extras are not merges only), the
-> `--cached` byte check and its reference blob are unpinned by any test, and there is no
-> sha256-repository or walk-timeout test.
+> `tests/test_immutability.py`. Then: the `-m` mechanism, stated wrongly below and now
+> corrected in place (it is `--full-history`, and the extras are not merges only); the
+> `--cached` byte check and its reference blob, each now pinned by a test its mutant
+> fails; and the append-only check, which linearized the walk's order and so compared
+> siblings under full history — a `-s ours` merge that discarded a branch's verdict was
+> reported as a removal at the *other* branch's commit. It compares each revision with
+> its own parents now (`git_history` returns them from the same walk; the parents' blobs
+> ride the same `cat-file --batch`), and the failure names the merge. Re-measured after:
+> N=1000 `check` 2.89s, `validate` still 4 git processes. Still owed from the gate: a
+> sha256-repository test and a walk-timeout test; and the legal two-branch union merge
+> false-fails on the ordering of appended verdicts, which predates this work.
 
 ---
 

@@ -1110,13 +1110,29 @@ def _git_raw(repo, args, stdin=None):
     return out.returncode, b"", detail[-1] if detail else f"git exited {out.returncode}"
 
 
-_COMMIT_RE = re.compile(rb"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+_COMMIT_RE = re.compile(rb"^[0-9a-f]{40}(?:[0-9a-f]{24})?(?: [0-9a-f]{40}(?:[0-9a-f]{24})?)*$")
+
+
+@dataclasses.dataclass(frozen=True)
+class GitHistory:
+    """What one walk of the history says: which commits touched each path, newest
+    first, and the parents of every commit it listed."""
+
+    revisions: dict
+    parents: dict
 
 
 def git_history(repo, pathspec):
-    """(revisions, why): the commits that touched each path under `pathspec`, as
-    `{path: [commit, ...]}` newest first, from one walk of the history — or `(None, why)`
-    when git could not walk it.
+    """(history, why): the commits that touched each path under `pathspec`, as a
+    `GitHistory` — `revisions` `{path: [commit, ...]}` newest first, `parents` `{commit:
+    [parent, ...]}` — from one walk of the history, or `(None, why)` when git could not
+    walk it.
+
+    The parents are what the append-only check compares along. The walk lists every
+    parent of a merge, so two commits next to each other in its order can be siblings
+    that never saw each other's work; a comparison between them is a comparison of
+    nothing, and a failure it produced would name the wrong commit. Each listed commit
+    is compared with each of its own parents instead.
 
     One walk rather than one `git log -- <path>` per entry: each of those walks the whole
     commit graph, so a ledger of a thousand entries with a thousand commits behind it
@@ -1138,25 +1154,26 @@ def git_history(repo, pathspec):
     listing was, so a name is matched byte for byte and never against git's C-quoting.
     """
     code, data, why = _git_raw(
-        repo, ["log", "-z", "--format=%H", "--name-only", "--no-renames", "-m", "--", pathspec]
+        repo, ["log", "-z", "--format=%H %P", "--name-only", "--no-renames", "-m", "--", pathspec]
     )
     if code != 0:
         return None, why
-    revisions = {}
+    revisions, parents = {}, {}
     commit = None
     for raw in data.split(b"\0"):
         token = raw.lstrip(b"\n")  # the first path after a commit carries the separator
         if not token:
             continue
-        if _COMMIT_RE.match(token):
-            commit = token.decode("ascii")
+        if _COMMIT_RE.match(token.rstrip(b" ")):  # `%H %P` of a root commit ends in a space
+            commit, *above = token.decode("ascii").split()
+            parents[commit] = above
             continue
         if commit is None:
             continue  # cannot happen: git prints the commit before its paths
         found = revisions.setdefault(os.fsdecode(token), [])
         if not found or found[-1] != commit:  # `-m` prints a merge once per parent
             found.append(commit)
-    return revisions, ""
+    return GitHistory(revisions, parents), ""
 
 
 def git_blobs(repo, specs):

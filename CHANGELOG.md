@@ -560,8 +560,10 @@ with what it found and left open.
   history simplification off — so a merge is listed under an entry whenever the file
   differs from either parent, and the commits on a line a merge resolution discarded are
   listed too. A verdict a branch committed and a merge resolution left out is caught, and
-  stays caught, since the removal is in the history. The frozen-region check is
-  unchanged. Measured
+  stays caught, since the removal is in the history — and it is attributed to the merge:
+  the append-only check compares each revision with its own parents, not with whatever
+  the walk listed next to it, which under full history can be a sibling that never held
+  the verdict. The frozen-region check is unchanged. Measured
   and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
   open. The rewrite first landed without the text-level comparison of the frozen
   region — a preamble edit was reported with the line-endings message, and under
