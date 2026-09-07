@@ -544,6 +544,24 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
   reach.
 
+### Changed by the architecture audit
+
+One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and
+with what it found and left open.
+
+- **`validate` reads a ledger's history in three git processes**, not two plus one per
+  revision for every entry. `check_history` asked `git log -- <entry>` once per entry, and
+  each of those walks every commit in the repository, so the cost was the product of
+  entries and commits: `check` over a thousand-entry, thousand-commit ledger took 5m18s.
+  One walk of the entries directory and one `cat-file --batch` answer the same questions
+  in 2.79s, and the process count no longer grows with the ledger. `validate --cached`,
+  the pre-commit hook's path, reads the index the same way — 1,005 processes to 5 at that
+  size. One difference in what is compared: a merge commit is now listed under an entry
+  whenever the file differs from either parent, so a verdict a branch committed and a
+  merge resolution left out is caught; the frozen-region check is unchanged. Measured
+  and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
+  open.
+
 ### Methodology
 
 Recorded as methodology changes, with the seeds named, under this file's own rule.

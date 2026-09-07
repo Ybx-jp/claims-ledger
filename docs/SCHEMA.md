@@ -71,6 +71,11 @@ the red-team corpus and holds them to the committed expectations under the contr
 that directory's README. A checker is only as good as the seed that exercises it, and a
 defect class found in practice gets a seed before it gets a fix.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/entry-anatomy-dark.svg">
+  <img alt="An entry file annotated part by part: frontmatter, then Assertion, Scope, Grounds, Warrant and Backing in a region that is frozen once committed; the APPEND marker as a seam; then Verdicts and References, which only ever grow." src="figures/entry-anatomy.svg" width="960">
+</picture>
+
 ## The entry
 
 **One file per entry**, `entries/A####-slug.md`. Ids are a letter and exactly four
@@ -157,6 +162,11 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   exactly one place: the act a document declares is held to the entry's current status at
   every check, and a copied id cannot go stale silently.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/references-dark.svg">
+  <img alt="Left, a document, docs/operator-guide.md, citing an entry inline as D0001-review-boundary-is-inclusive with the act cites-as-live. Right, the entry, whose References section lists that document as standing, cites-as-live, and whose status is open because it has no verdicts. An arrow runs each way: the document declares the act, the entry lists the document. Below, a matrix of the four citation acts against the target statuses each is legal for: cites-as-live for open and corroborated; cites-as-contested for contested; cites-as-fallen for any; challenges for open, corroborated and contested, and only from an entry." src="figures/references.svg" width="960">
+</picture>
+
 **Hypotheses.** A `kind: hypothesis` entry is a prediction whose `resolves_when` is an
 experiment design. It carries at least one `entry:` ground naming the claims motivating
 it, and its Warrant states what would falsify it; the falsifier rule is a heuristic on
@@ -191,6 +201,11 @@ immutability check diffs against. Its job is the inverse of the fingerprint in K
 al. (2017): there, unequal fingerprints trigger a new version; here, equal fingerprints
 are what a chain must preserve.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/resolution-dark.svg">
+  <img alt="Left, a Backing quotation with an elision resolved span by span, in order, against the stored bytes of its source. Right, the verbatim fingerprint: the normalized Scope lines, a blank line, and the Backing blocks sorted one per line, hashed with sha256 into verbatim_sha, Grounds excluded." src="figures/resolution.svg" width="960">
+</picture>
+
 **Immutability.** The region above the APPEND marker never changes after the commit
 that created the entry, and a verdict once committed is never edited or removed. Both
 are properties of history, not of a file, and are checked against git over the whole
@@ -212,6 +227,16 @@ carries one `superseded` verdict, so a second successor is malformed, and a
 `superseded` verdict naming a successor that does not declare `supersedes:` is
 malformed too.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/status-derivation-dark.svg">
+  <img alt="Left, an append-only verdict list whose last legal row derives the status. Right, the state diagram: open with no verdicts; corroborated and contested, which can re-verdict each other; and the four terminal statuses, refuted, superseded, retracted and non-comparable, after which a verdict is malformed, except that refuted or non-comparable may be followed by exactly one superseded." src="figures/status-derivation.svg" width="960">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/supersession-dark.svg">
+  <img alt="Two entries side by side. The predecessor, R0005, carries a superseded verdict whose evidence names R0006 with the supersedes act; the successor, R0006, declares supersedes: R0005 in its frontmatter. One arrow runs forward from the verdict, one back from the frontmatter, and each side is checked against the other. Below, a chain of entries with a second successor branching off it, marked malformed: supersession is a chain, not a tree. The checker rejects three shapes: a fork, since an entry carries one superseded verdict; a missing reverse, a superseded verdict naming a successor that does not declare supersedes; and a stale citation, a document still citing the predecessor as live. Neither status is stored, and reinstatement is supersession: refuted or non-comparable may be followed by exactly one superseded verdict and nothing else." src="figures/supersession.svg" width="960">
+</picture>
+
 **Sources.** Every `source:` pointer names a row in `sources.jsonl`, and the row's
 sha256 names the bytes a quotation is checked against. A registry row without its
 bytes, or a pointer without its row, is a failure that says the check could not run —
@@ -229,6 +254,11 @@ entry, so the reference check keeps failing until it is superseded; once it has 
 itself, its Grounds are history, exempt from the act check, and it needs no further
 flag, since a verdict after a terminal status is illegal.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/propagation-dark.svg">
+  <img alt="Two entries receiving the same machine-written contested verdict: on the left the target of a challenges act, on the right a dependent whose cited-as-live ground has fallen. The dependent cannot return to corroborated, because its frozen Grounds still cite a fallen entry." src="figures/propagation.svg" width="960">
+</picture>
+
 **Freshness** is the other. A ground pinned to a commit resolves forever, so `resolve`
 alone cannot see that the artifact beneath it has moved; freshness compares the pin to
 the working tree and appends the same `contested` verdict, naming the pointer instead of
@@ -238,6 +268,11 @@ claim re-established on new evidence is a different claim from the one establish
 old. A document that cites an entry
 `cites-as-live` after the entry is superseded or refuted fails the same way; the filter
 a reader must apply every time is applied for them at check time.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/freshness-dark.svg">
+  <img alt="A git timeline from the pinned commit to the working tree, with the entry's ground anchored at the pin and the comparison drawn to the tree this run reads; below it the findings: fresh is silent, moved is a flag, withdrawn is a failure, an unstable pin is a flag, and unknown is a failure that no verdict discharges." src="figures/freshness.svg" width="960">
+</picture>
 
 **Two rules are heuristics**, stated so a reader knows what is and is not caught:
 

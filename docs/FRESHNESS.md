@@ -51,6 +51,11 @@ So: a fifth name in `CHECKERS`, a fifth line under `claims-ledger check`, a
 
 ## The findings
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/freshness-dark.svg">
+  <img alt="A git timeline from the pinned commit to the working tree, with the entry's ground anchored at the pin and the comparison drawn to the tree this run reads; below it the findings: fresh is silent, moved is a flag, withdrawn is a failure, an unstable pin is a flag, and unknown is a failure that no verdict discharges." src="figures/freshness.svg" width="960">
+</picture>
+
 ### withdrawn — fail
 
 The path does not exist in the tree being checked. The ground is not merely older than

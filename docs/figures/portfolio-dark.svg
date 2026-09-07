@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Four repositories, seven snapshots</title>
+<desc id="d">Top, one bridge end to end: backend-service owns openapi.yaml; a dashed repository boundary is crossed by an exact copy, evidence/backend-openapi.yaml, committed in ui-webapp; that copy is registered in ui-webapp's ledger/sources.jsonl as backend-contract with its sha256; and entry U0001 cites it as a source ground. Bottom, a matrix of the three exported artifacts against the four repositories, showing the seven origin-snapshot pairs, the source id each is registered under, and which entry cites it; research-repo consumes nothing.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--ink);fill:none;stroke-width:1.25}
+.boundary{stroke:var(--accent);fill:none;stroke-width:1;stroke-dasharray:4 3}
+.nodot{fill:none;stroke:var(--muted);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs><marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ink" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="580"/>
+
+<text class="serif ink title" x="40" y="46">Four repositories, seven snapshots.</text>
+<text class="serif muted sub" x="40" y="70">An entry: pointer never leaves its ledger. Bytes cross the boundary instead — an exact copy, committed and registered as a source.</text>
+
+<!-- ===== one bridge, end to end ===== -->
+<text class="serif muted h" x="40" y="106">ONE BRIDGE, END TO END</text>
+
+<g class="serif muted small" text-anchor="middle">
+  <text x="480" y="126">registered</text>
+  <text x="708" y="126">cited</text>
+</g>
+<text class="serif accent small" x="252" y="126" text-anchor="middle">byte-identical</text>
+
+<!-- A: origin -->
+<rect class="rule" x="40.5" y="132.5" width="196" height="92" rx="3"/>
+<text class="mono muted code11" x="52" y="152">backend-service/</text>
+<text class="mono ink code" x="52" y="171">openapi.yaml</text>
+<text class="serif muted small" x="52" y="208">the origin, owned by its producer</text>
+
+<!-- boundary -->
+<path class="boundary" d="M252 132 V 236"/>
+<path class="lead" d="M236 178 H 263" marker-end="url(#ai)"/>
+<text class="serif accent small" x="252" y="252" text-anchor="middle">repository boundary</text>
+
+<!-- B: snapshot -->
+<rect class="rule" x="268.5" y="132.5" width="196" height="92" rx="3"/>
+<text class="mono muted code11" x="280" y="152">ui-webapp/</text>
+<text class="mono ink code11" x="280" y="171">evidence/</text>
+<text class="mono ink code11" x="280" y="186">  backend-openapi.yaml</text>
+<text class="serif muted small" x="280" y="208">an exact copy, committed</text>
+
+<path class="lead" d="M464 178 H 491" marker-end="url(#ai)"/>
+
+<!-- C: registry row -->
+<rect class="rule" x="496.5" y="132.5" width="196" height="92" rx="3"/>
+<text class="mono muted code11" x="508" y="152">ledger/sources.jsonl</text>
+<text class="mono ink code11" x="508" y="171">id: backend-contract</text>
+<text class="mono ink code11" x="508" y="186">type: api</text>
+<text class="mono ink code11" x="508" y="201">sha256: 7c1e…</text>
+<text class="serif muted small" x="508" y="218">a registered source</text>
+
+<path class="lead" d="M692 178 H 719" marker-end="url(#ai)"/>
+
+<!-- D: the ground -->
+<rect class="rule" x="724.5" y="132.5" width="196" height="92" rx="3"/>
+<text class="mono muted code11" x="736" y="152">U0001-ui-banner-uses-…</text>
+<text class="mono muted code11" x="736" y="171">## Grounds</text>
+<text class="mono ink code11" x="736" y="186">- source: backend-contract</text>
+<text class="mono ink code11" x="736" y="201">    · GET /claims/{id}/risk</text>
+<text class="serif muted small" x="736" y="218">a ground, local to this ledger</text>
+
+<!-- ===== all seven pairs ===== -->
+<text class="serif muted h" x="40" y="294">ALL SEVEN PAIRS</text>
+<g class="serif muted small" text-anchor="middle">
+  <text x="470" y="318">ui-webapp</text>
+  <text x="590" y="318">backend-service</text>
+  <text x="710" y="318">research-repo</text>
+  <text x="830" y="318">documentation-repo</text>
+</g>
+<path class="rule" d="M40 330 H 920"/>
+
+<!-- row 1 -->
+<text class="mono ink code" x="40" y="354">backend-service/openapi.yaml</text>
+<text class="serif muted small" x="40" y="369">the API contract</text>
+<g text-anchor="middle">
+  <text class="mono ink code11" x="470" y="354">backend-contract</text><text class="serif muted small" x="470" y="369">cited by U0001</text>
+  <text class="serif muted small" x="590" y="358">origin</text>
+  <circle class="nodot" cx="710" cy="356" r="5.5"/>
+  <text class="mono ink code11" x="830" y="354">backend-contract</text><text class="serif muted small" x="830" y="369">cited by D0001</text>
+</g>
+<path class="rule" d="M40 382 H 920"/>
+
+<!-- row 2 -->
+<text class="mono ink code" x="40" y="406">ui-webapp/docs/behavior-contract.txt</text>
+<text class="serif muted small" x="40" y="421">the banner rule</text>
+<g text-anchor="middle">
+  <text class="serif muted small" x="470" y="410">origin</text>
+  <text class="mono ink code11" x="590" y="406">ui-contract</text><text class="serif muted small" x="590" y="421">cited by B0001</text>
+  <circle class="nodot" cx="710" cy="408" r="5.5"/>
+  <text class="mono ink code11" x="830" y="406">ui-contract</text><text class="serif muted small" x="830" y="421">cited by D0001</text>
+</g>
+<path class="rule" d="M40 434 H 920"/>
+
+<!-- row 3 -->
+<text class="mono ink code" x="40" y="458">research-repo/reports/summary.txt</text>
+<text class="serif muted small" x="40" y="473">the study summary</text>
+<g text-anchor="middle">
+  <text class="mono ink code11" x="470" y="458">research-summary</text><text class="serif muted small" x="470" y="473">registered</text>
+  <text class="mono ink code11" x="590" y="458">research-summary</text><text class="serif muted small" x="590" y="473">registered</text>
+  <text class="serif muted small" x="710" y="462">origin</text>
+  <text class="mono ink code11" x="830" y="458">research-summary</text><text class="serif muted small" x="830" y="473">cited by D0002</text>
+</g>
+<path class="rule" d="M40 486 H 920"/>
+
+<!-- footer -->
+<text class="serif ink body" x="40" y="514">Provenance crosses the boundary; propagation does not.</text>
+<g class="serif muted body">
+  <text x="40" y="534">Materialization fails unless every pair is byte-identical. After that, each clone is checked alone: nothing in a consumer's ledger</text>
+  <text x="40" y="551">points into another repository, and no configured path escapes its root, so nothing there can change under it.</text>
+  <text x="40" y="568">A change in the origin reaches a consumer only as a new snapshot; research-repo exports and consumes nothing, and stays checkable alone.</text>
+</g>
+</svg>

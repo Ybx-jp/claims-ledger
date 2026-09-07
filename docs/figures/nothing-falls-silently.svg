@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">When one claim falls, everything resting on it says so</title>
+<desc id="d">Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying every document citation to a claim, every claim to a document that cites it, and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.greek{fill:var(--rule)} .bar{fill:var(--ink)} .soft{fill:var(--accent-soft);stroke:var(--ink);stroke-width:1}
+.card{fill:var(--paper);stroke:var(--rule);stroke-width:1} .entry{fill:var(--paper);stroke:var(--ink);stroke-width:1}
+.aentry{fill:var(--paper);stroke:var(--accent);stroke-width:1;stroke-dasharray:4 3}
+.tether{stroke:var(--ink);fill:none;stroke-width:1.25} .atether{stroke:var(--accent);fill:none;stroke-width:1.25}
+.dot{fill:var(--ink)} .adot{fill:var(--accent)} .pill{fill:var(--ink)} .apill{fill:var(--accent)}
+.achip{fill:var(--paper);stroke:var(--accent);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .h{font-size:11px;letter-spacing:.14em} .code11{font-size:11px}
+</style>
+<defs><marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="640"/>
+
+<text class="serif ink title" x="40" y="46">When one claim falls, everything resting on it says so.</text>
+
+<!-- layer labels -->
+<text class="serif muted h" transform="rotate(-90 62 165)" x="62" y="165" text-anchor="middle">DOCUMENTS</text>
+<text class="serif muted h" transform="rotate(-90 62 360)" x="62" y="360" text-anchor="middle">CLAIMS</text>
+<text class="serif muted h" transform="rotate(-90 62 535)" x="62" y="535" text-anchor="middle">SOURCES</text>
+
+<!-- ===== documents ===== -->
+<rect class="card" x="160.5" y="110.5" width="260" height="110" rx="3"/>
+<rect class="greek" x="176" y="126" width="220" height="6" rx="3"/>
+<rect class="greek" x="176" y="142" width="200" height="6" rx="3"/>
+<rect class="greek" x="176" y="158" width="20" height="6" rx="3"/><rect class="pill" x="200" y="157" width="44" height="8" rx="4"/><rect class="greek" x="250" y="158" width="140" height="6" rx="3"/>
+<rect class="greek" x="176" y="174" width="228" height="6" rx="3"/>
+<rect class="greek" x="176" y="190" width="150" height="6" rx="3"/><rect class="apill" x="330" y="189" width="44" height="8" rx="4"/>
+<rect class="greek" x="176" y="206" width="120" height="6" rx="3"/>
+
+<rect class="card" x="560.5" y="110.5" width="260" height="110" rx="3"/>
+<rect class="greek" x="576" y="126" width="228" height="6" rx="3"/>
+<rect class="greek" x="576" y="142" width="20" height="6" rx="3"/><rect class="apill" x="600" y="141" width="44" height="8" rx="4"/><rect class="greek" x="650" y="142" width="150" height="6" rx="3"/>
+<rect class="greek" x="576" y="158" width="110" height="6" rx="3"/><rect class="pill" x="690" y="157" width="44" height="8" rx="4"/><rect class="greek" x="740" y="158" width="60" height="6" rx="3"/>
+<rect class="greek" x="576" y="174" width="140" height="6" rx="3"/><rect class="pill" x="720" y="173" width="44" height="8" rx="4"/>
+<rect class="greek" x="576" y="190" width="224" height="6" rx="3"/>
+<rect class="greek" x="576" y="206" width="90" height="6" rx="3"/>
+
+<!-- ===== claims ===== -->
+<g id="c1" transform="translate(100 336)"><rect class="entry" x="0.5" y="0.5" width="140" height="48" rx="3"/><rect class="bar" x="12" y="12" width="116" height="8" rx="4"/><rect class="soft" x="60.5" y="12.5" width="44" height="7" rx="3.5"/></g>
+<g id="c2" transform="translate(270 336)"><rect class="entry" x="0.5" y="0.5" width="140" height="48" rx="3"/><rect class="bar" x="12" y="12" width="116" height="8" rx="4"/><rect class="soft" x="60.5" y="12.5" width="44" height="7" rx="3.5"/><rect class="achip" x="69.5" y="27.5" width="63" height="15" rx="7.5"/><text class="mono accent code11" x="101" y="38.5" text-anchor="middle">refuted</text></g>
+<g id="c3" transform="translate(440 336)"><rect class="aentry" x="0.5" y="0.5" width="140" height="48" rx="3"/><rect class="bar" x="12" y="12" width="116" height="8" rx="4"/><rect class="soft" x="60.5" y="12.5" width="44" height="7" rx="3.5"/><rect class="achip" x="63.5" y="27.5" width="69" height="15" rx="7.5"/><text class="mono accent code11" x="98" y="38.5" text-anchor="middle">contested</text></g>
+<g id="c4" transform="translate(610 336)"><rect class="entry" x="0.5" y="0.5" width="140" height="48" rx="3"/><rect class="bar" x="12" y="12" width="116" height="8" rx="4"/><rect class="soft" x="60.5" y="12.5" width="44" height="7" rx="3.5"/></g>
+<g id="c5" transform="translate(780 336)"><rect class="entry" x="0.5" y="0.5" width="140" height="48" rx="3"/><rect class="bar" x="12" y="12" width="116" height="8" rx="4"/><rect class="soft" x="60.5" y="12.5" width="44" height="7" rx="3.5"/></g>
+
+<!-- claim cites claim: C3 rests on C2 -->
+<path class="atether" d="M470 336 C 470 298 380 298 380 336" marker-end="url(#aa)"/>
+
+<!-- ===== sources ===== -->
+<rect class="card" x="170.5" y="500.5" width="180" height="70" rx="3"/>
+<rect class="greek" x="184" y="516" width="150" height="6" rx="3"/><rect class="greek" x="184" y="532" width="156" height="6" rx="3"/><rect class="soft" x="200.5" y="529.5" width="100" height="11" rx="3"/><rect class="greek" x="184" y="548" width="100" height="6" rx="3"/>
+<rect class="card" x="410.5" y="500.5" width="180" height="70" rx="3"/>
+<rect class="greek" x="424" y="516" width="140" height="6" rx="3"/><rect class="greek" x="424" y="532" width="156" height="6" rx="3"/><rect class="soft" x="440.5" y="529.5" width="100" height="11" rx="3"/><rect class="greek" x="424" y="548" width="120" height="6" rx="3"/>
+<rect class="card" x="650.5" y="500.5" width="180" height="70" rx="3"/>
+<rect class="greek" x="664" y="516" width="156" height="6" rx="3"/><rect class="greek" x="664" y="532" width="150" height="6" rx="3"/><rect class="soft" x="680.5" y="529.5" width="100" height="11" rx="3"/><rect class="greek" x="664" y="548" width="90" height="6" rx="3"/>
+
+<!-- documents cite claims -->
+<path class="tether" d="M222 166 C 222 260 140 260 140 336"/><circle class="dot" cx="222" cy="166" r="2.5"/><circle class="dot" cx="140" cy="336" r="2.5"/>
+<path class="atether" d="M352 198 C 352 270 310 270 310 336"/><circle class="adot" cx="352" cy="198" r="2.5"/><circle class="adot" cx="310" cy="336" r="2.5"/>
+<path class="atether" d="M622 150 C 622 250 500 250 500 336"/><circle class="adot" cx="622" cy="150" r="2.5"/><circle class="adot" cx="500" cy="336" r="2.5"/>
+<path class="tether" d="M712 166 C 712 250 650 250 650 336"/><circle class="dot" cx="712" cy="166" r="2.5"/><circle class="dot" cx="650" cy="336" r="2.5"/>
+<path class="tether" d="M742 182 C 742 270 820 270 820 336"/><circle class="dot" cx="742" cy="182" r="2.5"/><circle class="dot" cx="820" cy="336" r="2.5"/>
+
+<!-- claims quote sources -->
+<path class="tether" d="M140 384 C 140 450 230 450 230 529"/><circle class="dot" cx="140" cy="384" r="2.5"/><circle class="dot" cx="230" cy="529" r="2.5"/>
+<path class="tether" d="M310 384 C 310 450 280 450 280 529"/><circle class="dot" cx="310" cy="384" r="2.5"/><circle class="dot" cx="280" cy="529" r="2.5"/>
+<path class="tether" d="M480 384 C 480 450 490 450 490 529"/><circle class="dot" cx="480" cy="384" r="2.5"/><circle class="dot" cx="490" cy="529" r="2.5"/>
+<path class="tether" d="M650 384 C 650 450 700 450 700 529"/><circle class="dot" cx="650" cy="384" r="2.5"/><circle class="dot" cx="700" cy="529" r="2.5"/>
+<path class="tether" d="M820 384 C 820 450 760 450 760 529"/><circle class="dot" cx="820" cy="384" r="2.5"/><circle class="dot" cx="760" cy="529" r="2.5"/>
+</svg>

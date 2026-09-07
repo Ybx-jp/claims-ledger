@@ -104,6 +104,11 @@ The runner's contract, fixed before the runner existed and implemented by `run.p
   and drift, since both are properties of history and not of a file — an artifact that
   changed and an entry pinned to the revision before it cannot be staged as one state.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../../docs/figures/corpus-contract-dark.svg">
+  <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="../../../docs/figures/corpus-contract.svg" width="960">
+</picture>
+
 ## The schema the seeds are written against
 
 The statement of record is `docs/SCHEMA.md`, which carries the schema in full; what
@@ -284,9 +289,8 @@ path — and a seed is files on disk, which cannot express either. Each of the f
 own test, verified the same way, in the file whose subject it is: the two `git_problem()`
 branches in `tests/test_git_degradation.py`, the `references` re-check in
 `tests/test_failure_paths.py`, and `propagate --write` in `tests/test_write_paths.py`. The
-corpus proves
-the semantic classes; `tests/` proves what is named above, and the sweep is the record of
-what else there is still to check.
+corpus proves the semantic classes; `tests/` proves what is named above, and the sweep is
+the record of what else there is still to check.
 
 | class | seeds | machinery owes |
 |---|---|---|

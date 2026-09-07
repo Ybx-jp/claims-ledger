@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Resolution and the verbatim fingerprint</title>
+<desc id="d">Left, a Backing quotation with an elision resolved span by span, in order, against the stored bytes of its source. Right, the verbatim fingerprint: the normalized Scope lines, a blank line, and the Backing blocks sorted one per line, hashed with sha256 into verbatim_sha, Grounds excluded.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--muted);fill:none;stroke-width:1}
+.alead{stroke:var(--accent);fill:none;stroke-width:1.25} .edge{stroke:var(--ink);fill:none;stroke-width:1.1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs><marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ink" d="M0 0 L10 5 L0 10 z"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="580"/>
+
+<text class="serif ink title" x="40" y="46">A quote is a span of bytes. A fingerprint is what a chain must preserve.</text>
+<text class="serif muted sub" x="40" y="70">Resolution and the fingerprint apply the same normalization, so they never disagree about what a change is.</text>
+
+<!-- ===== LEFT: the quote grammar ===== -->
+<text class="serif muted h" x="40" y="112">THE QUOTE GRAMMAR</text>
+<rect class="panel" x="40" y="124" width="420" height="92" rx="3"/>
+<rect class="rule" x="40.5" y="124.5" width="419" height="91" rx="3"/>
+<g class="mono ink code">
+  <text x="56" y="146">- source: fx-paper · summary</text>
+  <text x="56" y="163">  speaker: Okafor and Lindqvist</text>
+  <text x="56" y="180">  quote: "Okafor and Lindqvist authored the</text>
+  <text x="56" y="197">  study. <tspan class="accent">[…]</tspan> The full run log is in the appendix."</text>
+</g>
+
+<path class="alead" d="M100 216 v 28" marker-end="url(#aa)"/>
+<text class="serif accent small" x="112" y="238">each span, in order, against the stored bytes</text>
+
+<rect class="panel" x="40" y="254" width="420" height="62" rx="3"/>
+<rect class="rule" x="40.5" y="254.5" width="419" height="61" rx="3"/>
+<rect class="soft" x="51" y="261" width="265" height="15" rx="2"/>
+<rect class="soft" x="276" y="276" width="146" height="15" rx="2"/>
+<rect class="soft" x="51" y="291" width="87" height="15" rx="2"/>
+<g class="mono code11">
+  <text class="ink" x="52" y="272">Okafor and Lindqvist authored the study.<tspan class="muted"> A stale fraction</tspan></text>
+  <text class="ink" x="52" y="287"><tspan class="muted">of 0.1 produced an error of 0.04. </tspan>The full run log is in</text>
+  <text class="ink" x="52" y="302">the appendix.</text>
+</g>
+<text class="serif muted small" x="40" y="336">span 1 · the elided sentence · span 2</text>
+
+<g class="serif muted body">
+  <text x="40" y="366">Each span is a contiguous substring of the named source,</text>
+  <text x="40" y="383">and spans appear in source order.</text>
+  <text x="40" y="408">A span that starts or ends inside a sentence carries the</text>
+  <text x="40" y="425">elision mark on that side.</text>
+  <text x="40" y="450">Comparison runs after the same normalization the fingerprint</text>
+  <text x="40" y="467">uses; anything that survives it must match.</text>
+  <text x="40" y="492">The elided words are not checked. Whether an elision is</text>
+  <text x="40" y="509">load-bearing is a human's call, recorded as a verdict.</text>
+</g>
+
+<!-- ===== RIGHT: the fingerprint ===== -->
+<text class="serif muted h" x="500" y="112">THE FINGERPRINT · verbatim_sha</text>
+
+<rect class="rule" x="500.5" y="124.5" width="419" height="76" rx="3"/>
+<text class="serif muted small" x="512" y="140">Scope, normalized</text>
+<g class="mono ink code11">
+  <text x="512" y="158">metric: embedding error</text>
+  <text x="512" y="173">cohort: dynamic graph embeddings</text>
+  <text x="512" y="188">condition: stale fraction 0.1</text>
+</g>
+<text class="serif muted small" x="512" y="220">+ one blank line</text>
+
+<rect class="rule" x="500.5" y="230.5" width="419" height="66" rx="3"/>
+<text class="serif muted small" x="512" y="246">Backing blocks, one line each, sorted · source | speaker | quote</text>
+<g class="mono ink code11">
+  <text x="512" y="266">fx-paper · summary | Okafor and Lindqvist |</text>
+  <text x="512" y="281">"A stale fraction of 0.1 produced an error of 0.04."</text>
+</g>
+
+<rect class="rule" x="500.5" y="306.5" width="419" height="28" rx="3" stroke-dasharray="4 3"/>
+<text class="serif muted small" x="512" y="324">Grounds — excluded. The fingerprint is over the verbatim record, not the evidence.</text>
+
+<path class="edge" d="M560 334 v 24" marker-end="url(#ai)"/>
+<text class="mono muted code11" x="572" y="352">sha256</text>
+
+<rect class="panel" x="500" y="366" width="420" height="30" rx="3"/>
+<rect class="rule" x="500.5" y="366.5" width="419" height="29" rx="3"/>
+<text class="mono ink code" x="512" y="385">verbatim_sha: 84d9b6514b98…</text>
+<text class="serif accent small" x="500" y="416">recomputed at every check; a declared value that differs is malformed</text>
+
+<g class="serif muted body">
+  <text x="500" y="446">Before hashing: Unicode NFC, the markers * and ` removed,</text>
+  <text x="500" y="463">whitespace collapsed, blank Scope lines dropped. Reordering</text>
+  <text x="500" y="480">blocks, emphasis, whitespace: nothing changes.</text>
+  <text x="500" y="505">Attribution is part of the record. The same words under</text>
+  <text x="500" y="522">another speaker or source are a different fingerprint.</text>
+  <text x="500" y="547">Across a supersession chain the value must be equal, unless</text>
+  <text x="500" y="564">the successor declares verbatim_change with a reason.</text>
+</g>
+</svg>

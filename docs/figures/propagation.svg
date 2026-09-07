@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Propagation: one verdict shape, two causes</title>
+<desc id="d">Two entries receiving the same machine-written contested verdict: on the left the target of a challenges act, on the right a dependent whose cited-as-live ground has fallen. The dependent cannot return to corroborated, because its frozen Grounds still cite a fallen entry.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .alead{stroke:var(--accent);fill:none;stroke-width:1.25}
+.chip{fill:var(--paper);stroke:var(--rule);stroke-width:1} .achip{fill:var(--paper);stroke:var(--accent);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs><marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="560"/>
+
+<text class="serif ink title" x="40" y="46">One verdict shape, two causes.</text>
+<text class="serif muted sub" x="40" y="70">When an entry is challenged, or the entry it rests on falls, machinery appends a contested verdict that says why. A human re-verdicts.</text>
+
+<!-- ===== LEFT: a challenge ===== -->
+<text class="serif muted h" x="40" y="112">A CHALLENGE</text>
+
+<rect class="rule" x="40.5" y="124.5" width="419" height="62" rx="3"/>
+<text class="mono ink code" x="56" y="146">R0008-one-cohort-cannot-establish-invariance</text>
+<rect class="chip" x="403.5" y="133.5" width="42" height="17" rx="8.5"/><text class="mono muted code11" x="424.5" y="146" text-anchor="middle">open</text>
+<text class="mono muted code11" x="56" y="166">## Grounds</text>
+<text class="mono ink code11" x="56" y="180">- entry: R0007-threshold-is-cohort-invariant · <tspan class="accent">challenges</tspan></text>
+
+<path class="alead" d="M120 187 v 40" marker-end="url(#aa)"/>
+<text class="serif accent small" x="132" y="212">propagate appends to the target</text>
+
+<rect class="rule" x="40.5" y="236.5" width="419" height="110" rx="3"/>
+<text class="mono ink code" x="56" y="258">R0007-threshold-is-cohort-invariant</text>
+<rect class="achip" x="376.5" y="245.5" width="69" height="17" rx="8.5"/><text class="mono accent code11" x="411" y="258" text-anchor="middle">contested</text>
+<text class="mono muted code11" x="56" y="278">## Verdicts</text>
+<rect class="soft" x="48" y="285" width="404" height="52" rx="2"/>
+<g class="mono ink code11">
+  <text x="56" y="298">- 09-06 · contested · grade: measured · author: propagation</text>
+  <text x="56" y="313">  evidence: entry: R0008-one-cohort-cannot-… · challenges</text>
+  <text x="56" y="328">  note: propagated from a challenges act</text>
+</g>
+
+<g class="serif muted body">
+  <text x="40" y="376">The citing entry's Warrant names what it attacks. A challenges</text>
+  <text x="40" y="393">act whose target lacks this verdict is a failure, and so is one</text>
+  <text x="40" y="410">whose target has already fallen.</text>
+</g>
+
+<!-- ===== RIGHT: a fallen dependency ===== -->
+<text class="serif muted h" x="500" y="112">A FALLEN DEPENDENCY</text>
+
+<rect class="rule" x="500.5" y="124.5" width="419" height="62" rx="3"/>
+<text class="mono ink code" x="516" y="146">A0001-stale-fraction-governs-error</text>
+<rect class="achip" x="850.5" y="133.5" width="55" height="17" rx="8.5"/><text class="mono accent code11" x="878" y="146" text-anchor="middle">refuted</text>
+<text class="mono muted code11" x="516" y="166">## Verdicts</text>
+<text class="mono ink code11" x="516" y="180">- 09-20 · refuted · grade: measured · author: main</text>
+
+<path class="alead" d="M580 187 v 40" marker-end="url(#aa)"/>
+<text class="serif accent small" x="592" y="212">its ground fell; propagate appends to the dependent</text>
+
+<rect class="rule" x="500.5" y="236.5" width="419" height="110" rx="3"/>
+<text class="mono ink code" x="516" y="258">A0002-error-bound-transfers</text>
+<rect class="achip" x="836.5" y="245.5" width="69" height="17" rx="8.5"/><text class="mono accent code11" x="871" y="258" text-anchor="middle">contested</text>
+<text class="mono ink code11" x="516" y="278">- entry: A0001-stale-fraction-governs-error · cites-as-live</text>
+<rect class="soft" x="508" y="285" width="404" height="52" rx="2"/>
+<g class="mono ink code11">
+  <text x="516" y="298">- 09-21 · contested · grade: measured · author: propagation</text>
+  <text x="516" y="313">  evidence: entry: A0001-stale-fraction-… · fallen</text>
+  <text x="516" y="328">  note: propagated from a fallen ground</text>
+</g>
+
+<g class="serif muted body">
+  <text x="500" y="376">A0002 cannot climb back to corroborated: its Grounds are frozen</text>
+  <text x="500" y="393">and still cite a fallen entry, so references keeps failing until</text>
+  <text x="500" y="410">it is superseded. Once it has fallen itself, its Grounds are</text>
+  <text x="500" y="427">history and need no further flag.</text>
+</g>
+
+<!-- footer -->
+<path class="rule" d="M40 456 H 920"/>
+<text class="serif ink body" x="40" y="482">Two shapes, one author.</text>
+<g class="serif muted body">
+  <text x="40" y="502">A verdict under the propagation author carries <tspan class="mono code11 ink">entry: … · fallen</tspan> or <tspan class="mono code11 ink">· challenges</tspan> — what propagate writes — or a pinned evidence ground</text>
+  <text x="40" y="519">with an <tspan class="mono code11 ink">artifact:</tspan> line — what freshness writes. A verdict under that name whose cause did not happen is an orphan and fails;</text>
+  <text x="40" y="536">anything else under it is a person borrowing the authority of a check that did not run.</text>
+</g>
+</svg>

@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Supersession is two-sided</title>
+<desc id="d">Two entries side by side. The predecessor, R0005, carries a superseded verdict whose evidence names R0006 with the supersedes act; the successor, R0006, declares supersedes: R0005 in its frontmatter. One arrow runs forward from the verdict, one back from the frontmatter, and each side is checked against the other. Below, a chain of entries with a second successor branching off it, marked malformed: supersession is a chain, not a tree. The checker rejects three shapes: a fork, since an entry carries one superseded verdict; a missing reverse, a superseded verdict naming a successor that does not declare supersedes; and a stale citation, a document still citing the predecessor as live. Neither status is stored, and reinstatement is supersession: refuted or non-comparable may be followed by exactly one superseded verdict and nothing else.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--ink);fill:none;stroke-width:1.25} .alink{stroke:var(--accent);fill:none;stroke-width:1.25} .alead{stroke:var(--accent);fill:none;stroke-width:1.25;stroke-dasharray:4 3}
+.chip{fill:var(--paper);stroke:var(--rule);stroke-width:1} .achip{fill:var(--paper);stroke:var(--accent);stroke-width:1}
+.node{fill:var(--paper);stroke:var(--ink);stroke-width:1} .ghost{fill:none;stroke:var(--rule);stroke-width:1;stroke-dasharray:3 3}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker>
+<marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ink" d="M0 0 L10 5 L0 10 z"/></marker>
+</defs>
+<rect class="paper" width="960" height="560"/>
+
+<text class="serif ink title" x="40" y="46">Supersession is two-sided.</text>
+<text class="serif muted sub" x="40" y="70">The predecessor's last verdict names its successor; the successor's frontmatter names its predecessor. Each is held to the other.</text>
+
+<!-- ===== LEFT: predecessor ===== -->
+<text class="serif muted h" x="40" y="112">PREDECESSOR</text>
+<rect class="rule" x="40.5" y="124.5" width="395" height="136" rx="3"/>
+<text class="mono ink code" x="56" y="146">R0005-threshold-rounds-to-seven-tenths</text>
+<text class="mono muted code11" x="56" y="166">kind: claim · grade: measured · supersedes: none</text>
+<text class="mono muted code11" x="56" y="190">## Verdicts</text>
+<rect class="achip" x="343.5" y="178.5" width="76" height="17" rx="8.5"/><text class="mono accent code11" x="381.5" y="190" text-anchor="middle">superseded</text>
+<rect class="soft" x="48" y="197" width="379" height="52" rx="2"/>
+<g class="mono ink code11">
+  <text x="56" y="210">- 09-06 · superseded · grade: measured · author: main</text>
+  <text x="56" y="225">  evidence: entry: R0006-threshold-… · supersedes</text>
+  <text x="56" y="240">  note: replaced by the exact display value</text>
+</g>
+
+<!-- ===== RIGHT: successor ===== -->
+<text class="serif muted h" x="525" y="112">SUCCESSOR</text>
+<rect class="rule" x="525.5" y="124.5" width="395" height="136" rx="3"/>
+<text class="mono ink code" x="541" y="146">R0006-threshold-displays-as-seventy-two-percent</text>
+<text class="mono muted code11" x="541" y="166">kind: claim · grade: measured</text>
+<rect class="soft" x="533" y="173" width="379" height="19" rx="2"/>
+<text class="mono ink code11" x="541" y="186">supersedes: R0005-threshold-rounds-to-seven-tenths</text>
+<text class="mono muted code11" x="541" y="214">## Verdicts</text>
+<rect class="chip" x="862.5" y="202.5" width="42" height="17" rx="8.5"/><text class="mono muted code11" x="883.5" y="214" text-anchor="middle">open</text>
+<text class="mono muted code11" x="541" y="234">no verdicts yet</text>
+
+<!-- ===== the two arrows ===== -->
+<g class="serif accent small" text-anchor="middle">
+  <text x="480" y="163">frontmatter</text><text x="480" y="176">points back</text>
+</g>
+<path class="alink" d="M525 186 H 445" marker-end="url(#aa)"/>
+<path class="alink" d="M435 225 H 515" marker-end="url(#aa)"/>
+<g class="serif accent small" text-anchor="middle">
+  <text x="480" y="245">the verdict</text><text x="480" y="258">points forward</text>
+</g>
+
+<!-- ===== chain, not tree ===== -->
+<text class="serif muted h" x="40" y="302">A CHAIN, NOT A TREE</text>
+<rect class="node" x="40.5" y="322.5" width="70" height="26" rx="3"/><text class="mono ink code11" x="75.5" y="339" text-anchor="middle">R0005</text>
+<path class="lead" d="M111 335.5 H 195" marker-end="url(#ai)"/>
+<text class="mono muted code11" x="155" y="329" text-anchor="middle">supersedes</text>
+<rect class="node" x="200.5" y="322.5" width="70" height="26" rx="3"/><text class="mono ink code11" x="235.5" y="339" text-anchor="middle">R0006</text>
+<path class="lead" d="M271 335.5 H 355" marker-end="url(#ai)"/>
+<rect class="ghost" x="360.5" y="322.5" width="40" height="26" rx="3"/><text class="mono muted code11" x="380.5" y="339" text-anchor="middle">…</text>
+<path class="alead" d="M75.5 349 V 392 H 195" marker-end="url(#aa)"/>
+<rect class="achip" x="200.5" y="379.5" width="70" height="26" rx="3"/><text class="mono accent code11" x="235.5" y="396" text-anchor="middle">R0006′</text>
+<text class="serif accent small" x="282" y="396">a second successor — malformed</text>
+
+<text class="serif ink body" x="525" y="326">What the checker rejects.</text>
+<g class="serif muted body">
+  <text x="525" y="347"><tspan class="ink">A fork</tspan> — an entry carries one superseded verdict,</text>
+  <text x="525" y="364">so a second successor has nowhere to be named.</text>
+  <text x="525" y="386"><tspan class="ink">A missing reverse</tspan> — a superseded verdict naming</text>
+  <text x="525" y="403">a successor that does not declare <tspan class="mono code11 ink">supersedes:</tspan> it.</text>
+  <text x="525" y="425"><tspan class="ink">A stale citation</tspan> — a document still citing the</text>
+  <text x="525" y="442">predecessor <tspan class="mono code11 ink">cites-as-live</tspan>; the act is held to the status.</text>
+</g>
+
+<!-- footer -->
+<path class="rule" d="M40 470 H 920"/>
+<text class="serif ink body" x="40" y="496">Neither status is stored.</text>
+<g class="serif muted body">
+  <text x="40" y="516">R0005 is superseded because its last verdict says so; R0006 is open because it has none. Reinstatement is supersession too:</text>
+  <text x="40" y="533">refuted or non-comparable may be followed by exactly one superseded verdict, and by nothing else.</text>
+</g>
+</svg>

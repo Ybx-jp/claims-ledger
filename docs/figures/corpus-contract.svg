@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">The corpus contract: one row, one report</title>
+<desc id="d">Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .link{stroke:var(--ink);fill:none;stroke-width:1} .alink{stroke:var(--accent);fill:none;stroke-width:1}
+.bar{fill:var(--mark)} .abar{fill:var(--accent)} .ghost{fill:none;stroke:var(--rule);stroke-width:1;stroke-dasharray:3 3}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<rect class="paper" width="960" height="600"/>
+
+<text class="serif ink title" x="40" y="46">One row, one report.</text>
+<text class="serif muted sub" x="40" y="70">Every defect class has a seed the checkers must catch, and every rule a known-good seed they must not. The seeds came before the checkers.</text>
+
+<!-- ===== a defect seed, run ===== -->
+<text class="serif muted h" x="40" y="112">A DEFECT SEED, RUN</text>
+
+<rect class="rule" x="40.5" y="124.5" width="360" height="150" rx="3"/>
+<text class="mono ink code" x="56" y="146">D01-unmarked-deletion/expected.json</text>
+<text class="mono muted code11" x="56" y="168">"known_good": false</text>
+<text class="mono muted code11" x="56" y="186">"expect": [</text>
+<text class="mono ink code11" x="56" y="206">  validate · pass · all</text>
+<rect class="soft" x="48" y="218" width="344" height="19" rx="2"/>
+<text class="mono ink code11" x="56" y="231">  resolve · fail · A0001 Backing quote 1</text>
+<text class="mono muted code11" x="56" y="254">]</text>
+
+<rect class="rule" x="560.5" y="124.5" width="360" height="150" rx="3"/>
+<text class="mono ink code" x="576" y="146">claims-ledger corpus D01</text>
+<text class="mono ink code11" x="576" y="170">validate    exit 0</text>
+<rect class="soft" x="568" y="176" width="344" height="19" rx="2"/>
+<text class="mono ink code11" x="576" y="189">resolve     exit 1 · A0001 Backing quote 1</text>
+<g class="mono muted code11">
+  <text x="576" y="210">references  exit 0</text>
+  <text x="576" y="228">propagate   exit 0</text>
+  <text x="576" y="246">freshness   exit 0</text>
+</g>
+<path class="rule" d="M566 200 h -5 v 52 h 5"/>
+
+<!-- links -->
+<path class="link" d="M400 202 C 470 202 490 166 560 166"/>
+<path class="link" d="M400 227 C 470 227 490 185 560 185"/>
+<g class="serif muted small" text-anchor="middle">
+  <text x="480" y="150">matched by place, exactly</text>
+  <text x="480" y="236">not named in a non-pass row:</text>
+  <text x="480" y="249">must exit clean</text>
+</g>
+
+<!-- ===== three ways the runner fails ===== -->
+<text class="serif muted h" x="40" y="318">THREE WAYS THE RUNNER FAILS</text>
+
+<!-- 1: a report no row names -->
+<g transform="translate(40 330)">
+  <rect class="bar" x="10" y="6" width="60" height="8"/><rect class="bar" x="10" y="22" width="60" height="8"/>
+  <rect class="bar" x="190" y="6" width="60" height="8"/><rect class="bar" x="190" y="22" width="60" height="8"/><rect class="abar" x="190" y="38" width="60" height="8"/>
+  <path class="link" d="M70 10 H 190"/><path class="link" d="M70 26 H 190"/>
+  <text class="serif accent small" x="185" y="46" text-anchor="end">no row</text>
+</g>
+<text class="serif ink body" x="40" y="404">A report no row names.</text>
+<g class="serif muted body">
+  <text x="40" y="424">Not a bonus catch. Either the seed has a</text>
+  <text x="40" y="441">defect its author did not see, or the checker</text>
+  <text x="40" y="458">has a false positive. Both are findings.</text>
+</g>
+
+<!-- 2: a row two reports satisfy -->
+<g transform="translate(340 330)">
+  <rect class="bar" x="10" y="6" width="60" height="8"/><rect class="abar" x="10" y="22" width="60" height="8"/>
+  <rect class="bar" x="190" y="6" width="60" height="8"/><rect class="bar" x="190" y="22" width="60" height="8"/><rect class="bar" x="190" y="38" width="60" height="8"/>
+  <path class="link" d="M70 10 H 190"/><path class="alink" d="M70 26 H 190"/><path class="alink" d="M70 26 C 130 26 130 42 190 42"/>
+  <text class="serif accent small" x="75" y="60">one row, two reports</text>
+</g>
+<text class="serif ink body" x="340" y="404">A row two reports satisfy.</text>
+<g class="serif muted body">
+  <text x="340" y="424">A place two rules fail at is held up by</text>
+  <text x="340" y="441">whichever rule still exists: delete the one the</text>
+  <text x="340" y="458">seed was written for and it stays green.</text>
+  <text x="340" y="475">Coverage as decoration.</text>
+</g>
+
+<!-- 3: a run that checked nothing -->
+<g transform="translate(640 330)">
+  <rect class="ghost" x="10.5" y="2.5" width="240" height="48" rx="3"/>
+  <text class="serif accent small" x="130" y="30" text-anchor="middle">no seed ran</text>
+</g>
+<text class="serif ink body" x="640" y="404">A run that checked nothing.</text>
+<g class="serif muted body">
+  <text x="640" y="424">An empty corpus, or a filter no seed</text>
+  <text x="640" y="441">matches, exits non-zero. The gate exists to</text>
+  <text x="640" y="458">say the checkers still work; silence is not</text>
+  <text x="640" y="475">a pass.</text>
+</g>
+
+<!-- footer -->
+<path class="rule" d="M40 502 H 920"/>
+<text class="serif muted small" x="40" y="528"><tspan class="ink">fail</tspan> — exit ≠ 0 and a report naming the place.   <tspan class="ink">flag</tspan> — exit 0 and a report; a human decides.   <tspan class="ink">pass</tspan> — neither.   <tspan class="ink">judge</tspan> — a review row; binds nothing on the machinery.</text>
+<g class="serif muted body">
+  <text x="40" y="552">A review row records the human verdict once the defect is visible, so a later reader can tell a seed the checkers catch from one they surface.</text>
+  <text x="40" y="569">A checker change that moves a seed's outcome is a methodology change, and is recorded as such in the commit that makes it.</text>
+</g>
+</svg>
