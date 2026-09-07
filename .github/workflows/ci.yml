@@ -44,6 +44,9 @@ jobs:
       - run: pytest -q
       - name: The corpus proves the checkers
         run: claims-ledger corpus
+      - name: The ledger holds the claims about this package
+        # Needs the full history checked out above: the entries pin commits.
+        run: claims-ledger check
 
   wheel:
     # The package ships the corpus so that an installed copy can prove itself. That

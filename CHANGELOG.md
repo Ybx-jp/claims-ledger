@@ -244,6 +244,14 @@ round asked of every fix which other surfaces reach the same code by a different
 
 ### Development
 
+- **The package keeps a ledger of the claims about itself**, under `ledger/`: eight entries
+  for design commitments the README states and a docstring explains, each pinned to the
+  function or table that keeps it true and cited from both sites. `claims-ledger check`
+  runs in CI beside the tests and the corpus, so a pinned function that moves fails the
+  sentence and the docstring that rest on it. The four places that showed the citation
+  syntax with a literal example id show it with a `<slug>` placeholder instead: the
+  references checker reads a document as text, and the ledger reported all four as
+  citations of an entry that does not exist.
 - **`ruff check` and `ruff format` are clean**, against an explicit rule set —
   `E, F, I, B, SIM, UP, RUF, ISC, BLE, PLW, FURB` — pinned in `pyproject.toml` rather
   than tracking ruff's default select, which grows between releases. The set is every

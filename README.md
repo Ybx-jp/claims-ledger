@@ -379,9 +379,19 @@ $ ruff check . && ruff format --check .
 $ ty check
 $ pytest -q
 $ claims-ledger corpus
+$ claims-ledger check
 ```
 
-All five are what CI runs, over Python 3.11, 3.12, 3.13 and 3.14 on Linux and macOS, plus a
+The last one checks the ledger this package keeps about itself, under `ledger/`. A design
+commitment the README states and a docstring explains — the hook names its interpreter
+absolutely; a misspelled configuration key is refused — is an entry, pinned to the function
+or the table that keeps it true, and both the sentence and the docstring cite it. When a
+pinned function changes, `freshness` flags the entry, and the sentence and the docstring
+that cite it fail until someone re-judges the claim: a new entry with a new pin if it still
+holds, a fallen verdict and rewritten prose if it does not. The entries are not shipped; they
+are about this checkout, and `pyproject.toml` says which files may cite them.
+
+All six are what CI runs, over Python 3.11, 3.12, 3.13 and 3.14 on Linux and macOS, plus a
 job that builds the wheel, installs it into a clean environment and runs the corpus from
 a directory that is not the checkout — because the claim that an installed copy can prove
 itself is only worth anything if it is tested that way.
