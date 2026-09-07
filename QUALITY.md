@@ -22,8 +22,16 @@ rules the corpus does **not** hold up, and which tests hold them instead.
 
 **The behavioural suite** — `tests/`, run by `pytest`. Organised by the property under
 attack rather than by module: hostile and malformed input, immutability of the frozen
-region, freshness semantics, git degradation, section scoping, the write funnel, config
-boundaries, corpus integrity, the README's own quickstart.
+region, freshness semantics, the discharge protocol, git degradation, section scoping, the
+write funnel, config boundaries, corpus integrity, the README's own quickstart, and the
+record the package publishes about itself.
+
+Not organised by *when* a defect was found. Filing a test under the audit pass that
+produced it puts the only copy of a rule under a label that means nothing a release later,
+and this suite carried three such files until the measurement showed fifteen of the rules
+in them had no second holder. The finding ID is the key that survives instead: it is
+unique across every pass, a test cites it, and `docs/audits/0.1.0.md` is where it is
+written up.
 
 **The invariant and metamorphic tests** — `tests/test_invariants.py`, which assert
 properties that must hold across the whole surface rather than at one call site: every

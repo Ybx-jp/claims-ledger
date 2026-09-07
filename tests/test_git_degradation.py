@@ -441,28 +441,14 @@ def test_j_a_git_that_cannot_say_whether_the_drift_happened_says_so(pinned, tmp_
 # ---------------------------------------------------------------------------
 
 
-def shim_git(tmp_path, failing_arg):
-    """A `git` on PATH that fails whenever `failing_arg` appears among its arguments and
-    delegates everything else to the real one -- the same shape of failure
-    test_git_degradation.py and test_pass6_regressions.py both use, so a repository this
-    git cannot fully answer is produced by configuring git, not by patching it."""
-    d = tmp_path / "shim-bin"
-    d.mkdir(exist_ok=True)
-    real = subprocess.run(["which", "git"], capture_output=True, text=True, check=True)
-    (d / "git").write_text(
-        "#!/bin/sh\n"
-        f'for a in "$@"; do [ "$a" = "{failing_arg}" ] && exit 128; done\n'
-        f'exec {real.stdout.strip()} "$@"\n',
-        encoding="utf-8",
-    )
-    (d / "git").chmod(0o755)
-    return d
-
-
 def break_git_dir(tmp_path, monkeypatch):
     """After this, `git rev-parse --git-dir` fails in every repository -- the one
-    command `git_problem()` asks -- while every other git command still runs for real."""
-    shim = shim_git(tmp_path, "--git-dir")
+    command `git_problem()` asks -- while every other git command still runs for real.
+
+    The two tests below arrived here with a second copy of `_shim_git_that_cannot` under
+    them, written the same way against the same `exit 128`. One shim is enough.
+    """
+    shim = _shim_git_that_cannot(tmp_path, "--git-dir")
     monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
 
 

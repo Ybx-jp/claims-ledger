@@ -107,6 +107,26 @@ def test_the_readme_seed_count_is_the_seed_count():
     assert not wrong, f"README claims {wrong} seeds; there are {len(SEEDS)}"
 
 
+def test_every_test_file_the_live_documents_name_exists():
+    """A coverage claim naming a file is only worth the file being there. `README.md`,
+    `QUALITY.md` and the corpus README each say which tests hold a rule the corpus does
+    not, and prose does not go red when a rename makes it false — which is exactly what a
+    rename did here, leaving the corpus README pointing at a file that no longer existed.
+
+    `docs/audits/` is deliberately not read: an audit records what a pass wrote when it
+    wrote it, one of its sentences quotes a `git diff` that was actually run, and its
+    header says so. History is allowed to name what has since moved; a live claim is not.
+    """
+    live = ("README.md", "QUALITY.md", "src/claims_ledger/corpus/README.md")
+    missing = []
+    for name in live:
+        text = project_file(*name.split("/")).read_text(encoding="utf-8")
+        for named in sorted(set(re.findall(r"tests/test_[a-z0-9_]+\.py", text))):
+            if not (PROJECT / named).is_file():
+                missing.append(f"{name} names {named}, which does not exist")
+    assert not missing, missing
+
+
 def test_the_version_is_the_same_in_every_place_it_is_written():
     """`__init__.py` is the single source; the metadata and the changelog must agree."""
     from importlib.metadata import version
