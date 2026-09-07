@@ -13,6 +13,7 @@ for the walk: it lists what the walk listed, and its process count does not grow
 import os
 import shutil
 import subprocess
+from datetime import datetime
 
 from claims_ledger import validate
 from claims_ledger.schema import git_history, open_ledger
@@ -47,8 +48,12 @@ def _commits_touching(root, rel):
     return out.split()
 
 
-def _is_merge(root, commit):
-    return len(_git(root, "rev-list", "--parents", "-n", "1", commit)[1].split()) > 2
+def _full_history(root, rel):
+    """What the directory walk is, per path: every commit on every parent line that
+    changed the file, `--full-history -m`, newest first, a merge once."""
+    code, out = _git(root, "log", "--format=%H", "--full-history", "-m", "--", rel)
+    assert code == 0
+    return list(dict.fromkeys(out.split()))
 
 
 def _branching_history(root):
@@ -87,25 +92,41 @@ def _branching_history(root):
     _git(root, "commit", "-qm", "merge-resolved")
     _git(root, "mv", str(c), str(entries / "A0004-d.md"))
     _git(root, "commit", "-qm", "rename")
+    # And the one shape where the per-path log prunes a whole parent line: a branch
+    # edits the file, and the merge keeps the other side's version (`-s ours`). The
+    # merge is TREESAME to main, so history simplification follows main only and the
+    # branch's commit is never listed — by the per-path log or, with plain `-m`, by
+    # anything. A directory walk with `-m` is a full-history walk and lists it.
+    _git(root, "checkout", "-qb", "dropped")
+    a.write_text("a\na2\na3\ndropped\n")
+    _git(root, "commit", "-qam", "dropped1")
+    _git(root, "checkout", "-q", "main")
+    assert _git(root, "merge", "-q", "-s", "ours", "--no-edit", "dropped")[0] == 0
     return [os.path.relpath(p, root) for p in (a, b, c, entries / "A0004-d.md")]
 
 
 def test_one_walk_lists_every_commit_the_per_entry_walk_listed(tmp_path):
-    """For every entry, the batch names the same creating commit, every commit the
-    per-path log named, in the same order; anything it names beyond those is a merge
-    commit, which `-m` lists whenever the file differs from either parent."""
+    """For every entry, the batch names the same creating commit and every commit the
+    per-path log named, in the same order — and what it names beyond those is exactly
+    what `--full-history -m` names for that path. `-m` is a `--diff-merges` option, and
+    any of those turns history simplification off: the walk follows every parent of a
+    merge, so a commit on a line a resolution discarded is listed, and it need not be
+    a merge. The first version of this test said "extras are merges only" over a fixture
+    with no discarded line in it; the `-s ours` shape is there now."""
     rels = _branching_history(tmp_path)
     revisions, why = git_history(tmp_path, "ledger/entries")
     assert revisions is not None, why
     for rel in rels:
         reference = _commits_touching(tmp_path, rel)
         assert reference, f"precondition: {rel} has a history to compare"
-        batch = revisions[rel]
+        batch = revisions.revisions[rel]
         assert batch[-1] == reference[-1], f"{rel}: the creating commit"
         assert [h for h in batch if h in reference] == reference, f"{rel}: order and coverage"
-        for extra in set(batch) - set(reference):
-            assert _is_merge(tmp_path, extra), f"{rel}: {extra[:7]} is not a merge"
-    assert set(rels) <= set(revisions), "the renamed-away name is still listed"
+        assert batch == _full_history(tmp_path, rel), f"{rel}: the walk is full history"
+    a = rels[0]
+    dropped = set(revisions.revisions[a]) - set(_commits_touching(tmp_path, a))
+    assert dropped, "precondition: the fixture has a line the per-path log pruned"
+    assert set(rels) <= set(revisions.revisions), "the renamed-away name is still listed"
 
 
 def _count_git(monkeypatch):
@@ -201,3 +222,88 @@ def test_blobs_git_cannot_produce_are_reported_for_every_revision(project, tmp_p
     reports = validate.run(open_ledger(root=project.root))
     assert sorted(r.entry for r in reports) == ["A0001", "A0002"]
     assert all(r.message.startswith("cannot read ledger/entries/") for r in reports), reports
+
+
+# === append-only is a property of edges, not of the walk's order ======================
+
+
+def _verdict(note):
+    stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    return (
+        f"- {stamp} · corroborated · grade: measured · author: main\n"
+        '  evidence: lab: docs/note-001.md § "Observation" @working\n'
+        f"  note: {note}\n"
+    )
+
+
+def _append(path, note):
+    text = path.read_text(encoding="utf-8")
+    head, sep, tail = text.partition("\n## References")
+    assert sep, "precondition: the entry has a References section to append above"
+    path.write_text(head.rstrip("\n") + "\n\n" + _verdict(note) + sep + tail, encoding="utf-8")
+
+
+def _append_only_reports(project):
+    return [
+        r
+        for r in validate.run(open_ledger(root=project.root))
+        if "append and only append" in r.message
+    ]
+
+
+def _short(project, ref):
+    return _git(project.root, "rev-parse", "--short=7", ref)[1].strip()
+
+
+def test_a_verdict_a_merge_resolution_discarded_is_attributed_to_the_merge(project):
+    """Both sides append a verdict to the same entry; the merge conflicts and is resolved
+    to main's version, so the branch's verdict is gone from history at the merge. The
+    walk lists both sides, and a check that compared its list pairwise compared the two
+    siblings — and named main's commit as where a verdict main never held was removed.
+    Each revision is compared with its own parents: one failure, at the merge."""
+    project.cl("new", "first")
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("init", "-q", "-b", "main")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "entries")
+    project.git("checkout", "-qb", "side")
+    _append(path, "the branch's verdict")
+    project.git("commit", "-qam", "side1")
+    side1 = _short(project, "HEAD")
+    project.git("checkout", "-q", "main")
+    _append(path, "main's verdict")
+    project.git("commit", "-qam", "main1")
+    main1 = _short(project, "HEAD")
+    assert _git(project.root, "merge", "side")[0] != 0, "precondition: the merge conflicts"
+    project.git("checkout", "--ours", "--", str(path))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "merged, keeping main's")
+    merge = _short(project, "HEAD")
+
+    reports = _append_only_reports(project)
+    assert len(reports) == 1, [r.message for r in reports]
+    assert f"present at {side1} and changed or removed at {merge}" in reports[0].message
+    assert main1 not in reports[0].message
+
+
+def test_an_entry_created_on_a_branch_and_merged_has_no_edge_to_fail_on(project):
+    """The control for the rule that a parent at which the entry did not exist is the
+    line it was created on and not a revision that could not be read: the branch's
+    parent and the merge's main-side parent both lack the file, and neither is a
+    failure."""
+    project.cl("new", "first")
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("init", "-q", "-b", "main")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "one entry")
+    project.git("checkout", "-qb", "side")
+    project.cl("new", "second")
+    project.write_full_entry(project.entry("A0002-second.md"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the second entry, on a branch")
+    project.git("checkout", "-q", "main")
+    (project.root / "README.md").write_text("so the merge is a merge\n", encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "main1")
+    assert _git(project.root, "merge", "--no-edit", "side")[0] == 0
+    assert validate.run(open_ledger(root=project.root)) == []

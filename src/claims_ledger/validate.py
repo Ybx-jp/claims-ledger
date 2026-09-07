@@ -14,7 +14,6 @@ seed there is not a rule this file is trusted to enforce.
 
 from __future__ import annotations
 
-import itertools
 import os
 import re
 from pathlib import Path
@@ -508,6 +507,17 @@ def _frozen_bytes(data):
     return head if marker else None
 
 
+def _unread_verdicts(e, rel, at, why):
+    """A revision the append-only check could not read is reported, never waived."""
+    return Report(
+        "fail",
+        e.prefix,
+        "Verdicts",
+        f"cannot read {rel} at {at} ({why}); verdicts append and only append, and across "
+        "that revision it was not checked that they did",
+    )
+
+
 def check_history(ledger, entries, cached=False):
     """Immutability, from git. For each entry file: the region above the APPEND marker
     equals the blob at the commit that created the file, and across every consecutive
@@ -548,13 +558,23 @@ def check_history(ledger, entries, cached=False):
                     )
                 )
         return out
-    revisions = {rel: list(reversed(history.get(rel, []))) for _, rel in rels}  # oldest first
+    revisions = {
+        rel: list(reversed(history.revisions.get(rel, []))) for _, rel in rels
+    }  # oldest first
+    # Every revision that touched the entry; every parent of each of those, the other
+    # side of each edge the append-only check compares along; the blob at HEAD, the edge
+    # the working tree — under --cached, the index — is compared along; and the index
+    # itself when that is what was loaded.
     wanted = []
     for _, rel in rels:
-        wanted += [f"{h}:{rel}" for h in revisions[rel]]
-        if cached and revisions[rel]:
-            wanted.append(f":{rel}")
-    blobs, unread = git_blobs(repo, wanted)
+        for h in revisions[rel]:
+            wanted.append(f"{h}:{rel}")
+            wanted += [f"{p}:{rel}" for p in history.parents.get(h, ())]
+        if revisions[rel]:
+            wanted.append(f"HEAD:{rel}")
+            if cached:
+                wanted.append(f":{rel}")
+    blobs, unread = git_blobs(repo, dict.fromkeys(wanted))
     for e, rel in rels:
         revs = revisions[rel]
         if not revs:
@@ -586,6 +606,25 @@ def check_history(ledger, entries, cached=False):
                         "region above the APPEND marker is immutable",
                     )
                 )
+        # The sections are what a report can name; they are not the whole of the frozen
+        # region. Every byte above the first heading belongs to no section, so the parsed
+        # comparison above cannot see it. Compare the region itself, as text, and say so
+        # by name — this is the comparison the batched rewrite dropped, and the one that
+        # still runs under --cached when the index holds no blob for the entry and the
+        # byte comparison below has nothing to read.
+        was, is_now = _frozen_region(blob_text(original_bytes)), _frozen_region(e.text)
+        if not named and None not in (was, is_now) and was != is_now:
+            named = True
+            out.append(
+                Report(
+                    "fail",
+                    e.prefix,
+                    "the frozen region",
+                    f"differs from the blob at the creating commit {creating[:7]} outside "
+                    "any section; the region above the APPEND marker is immutable, "
+                    "including the bytes no section owns",
+                )
+            )
         # And the same comparison again, on the bytes. Everything above reads both sides
         # as text, and text arrives here through universal newlines on both sides — the
         # blob is decoded that way above, `read_text` decodes — so a frozen region
@@ -604,23 +643,34 @@ def check_history(ledger, entries, cached=False):
                     "immutable, line endings included",
                 )
             )
-        states = []
+        texts = {}
         for h in revs:
             data = blobs.get(f"{h}:{rel}")
             if data is None:
-                out.append(
-                    Report(
-                        "fail",
-                        e.prefix,
-                        "Verdicts",
-                        f"cannot read {rel} at {h[:7]} ({unread[f'{h}:{rel}']}); verdicts "
-                        "append and only append, and across that revision it was not "
-                        "checked that they did",
-                    )
-                )
-            states.append((h, None if data is None else blob_text(data)))
-        states.append(("working tree", e.text))
-        for (h_old, t_old), (h_new, t_new) in itertools.pairwise(states):
+                out.append(_unread_verdicts(e, rel, h[:7], unread[f"{h}:{rel}"]))
+            texts[h] = None if data is None else blob_text(data)
+        # The edges: each revision against each of its parents, then the loaded text
+        # against HEAD. A parent that never touched the entry holds the blob of the last
+        # revision before it that did, so it is read rather than found; one git says is
+        # `missing` is a parent the entry did not exist at — the line it was created on —
+        # and there is nothing to compare. Any other reason is reported, never waived.
+        edges = []
+        for h in revs:
+            for p in history.parents.get(h, ()):
+                if p not in texts:
+                    spec = f"{p}:{rel}"
+                    texts[p] = blob_text(blobs[spec]) if spec in blobs else None
+                    if spec not in blobs and not unread[spec].endswith("missing"):
+                        out.append(_unread_verdicts(e, rel, p[:7], unread[spec]))
+                edges.append((p, h))
+        spec = f"HEAD:{rel}"
+        texts["HEAD"] = blob_text(blobs[spec]) if spec in blobs else None
+        if spec not in blobs and not unread[spec].endswith("missing"):
+            out.append(_unread_verdicts(e, rel, "HEAD", unread[spec]))
+        texts["working tree"] = e.text
+        edges.append(("HEAD", "working tree"))
+        for h_old, h_new in edges:
+            t_old, t_new = texts[h_old], texts[h_new]
             if t_old is None or t_new is None or t_old == t_new:
                 continue  # a revision that could not be read is reported above, not waived
             old = [v.raw.rstrip() for v in parse_entry("x.md", t_old).verdicts]

@@ -10,6 +10,23 @@ The findings are ranked by consequence, not by effort to fix.
 > thousand-entry, thousand-commit ledger went from **5m18s to 2.79s**; the process count
 > for `validate` is 4 at any size, held by `tests/test_history_batch.py`. Findings 2–8
 > are open, and belong to their own branches.
+>
+> **The fix-review gate on finding 1** (`qe`, ticket `a04b8860f9764902`) returned
+> merge-but-fix-first, and the branch merged before any of it was fixed. First repaired:
+> the rewrite had dropped the text-level comparison of the frozen region, so a preamble
+> edit was reported as a line-endings difference and, under `--cached` with no staged
+> blob, not reported at all. Restored, with both cases pinned in
+> `tests/test_immutability.py`. Then: the `-m` mechanism, stated wrongly below and now
+> corrected in place (it is `--full-history`, and the extras are not merges only); the
+> `--cached` byte check and its reference blob, each now pinned by a test its mutant
+> fails; and the append-only check, which linearized the walk's order and so compared
+> siblings under full history — a `-s ours` merge that discarded a branch's verdict was
+> reported as a removal at the *other* branch's commit. It compares each revision with
+> its own parents now (`git_history` returns them from the same walk; the parents' blobs
+> ride the same `cat-file --batch`), and the failure names the merge. Re-measured after:
+> N=1000 `check` 2.89s, `validate` still 4 git processes. Still owed from the gate: a
+> sha256-repository test and a walk-timeout test; and the legal two-branch union merge
+> false-fails on the ordering of appended verdicts, which predates this work.
 
 ---
 
@@ -87,15 +104,23 @@ in 0.55s and the batch in 0.27s. `load_entries(cached=True)` — the pre-commit 
 loader — reads the index the same way: `validate --cached` at N=1000 spawned 1,005 git
 processes before that change and 5 after.
 
-**One documented difference from the walk it replaces.** `-m` lists a file under a merge
-commit whenever it differs from *either* parent; the per-path log dropped a merge that
-agreed with one of them. A verdict that a branch committed and a merge resolution then
-left out is therefore compared now and was not before. The creating commit is the oldest
-either way, so the frozen-region check is unaffected. `tests/test_history_batch.py`
-holds this against a repository with a clean merge, a hand-resolved conflict, a file
-created on a branch and a rename: same creating commit, every commit the per-path log
-named in the same order, extras are merges only. Dropping `--no-renames` or `-m` each
-fail that test; reverting the cached loader fails the process-count test.
+**One documented difference from the walk it replaces — corrected.** This section first
+said that `-m` adds merge commits and nothing else. The fix-review gate measured
+otherwise: `-m` is a `--diff-merges` option, and any of those switches history
+simplification off, so the walk is `git log --full-history -m` — identical output,
+checked with `diff`. It follows every parent of a merge, lists a merge under a file
+whenever the file differs from either parent, and lists the commits on a line a merge
+resolution discarded, which the per-path log pruned because the merge was TREESAME to
+the other side. A verdict that a branch committed and a merge resolution then left out is
+therefore compared now and was not before. The creating commit is the oldest either way,
+so the frozen-region check is unaffected. `tests/test_history_batch.py` holds this against
+a repository with a clean merge, a hand-resolved conflict, a file created on a branch, a
+rename and a `-s ours` merge that discards a branch's edit: same creating commit, every
+commit the per-path log named in the same order, and the whole list equal to
+`--full-history -m` for that path. The first version of the test said "extras are merges
+only" and passed because its fixture had no discarded line; that shape is in the fixture
+now and the old assertion fails on it. Dropping `--no-renames` or `-m` each fail the
+test; reverting the cached loader fails the process-count test.
 
 **What the timeout now bounds.** `GIT_TIMEOUT` is 30s per process. It used to bound one
 `git show`; it now bounds one walk and one batch read. A ledger whose history takes
