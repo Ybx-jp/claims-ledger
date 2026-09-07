@@ -29,6 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 import unicodedata
 from pathlib import Path
 
@@ -518,6 +519,18 @@ def test_the_sdist_is_proven_from_a_clean_environment_too():
     build = text[text.index("\n  build:") : text.index("\n  publish:")]
     proof = build[build.index("proves itself from elsewhere") :]
     assert "tar.gz" in proof, "no clean-environment install of the sdist"
+
+
+def test_every_sdist_include_pattern_is_anchored_to_the_root():
+    """The sdist `include` list is gitignore-style, so an unanchored `README.md` matches at
+    any depth — and it did: `.qe/probe7/revert-experiment/README.md`, one file out of the
+    audit-record directory `[tool.ruff]` excludes on purpose, was shipping to PyPI. A
+    leading `/` is what confines each entry to the root, and the list is only as narrow as
+    its loosest pattern."""
+    config = tomllib.loads(project_file("pyproject.toml").read_text(encoding="utf-8"))
+    include = config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    unanchored = [pattern for pattern in include if not pattern.startswith("/")]
+    assert not unanchored, unanchored
 
 
 def test_every_action_the_release_uses_is_pinned_to_a_commit():
