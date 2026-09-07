@@ -3,6 +3,8 @@
 A checked ledger of claims, in plain Markdown files, for a project that wants its
 written record to be verifiable rather than merely earnest.
 
+<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
+
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
@@ -28,6 +30,16 @@ So an entry here has an Assertion in the project's words with **no quotation mar
 allowed in it**, Grounds that are typed pointers, a Warrant that states the rule, and
 Backing that holds the verbatim quotations — each one resolved, at check time, against
 the stored bytes of its registered source.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/four-roles-dark.svg">
+  <img alt="A single frozen statement, where a faithful quotation runs seamlessly into unsourced inference, against an entry whose Assertion, Grounds, Warrant and Backing each sit on their own line and whose quotation is resolved against the stored source bytes." src="docs/figures/four-roles.svg" width="960">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/nothing-falls-silently-dark.svg">
+  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying every document citation to a claim, every claim to a document that cites it, and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="docs/figures/nothing-falls-silently.svg" width="960">
+</picture>
 
 ## Quickstart
 
@@ -153,6 +165,11 @@ supports the assertion over this cohort.
 ## References
 ```
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/entry-anatomy-dark.svg">
+  <img alt="An entry file annotated part by part: frontmatter, then Assertion, Scope, Grounds, Warrant and Backing in a region that is frozen once committed; the APPEND marker as a seam; then Verdicts and References, which only ever grow." src="docs/figures/entry-anatomy.svg" width="960">
+</picture>
+
 The schema in full — every field, every rule, and what each heuristic is known to miss —
 is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md).
 
@@ -165,6 +182,11 @@ is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SC
 | `claims-ledger references` | citation acts agree with the target's current status, entry to entry and document to entry, both directions |
 | `claims-ledger propagate` | when an entry falls or is challenged, its dependents carry the `contested` flag that says why (`--write` appends them) |
 | `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and its bytes match the pin, and the pin is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/five-checks-dark.svg">
+  <img alt="A matrix of the five checkers against what each reads: entries, git history, the source registry and cache, the documents, and the working tree or index; with what each holds, and the two, propagate and freshness, that write a contested verdict under --write." src="docs/figures/five-checks.svg" width="960">
+</picture>
 
 `claims-ledger check` runs all five. Each exits non-zero on a failure and zero on a
 flag, because a flag is a report a human judges rather than a gate.
@@ -204,6 +226,11 @@ one report and not by two, and a run that checked nothing — an empty corpus, a
 that matches none — exits non-zero rather than reporting a clean run over nothing. See
 `src/claims_ledger/corpus/README.md` for the coverage table, including the rows where
 the machinery only makes a defect visible and a human has to judge it.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/corpus-contract-dark.svg">
+  <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="docs/figures/corpus-contract.svg" width="960">
+</picture>
 
 ## Configuration
 

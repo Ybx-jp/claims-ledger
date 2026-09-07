@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">A citation is checked from both ends</title>
+<desc id="d">Left, a document, docs/operator-guide.md, citing an entry inline as D0001-review-boundary-is-inclusive with the act cites-as-live. Right, the entry, whose References section lists that document as standing, cites-as-live, and whose status is open because it has no verdicts. An arrow runs each way: the document declares the act, the entry lists the document. Below, a matrix of the four citation acts against the target statuses each is legal for: cites-as-live for open and corroborated; cites-as-contested for contested; cites-as-fallen for any; challenges for open, corroborated and contested, and only from an entry.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .alink{stroke:var(--accent);fill:none;stroke-width:1.25}
+.chip{fill:var(--paper);stroke:var(--rule);stroke-width:1}
+.dot{fill:var(--ink)} .nodot{fill:none;stroke:var(--muted);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs><marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="580"/>
+
+<text class="serif ink title" x="40" y="46">A citation is checked from both ends.</text>
+<text class="serif muted sub" x="40" y="70">A document names the entry and an act; the entry's References names the document. Both are held to the entry's current status.</text>
+
+<!-- ===== LEFT: the document ===== -->
+<text class="serif muted h" x="40" y="112">THE DOCUMENT</text>
+<rect class="rule" x="40.5" y="124.5" width="395" height="150" rx="3"/>
+<text class="mono ink code" x="56" y="146">docs/operator-guide.md</text>
+<text class="serif ink body" x="56" y="172">Scores at or above 0.72 enter review</text>
+<rect class="soft" x="48" y="180" width="379" height="19" rx="2"/>
+<text class="mono ink code11" x="56" y="193">(D0001-review-boundary-is-inclusive, cites-as-live)</text>
+<text class="serif ink body" x="56" y="219">The example response procedure is recorded separately</text>
+<text class="mono muted code11" x="56" y="240">(D0002-review-response-is-documented, cites-as-live)</text>
+<text class="serif muted small" x="56" y="262">an id and an act, inline, in the prose</text>
+
+<!-- ===== RIGHT: the entry ===== -->
+<text class="serif muted h" x="525" y="112">THE ENTRY</text>
+<rect class="rule" x="525.5" y="124.5" width="395" height="150" rx="3"/>
+<text class="mono ink code" x="541" y="146">D0001-review-boundary-is-inclusive</text>
+<text class="mono muted code11" x="541" y="170">## Verdicts</text>
+<rect class="chip" x="862.5" y="158.5" width="42" height="17" rx="8.5"/><text class="mono muted code11" x="883.5" y="170" text-anchor="middle">open</text>
+<text class="mono muted code11" x="541" y="188">no verdicts yet</text>
+<text class="mono muted code11" x="541" y="212">## References</text>
+<text class="mono ink code11" x="541" y="230">- README.md · standing · cites-as-live</text>
+<rect class="soft" x="533" y="237" width="379" height="19" rx="2"/>
+<text class="mono ink code11" x="541" y="250">- docs/operator-guide.md · standing · cites-as-live</text>
+
+<!-- ===== the two arrows ===== -->
+<g class="serif accent small" text-anchor="middle">
+  <text x="480" y="170">the document</text><text x="480" y="183">declares the act</text>
+</g>
+<path class="alink" d="M435 193 H 515" marker-end="url(#aa)"/>
+<path class="alink" d="M525 250 H 445" marker-end="url(#aa)"/>
+<g class="serif accent small" text-anchor="middle">
+  <text x="480" y="270">the entry lists</text><text x="480" y="283">the document</text>
+</g>
+
+<!-- ===== the act matrix ===== -->
+<text class="serif muted h" x="40" y="318">THE ACT IS HELD TO THE TARGET'S CURRENT STATUS</text>
+<g class="serif muted small" text-anchor="middle">
+  <text x="330" y="342">open</text>
+  <text x="430" y="342">corroborated</text>
+  <text x="530" y="342">contested</text>
+  <text x="640" y="342">fallen</text><text x="640" y="355">any of the four terminal</text>
+</g>
+<text class="serif muted h" x="740" y="342">CITED BY</text>
+<path class="rule" d="M40 366 H 920"/>
+
+<text class="mono ink code" x="40" y="396">cites-as-live</text>
+<circle class="dot" cx="330" cy="392" r="5.5"/><circle class="dot" cx="430" cy="392" r="5.5"/><circle class="nodot" cx="530" cy="392" r="5.5"/><circle class="nodot" cx="640" cy="392" r="5.5"/>
+<text class="serif ink body" x="740" y="396">documents and entries</text>
+<path class="rule" d="M40 410 H 920"/>
+
+<text class="mono ink code" x="40" y="428">cites-as-contested</text>
+<circle class="nodot" cx="330" cy="424" r="5.5"/><circle class="nodot" cx="430" cy="424" r="5.5"/><circle class="dot" cx="530" cy="424" r="5.5"/><circle class="nodot" cx="640" cy="424" r="5.5"/>
+<text class="serif ink body" x="740" y="428">documents and entries</text>
+<path class="rule" d="M40 442 H 920"/>
+
+<text class="mono ink code" x="40" y="460">cites-as-fallen</text>
+<circle class="dot" cx="330" cy="456" r="5.5"/><circle class="dot" cx="430" cy="456" r="5.5"/><circle class="dot" cx="530" cy="456" r="5.5"/><circle class="dot" cx="640" cy="456" r="5.5"/>
+<text class="serif ink body" x="740" y="460">documents and entries;</text>
+<text class="serif muted small" x="740" y="474">the only act legal against a fallen target</text>
+<path class="rule" d="M40 482 H 920"/>
+
+<text class="mono ink code" x="40" y="500">challenges</text>
+<circle class="dot" cx="330" cy="496" r="5.5"/><circle class="dot" cx="430" cy="496" r="5.5"/><circle class="dot" cx="530" cy="496" r="5.5"/><circle class="nodot" cx="640" cy="496" r="5.5"/>
+<text class="serif ink body" x="740" y="500">entries only;</text>
+<text class="serif muted small" x="740" y="514">the Warrant names what it attacks</text>
+<path class="rule" d="M40 522 H 920"/>
+
+<!-- footer -->
+<text class="serif ink body" x="40" y="548">A status is stored nowhere; it is derived from the last verdict.</text>
+<g class="serif muted small">
+  <text x="40" y="566">So a copied id cannot go stale silently: when D0001's status moves, every <tspan class="mono code11 ink">cites-as-live</tspan> that names it fails at the next check, in the document and in the entry alike, until the act changes.</text>
+</g>
+</svg>

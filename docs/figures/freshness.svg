@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 604" width="960" height="604" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Freshness: a pin resolves forever; the tree moves</title>
+<desc id="d">A git timeline from the pinned commit to the working tree, with the entry's ground anchored at the pin and the comparison drawn to the tree this run reads; below it the findings: fresh is silent, moved is a flag, withdrawn is a failure, an unstable pin is a flag, and unknown is a failure that no verdict discharges.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--muted);fill:none;stroke-width:1}
+.line{stroke:var(--ink);fill:none;stroke-width:1.2} .alead{stroke:var(--accent);fill:none;stroke-width:1.25}
+.commit{fill:var(--paper);stroke:var(--ink);stroke-width:1.2} .tree{fill:none;stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3}
+.doc{fill:var(--paper);stroke:var(--muted);stroke-width:1} .docx{fill:none;stroke:var(--accent);stroke-width:1.25}
+.tag{fill:none;stroke:var(--rule);stroke-width:1} .atag{fill:none;stroke:var(--accent);stroke-width:1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<defs><marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="paper" width="960" height="604"/>
+
+<text class="serif ink title" x="40" y="46">A pin resolves forever. Freshness asks whether the world moved.</text>
+<text class="serif muted sub" x="40" y="70">resolve reads the artifact at the commit the ground names. freshness compares that to the tree this run is reading.</text>
+
+<!-- the entry, anchored at the pin -->
+<rect class="panel" x="60" y="96" width="360" height="30" rx="3"/>
+<rect class="rule" x="60.5" y="96.5" width="359" height="29" rx="3"/>
+<text class="mono ink code" x="72" y="115">- lab: notes/001.md § "Observation" @9fceb02</text>
+<path class="lead" d="M140 126 V 178"/>
+
+<!-- timeline -->
+<path class="line" d="M60 190 H 900"/>
+<circle class="commit" cx="140" cy="190" r="7" style="fill:var(--ink)"/>
+<circle class="commit" cx="330" cy="190" r="5"/>
+<circle class="commit" cx="520" cy="190" r="5"/>
+<circle class="commit" cx="700" cy="190" r="5"/>
+<rect class="tree" x="850" y="180" width="20" height="20" rx="3" style="fill:var(--paper)"/>
+
+<g class="mono muted code11" text-anchor="middle">
+  <text x="140" y="214">9fceb02</text>
+  <text x="330" y="214">a comment changed</text>
+  <text x="520" y="214">the section rewritten</text>
+  <text x="700" y="214">HEAD</text>
+  <text x="860" y="214">working tree / index</text>
+</g>
+<text class="serif muted small" x="140" y="230" text-anchor="middle">the pin</text>
+<text class="serif muted small" x="860" y="230" text-anchor="middle">what this run reads</text>
+
+<!-- the artifact at each point: small documents -->
+<rect class="doc" x="322" y="140" width="16" height="20" rx="2"/><path class="lead" d="M326 146 h8 M326 150 h8 M326 154 h5"/>
+<rect class="doc" x="512" y="140" width="16" height="20" rx="2"/><path class="alead" d="M516 146 h8 M516 150 h5 M516 154 h8"/>
+<rect class="doc" x="692" y="140" width="16" height="20" rx="2"/><path class="alead" d="M696 146 h8 M696 150 h5 M696 154 h8"/>
+<path class="docx" d="M852 140 l16 20 M868 140 l-16 20"/>
+
+<!-- the comparison -->
+<path class="alead" d="M140 240 C 280 300, 720 300, 860 240" marker-end="url(#aa)"/>
+<text class="serif accent small" x="500" y="304" text-anchor="middle">git diff &lt;pin&gt; -- :(literal)&lt;path&gt;, then only the named section is compared</text>
+<text class="serif muted small" x="500" y="322" text-anchor="middle">Against the tree, not HEAD: in a pre-commit hook, HEAD is still the commit before the change being made.</text>
+
+<!-- findings -->
+<path class="rule" d="M40 330 H 920"/>
+<g class="serif muted h">
+  <text x="40" y="350">FINDING</text><text x="190" y="350">WHAT THE RUN SAW</text><text x="556" y="350">EXIT</text><text x="660" y="350">DISCHARGE</text>
+</g>
+<path class="rule" d="M40 360 H 920"/>
+
+<g class="mono ink code">
+  <text x="40" y="384">fresh</text><text x="40" y="422">moved</text><text x="40" y="460">withdrawn</text><text x="40" y="498">unstable pin</text><text x="40" y="536">unknown</text>
+</g>
+<g class="serif ink body">
+  <text x="190" y="384">the bytes at the pin are the bytes in the tree</text>
+  <text x="190" y="422">the named section's bytes differ from the pin</text>
+  <text x="190" y="460">the path is not in the tree; the ground is gone</text>
+  <text x="190" y="498"><tspan class="mono code11">@main</tspan> — a name that follows the work and can never go stale</text>
+  <text x="190" y="536">git could not say; nothing was established</text>
+</g>
+<g class="mono code11">
+  <text class="muted" x="556" y="384">silent</text>
+  <rect class="tag" x="550.5" y="408.5" width="62" height="19" rx="9.5"/><text class="ink" x="581" y="422" text-anchor="middle">flag · 0</text>
+  <rect class="atag" x="550.5" y="446.5" width="62" height="19" rx="9.5"/><text class="accent" x="581" y="460" text-anchor="middle">fail · ≠0</text>
+  <rect class="tag" x="550.5" y="484.5" width="62" height="19" rx="9.5"/><text class="ink" x="581" y="498" text-anchor="middle">flag · 0</text>
+  <rect class="atag" x="550.5" y="522.5" width="62" height="19" rx="9.5"/><text class="accent" x="581" y="536" text-anchor="middle">fail · ≠0</text>
+</g>
+<g class="serif muted body">
+  <text x="660" y="384">—</text>
+  <text x="660" y="422">contest it, supersede it, or let it fall</text>
+  <text x="660" y="460">supersede: re-establish on what now exists</text>
+  <text x="660" y="498">supersede, pinned to an object id</text>
+  <text x="660" y="536">none — no verdict discharges it</text>
+</g>
+<path class="rule" d="M40 554 H 920"/>
+
+<text class="serif muted small" x="40" y="578">The checker never judges whether a difference matters. <tspan class="mono code11 accent">freshness --write</tspan> appends a contested verdict naming the pointer and the blob it saw;</text>
+<text class="serif muted small" x="40" y="594">the pin sits above the APPEND marker and cannot be edited, so re-establishing the claim on the new artifact is supersession.</text>
+</svg>

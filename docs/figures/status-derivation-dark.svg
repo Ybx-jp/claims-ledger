@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="960" height="520" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">Status is derived from the last verdict</title>
+<desc id="d">Left: an append-only verdict list whose last legal row derives the status. Right: the state diagram — open with no verdicts; corroborated and contested, which can re-verdict each other; and four terminal statuses, refuted, superseded, retracted and non-comparable, after which a verdict is malformed, with the single exception that refuted or non-comparable may be followed by one superseded.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1}
+.edge{stroke:var(--ink);fill:none;stroke-width:1.1} .aedge{stroke:var(--accent);fill:none;stroke-width:1.4}
+.group{stroke:var(--muted);fill:none;stroke-width:1;stroke-dasharray:4 4}
+.node{fill:var(--paper);stroke:var(--ink);stroke-width:1.1} .tnode{fill:var(--panel);stroke:var(--ink);stroke-width:1.1}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:11.5px} .node-t{font-size:12px}
+</style>
+<defs>
+  <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ink" d="M0 0 L10 5 L0 10 z"/></marker>
+  <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="accent" d="M0 0 L10 5 L0 10 z"/></marker>
+</defs>
+<rect class="paper" width="960" height="520"/>
+
+<text class="serif ink title" x="40" y="46">Nothing stores a status.</text>
+<text class="serif muted sub" x="40" y="70">It is derived, at check time, from the last legal verdict in a list that only grows.</text>
+
+<!-- ===== LEFT: the verdict list ===== -->
+<text class="serif muted h" x="40" y="112">THE VERDICT LIST · APPEND ONLY</text>
+<rect class="panel" x="40" y="124" width="310" height="122" rx="3"/>
+<rect class="rule" x="40.5" y="124.5" width="309" height="121" rx="3"/>
+<g class="mono code">
+  <text class="muted" x="56" y="146">## Verdicts</text>
+  <text class="ink" x="56" y="166">- 09-10 · corroborated · author: main</text>
+  <text class="ink" x="56" y="184">- 09-21 · contested · author: propagation</text>
+  <text class="ink" x="56" y="202">- 10-02 · refuted · author: main</text>
+  <text class="ink" x="56" y="220">- 10-15 · superseded · author: main</text>
+</g>
+<rect class="soft" x="48" y="208" width="294" height="17" rx="2" opacity="0.9"/>
+<text class="mono ink code" x="56" y="220">- 10-15 · superseded · author: main</text>
+<text class="serif muted small" x="40" y="264">timestamps abbreviated; each is a full ISO 8601 instant</text>
+
+<path class="edge" d="M120 276 V 306" marker-end="url(#ai)"/>
+<text class="serif muted small" x="132" y="296">the last legal verdict</text>
+<rect class="rule" x="40.5" y="312.5" width="159" height="28" rx="14"/>
+<text class="serif muted small" x="56" y="331">status</text>
+<text class="mono ink code" x="98" y="331">superseded</text>
+
+<g class="serif muted body">
+  <text x="40" y="378">The walk stops at a terminal status; a verdict</text>
+  <text x="40" y="396">appended after one is malformed and does not move</text>
+  <text x="40" y="414">it. Here refuted was followed by superseded — the</text>
+  <text x="40" y="432">one exception, because reinstatement is supersession.</text>
+</g>
+
+<!-- ===== RIGHT: the state diagram ===== -->
+<text class="serif muted h" x="400" y="112">WHAT A VERDICT MAY MOVE IT TO</text>
+
+<!-- open -->
+<rect class="node" x="400" y="252" width="66" height="28" rx="14"/>
+<text class="mono ink node-t" x="433" y="270" text-anchor="middle">open</text>
+<text class="serif muted small" x="433" y="242" text-anchor="middle">no verdicts</text>
+
+<!-- corroborated / contested -->
+<rect class="node" x="530" y="176" width="116" height="28" rx="14"/>
+<text class="mono ink node-t" x="588" y="194" text-anchor="middle">corroborated</text>
+<rect class="node" x="542" y="328" width="92" height="28" rx="14"/>
+<text class="mono ink node-t" x="588" y="346" text-anchor="middle">contested</text>
+<path class="edge" d="M588 206 V 326" marker-start="url(#ai)" marker-end="url(#ai)"/>
+<text class="serif muted small" x="598" y="270">re-verdict</text>
+
+<!-- terminal group -->
+<rect class="group" x="716" y="124" width="204" height="312" rx="4"/>
+<text class="serif muted h" x="732" y="146">TERMINAL</text>
+
+<rect class="tnode" x="760" y="160" width="80" height="28" rx="14"/>
+<text class="mono ink node-t" x="800" y="178" text-anchor="middle">refuted</text>
+<rect class="tnode" x="748" y="226" width="104" height="28" rx="14"/>
+<text class="mono ink node-t" x="800" y="244" text-anchor="middle">superseded</text>
+<rect class="tnode" x="754" y="292" width="92" height="28" rx="14"/>
+<text class="mono ink node-t" x="800" y="310" text-anchor="middle">retracted</text>
+<rect class="tnode" x="740" y="358" width="120" height="28" rx="14"/>
+<text class="mono ink node-t" x="800" y="376" text-anchor="middle">non-comparable</text>
+
+<!-- fallen bracket -->
+<path class="edge" d="M872 160 h 8 V 320 h -8" stroke-width="1"/>
+<text class="serif muted h" transform="translate(896 240) rotate(90)" text-anchor="middle">FALLEN</text>
+
+<!-- edges from open -->
+<path class="edge" d="M466 258 L 528 196" marker-end="url(#ai)"/>
+<path class="edge" d="M466 274 L 540 336" marker-end="url(#ai)"/>
+<!-- open to terminal, routed below -->
+<path class="edge" d="M433 282 V 462 H 800 V 440" marker-end="url(#ai)"/>
+<text class="serif muted small" x="616" y="480" text-anchor="middle">any of the four, from open or from either live status</text>
+<!-- live pair to terminal -->
+<path class="edge" d="M646 190 H 714" marker-end="url(#ai)"/>
+<path class="edge" d="M634 342 H 714" marker-end="url(#ai)"/>
+
+<!-- the exception -->
+<path class="aedge" d="M760 180 C 736 190, 736 226, 746 236" marker-end="url(#aa)"/>
+<path class="aedge" d="M742 368 C 722 340, 722 270, 746 246" marker-end="url(#aa)"/>
+<text class="serif accent small" x="818" y="406" text-anchor="middle">exactly once, only to superseded —</text>
+<text class="serif accent small" x="818" y="421" text-anchor="middle">reinstatement is supersession</text>
+
+<text class="serif muted small" x="400" y="508">cites-as-live is legal only against open or corroborated; cites-as-fallen is the only act legal against a fallen entry.</text>
+</svg>

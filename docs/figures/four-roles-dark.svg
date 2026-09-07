@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">One frozen statement against four separated roles</title>
+<desc id="d">Left: a single frozen statement in which a faithful quotation runs seamlessly into the project's own inference. Right: the same content as an entry — Assertion, Grounds, Warrant, Backing — with the quotation resolved against the stored bytes of its source.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--muted);fill:none;stroke-width:1}
+.alead{stroke:var(--accent);fill:none;stroke-width:1.25}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<rect class="paper" width="960" height="580"/>
+
+<text class="serif ink title" x="40" y="46">A sentence in a research note does four jobs at once.</text>
+<text class="serif muted sub" x="40" y="70">The audited ledger froze them together. An entry gives each its own line.</text>
+
+<!-- ===== LEFT: the blob ===== -->
+<text class="serif muted h" x="40" y="112">BEFORE · ONE FROZEN STATEMENT</text>
+<rect class="panel" x="40" y="124" width="400" height="126" rx="3"/>
+<rect class="rule" x="40.5" y="124.5" width="399" height="125" rx="3"/>
+<text class="serif muted small" x="424" y="142" text-anchor="end">frozen</text>
+
+<!-- quote highlight, computed from 12px mono at 7.2px/char -->
+<rect class="mark" x="92" y="159" width="240" height="17" rx="2"/>
+<rect class="mark" x="56" y="178" width="126" height="17" rx="2"/>
+
+<g class="mono ink code">
+  <text x="58" y="153">statement: Okafor and Lindqvist report</text>
+  <text x="58" y="172">that "a stale fraction of 0.1 produced</text>
+  <text x="58" y="191">an error of 0.04"<tspan class="accent">, so the error is</tspan></text>
+  <text x="58" y="210" class="accent">governed by the stale fraction and</text>
+  <text x="58" y="229" class="accent">not by degree.</text>
+</g>
+
+<!-- the seam -->
+<circle class="alead" cx="179" cy="187" r="9"/>
+
+<g class="serif body">
+  <rect class="mark" x="40" y="268" width="10" height="10"/>
+  <text class="ink" x="56" y="278">source words, faithful to the paper</text>
+  <rect class="accent" x="40" y="290" width="10" height="10"/>
+  <text class="ink" x="56" y="300">the project's own inference, unsourced</text>
+  <circle class="alead" cx="45" cy="317" r="5"/>
+  <text class="ink" x="56" y="322">the seam: a quotation mark — typographic, not structural</text>
+</g>
+
+<g class="serif muted body">
+  <text x="40" y="358">One field, one freeze: the inference inherits the quote's</text>
+  <text x="40" y="376">authority and is sealed beside it.</text>
+</g>
+<text class="serif ink" x="40" y="486" font-size="44">24 of 47</text>
+<text class="serif muted body" x="40" y="510">quotations in the audited ledger were defective, in nine classes.</text>
+<text class="serif muted body" x="40" y="528">The failure was structural, not careless.</text>
+
+<!-- ===== RIGHT: four roles ===== -->
+<text class="serif muted h" x="500" y="112">AFTER · FOUR ROLES, EACH ON ITS OWN LINE</text>
+
+<!-- Assertion -->
+<rect class="rule" x="500.5" y="124.5" width="419" height="65" rx="3"/>
+<text class="serif ink body" x="516" y="146">Assertion</text>
+<g class="mono ink code"><text x="612" y="146">A stale fraction of 0.1 produces</text><text x="612" y="163">an embedding error of 0.04.</text></g>
+<text class="serif muted small" x="612" y="181">no quotation mark may appear here</text>
+
+<!-- Grounds -->
+<rect class="rule" x="500.5" y="197.5" width="419" height="50" rx="3"/>
+<text class="serif ink body" x="516" y="219">Grounds</text>
+<text class="mono ink code" x="612" y="219">- source: fx-paper · summary</text>
+<text class="serif muted small" x="612" y="237">typed pointers to what the claim rests on</text>
+
+<!-- Warrant -->
+<rect class="rule" x="500.5" y="255.5" width="419" height="50" rx="3"/>
+<text class="serif ink body" x="516" y="277">Warrant</text>
+<text class="mono ink code" x="612" y="277">Restates the source's reported result.</text>
+<text class="serif muted small" x="612" y="295">the rule that gets you from grounds to assertion</text>
+
+<!-- Backing -->
+<rect class="rule" x="500.5" y="313.5" width="419" height="101" rx="3"/>
+<text class="serif ink body" x="516" y="335">Backing</text>
+<g class="mono ink code">
+  <text x="612" y="335">- source: fx-paper · summary</text>
+  <text x="612" y="352">  speaker: Okafor and Lindqvist</text>
+  <text x="612" y="369">  quote: "A stale fraction of 0.1</text>
+  <text x="612" y="386">  produced an error of 0.04."</text>
+</g>
+<text class="serif muted small" x="612" y="404">verbatim, with its speaker; held to the source bytes</text>
+
+<!-- connector to the bytes -->
+<path class="alead" d="M560 414 v 30"/>
+<path class="accent" d="M555 442 L560 450 L565 442 z"/>
+<text class="serif accent small" x="572" y="440">resolve, at every check</text>
+
+<!-- the stored bytes -->
+<text class="mono muted code11" x="500" y="468">ledger/cache/f09680d85993…  · the stored bytes of fx-paper</text>
+<rect class="panel" x="500" y="476" width="420" height="62" rx="3"/>
+<rect class="rule" x="500.5" y="476.5" width="419" height="61" rx="3"/>
+<rect class="soft" x="782" y="484" width="107" height="15" rx="2"/>
+<rect class="soft" x="511" y="499" width="219" height="15" rx="2"/>
+<g class="mono ink code11">
+  <text x="512" y="495">Okafor and Lindqvist authored the study. A stale fraction</text>
+  <text x="512" y="510">of 0.1 produced an error of 0.04. The full run log is in</text>
+  <text x="512" y="525">the appendix.</text>
+</g>
+<text class="serif muted small" x="500" y="560">A quote must be a contiguous span of the stored bytes, in order, elisions marked.</text>
+</svg>
