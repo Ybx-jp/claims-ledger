@@ -205,6 +205,9 @@ that matches none — exits non-zero rather than reporting a clean run over noth
 `src/claims_ledger/corpus/README.md` for the coverage table, including the rows where
 the machinery only makes a defect visible and a human has to judge it.
 
+The corpus is one of four things holding the checkers; `QUALITY.md` is the short account
+of all four, and of what happens to a defect once it is found.
+
 ## Configuration
 
 `claims-ledger.toml` at the project root, or a `[tool.claims-ledger]` table in

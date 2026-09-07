@@ -49,53 +49,40 @@ path = "src/claims_ledger/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/claims_ledger"]
 
-# The corpus ships with the package — it sits inside src/claims_ledger, so the wheel
-# carries it. A checker is only trusted after it has passed the seeds, and
-# `claims-ledger corpus` is how an installed copy proves itself.
+# The corpus sits inside src/claims_ledger so the wheel carries it: `claims-ledger corpus`
+# is how an installed copy proves itself. See QUALITY.md.
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "docs", "README.md", "CHANGELOG.md", "LICENSE"]
+include = ["src", "tests", "docs", "README.md", "QUALITY.md", "CHANGELOG.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ty.environment]
-# Checked against the floor rather than the newest interpreter: the package promises
-# 3.11, and a 3.12-only construct would otherwise pass here and fail for a user.
+# The floor, not the newest interpreter: a 3.12-only construct must fail here, not for a user.
 python-version = "3.11"
 
 [tool.ty.src]
 include = ["src", "tests"]
-# The red-team seeds are ledger fixtures, deliberately malformed; they contain no Python.
+# Ledger fixtures, deliberately malformed; no Python in them.
 exclude = ["src/claims_ledger/corpus/seeds"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Two directories that hold no code this package maintains.
-#
-# `.qe` is an adversarial pass's own record: the brief it was given, the findings it wrote,
-# and the throwaway probes it actually ran, so a repro in a report can be re-run rather
-# than retyped from prose. Reformatting a snippet inside a finding would edit the record of
-# what was run. Every defect those probes found is held by a test under `tests/`.
-#
-# The red-team seeds are ledger fixtures, deliberately malformed, and contain no Python —
-# `[tool.ty.src]` excludes them for the same reason. One of them is deliberately not UTF-8,
-# which is the defect that seed exists for, and a formatter that reads every file cannot
-# read it.
+# Neither holds code this package maintains. `.qe` is an audit pass's own record — its
+# probes are evidence, and reformatting one would edit what was run. The seeds are
+# malformed on purpose, and one is deliberately not UTF-8, which no formatter can read.
 exclude = [".qe", "src/claims_ledger/corpus/seeds"]
 
 [tool.ruff.lint]
-# Pinned explicitly rather than tracking ruff's default select, which grows between
-# releases: CI has to fail on this project's rules, not on whatever the newest ruff
-# turned on. These are every family ruff raised against this code, kept rather than
-# narrowed. E731 comes in with E, which is what the deliberate `fail = lambda …`
-# suppressions in the checkers were written against.
+# Pinned rather than tracking ruff's default select, which grows between releases: CI fails
+# on this project's rules, not on whatever the newest ruff turned on. E731 comes in with E,
+# which the deliberate `fail = lambda …` suppressions in the checkers were written against.
 select = ["E", "F", "I", "B", "SIM", "UP", "RUF", "ISC", "BLE", "PLW", "FURB"]
 
-# The prose here uses real typography, and the pointer syntax the schema defines is
-# written with them: `source: fx-paper · whole text`, `lab: notes/001.md § "Observation"`.
-# These are the characters the schema means, not homoglyphs slipped in by an editor.
+# The schema's own pointer syntax uses these: `lab: notes/001.md § "Observation"`. They are
+# the characters it means, not homoglyphs slipped in by an editor.
 allowed-confusables = ["–", "—", "·", "§", "×", "≤", "≥"]
 
 [tool.ruff.lint.pycodestyle]

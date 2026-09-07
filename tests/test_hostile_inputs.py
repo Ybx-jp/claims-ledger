@@ -17,7 +17,7 @@ signal, not a pass, and was never weakened to match the behaviour it found.
 
 The twenty-four defects this file was written to record are fixed, in three rounds: the
 nine of the 2026-09-05 pre-publication audit, the nine of the second pass against those
-fixes, and the six of the third pass against the second round (QE-AUDIT.md, all three
+fixes, and the six of the third pass against the second round (docs/audits/0.1.0.md, all three
 sections). Each is kept below as the regression test for its fix.
 
 Two of the third pass's six could only be reproduced on some interpreters — pathlib's
@@ -1338,7 +1338,7 @@ def test_an_entry_symlinked_out_of_the_root_is_not_written_through(project, tmp_
 
     # The absolute spelling is the one that escapes: given the same entry as a path
     # relative to the root, `sha` refuses it as not a regular file. Two answers for one
-    # file is its own defect, recorded in QE-AUDIT.md under MEDIUM-19.
+    # file is its own defect, recorded in docs/audits/0.1.0.md under MEDIUM-19.
     project.cl("sha", "--write", str(path))
     capsys.readouterr()
     assert victim.read_text(encoding="utf-8") == before, "a file outside the root was rewritten"
