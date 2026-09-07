@@ -1,21 +1,18 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, useCurrentFrame} from 'remotion';
-import {CAPTURES} from './captures';
 import {MONO, SERIF} from './fonts';
+import {SCENARIOS, type ScenarioId} from './scenarios';
 import {
-  BEATS,
-  COPY,
   FILE_FONT,
   FILE_H,
   FILE_LINE,
   FILE_TOP,
   HEIGHT,
   LABEL_OFFSET,
-  MOVES,
+  MONO_ADVANCE,
   PANE_PAD,
   PANE_W,
   PANE_X,
-  SPOTS,
   SPOT_FADE,
   STEP_Y,
   T,
@@ -24,79 +21,43 @@ import {
   TERM_LINE,
   TERM_TOP,
   WIDTH,
-  fileScrollPx,
   lineIn,
   ramp,
-} from './timing';
+  type Block,
+  type FileState,
+  type Line,
+  type Timeline,
+} from './timeline';
 
 /**
- * nothing-falls-silently.
- *
  * Two surfaces the product actually has: a file and a shell. Every line drawn
  * is a line tools/capture.py captured from a fresh materialization of the
- * example portfolio — the entry, the verdict a person appends, each command's
- * output, the hook's refusal. Nothing on screen is invented; what the film
- * adds is order, emphasis and time.
+ * example portfolio. Nothing on screen is invented; what a film adds is order,
+ * emphasis and time, and all three come from its timeline in scenarios.ts.
  *
  * Emphasis: the terminal's own tokens FAIL and FLAG carry the accent, the way
  * a colouring shell would show them; a status that has just changed and a
- * verdict row that has just landed sit on accent-soft while they are new; and
- * a spotlight dims the frame to one region and names it in the product's own
- * words. A step strip across the top says which of the six moments this is.
+ * verdict row that has just landed sit on accent-soft while they are new; a
+ * spotlight dims the frame to one region and names it in the product's own
+ * words; a step strip across the top says which moment this is.
  */
 
-// ------------------------------------------------------------------ text
-
-const ENTRY_BEFORE = CAPTURES.entryBefore.split('\n');
-const ENTRY_AFTER = CAPTURES.entryAfter.split('\n');
-const DEPENDENT = CAPTURES.dependentAfter.split('\n');
-const APPEND_MARKER = '<!-- APPEND BELOW THIS LINE ONLY -->';
-const APPEND_INDEX = ENTRY_AFTER.indexOf(APPEND_MARKER);
-const DEPENDENT_APPEND_INDEX = DEPENDENT.indexOf(APPEND_MARKER);
-const GROUNDS_INDEX = ENTRY_BEFORE.indexOf('## Grounds');
-const VERDICT_LINES = CAPTURES.verdictRow.trimEnd().split('\n');
-const ENTRY_PATH = 'ledger/entries/R0001-threshold-balances-review-errors.md';
-const DEPENDENT_PATH = 'ledger/entries/R0003-threshold-generalizes.md';
-const MONO_ADVANCE = 0.6;
-
-/** The cast of the status table, and the footer; the other nine rows are elided honestly. */
-const CAST = ['R0001', 'R0002', 'R0003'];
-const cropStatus = (text: string): string[] => {
-  const lines = text.split('\n');
-  const rows = lines.filter((l) => CAST.some((id) => l.startsWith(id)));
-  const footer = lines[lines.length - 1];
-  const elided = lines.filter((l) => /^R\d{4}/.test(l)).length - rows.length;
-  return [...rows, `  ⋮ ${elided} more`, '', footer];
-};
-
-type Line = {text: string; tone: 'ink' | 'muted' | 'accent'; soft?: boolean; wrap?: boolean};
-
-const statusLines = (text: string, changed: string[]): Line[] =>
-  cropStatus(text).map((l) => {
-    const id = l.slice(0, 5);
-    const hot = changed.includes(id);
-    return {text: l, tone: CAST.includes(id) ? (hot ? 'accent' : 'ink') : 'muted', soft: hot};
-  });
-
-const outputLines = (text: string): Line[] =>
-  text.split('\n').map((l) => ({
-    text: l,
-    tone: l.startsWith('FAIL') || l.startsWith('FLAG') ? 'accent' : 'ink',
-    wrap: true,
-  }));
-
-// --------------------------------------------------------------- surfaces
+const APPEND = '<!-- APPEND BELOW THIS LINE ONLY -->';
 
 /**
  * Grayscale antialiasing and an explicit compositor layer for everything that
  * fades. Chrome turns LCD text antialiasing off when an element is promoted to
  * its own layer, and promotion of an element whose opacity changes every frame
- * is timing-dependent — measured here as frames that differ between renders of
- * the same source. Pinning both removes the choice.
+ * is timing-dependent — measured as frames that differ between renders of the
+ * same source. Pinning both removes the choice. The two panes clip their
+ * children and have square corners: an antialiased rounded corner on a
+ * clipping layer rasterized ±1 level differently between renders.
  */
 const STABLE: React.CSSProperties = {WebkitFontSmoothing: 'antialiased', willChange: 'opacity'};
-// The two panes clip their children and have square corners: an antialiased rounded corner on a
-// clipping layer rasterized ±1 level differently between renders, measured at (60,127) and (60,647).
+
+export type FilmProps = {scenario: ScenarioId};
+
+// --------------------------------------------------------------- surfaces
 
 const Label: React.FC<{text: string; top: number; opacity?: number}> = ({text, top, opacity = 1}) => (
   <div
@@ -109,16 +70,16 @@ const Label: React.FC<{text: string; top: number; opacity?: number}> = ({text, t
       color: T.muted,
       opacity,
       whiteSpace: 'nowrap',
+      ...STABLE,
     }}
   >
     {text}
   </div>
 );
 
-/** Which of the six moments this is. The current step is ink; the rest muted. */
-const StepStrip: React.FC<{opacity: number}> = ({opacity}) => {
+const StepStrip: React.FC<{tl: Timeline; opacity: number}> = ({tl, opacity}) => {
   const frame = useCurrentFrame();
-  const steps = BEATS.filter((b) => b.step);
+  const steps = tl.beats.filter((b) => b.step);
   const current = steps.find((b) => frame >= b.start && frame < b.end)?.id;
   return (
     <div
@@ -132,10 +93,11 @@ const StepStrip: React.FC<{opacity: number}> = ({opacity}) => {
         fontSize: 20,
         letterSpacing: '0.04em',
         opacity,
+        ...STABLE,
       }}
     >
       {steps.map((b) => (
-        <span key={b.id} style={{color: b.id === current ? T.ink : T.muted, transition: 'none'}}>
+        <span key={b.id} style={{color: b.id === current ? T.ink : T.muted}}>
           {b.step}
         </span>
       ))}
@@ -143,84 +105,66 @@ const StepStrip: React.FC<{opacity: number}> = ({opacity}) => {
   );
 };
 
-const FilePane: React.FC<{
-  path: string;
-  lines: string[];
-  scrollPx: number;
-  opacity: number;
-  lineOpacity: (i: number) => number;
-  soft: (i: number) => number;
-}> = ({path, lines, scrollPx, opacity, lineOpacity, soft}) => (
-  <>
-    <Label text={path} top={FILE_TOP} opacity={opacity} />
-    <div
-      style={{
-        position: 'absolute',
-        left: PANE_X,
-        top: FILE_TOP,
-        width: PANE_W,
-        height: FILE_H,
-        border: `2px solid ${T.rule}`,
-        background: T.paper,
-        overflow: 'hidden',
-        opacity,
-      }}
-    >
-      <div style={{position: 'absolute', left: PANE_PAD, top: PANE_PAD - scrollPx, right: PANE_PAD}}>
-        {lines.map((l, i) => {
-          const marker = l === APPEND_MARKER;
-          const heading = l.startsWith('## ') || l === '---';
-          return (
-            <div
-              key={i}
-              style={{
-                position: 'relative',
-                height: FILE_LINE,
-                lineHeight: `${FILE_LINE}px`,
-                fontFamily: MONO,
-                fontSize: FILE_FONT,
-                whiteSpace: 'pre',
-                color: marker ? T.accent : heading ? T.muted : T.ink,
-                opacity: lineOpacity(i),
-                ...STABLE,
-              }}
-            >
+const FilePane: React.FC<{state: FileState; frame: number; opacity: number}> = ({state, frame, opacity}) => {
+  const fadeIn = state.fadeIn ? ramp(frame, state.fadeIn) : 1;
+  const landing = state.landing;
+  const isNew = (i: number) => Boolean(landing && i >= landing.first && i < landing.first + landing.count);
+  const lineOpacity = (i: number) => {
+    if (landing && isNew(i)) return lineIn(frame, landing.at, i - landing.first, landing.count);
+    return state.fadeIn ? lineIn(frame, state.fadeIn, Math.min(Math.max(0, i - state.firstRow), 24), 25) : 1;
+  };
+  const soft = (i: number) => (landing && isNew(i) ? ramp(frame, landing.at) * (1 - ramp(frame, landing.settle)) : 0);
+  return (
+    <>
+      <Label text={state.path} top={FILE_TOP} opacity={opacity * fadeIn} />
+      <div
+        style={{
+          position: 'absolute',
+          left: PANE_X,
+          top: FILE_TOP,
+          width: PANE_W,
+          height: FILE_H,
+          border: `2px solid ${T.rule}`,
+          background: T.paper,
+          overflow: 'hidden',
+          opacity,
+        }}
+      >
+        <div style={{position: 'absolute', left: PANE_PAD, top: PANE_PAD - state.firstRow * FILE_LINE, right: PANE_PAD}}>
+          {state.lines.map((l, i) => {
+            const marker = l === APPEND;
+            const heading = l.startsWith('## ') || l === '---';
+            return (
               <div
+                key={i}
                 style={{
-                  position: 'absolute',
-                  left: -10,
-                  right: -10,
-                  top: 0,
-                  bottom: 0,
-                  borderRadius: 4,
-                  background: T.accentSoft,
-                  opacity: soft(i),
+                  position: 'relative',
+                  height: FILE_LINE,
+                  lineHeight: `${FILE_LINE}px`,
+                  fontFamily: MONO,
+                  fontSize: FILE_FONT,
+                  whiteSpace: 'pre',
+                  color: marker ? T.accent : heading ? T.muted : T.ink,
+                  opacity: lineOpacity(i),
+                  ...STABLE,
                 }}
-              />
-              <span style={{position: 'relative'}}>{l}</span>
-            </div>
-          );
-        })}
+              >
+                <div style={{position: 'absolute', left: -10, right: -10, top: 0, bottom: 0, borderRadius: 4, background: T.accentSoft, opacity: soft(i)}} />
+                <span style={{position: 'relative'}}>{l}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  </>
-);
-
-type Block = {
-  command: string;
-  lines: Line[];
-  cmd: readonly [number, number];
-  out: readonly [number, number];
-  exit?: {code: number; at: readonly [number, number]};
-  until: number;
+    </>
+  );
 };
 
-const Terminal: React.FC<{blocks: Block[]; opacity: number}> = ({blocks, opacity}) => {
-  const frame = useCurrentFrame();
+const Terminal: React.FC<{repo: string; blocks: Block[]; frame: number; opacity: number}> = ({repo, blocks, frame, opacity}) => {
   const current = blocks.filter((b) => frame >= b.cmd[0] && frame < b.until);
   return (
     <>
-      <Label text={`${COPY.repo} $`} top={TERM_TOP} opacity={opacity} />
+      <Label text={`${repo} $`} top={TERM_TOP} opacity={opacity} />
       <div
         style={{
           position: 'absolute',
@@ -254,9 +198,7 @@ const Terminal: React.FC<{blocks: Block[]; opacity: number}> = ({blocks, opacity
                 <span style={{color: T.muted}}>$ </span>
                 {b.command}
                 {b.exit && (
-                  <span style={{color: b.exit.code === 0 ? T.muted : T.accent, opacity: exitIn}}>
-                    {`   → exit ${b.exit.code}`}
-                  </span>
+                  <span style={{color: b.exit.code === 0 ? T.muted : T.accent, opacity: exitIn}}>{`   → exit ${b.exit.code}`}</span>
                 )}
               </div>
               {b.lines.map((l, i) => (
@@ -273,19 +215,7 @@ const Terminal: React.FC<{blocks: Block[]; opacity: number}> = ({blocks, opacity
                     ...STABLE,
                   }}
                 >
-                  {l.soft && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: -8,
-                        right: -8,
-                        top: 0,
-                        bottom: 0,
-                        borderRadius: 4,
-                        background: T.accentSoft,
-                      }}
-                    />
-                  )}
+                  {l.soft && <div style={{position: 'absolute', left: -8, right: -8, top: 0, bottom: 0, borderRadius: 4, background: T.accentSoft}} />}
                   <span style={{position: 'relative'}}>{l.text}</span>
                 </div>
               ))}
@@ -301,11 +231,6 @@ const Terminal: React.FC<{blocks: Block[]; opacity: number}> = ({blocks, opacity
 
 type Box = {x: number; y: number; w: number; h: number};
 
-/**
- * The frame dims to one box, outlined in accent, with a caption beside it.
- * The dimming is four paper rectangles around the box, so the box itself is
- * untouched pixels of the film.
- */
 const Spotlight: React.FC<{box: Box; dim: number; captions: {text: string; below: boolean; opacity: number}[]}> = ({box, dim, captions}) => {
   const shade = 0.62 * dim;
   const pad = 10;
@@ -320,19 +245,7 @@ const Spotlight: React.FC<{box: Box; dim: number; captions: {text: string; below
       <div style={{position: 'absolute', left: 0, top: by + bh, width: WIDTH, height: HEIGHT - by - bh, background: T.paper, opacity: shade}} />
       <div style={{position: 'absolute', left: 0, top: by, width: bx, height: bh, background: T.paper, opacity: shade}} />
       <div style={{position: 'absolute', left: bx + bw, top: by, width: WIDTH - bx - bw, height: bh, background: T.paper, opacity: shade}} />
-      <div
-        style={{
-          position: 'absolute',
-          left: bx,
-          top: by,
-          width: bw,
-          height: bh,
-          boxSizing: 'border-box',
-          border: `2px solid ${T.accent}`,
-          borderRadius: 8,
-          opacity: dim,
-        }}
-      />
+      <div style={{position: 'absolute', left: bx, top: by, width: bw, height: bh, boxSizing: 'border-box', border: `2px solid ${T.accent}`, borderRadius: 8, opacity: dim}} />
       {captions.map((c) => (
         <div
           key={c.text}
@@ -363,67 +276,9 @@ const Spotlight: React.FC<{box: Box; dim: number; captions: {text: string; below
   );
 };
 
-// ------------------------------------------------------------------ story
-
-const BLOCKS: Block[] = [
-  {
-    command: 'claims-ledger status',
-    lines: statusLines(CAPTURES.statusBefore.text, []),
-    cmd: MOVES.status1Cmd,
-    out: MOVES.status1Out,
-    until: MOVES.check1Cmd[0],
-  },
-  {
-    command: 'claims-ledger check',
-    lines: outputLines(CAPTURES.checkBefore.text),
-    cmd: MOVES.check1Cmd,
-    out: MOVES.check1Out,
-    exit: {code: CAPTURES.checkBefore.exit, at: MOVES.check1Exit},
-    until: MOVES.status2Cmd[0],
-  },
-  {
-    command: 'claims-ledger status',
-    lines: statusLines(CAPTURES.statusAfterVerdict.text, ['R0001']),
-    cmd: MOVES.status2Cmd,
-    out: MOVES.status2Out,
-    until: MOVES.check2Cmd[0],
-  },
-  {
-    command: 'claims-ledger check',
-    lines: outputLines(CAPTURES.checkAfterVerdict.text),
-    cmd: MOVES.check2Cmd,
-    out: MOVES.check2Out,
-    exit: {code: CAPTURES.checkAfterVerdict.exit, at: MOVES.check2Exit},
-    until: MOVES.propCmd[0],
-  },
-  {
-    command: 'claims-ledger propagate --write',
-    lines: outputLines(CAPTURES.propagate.text),
-    cmd: MOVES.propCmd,
-    out: MOVES.propOut,
-    until: MOVES.status3Cmd[0],
-  },
-  {
-    command: 'claims-ledger status',
-    lines: statusLines(CAPTURES.statusAfterPropagate.text, ['R0002', 'R0003']),
-    cmd: MOVES.status3Cmd,
-    out: MOVES.status3Out,
-    until: MOVES.commitCmd[0],
-  },
-  {
-    command: 'git commit -m "refute R0001"',
-    lines: outputLines(CAPTURES.commit.text),
-    cmd: MOVES.commitCmd,
-    out: MOVES.hookOut,
-    exit: {code: CAPTURES.commit.exit, at: MOVES.commitExit},
-    until: BEATS[BEATS.length - 1].end,
-  },
-];
-
-/** The terminal's line i, in frame coordinates, for the block on screen at `frame`. */
-const termLineBox = (frame: number, from: number, count: number): Box => {
-  const block = BLOCKS.find((b) => frame >= b.cmd[0] && frame < b.until) ?? BLOCKS[0];
-  // Lines before `from` may wrap; count the rows they occupy at the pane's width.
+/** The terminal's lines `from .. from+count`, in frame coordinates, for the block on screen at `frame`. */
+const termLineBox = (blocks: Block[], frame: number, from: number, count: number): Box => {
+  const block = blocks.find((b) => frame >= b.cmd[0] && frame < b.until) ?? blocks[0];
   const cols = Math.floor((PANE_W - 2 * PANE_PAD) / (TERM_FONT * MONO_ADVANCE));
   const rowsOf = (l: Line) => (l.wrap ? Math.max(1, Math.ceil(l.text.length / cols)) : 1);
   const before = block.lines.slice(0, from).reduce((n, l) => n + rowsOf(l), 0);
@@ -437,80 +292,47 @@ const termLineBox = (frame: number, from: number, count: number): Box => {
   };
 };
 
-const termCommandBox = (frame: number): Box => {
-  const block = BLOCKS.find((b) => frame >= b.cmd[0] && frame < b.until) ?? BLOCKS[0];
+const termCommandBox = (blocks: Block[], frame: number): Box => {
+  const block = blocks.find((b) => frame >= b.cmd[0] && frame < b.until) ?? blocks[0];
   const chars = 2 + block.command.length + (block.exit ? 12 : 0);
   return {x: PANE_X + PANE_PAD, y: TERM_TOP + PANE_PAD, w: chars * TERM_FONT * MONO_ADVANCE + 8, h: TERM_LINE};
 };
 
-const fileRowsBox = (first: number, count: number, lines: string[], scrollPx: number): Box => {
-  const longest = Math.max(...lines.slice(first, first + count).map((l) => l.length));
+const fileRowsBox = (state: FileState, first: number, count: number): Box => {
+  const longest = Math.max(...state.lines.slice(first, first + count).map((l) => l.length), 24);
   return {
     x: PANE_X + PANE_PAD,
-    y: FILE_TOP + PANE_PAD + first * FILE_LINE - scrollPx,
+    y: FILE_TOP + PANE_PAD + (first - state.firstRow) * FILE_LINE,
     w: longest * FILE_FONT * MONO_ADVANCE + 8,
     h: count * FILE_LINE,
   };
 };
 
-const Story: React.FC = () => {
+// ------------------------------------------------------------------ story
+
+const Story: React.FC<{tl: Timeline}> = ({tl}) => {
   const frame = useCurrentFrame();
-  const fileIn = ramp(frame, MOVES.fileIn);
-  const beforeCut = frame < MOVES.fileCut[0];
+  const state = [...tl.files].reverse().find((f) => frame >= f.from) ?? tl.files[0];
+  const opening = tl.files[0].fadeIn ? ramp(frame, tl.files[0].fadeIn) : 1;
 
-  // R0001, before and after the human's verdict: the same file, the row appended.
-  const verdictLanded = frame >= MOVES.verdictLands[0];
-  const lines = beforeCut ? (verdictLanded ? ENTRY_AFTER : ENTRY_BEFORE) : DEPENDENT;
-  const appendIndex = beforeCut ? APPEND_INDEX : DEPENDENT_APPEND_INDEX;
-  const scroll = beforeCut ? fileScrollPx(frame, appendIndex) : (appendIndex - 1) * FILE_LINE;
-
-  // The rows that land: the verdict occupies APPEND + 4 .. APPEND + 6 (marker, blank, heading, blank, then the row).
-  const NEW_FIRST = (beforeCut ? APPEND_INDEX : DEPENDENT_APPEND_INDEX) + 4;
-  const NEW_COUNT = beforeCut ? VERDICT_LINES.length : 3;
-  const isNew = (i: number) => i >= NEW_FIRST && i < NEW_FIRST + NEW_COUNT;
-  const landing = beforeCut ? MOVES.verdictLands : MOVES.dependentLands;
-  const settling = beforeCut ? MOVES.verdictSettles : MOVES.dependentSettles;
-
-  const lineOpacity = (i: number): number => {
-    if (!beforeCut) return isNew(i) ? lineIn(frame, landing, i - NEW_FIRST, NEW_COUNT) : 1;
-    if (verdictLanded && isNew(i)) return lineIn(frame, landing, i - NEW_FIRST, NEW_COUNT);
-    return lineIn(frame, MOVES.fileIn, Math.min(i, 24), 25);
-  };
-  const soft = (i: number): number => {
-    if (!isNew(i)) return 0;
-    if (beforeCut && !verdictLanded) return 0;
-    return ramp(frame, landing) * (1 - ramp(frame, settling));
-  };
-
-  // The spotlights up at this frame — two during a crossfade — each with its box in frame coordinates.
-  const boxFor = (t: (typeof SPOTS)[number]['target']): Box => {
-    if (t.kind === 'fileRows') {
-      if (t.anchor === 'grounds') return fileRowsBox(GROUNDS_INDEX + 2, 2, lines, scroll);
-      if (t.anchor === 'verdictsEmpty') return fileRowsBox(APPEND_INDEX, 3, lines, scroll);
-      if (t.anchor === 'verdict') return fileRowsBox(APPEND_INDEX + 4, 3, ENTRY_AFTER, scroll);
-      return fileRowsBox(DEPENDENT_APPEND_INDEX + 4, 3, lines, scroll);
-    }
-    if (t.kind === 'termLines') return termLineBox(frame, t.from, t.count);
-    return termCommandBox(frame);
-  };
-  const active = SPOTS.filter((s) => frame >= s.on[0] - SPOT_FADE && frame < s.on[1] + SPOT_FADE).map((s) => ({
-    spot: s,
-    box: boxFor(s.target),
-    opacity: Math.min(ramp(frame, [s.on[0] - SPOT_FADE, s.on[0]]), 1 - ramp(frame, [s.on[1], s.on[1] + SPOT_FADE])),
-  }));
+  const active = tl.spots
+    .filter((s) => frame >= s.on[0] - SPOT_FADE && frame < s.on[1] + SPOT_FADE)
+    .map((s) => {
+      const t = s.target;
+      const box =
+        t.kind === 'fileRows'
+          ? fileRowsBox(state, t.first, t.count)
+          : t.kind === 'termLines'
+            ? termLineBox(tl.blocks, frame, t.from, t.count)
+            : termCommandBox(tl.blocks, frame);
+      return {spot: s, box, opacity: Math.min(ramp(frame, [s.on[0] - SPOT_FADE, s.on[0]]), 1 - ramp(frame, [s.on[1], s.on[1] + SPOT_FADE]))};
+    });
 
   return (
     <AbsoluteFill style={{backgroundColor: T.paper, ...STABLE}}>
-      <StepStrip opacity={fileIn} />
-      <FilePane
-        path={beforeCut ? ENTRY_PATH : DEPENDENT_PATH}
-        lines={lines}
-        scrollPx={scroll}
-        opacity={fileIn}
-        lineOpacity={lineOpacity}
-        soft={soft}
-      />
-      <Terminal blocks={BLOCKS} opacity={fileIn} />
+      <StepStrip tl={tl} opacity={opening} />
+      <FilePane state={state} frame={frame} opacity={1} />
+      <Terminal repo="research-repo" blocks={tl.blocks} frame={frame} opacity={opening} />
       {active.length > 0 && (
         <Spotlight
           box={active[active.length - 1].box}
@@ -522,74 +344,33 @@ const Story: React.FC = () => {
   );
 };
 
-const Thesis: React.FC = () => {
+const Thesis: React.FC<{tl: Timeline}> = ({tl}) => {
   const local = useCurrentFrame();
-  const t0 = BEATS[BEATS.length - 1].start;
-  const storyOut = ramp(local + t0, MOVES.storyOut);
-  const thesisIn = ramp(local + t0, MOVES.thesisIn);
+  const t0 = tl.storyOut[0];
+  const storyOut = ramp(local + t0, tl.storyOut);
+  const thesisIn = ramp(local + t0, tl.thesisIn);
   return (
     <AbsoluteFill style={{backgroundColor: T.paper, opacity: storyOut, ...STABLE}}>
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: HEIGHT / 2 - 60,
-          textAlign: 'center',
-          fontFamily: SERIF,
-          fontSize: 64,
-          color: T.ink,
-          opacity: thesisIn,
-        }}
-      >
-        {COPY.thesis}
+      <div style={{position: 'absolute', left: 0, right: 0, top: HEIGHT / 2 - 60, textAlign: 'center', fontFamily: SERIF, fontSize: 64, color: T.ink, opacity: thesisIn}}>
+        {tl.thesis}
       </div>
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: HEIGHT / 2 + 40,
-          textAlign: 'center',
-          fontFamily: MONO,
-          fontSize: 24,
-          color: T.muted,
-          opacity: thesisIn,
-        }}
-      >
-        {COPY.signature}
+      <div style={{position: 'absolute', left: 0, right: 0, top: HEIGHT / 2 + 40, textAlign: 'center', fontFamily: MONO, fontSize: 24, color: T.muted, opacity: thesisIn}}>
+        claims-ledger
       </div>
     </AbsoluteFill>
   );
 };
 
-export const Film: React.FC = () => {
-  const thesis = BEATS[BEATS.length - 1];
+export const Film: React.FC<FilmProps> = ({scenario}) => {
+  const tl = SCENARIOS[scenario]();
   return (
     <AbsoluteFill style={{backgroundColor: T.paper}}>
-      <Sequence name="story" from={0} durationInFrames={MOVES.storyOut[1]}>
-        <Story />
+      <Sequence name="story" from={0} durationInFrames={tl.storyOut[1]}>
+        <Story tl={tl} />
       </Sequence>
-      <Sequence name="thesis" from={thesis.start} durationInFrames={thesis.end - thesis.start}>
-        <Thesis />
+      <Sequence name="thesis" from={tl.storyOut[0]} durationInFrames={tl.durationInFrames - tl.storyOut[0]}>
+        <Thesis tl={tl} />
       </Sequence>
     </AbsoluteFill>
   );
 };
-
-/**
- * The track matte: the APPEND marker's row alone, white on black, as it
- * scrolls. tools/track-centroid.py measures its centroid per frame and checks
- * it against `fileScrollPx`, the function the film scrolls the pane with.
- */
-export const TrackMatte: React.FC = () => {
-  const frame = useCurrentFrame();
-  const y = FILE_TOP + PANE_PAD + APPEND_INDEX * FILE_LINE - fileScrollPx(frame, APPEND_INDEX);
-  return (
-    <AbsoluteFill style={{backgroundColor: '#000'}}>
-      <div style={{position: 'absolute', left: PANE_X, top: y, width: PANE_W, height: FILE_LINE, background: '#fff'}} />
-    </AbsoluteFill>
-  );
-};
-
-export const APPEND_LINE_INDEX = APPEND_INDEX;
