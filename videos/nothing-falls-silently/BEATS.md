@@ -21,15 +21,16 @@ emphasis and time.
 |---|---|---|---|---|
 | entry | 0–330 | R0001 from its Assertion: Scope, Grounds (an experiment at a commit, a registered source); spotlight on Grounds | `status` — R0001 open; spotlight on the row | a claim file, with its evidence, and a status |
 | check | 330–500 | — | `check` — five lines, all zero, exit 0; spotlight | five checkers, all clean |
-| verdict | 500–1060 | scrolls to the APPEND marker; spotlight on the empty Verdicts section; then a spotlight on the empty place where the row will land, captioned with the decision, and the `refuted` row lands inside it, `author: main`; then the same box captioned *appended by hand* | `status` — R0001 refuted; spotlight | a decision is written down as a row; the status follows it, nothing else edited |
+| verdict | 500–1060 | scrolls to the APPEND marker; spotlight on the empty Verdicts section; then a spotlight on the empty place where the row will land, captioned *The claim is refuted. The verdict is written here.*, and the `refuted` row lands inside it, `author: main`; then the same box captioned *appended by hand* | `status` — R0001 refuted; spotlight | a decision is written down as a row; the status follows it, nothing else edited |
 | fail | 1060–1300 | — | `check` — FAIL R0002, R0003, README.md, ROSTER.md; propagate FAIL ×2; exit 1; spotlight on the four | everything that cited it live now fails |
 | propagate | 1300–1800 | cuts to R0003: a `contested` row, `author: propagation`, `evidence: … R0001 · fallen`; spotlight | `propagate --write` — FLAG appended; `status` — R0002, R0003 contested; spotlights | the machine writes the dependents their row |
 | gate | 1800–2010 | — | `git commit` — the hook runs `check`, 8 FAIL lines, exit 1; spotlight on the refused command | the commit is refused until the citations are fixed |
 | thesis | 2010–2160 | — | — | *Nothing falls silently.* |
 
 Holds were doubled after the first cut was judged too fast to comprehend, and the verdict
-— which arrived from nowhere — now has three steps: what a Verdicts section is, what was
-decided and why, and the row it becomes.
+— which arrived from nowhere — now has three steps: what a Verdicts section is, that the claim is refuted and a verdict
+is written here, and the row it becomes. The captions stay one concept each: the number
+the rerun produced is in the row's own `note:` line, not in the caption.
 
 **Emphasis, and what it rests on.** The shell's own tokens `FAIL` and `FLAG` carry the
 accent on their whole line, as a colouring shell would show them; a status that has just
