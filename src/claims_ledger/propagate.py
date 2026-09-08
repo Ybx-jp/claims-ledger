@@ -2,22 +2,28 @@
 
 Walks the `entry:` edges. When an entry cited `cites-as-live` has fallen (refuted,
 superseded, retracted), the dependent must carry a `contested` verdict by the
-propagation author naming the fallen entry; when an entry is named by a `challenges`
-act, the challenged entry must carry a `contested` verdict by the propagation author
-naming the challenger. A missing verdict is appended with `--write` and is a failure
-either way, so the flag is seen
+propagation author naming the fallen entry
+(L0017-a-fallen-ground-demands-a-verdict-on-its-dependent, cites-as-live); when an entry
+is named by a `challenges` act, the challenged entry must carry a `contested` verdict by
+the propagation author naming the challenger
+(L0018-a-challenges-act-demands-a-verdict-on-its-target, cites-as-live). A missing
+verdict is appended with `--write` and is a failure either way, so the flag is seen
 (L0012-a-propagated-append-is-still-a-failing-run, cites-as-live). A `challenges` act
-against a fallen target is reported as illegal and nothing is appended. A propagated
-verdict whose stated cause does not exist — no such challenger, no such fall — is an
-orphan and fails
+against a fallen target is reported as illegal and nothing is appended
+(L0019-a-challenges-act-against-a-terminal-target-appends-nothing, cites-as-live). A
+propagated verdict whose stated cause does not exist — no such challenger, no such fall
+— is an orphan and fails
 (L0013-a-propagated-verdict-names-a-cause-that-happened, cites-as-live). A dependent
 that has itself fallen needs no flag: a verdict after a terminal status is illegal, and
-its successor is walked.
+its successor is walked
+(L0020-a-dependent-that-has-fallen-is-not-flagged, cites-as-live).
 
 Run:  claims-ledger propagate [--write]
-      Without --write nothing is modified; the missing verdicts are reported. With it
-      they are appended, each attributed to the propagation author, and the run still
-      exits non-zero so the change is looked at before it is committed.
+      Without --write nothing is modified
+      (L0021-without-write-nothing-is-modified, cites-as-live); the missing verdicts are
+      reported. With it they are appended, each attributed to the propagation author,
+      and the run still exits non-zero so the change is looked at before it is
+      committed.
 Exit 1 on any failure.
 Proven against the red-team corpus by `claims-ledger corpus`.
 """
@@ -42,6 +48,13 @@ from .schema import (
 
 
 def has_propagated(entry, cause_id, act, author):
+    """Whether `entry` already carries the propagated verdict it is owed for `cause_id`.
+
+    Five conditions of one verdict: a contested status, the propagation author, an
+    `entry:` pointer, that pointer's target, and the act that caused it. A near miss
+    does not discharge the propagation — it leaves a verdict the entry still owes
+    (L0025-a-propagation-is-recognized-only-on-an-exact-match, cites-as-live).
+    """
     return any(
         v.author == author
         and v.status == "contested"
@@ -54,6 +67,12 @@ def has_propagated(entry, cause_id, act, author):
 
 
 def falling_verdict(entry):
+    """The verdict that took `entry` down, or None.
+
+    Its grade is the grade a propagated flag carries, and its index and timestamp are
+    what the note names, so the flag says which fall caused it
+    (L0026-a-propagated-fall-carries-the-grade-of-the-fall, cites-as-live).
+    """
     for v in entry.verdicts:
         if v.status in FALLEN:
             return v
@@ -61,6 +80,13 @@ def falling_verdict(entry):
 
 
 def verdict_block(status_grade, cause_id, act, note, author):
+    """The three lines of a propagated verdict.
+
+    Contested, attributed to the propagation author, and carrying its cause as an
+    `entry:` pointer with the act that caused it: there is no route through here to a
+    propagated verdict of another status, or to one that names nothing
+    (L0024-a-propagated-verdict-is-contested-and-names-its-cause, cites-as-live).
+    """
     stamp = datetime.now().astimezone().isoformat(timespec="seconds")
     return (
         f"- {stamp} · contested · grade: {status_grade} · author: {author}\n"
@@ -92,13 +118,19 @@ REFERENCES_RE = re.compile(r"(?:\r\n|\n)## References")
 
 
 def append_verdict(entry, block, *, root):
-    """The verdicts appended to the entry file. `root` refuses a write that lands outside
-    the project — an entry inside `entries/` can be a symlink to anywhere, and following
-    one is the write outside the root that this package states it does not do.
+    """The verdicts appended to the entry file, and the only append in the package:
+    `freshness --write` reaches its write through here rather than through one of its
+    own (L0027-one-function-appends-every-verdict, cites-as-live).
+
+    `root` refuses a write that lands outside the project — an entry inside `entries/`
+    can be a symlink to anywhere, and following one is the write outside the root that
+    this package states it does not do
+    (L0022-nothing-is-written-through-a-link-that-leaves-the-root, cites-as-live).
 
     Required, and keyword-only, because a guard a caller may omit is a guard a caller
     omits: HIGH-11, MEDIUM-19 and HIGH-56 were each one write site that never asked this
-    question, and a default of None was the third one waiting to happen.
+    question, and a default of None was the third one waiting to happen
+    (L0023-the-root-of-an-append-is-required-and-keyword-only, cites-as-live).
 
     The file is re-read from disk with its own line endings, rather than written back
     from the text the parser normalized: an entry committed with CRLF was otherwise

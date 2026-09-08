@@ -1,8 +1,8 @@
 # Working in this repository
 
-This package holds a ledger of the claims about *itself*. Sixteen entries under `ledger/`
-— thirteen live and three superseded — pinned to the code that keeps them true and cited from the
-README sentence and the docstring that state the same commitment in prose.
+This package holds a ledger of the claims about *itself*: entries under `ledger/`
+pinned to the code that keeps them true and cited from the README sentence and the
+docstring that state the same commitment in prose.
 `claims-ledger check` runs in the pre-commit hook and again in CI.
 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
@@ -19,11 +19,10 @@ Enforced in two places, neither of which is this file: `allow_squash_merge` and
 for that guard are committed beside it in `merge-guard.cases`; run
 `bash examples/agent-harness/merge-guard-test.sh` after touching either.
 
-The reason is in `docs/OPERATING.md`. The short of it: the entries pin commit
-`4023af40` eleven times over and four later commits another eleven — L0009 on
-`7b1f3414`, L0010 twice on `d2789a9`, L0011 twice on `d1474db`, and L0012 through L0016
-six times on `e80ad36` — and a rewrite that drops any of them costs a supersession per
-ground pinned into it.
+The reason is in `docs/OPERATING.md`. The short of it: the entries pin commits, many
+of them, and a rewrite that drops one costs a supersession per ground pinned into it.
+`claims-ledger status` is the count; it is not repeated here, because a tally in prose
+is one more thing that goes stale every time an entry lands.
 
 ## What the checkers read here
 
