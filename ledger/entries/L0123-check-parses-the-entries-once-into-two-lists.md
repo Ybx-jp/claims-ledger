@@ -1,0 +1,39 @@
+---
+id: L0123-check-parses-the-entries-once-into-two-lists
+kind: claim
+stated: 2026-09-08T02:42:36-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: 6a566e46f84fcac9603ba940db4f3a1590b5e8fae425656b1dc8e67e743c64ba
+---
+
+## Assertion
+
+A combined run parses the entries once into two lists rather than once per checker: what is staged for the two checkers that read the index, and the working tree for the other three.
+
+## Scope
+
+metric: the number of times the entries are parsed in a combined run
+cohort: a run of all five checkers
+condition: the cached flag makes the two lists differ
+
+## Grounds
+
+- code: src/claims_ledger/cli.py § "cmd_check" @a3df5b5b0d1ea7ec0d3cd95ba40a2aaa3d716395
+
+## Warrant
+
+cmd_check loads the working tree once and, under the cached flag, the index once, then hands each checker the list it should be reading. One list would erase the distinction the cached flag exists to make; five loads would parse every entry five times for no answer that differs. Two is what the difference actually costs.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/cli.py · standing · cites-as-live
