@@ -119,8 +119,8 @@ def check_roster(entries, index, status, ledger):
     return out
 
 
-def run(ledger):
-    entries = load_entries(ledger)
+def run(ledger, entries=None):
+    entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
     config = ledger.config

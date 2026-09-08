@@ -284,7 +284,7 @@ def guard(ledger, cached=False):
     That combination is how a checker comes to print `0 failure(s)` over a ledger full of
     failures, so listability is established here rather than assumed.
 
-    Ledger: (L0005-a-missing-entries-directory-stops-the-command, cites-as-live).
+    Ledger: (L0010-a-missing-entries-directory-stops-the-command, cites-as-live).
     """
     where = ledger.config.relative(ledger.entries_dir)
     error = entries_dir_listing_error(ledger.entries_dir)
@@ -319,16 +319,18 @@ def cmd_validate(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    reports = validate.run(ledger, cached=args.cached)
-    return report_command("validate", reports, load_entries(ledger), ledger)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = validate.run(ledger, cached=args.cached, entries=entries)
+    return report_command("validate", reports, entries, ledger)
 
 
 def cmd_resolve(args, ledger):
     stop = guard(ledger)
     if stop is not None:
         return stop
-    reports = resolve.run(ledger)
-    return report_command("resolve", reports, load_entries(ledger), ledger)
+    entries = load_entries(ledger)
+    reports = resolve.run(ledger, entries=entries)
+    return report_command("resolve", reports, entries, ledger)
 
 
 def cmd_references(args, ledger):
@@ -336,7 +338,7 @@ def cmd_references(args, ledger):
     if stop is not None:
         return stop
     entries = load_entries(ledger)
-    reports = references.run(ledger)
+    reports = references.run(ledger, entries=entries)
     print_reports(
         reports,
         f"references ({plural(len(entries), 'entry', 'entries')}, "
@@ -349,16 +351,18 @@ def cmd_propagate(args, ledger):
     stop = guard(ledger)
     if stop is not None:
         return stop
-    reports = propagate.run(ledger, write=args.write)
-    return report_command("propagate", reports, load_entries(ledger), ledger)
+    entries = load_entries(ledger)
+    reports = propagate.run(ledger, write=args.write, entries=entries)
+    return report_command("propagate", reports, entries, ledger)
 
 
 def cmd_freshness(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    reports = freshness.run(ledger, write=args.write, cached=args.cached)
-    return report_command("freshness", reports, load_entries(ledger), ledger)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = freshness.run(ledger, write=args.write, cached=args.cached, entries=entries)
+    return report_command("freshness", reports, entries, ledger)
 
 
 def cmd_check(args, ledger):
@@ -366,17 +370,23 @@ def cmd_check(args, ledger):
     if stop is not None:
         return stop
     worst = 0
+    # The entries are parsed once for the five checkers rather than once each. Two lists
+    # and not one: under `--cached` `validate` and `freshness` read what is staged and the
+    # other three read the working tree, which is the difference `--cached` exists to
+    # make. (ARCH-AUDIT.md, finding 4.)
+    working = load_entries(ledger)
+    staged = load_entries(ledger, cached=True) if args.cached else working
     for name in CHECKERS:
         if name == "validate":
-            reports = validate.run(ledger, cached=args.cached)
+            reports = validate.run(ledger, cached=args.cached, entries=staged)
         elif name == "resolve":
-            reports = resolve.run(ledger)
+            reports = resolve.run(ledger, entries=working)
         elif name == "references":
-            reports = references.run(ledger)
+            reports = references.run(ledger, entries=working)
         elif name == "propagate":
-            reports = propagate.run(ledger, write=False)
+            reports = propagate.run(ledger, write=False, entries=working)
         else:
-            reports = freshness.run(ledger, write=False, cached=args.cached)
+            reports = freshness.run(ledger, write=False, cached=args.cached, entries=staged)
         print_reports(reports, name)
         worst = max(worst, exit_code(reports))
     return worst

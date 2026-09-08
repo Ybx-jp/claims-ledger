@@ -232,3 +232,33 @@ def test_the_installed_hook_asks_freshness_about_the_index():
     assert len(invocations) == 5, invocations
     (line,) = [ln for ln in invocations if " freshness" in ln]
     assert "--cached" in line, f"the hook runs {line!r}"
+
+
+def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
+    """`check` parses the entries once for all five checkers, and under `--cached` it
+    parses twice — `validate` and `freshness` read what is staged, the other three read
+    the working tree. Getting that mapping backwards, or collapsing it to one list, is
+    invisible to every other test in this suite: both mutants pass 857 tests and 79 seeds.
+    Before the entries were hoisted out of the checkers the mapping could not be stated
+    wrongly, because each checker asked for its own. (ARCH-AUDIT.md finding 4, QE13-1.)
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+    capsys.readouterr()
+
+    # Staged: the entry as committed. Working tree: an id that no longer matches the
+    # filename, which is `validate`'s finding and nothing else's.
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("id: A0001-", "id: A0002-", 1), encoding="utf-8"
+    )
+
+    project.cl("check")
+    assert "filename and id" in capsys.readouterr().out, "precondition: the working tree is bad"
+    project.cl("check", "--cached")
+    assert "filename and id" not in capsys.readouterr().out, (
+        "--cached must give validate the staged entry, which is the one being committed"
+    )

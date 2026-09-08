@@ -160,6 +160,105 @@ The findings are ranked by consequence, not by effort to fix.
 >   `check` exit 2, `unexpected PermissionError … this is a bug. Please report it`, four of
 >   five checkers unrun. The same `is_file()` that QE11-4 replaced in `freshness`.
 
+> **Disposition — 2026-09-07, finding 4.** Fixed on branch `arch/process-counts`, measured
+> on `examples/research-repo` (12 entries) with a PATH shim counting `git` executions:
+>
+> | | before | after |
+> |---|---|---|
+> | `check`, git processes | 31 | **22** |
+> | `freshness`, git processes | 17 | **8** |
+> | `check`, `load_entries` calls | 5 | **1** |
+>
+> `drift()` is asked once per pointer per run and remembered: the findings are a function
+> of the pointer, the repository and the tree, all fixed for the run, so `orphans()`
+> asking again for every ground `run()` had already evaluated bought 4 to 6 more git
+> processes for the same answer — and two entries resting on one artifact asked twice
+> over, which the memo also closes. The five checkers take the entries the caller already
+> parsed; `check` parses once for all five, and twice only under `--cached`, where
+> `validate` and `freshness` read what is staged and the other three read the working
+> tree. That is the difference `--cached` exists to make and it is not collapsed.
+>
+> **What this cost the ledger, and what that says.** `cmd_validate` is one of L0005's two
+> grounds, so loading the entries once and passing them down drifted it and cost a
+> supersession — L0010. That is the second time in a day this ledger has priced a design
+> decision, and both times the pinned section was a *caller* rather than the code carrying
+> the rule: `guard` is where "a missing entries directory stops the command" actually
+> lives, and `cmd_validate` is named as the pattern its callers follow. A ground on a
+> caller goes stale for every edit to that caller, whatever it was for. Worth weighing
+> against `docs/OPERATING.md`'s own advice to pin narrowly, which this obeys in letter.
+>
+> **The pin-width exposure, measured and half repaired.** The observation above was
+> checked against every live ground rather than left as a pair of anecdotes. Line counts
+> of the pinned sections, against the claims resting on them:
+>
+> | lines | ground | what the claim is about |
+> |---|---|---|
+> | 66 | `config.py § from_table` | one rule: an unknown key is refused |
+> | 47 | `authoring.py § restamp` | the refusal, which is most of the function |
+> | 31 | `pyproject.toml § [project]` | two keys |
+> | 29 | `cli.py § HOOK_TEMPLATE` | the shebang and `-m` |
+> | 9 | `cli.py § cmd_validate` | nothing; it is a caller |
+>
+> One of these is now repaired: a `toml-key` section pattern names a single key, and
+> L0011 supersedes L0002 on `dependencies` (3 lines) and `requires-python` (1) rather
+> than the table (31). The successor's `verbatim_sha` is byte-identical, which is the
+> record saying the claim did not move and only its ground narrowed.
+>
+> The others are open, and two of them cannot be closed the same way. `HOOK_TEMPLATE` is
+> a string literal, so a line-anchored pattern cannot reach inside it — and a ninth-pass
+> finding already says the ~20 lines of audit commentary in it should be deleted, which
+> will move L0001. `from_table` and `restamp` would need a pattern matching something
+> narrower than a top-level `def`, which is exactly what the `code` pattern's docstring
+> warns against anchoring loosely. `cmd_validate` is not a width problem at all: it is a
+> caller, pinned to evidence a cohort clause, and no pattern makes a caller stop changing.
+>
+> Not done, and named rather than left implicit: the pre-commit hook still runs the five
+> checkers as five interpreter processes. One process would need the hook to call a single
+> entry point, which is a change to what is installed in every generated repository and to
+> `HOOK_TEMPLATE`, which L0001 pins. Its own branch.
+
+> **The fix-review gate on finding 4** (`qe`, ticket `b9a823b8df524a62`) returned safe to
+> merge and found what the branch was actually short of: **three new hand-maintained rules
+> and no tests**. Two of the three survived their own inversion with 857 passing and 79/79
+> seeds. Both are now held, each reddened by its own mutant:
+>
+> - **QE13-1.** Swapping `cmd_check`'s two entry lists, and collapsing them to one, each
+>   passed the whole suite. The mapping is observable — an entry whose `id` differs between
+>   the index and the working tree gives `validate` a `filename and id` failure under one
+>   assignment and not the other — and before the entries were hoisted out of the checkers
+>   it could not be stated wrongly at all, because each checker asked for its own.
+> - **QE13-2.** A memo keyed on `pointer.target` instead of `pointer.raw` also passed
+>   everything, and silently loses a real finding on this repository's own ledger: L0010
+>   carries two grounds on one file naming two sections, so the second one's drift is
+>   answered with the first one's verdict.
+> - **QE13-5.** `orphans()` kept both a `tree` argument and a `drifted` memo, and `tree`
+>   was discarded whenever the memo was passed. One path now, and `freshness` is
+>   re-exported from `__init__`, so the dead parameter was reachable.
+>
+> **The memo is sound under `--write`, for a reason worth writing down**: every caller runs
+> above the `if write:` branch, so no answer is given after the first append. The gate also
+> found it *removes* a hazard — the old code's two calls were separated by dozens of
+> subprocesses, so an edit landing between them produced two answers to one question inside
+> one report.
+>
+> **Two bad cases in the `toml-key` pattern, documented rather than engineered around**,
+> because the README now recommends it to every reader. Over a value written across
+> several lines the span is the key's own first line and nothing else — `authors = [` is
+> byte-identical whoever is in the list — which is a ground that can never go stale, worse
+> than one that goes stale too often. And a key name matches wherever it first appears, in
+> whichever table, so a Scope that says "the project table" asserts something its ground
+> cannot check. Neither is reachable for L0011's two keys; both are reachable by anyone
+> following the documentation. `config.py` was right not to refuse the pattern: the
+> property depends on the artifact's grammar and is not decidable from the pattern.
+>
+> **L0010 is left as it is, deliberately, and recorded as known-fragile.** One comment
+> added inside `cmd_validate` flags it — measured. Dropping the caller ground is the right
+> repair and is not free: nothing else connects `guard` to the six commands its Scope names,
+> and five sixths of that cohort were already prose. The repair that loses nothing is to
+> ground the successor on the test that establishes the cohort rather than on prose, and
+> that test does not exist — coverage in `tests/` is per-command. Writing it is the work,
+> and it is not this branch's.
+
 ---
 
 ## Verdict

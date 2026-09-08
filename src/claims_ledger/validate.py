@@ -717,8 +717,8 @@ def check_history(ledger, entries, cached=False):
     return out
 
 
-def run(ledger, cached=False):
-    entries = load_entries(ledger, cached=cached)
+def run(ledger, cached=False, entries=None):
+    entries = load_entries(ledger, cached=cached) if entries is None else entries
     index = by_id(entries)
     config = ledger.config
     reports = []

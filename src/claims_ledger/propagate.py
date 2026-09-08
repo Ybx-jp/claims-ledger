@@ -144,8 +144,8 @@ def append_verdict(entry, block, *, root):
         ) from exc
 
 
-def run(ledger, write=False):
-    entries = load_entries(ledger)
+def run(ledger, write=False, entries=None):
+    entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
     author = ledger.config.propagation_author

@@ -17,7 +17,7 @@ Nothing is installed alongside it: the checkers use the standard library only, s
 `python3 -m claims_ledger check` runs from a plain interpreter — which is how the
 pre-commit hook invokes them, rather than by console-script name that git's own
 environment may not have on PATH. Python 3.11 or newer
-(L0002-no-runtime-dependencies, cites-as-live).
+(L0011-no-runtime-dependencies, cites-as-live).
 
 ## Why
 
@@ -199,7 +199,7 @@ A check that could not run never reports that it passed. Pointed at a directory 
 entries directory in it — the wrong `--root`, a configuration file moved away from its
 ledger — every checking command stops with exit 2 and says nothing was checked, rather
 than printing five clean lines over an empty room
-(L0005-a-missing-entries-directory-stops-the-command, cites-as-live). Where a check is genuinely skipped
+(L0010-a-missing-entries-directory-stops-the-command, cites-as-live). Where a check is genuinely skipped
 rather than passed, it is named on stderr: outside a git repository, or with no `git` on
 PATH, validate's frozen-region and append-only checks cannot run and say so.
 
@@ -276,6 +276,18 @@ evidence-plain = ["experiment"]
 # rest of it uncompared.
 [tool.claims-ledger.section-patterns]
 code = '^(?:def|class)[ \t]+{name}\b'
+
+# A pattern is how narrow a ground can be, and narrowness is what keeps a claim from
+# going stale for a reason it does not care about. A claim about one setting should not
+# rest on the table holding it:
+#   toml     = '^\[{name}\]'    # the whole table
+#   toml-key = '^{name} = '      # one key of it, single-line values only
+#
+# One pattern decides both ends of a section, so a key's section runs to the next line
+# the same pattern matches. Over a value written across several lines that is the key's
+# own first line and nothing else — a ground that can never go stale, which is worse than
+# one that goes stale too often. And a key name that is not unique in the file matches
+# the first one, whichever table it is in.
 
 verdict-authors = ["main", "propagation"]
 propagation-author = "propagation"   # the name machinery writes under

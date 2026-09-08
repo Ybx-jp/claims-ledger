@@ -345,8 +345,8 @@ def check_retraction(e, sources):
     return out
 
 
-def run(ledger):
-    entries = load_entries(ledger)
+def run(ledger, entries=None):
+    entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     sources = Sources(ledger)
     reports = []

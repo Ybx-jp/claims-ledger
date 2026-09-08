@@ -619,6 +619,42 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   directly, and gone, not-a-regular-file and could-not-be-reached are three answers rather
   than two.
 
+### Faster by the architecture audit
+
+- **`freshness` asks git about a pointer once.** `orphans()` re-ran the whole drift
+  comparison for every ground `run()` had already evaluated — 4 to 6 git processes per
+  pinned pointer, for an answer that cannot have changed inside one run — and two entries
+  resting on the same artifact asked twice over. Measured on the 12-entry example research
+  repository: `freshness` 17 git processes to 8, `check` 31 to 22.
+- **`check` parses the entries once rather than five times.** Each checker loaded them
+  itself and each command loaded them a second time for the count in its summary line.
+  The checkers now take the entries the caller already has. Under `--cached` there are two
+  lists and not one, because `validate` and `freshness` read what is staged while the
+  other three read the working tree, and that difference is what `--cached` is for.
+  `load_entries` calls per `check`: 5 to 1. The memo is keyed on the whole pointer and not
+  on its target, and `check`'s two lists are held by tests rather than by care: a
+  target-keyed memo and a swapped or collapsed `--cached` split each passed the whole
+  suite and the whole corpus, and the first silently loses a finding on this package's own
+  ledger.
+- **L0005 is superseded by L0010**, at an unchanged verbatim record: `cmd_validate` is one
+  of its two grounds and the change edits it, so the ground moved while the claim did not.
+  Both supersessions this package has now cost were forced by a pinned section changing
+  for a reason the claim did not care about, and both pinned a *caller* — the code that
+  follows the rule — rather than the code carrying it. Recorded in `ARCH-AUDIT.md` as
+  something to weigh, not as a defect in the tool.
+- **A section pattern can name one key of a TOML table, and L0002 is superseded by L0011
+  on that ground.** `toml` names a table, which was the finest ground available for a
+  claim about two settings: L0002 asserted no runtime dependencies and a 3.11 floor and
+  rested on the whole 31-line `[project]` table, so adding a classifier or editing the
+  description moved a claim about `dependencies`. Measured on this file: `[project]` 31
+  lines, `dependencies` 3, `requires-python` 1. The successor's `verbatim_sha` is
+  byte-identical to its predecessor's, which is the record saying the claim did not move
+  and only its ground narrowed. The three lines rather than one are a boundary artefact
+  and are stated rather than hidden: one pattern decides both ends of a section, so the
+  span runs to the next key assignment and takes the `[project.optional-dependencies]`
+  header with it — one line of exposure where there were thirty, and arguably the right
+  line, since it is where the runtime dependencies end.
+
 ### Changed by the architecture audit
 
 One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and
