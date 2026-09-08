@@ -4,21 +4,31 @@ Entry to entry: every `entry:` ground names an entry that exists and carries an 
 compatible with the target's current status — `cites-as-live` needs open or
 corroborated, `cites-as-contested` needs contested, `challenges` needs open,
 corroborated or contested, `cites-as-fallen` accepts any status and is the only act
-legal against a fallen one. The filter a reader must apply every time is applied for
-them here. An entry that has itself fallen is exempt: its Grounds are immutable history,
-and a dependent whose live-cited ground fell is superseded rather than repaired.
+legal against a fallen one
+(L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The filter
+a reader must apply every time is applied for them here. An entry that has itself fallen
+is exempt: its Grounds are immutable history, and a dependent whose live-cited ground
+fell is superseded rather than repaired
+(L0043-a-fallen-entrys-grounds-are-immutable-history, cites-as-live).
 
 Document to entry: a document cites an entry inline as `(A0007-<slug>, cites-as-live)`.
 Every cited id exists, the act is compatible with the target's status, and the entry's
 References section lists the citing document; every location an entry lists really
-cites it. No document may cite an id in a quarantined series, by prefix alone. A
-document that carries an entry's Assertion verbatim without citing it is reported too:
-that finds copies, and says nothing about restatements in other words.
+cites it (L0044-a-citation-and-its-references-row-must-agree, cites-as-live). No
+document may cite an id in a quarantined series, by prefix alone
+(L0045-an-archived-series-is-refused-by-prefix, cites-as-live). A document that carries
+an entry's Assertion verbatim without citing it is reported too
+(L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
+and says nothing about restatements in other words. A document this checker could not
+read is a failure rather than one it quietly passed over
+(L0047-an-unreadable-document-is-a-failure-not-a-clean-run, cites-as-live).
 
 The hypothesis roster (a ROSTER.md among the documents, or whatever the project's
 configuration names) is a hand-maintained view of the entries and is checked against
-them: one row per hypothesis whose status is not terminal, the row's first cell citing
-it and its last cell stating its status.
+them: one row per hypothesis whose status is not terminal
+(L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's first
+cell citing it and its last cell stating its status
+(L0049-a-roster-row-states-what-the-entry-says, cites-as-live).
 
 Run:  claims-ledger references
 Exit 1 on any failure.
@@ -58,10 +68,17 @@ def roster_rows(body):
 
 def check_roster(entries, index, status, ledger):
     """The hypothesis roster is a hand-maintained view of the entries: one row per
-    hypothesis whose status is not terminal, the row's first cell citing it and its
-    last cell stating its status. A row that says something the entry does not, or a
-    hypothesis with no row, is a failure; the roster is not generated, so it is
-    checked."""
+    hypothesis whose status is not terminal
+    (L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's
+    first cell citing it and its last cell stating its status
+    (L0049-a-roster-row-states-what-the-entry-says, cites-as-live). A row that says
+    something the entry does not, or a hypothesis with no row, is a failure; the roster
+    is not generated, so it is checked.
+
+    Two rows for one hypothesis fail as well as none: a duplicated row is the shape in
+    which a stale status survives an edit to its twin, and the reader has no way to tell
+    which of the two was maintained.
+    """
     out = []
     roster = ledger.config.roster
     if not roster:
@@ -131,7 +148,8 @@ def run(ledger, entries=None):
         if status[e.id] in FALLEN:
             # A fallen entry's Grounds are immutable and are history: a dependent whose
             # live-cited ground fell is superseded, and the successor's acts are what is
-            # held to the targets' current statuses.
+            # held to the targets' current statuses
+            # (L0043-a-fallen-entrys-grounds-are-immutable-history, cites-as-live).
             continue
         for _raw, p in e.grounds:
             if p is None or p.type != "entry" or p.act not in ACT_ALLOWS:
@@ -154,8 +172,10 @@ def run(ledger, entries=None):
 
     # A document that could not be opened at all, and one that fails at the read: either
     # way its citations were not checked, and a checker that cannot read a document may
-    # not report a clean run over it. `fail`, not `flag`, because the exit code is what a
-    # hook acts on and nothing here was verified.
+    # not report a clean run over it
+    # (L0047-an-unreadable-document-is-a-failure-not-a-clean-run, cites-as-live).
+    # `fail`, not `flag`, because the exit code is what a hook acts on and nothing here
+    # was verified.
     for name, problem in ledger.unreadable_docs:
         reports.append(Report("fail", None, name, problem))
 
