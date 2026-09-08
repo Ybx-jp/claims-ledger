@@ -36,6 +36,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T13:37:41-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/neighbours.py § "run" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: 578965068168528d1b774ed9ee534ec489450263
+  note: propagated from a moved ground
+
+- 2026-09-08T13:55:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/neighbours.py § "run" @989493fa4655725014cedb6408b4ff9c7e680498
+  note: read against the change in commit 989493f, which made run append the ground line the answer hands over; it still builds no Report, writes nothing and returns without an exit code of its own, which is what this claim names
+
 ## References
 
 - src/claims_ledger/neighbours.py · standing · cites-as-live
