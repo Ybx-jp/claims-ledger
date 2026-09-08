@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:17:13-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__version__" @94e61e9404b22bd766f6cd97126c73413d0c7e2e
+  artifact: 263bfd4931fa02984416181466f88f64e7c03355
+  note: propagated from a moved ground
+
+- 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__version__" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed; the value and the single place it is written are unchanged
+
 ## References
 
 - src/claims_ledger/__init__.py · standing · cites-as-live

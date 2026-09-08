@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:17:14-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @989493fa4655725014cedb6408b4ff9c7e680498
+  artifact: 263bfd4931fa02984416181466f88f64e7c03355
+  note: propagated from a moved ground
+
+- 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed, into the list literal; both act lists are still named in it
+
 ## References
 
 - src/claims_ledger/__init__.py · standing · cites-as-live

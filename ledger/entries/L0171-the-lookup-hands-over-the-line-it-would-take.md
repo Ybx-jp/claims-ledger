@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:17:14-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/neighbours.py § "run" @989493fa4655725014cedb6408b4ff9c7e680498
+  artifact: d97c5dd2d2bf791df9ac91d3bf84227f624339a8
+  note: propagated from a moved ground
+
+- 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/neighbours.py § "run" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed; run still appends what handover built and builds no Report
+
 ## References
 
 - src/claims_ledger/neighbours.py · standing · cites-as-live

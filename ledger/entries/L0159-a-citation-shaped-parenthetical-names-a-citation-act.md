@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:17:13-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "MISCITATION_RE" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: c5b5dfd25c552c75745d3195f6b7e593a401b19e
+  note: propagated from a moved ground
+
+- 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "MISCITATION_RE" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed; the pattern is unchanged
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

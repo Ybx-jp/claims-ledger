@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:17:13-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/neighbours.py § "find" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: d97c5dd2d2bf791df9ac91d3bf84227f624339a8
+  note: propagated from a moved ground
+
+- 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/neighbours.py § "find" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  note: read against commit ee234ed, which moved a citing comment into find's docstring; the sort that puts unrelated pairs first is unchanged
+
 ## References
 
 - src/claims_ledger/neighbours.py · standing · cites-as-live
