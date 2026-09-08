@@ -632,6 +632,12 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   lists and not one, because `validate` and `freshness` read what is staged while the
   other three read the working tree, and that difference is what `--cached` is for.
   `load_entries` calls per `check`: 5 to 1.
+- **L0005 is superseded by L0010**, at an unchanged verbatim record: `cmd_validate` is one
+  of its two grounds and the change edits it, so the ground moved while the claim did not.
+  Both supersessions this package has now cost were forced by a pinned section changing
+  for a reason the claim did not care about, and both pinned a *caller* — the code that
+  follows the rule — rather than the code carrying it. Recorded in `ARCH-AUDIT.md` as
+  something to weigh, not as a defect in the tool.
 
 ### Changed by the architecture audit
 

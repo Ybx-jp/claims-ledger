@@ -1,10 +1,10 @@
 ---
-id: L0005-a-missing-entries-directory-stops-the-command
+id: L0010-a-missing-entries-directory-stops-the-command
 kind: claim
-stated: 2026-09-07T13:30:00-07:00
+stated: 2026-09-07T20:36:54-07:00
 author: main
 grade: measured
-supersedes: none
+supersedes: L0005-a-missing-entries-directory-stops-the-command
 verbatim_sha: 135a8de36c1e21e5ccb933d18b44dea855057a04cb17e4a4e439be039d466eb6
 ---
 
@@ -20,8 +20,8 @@ condition: no entries directory at the configured path, or one that cannot be li
 
 ## Grounds
 
-- code: src/claims_ledger/cli.py § "guard" @4023af4006273319aec9ae2512d197e4a99fce8c
-- code: src/claims_ledger/cli.py § "cmd_validate" @4023af4006273319aec9ae2512d197e4a99fce8c
+- code: src/claims_ledger/cli.py § "guard" @d2789a9e23db0b218b7f84303ef46b574e48d127
+- code: src/claims_ledger/cli.py § "cmd_validate" @d2789a9e23db0b218b7f84303ef46b574e48d127
 
 ## Warrant
 
@@ -29,18 +29,13 @@ guard asks for the listing error of the entries directory before any checker run
 
 ## Backing
 
+none
+
 <!-- APPEND BELOW THIS LINE ONLY -->
 
 ## Verdicts
 
-- 2026-09-07T20:35:53-07:00 · contested · grade: measured · author: propagation
-  evidence: code: src/claims_ledger/cli.py § "cmd_validate" @4023af4006273319aec9ae2512d197e4a99fce8c
-  artifact: 58799c38582c87607e65b36ee17d8c1cd30561b3
-  note: propagated from a moved ground
-
-- 2026-09-07T20:37:09-07:00 · superseded · grade: measured · author: main
-  evidence: entry: L0010-a-missing-entries-directory-stops-the-command · supersedes
-  note: cmd_validate now passes the entries it parsed to the checker rather than parsing them twice; the rule and its warrant are unchanged
-
 ## References
 
+- README.md · standing · cites-as-live
+- src/claims_ledger/cli.py · standing · cites-as-live
