@@ -22,7 +22,13 @@ function (L0164-a-shared-span-is-compared-without-its-pin, cites-as-live).
 Every result says whether the two are already related — an `entry:` ground either way, or
 a supersession — because the pair worth surfacing is the one nobody has read together yet,
 and a pair somebody has already distinguished is not that pair
-(L0165-a-recorded-relation-is-named-so-it-is-not-drawn-twice, cites-as-live).
+(L0165-a-recorded-relation-is-named-so-it-is-not-drawn-twice, cites-as-live). For the pairs
+with no relation recorded, the answer ends with the ground line that would record one,
+written out for each of them
+(L0171-the-lookup-hands-over-the-line-it-would-take, cites-as-live). That is as far as a
+lookup can go without deciding: the line is the same text whichever neighbour it names,
+and whether to write it at all is the judgement this command exists to hand over rather
+than to make.
 
 Run:  claims-ledger neighbours <entry id | entry path | ground pointer>
 Always exits 0.
@@ -151,6 +157,31 @@ def subject_of(ledger, entries, target):
     )
 
 
+def handover(unrelated):
+    """The lines a person would otherwise have to compose, written out verbatim.
+
+    A lookup that stops at `here are five entries you have not read together` leaves the
+    reader to remember the pointer syntax, the act, and which of the pair may carry the
+    ground. Printing the ground itself is the last thing this can do without deciding
+    anything: it is the same text either way, and which of the neighbours it is written
+    against — if any — is still a judgement nobody else can make
+    (L0171-the-lookup-hands-over-the-line-it-would-take, cites-as-live).
+    """
+    if not unrelated:
+        return []
+    return [
+        "",
+        "Nothing above is decided. The line that would record a distinction, verbatim —",
+        "in the Grounds of the entry being written, beside what it rests on:",
+        *(f"    - entry: {e.id} · distinguishes" for e in unrelated),
+        "",
+        "Grounds are frozen once an entry is committed, so those go in an entry that is",
+        "still being written; between two committed entries the distinction waits for",
+        "whichever is superseded next. To reconcile a pair rather than hold it apart:",
+        "    claims-ledger new <slug> --supersedes <id>",
+    ]
+
+
 def run(ledger, target, entries=None):
     """The lookup, as lines of text — returned rather than printed, so that the one thing
     that writes to a terminal is the command."""
@@ -166,12 +197,11 @@ def run(ledger, target, entries=None):
         lines.extend(f"    {reason}" for reason in reasons)
         if rel is not None:
             lines.append(f"    already related: {rel}")
-    unrelated = sum(1 for _, _, rel in found if rel is None)
+    unrelated = [e for e, _, rel in found if rel is None]
     lines.append(
-        f"\n{len(found)} neighbour(s) of {name}, {unrelated} with no relation recorded. "
-        "Reconcile them, distinguish one with a `distinguishes` ground, or leave them: "
-        "this command decides nothing."
+        f"\n{len(found)} neighbour(s) of {name}, {len(unrelated)} with no relation recorded."
     )
+    lines.extend(handover(unrelated))
     return lines
 
 

@@ -107,6 +107,12 @@ Only the newer entry can write the relation, because Grounds are frozen once com
 older one never points back; the lookup is what reads it from the other side, which is why
 recording the distinction is what stops the next reader redoing the comparison.
 
+The answer ends with the ground line for each pair it found no relation for, verbatim, so
+that recording one is a paste. Which of them to write — if any — is the judgement the
+command is handing over, and it is a judgement made in the pass that surfaced the pair: a
+distinction noticed and left unrecorded is one the next reader pays for again, which is
+the whole cost the act exists to remove.
+
 ## Writing a citation
 
 1. `claims-ledger status` for the entry's status now.

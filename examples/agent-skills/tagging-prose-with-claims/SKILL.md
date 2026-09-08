@@ -12,6 +12,29 @@ it true.
 Tagging adds a citation and an entry; it removes nothing. What it buys is that the
 sentence fails a check when the thing under it moves.
 
+## An entry that is owed is written now
+
+There is no backlog. A commitment written into prose with no entry behind it passes every
+check — that is the one door the checkers do not watch — so an entry put off is not an
+entry anything will ask for later. The cost of writing it does not fall either: the
+citation goes inside the span the entry pins, so a later pass pays the same two commits
+plus the drift its own citation causes.
+
+Two shapes of deferral to refuse in particular:
+
+- **A supporting change that needs a claim of its own.** Making something exported,
+  configurable or guaranteed so that something else can rely on it is a commitment, and
+  the sentence that says so needs an entry like any other. That the change was in service
+  of other work does not make it smaller.
+- **A repair the checkers have already named.** A drifted pin, a citation whose act no
+  longer matches, a supersession a Scope now needs. `claims-ledger check` is green or it
+  is not; leaving a finding for later leaves the ledger saying something untrue in the
+  meantime.
+
+Where the entry genuinely cannot be written yet — the artifact it would pin does not exist
+— say so in the same breath as the reason, and write it as soon as it can be. Silence is
+the failure mode, not delay.
+
 ## Decide where the citation will sit, before writing any entry
 
 A pinned ground names a **section** of an artifact, and what counts as a section is a
@@ -106,6 +129,13 @@ Each answer says whether the ledger already relates the two. For one it does not
   reports an entry whose every ground is one. `choosing-a-citation-act` has the act in
   full.
 - **Neither** — near is not inconsistent, and most neighbours are neither. Leave them.
+
+The answer ends with the ground line for each pair it did not find a relation for, written
+out verbatim, so recording one is a paste rather than a recollection. Grounds are frozen
+once an entry is committed, so those lines go in the entry still being written; between two
+committed entries the distinction waits for whichever is superseded next. Deciding is still
+yours — but if the answer is that they are different claims, that is an entry-shaped
+commitment and it is written in this pass, not noted for a later one.
 
 `claims-ledger neighbours --count` prints the distribution over a whole ledger — median,
 mean, most, and how many entries have none — which is what says whether the lookup is

@@ -8,7 +8,14 @@ grounds and the Scopes it read.
 
 from claims_ledger import cli, neighbours, open_ledger, validate
 from claims_ledger.authoring import PLACEHOLDER_GROUNDS
-from claims_ledger.schema import ACT_ALLOWS, ACTS, ENTRY_ACTS, STATUSES, load_entries
+from claims_ledger.schema import (
+    ACT_ALLOWS,
+    ACTS,
+    ENTRY_ACTS,
+    STATUSES,
+    load_entries,
+    parse_pointer,
+)
 
 
 def first_entry(project):
@@ -203,6 +210,36 @@ def test_the_lookup_exits_zero_whatever_it_finds(project):
 
 def test_check_does_not_run_the_lookup():
     assert "neighbours" not in cli.CHECKERS
+
+
+def test_the_answer_ends_with_the_ground_line_it_would_take(project):
+    """The lookup decides nothing and still writes out the line, so recording a distinction
+    is a paste rather than a recollection."""
+    first_entry(project)
+    second_entry(project, "second", '- lab: docs/note-001.md § "Observation" @working')
+    ledger = open_ledger(str(project.root))
+    lines = neighbours.run(ledger, "A0001-first")
+    assert "    - entry: A0002-second · distinguishes" in lines
+    # And the line is exactly what a Grounds section accepts.
+    pointer = parse_pointer(
+        lines[lines.index("    - entry: A0002-second · distinguishes")].strip("- ").strip()
+    )
+    assert pointer is not None
+    assert (pointer.type, pointer.target, pointer.act) == ("entry", "A0002-second", "distinguishes")
+
+
+def test_a_pair_already_related_gets_no_line(project):
+    """The hand-off is for the pairs nobody has read together; one already distinguished is
+    not one of those."""
+    first = first_entry(project)
+    second_entry(
+        project,
+        "second",
+        f'- lab: docs/note-001.md § "Observation" @working\n- entry: {first.stem} · distinguishes',
+    )
+    ledger = open_ledger(str(project.root))
+    lines = neighbours.run(ledger, "A0001-first")
+    assert not any("· distinguishes" in line and line.startswith("    - entry:") for line in lines)
 
 
 def test_the_count_is_the_lookup_asked_of_every_entry(project):

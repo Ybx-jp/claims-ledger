@@ -76,3 +76,15 @@ sit on, is wrong as soon as an entry lands, and nothing checks a number in prose
 
 **No project-specific assumptions.** The interpreter, the document list, the evidence
 types and the statuses are all askable. Ask.
+
+**Hand over the line, not the homework.** A skill that stops at *this is wrong* leaves the
+reader to compose the repair from memory. Where the repair has a fixed shape — a ground
+line, a verdict block, a command with its flags — write it out, and leave the judgement of
+whether to use it where it belongs. `claims-ledger neighbours` is the same idea in the
+package: it decides nothing and still prints the exact ground line each of its answers
+would take.
+
+**An entry that is owed is written in the pass that owes it.** Prose that promises
+something and cites nothing passes every check, so there is nothing that will come back for
+a deferred entry. A skill that offers *note it for later* as an outcome is offering the one
+outcome the ledger cannot enforce.

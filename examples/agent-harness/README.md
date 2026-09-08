@@ -133,6 +133,19 @@ runs `references`, which cannot write at all. Appending a verdict is a judgement
 ledger; a hook firing behind the author's back is not the place for one, and the verdict it
 wrote would be indistinguishable from one a person meant.
 
+**Hand over the line, not the homework.** A guard that stops at *this is wrong* leaves
+the session to compose the repair from memory. Where the repair has a fixed shape, the
+hooks write it out — and `claims-ledger neighbours`, which the hooks point at, does the
+same: it decides nothing and still prints the exact ground line each of its answers would
+take. Printing the text is not deciding to write it.
+
+**Say when it has to happen, because nothing else will.** `pin-guard.sh`'s new-claim
+reminder says to write the entry in this pass rather than note it for later. That is not
+tidiness: prose that promises something and cites nothing is precisely what passes every
+check, so a deferred entry has nothing that will come back for it, and the citation sits
+inside the span the entry pins, so a later pass pays the two commits again plus the drift
+its own citation causes.
+
 **Say what the choices are, never which to take.** `status-guard.sh` lists four outcomes
 and ranks none of them. It does say what each asserts, which is the part that decides:
 a `corroborated` verdict written without re-reading the artifact takes all five checkers

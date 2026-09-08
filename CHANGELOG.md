@@ -831,6 +831,11 @@ they are *near* each other, and near is not inconsistent.
   either way, or a supersession — and orders the pairs with none first. A pair somebody has
   already read is not the pair the lookup exists to surface.
 
+  The answer then writes out the ground line that would record a distinction, once for
+  every pair it found no relation for, so acting on one is a paste rather than a
+  recollection. That is as far as a lookup goes: the line is the same text whichever
+  neighbour it names, and whether to write it at all is the judgement being handed over.
+
 - **A `distinguishes` act**, so that reading a pair lands in the ledger once instead of
   being redone by every reader. One entry performs it on another; a document may not,
   because a document has no Scope to hold apart from anything, and the pattern that reads
@@ -853,6 +858,8 @@ they are *near* each other, and near is not inconsistent.
   new act, and the difference is the one a writer has to get right — what a document may
   write against what a ground may carry — so it is printable rather than memorable:
   `python -c "from claims_ledger import ACTS, ENTRY_ACTS; print(ACTS, ENTRY_ACTS)"`.
+  L0170 holds it, because the shipped skills tell a reader to print the vocabulary rather
+  than remember it, and that instruction is only true while both lists are exported.
 
 - **The shipped agent skills and hooks cover all of the above.**
   `choosing-a-citation-act` gains the act, the two lists and the parenthetical finding;
@@ -862,6 +869,13 @@ they are *near* each other, and near is not inconsistent.
   and says which commands are checkers and which only answer; `status-guard.sh` reports
   the not-a-citation-act finding on its own throttle; `pin-guard.sh` names the lookup at
   the moment a new claim is being written.
+
+  Two rules were added to all of them at once. **An entry that is owed is written in the
+  pass that owes it** — prose that promises something and cites nothing passes every
+  check, so nothing comes back for a deferred entry, and the citation sits inside the span
+  the entry pins, so a later pass pays the two commits again plus the drift its own
+  citation causes. And **hand over the line, not the homework**: where a repair has a fixed
+  shape, write it out. Printing the text is not deciding to write it.
 
 - Superseded **L0136**, whose cohort named four checkers while its metric counted over the
   package. `freshness`, the authoring side and the command line already read entries through

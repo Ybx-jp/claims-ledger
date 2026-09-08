@@ -2,6 +2,11 @@
 every quotation to its source, and derive status from an append-only verdict list, with
 five checkers that enforce the schema and a red-team corpus that proves the checkers.
 
+The vocabulary is exported, both act lists among it — the citation acts a document may
+write, and the acts a ground may carry — so that anything reading this package can print
+the list rather than carry a copy of it
+(L0170-both-act-lists-are-exported, cites-as-live).
+
 The schema is stated in full in docs/SCHEMA.md, which the repository carries at
 https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md.
 """

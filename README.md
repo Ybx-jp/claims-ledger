@@ -364,6 +364,12 @@ repository's own ledger, the same heuristic flags a few hundred pairs to surface
 worth reading, which is a rate that teaches people to ignore it. Asked one entry at a
 time, it answers with a handful.
 
+The answer ends with the ground line that would record a distinction, written out for
+every pair with no relation recorded
+(L0171-the-lookup-hands-over-the-line-it-would-take, cites-as-live). That is as far as a
+lookup goes: the line is the same text whichever neighbour it names, and whether to write
+it at all is the judgement being handed over.
+
 What to do with an answer is yours. Reconcile the two, supersede one, or record that they
 are different claims with a `distinguishes` ground — an act an entry may perform on
 another entry and a document may not. It is legal against a target of any status, because
