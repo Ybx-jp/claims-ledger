@@ -25,6 +25,7 @@ from .schema import (
     APPEND,
     ID_RE,
     PREFIX_RE,
+    enclosing_repository,
     fingerprint,
     git,
     git_problem,
@@ -233,7 +234,17 @@ def is_committed(repo, path):
     not a `no`.
     """
     if not repo:
-        return False, None  # no repository: nothing is committed and nothing was skipped
+        # "No repository" is only "nothing was skipped" when there is no repository
+        # anywhere. A ledger inside somebody else's repository has a history, and this
+        # returning `not committed` is what let `sha --write` rewrite the frozen region of
+        # an entry that repository had already committed. (ARCH-AUDIT.md, finding 3.)
+        holder = enclosing_repository(Path(path).parent)
+        if holder is None:
+            return False, None
+        return (
+            None,
+            f"the entry is inside the git repository at {holder}, which this ledger is not reading",
+        )
     try:
         rel = Path(path).resolve().relative_to(Path(repo).resolve())
     except ValueError:

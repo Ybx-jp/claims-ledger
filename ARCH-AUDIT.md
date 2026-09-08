@@ -28,6 +28,47 @@ The findings are ranked by consequence, not by effort to fix.
 > sha256-repository test and a walk-timeout test; and the legal two-branch union merge
 > false-fails on the ordering of appended verdicts, which predates this work.
 
+> **Disposition — 2026-09-07, findings 2, 3 and 6.** Fixed on branch
+> `arch/checks-that-did-not-happen`, which is the three of them because they are one
+> property: a check that did not happen must not report as if it did.
+>
+> **Finding 2, and 6 with it.** `now_text` returned the text and threw away the reason,
+> so `scoped()` mapped an artifact it could not read onto `moved`. It returns
+> `(text, unreachable)` now and `scoped` returns `(finding, why)`, so `drift` answers
+> `unknown` — the class it already had. The distinction finding 6 asks for is a new
+> `schema.unreadable_artifact()`: bytes that are there and are not UTF-8 stay `moved`,
+> because that artifact really did change and simply cannot be narrowed to a section,
+> and bytes that cannot be reached at all are a comparison that did not happen.
+> `file_problem` cannot draw that line — `os.stat` succeeds on a mode-000 file — which
+> is why finding 6's two guards stay two. The plain-pin branch had the same false
+> confidence one surface out, since git reports a file it cannot open as modified, and
+> it is fixed too; the audit's remedy named only the sectioned one.
+>
+> **Finding 3 — and the finding under it, which is worse than the one reported.** The
+> stated repro is a ledger with `.git` removed, where `validate` exits 0 and `resolve`
+> and `freshness` exit 1. Measured while fixing it: with no repository *anywhere*,
+> exit 0 is right — no entry has a creating commit, so nothing was skipped, and
+> `resolve` and `freshness` exit 1 over real pinned pointers they cannot resolve, which
+> is a different question. The real defect is next door. `open_ledger` calls a project a
+> repository when `<root>/.git` is there, so a ledger one directory inside one —
+> `--root <subdir>`, or a ledger vendored in a larger project — reads as having no
+> history at all. Measured on such a ledger: `sha --write` rewrote the frozen region of
+> an entry that repository had already committed and exited 0, and `validate` then
+> reported `0 failure(s)` over it. That is L0007 not holding, silently, on an ordinary
+> layout. `schema.enclosing_repository()` answers the narrow question — is there a
+> history nobody looked at? — and `check_history` and `is_committed` both report it.
+> Nothing *adopts* the repository: every evidence path in the package is written
+> relative to the ledger root and `git show <pin>:<path>` reads its path from the
+> repository's top, so adopting one means rebasing every git path in the package. That
+> is its own branch, and until it exists this refuses rather than guesses.
+>
+> Regressions: three in `tests/test_freshness.py` (mode-000 under a sectioned pin, the
+> same under a plain pin, and the not-text case that must keep saying `moved`), two in
+> `tests/test_failure_paths.py`. The report-site inventory in
+> `tests/test_corpus_integrity.py` moves 75 to 76 for the one new site. Gates: 850
+> passed, 2 xfailed, 79/79 seeds, ruff and ty clean. Superseding L0008 is part of this
+> branch: its pinned section is `freshness.py § "scoped"`, which the fix rewrites.
+
 ---
 
 ## Verdict

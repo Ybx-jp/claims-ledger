@@ -40,6 +40,7 @@ from .schema import (
     Report,
     blob_text,
     by_id,
+    enclosing_repository,
     git_blobs,
     git_call,
     git_history,
@@ -531,6 +532,26 @@ def check_history(ledger, entries, cached=False):
     """
     out = []
     if not ledger.repo:
+        # A ledger with no repository has nothing committed and nothing to be immutable
+        # against — unless it is sitting inside somebody else's repository, in which case
+        # it has a history and this run is not reading it. `resolve` and `freshness`
+        # already report a check they could not make; this one returned an empty list,
+        # so `validate` alone answered `0 failure(s)` over a frozen region a commit was
+        # holding. (ARCH-AUDIT.md, finding 3.)
+        holder = enclosing_repository(ledger.entries_dir)
+        if holder is not None:
+            out.append(
+                Report(
+                    "fail",
+                    None,
+                    "history",
+                    f"the entries are inside the git repository at {holder}, which this "
+                    "ledger is not reading, so the frozen-region and append-only checks "
+                    "did not run; whether every committed entry still matches the blob it "
+                    "was created with is unknown, not settled. Point --root at the "
+                    "repository root, or at a ledger of its own.",
+                )
+            )
         return out
     repo = ledger.repo
     # `git log` exits non-zero over a repository with no commits in it at all, which is

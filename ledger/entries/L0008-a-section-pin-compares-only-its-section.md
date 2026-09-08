@@ -32,6 +32,11 @@ scoped extracts the named section from both texts through the project's section 
 
 ## Verdicts
 
+- 2026-09-07T19:07:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "scoped" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: 1e704d90edfafe963b29207f148e31869d60917e
+  note: propagated from a moved ground
+
 ## References
 
 - docs/FRESHNESS.md · standing · cites-as-live

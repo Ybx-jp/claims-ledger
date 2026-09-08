@@ -1314,6 +1314,29 @@ def git_available():
     return shutil.which("git") is not None
 
 
+def enclosing_repository(directory):
+    """The git work tree holding `directory`, or None. Asked only when the ledger has no
+    repository of its own.
+
+    `open_ledger` calls a project a repository when `<root>/.git` is there, so a ledger in
+    a subdirectory of one — `--root <subdir>`, or a ledger vendored inside a larger
+    project — reads as a ledger with no history at all, and "no history" is indexed to
+    "nothing to check" everywhere it matters. Measured on such a ledger: `sha --write`
+    rewrote the frozen region of an entry that repository had already committed and exited
+    0, and `validate` then reported `0 failure(s)` over it — which is the whole of what
+    L0007 says must not happen.
+
+    Nothing here *adopts* that repository. Every evidence path in the package is written
+    relative to the ledger root, and `git show <pin>:<path>` reads its path from the
+    repository's top, so adopting one would mean rebasing every git path in the package
+    against a different origin. This answers the narrower question the callers need: is
+    there a history that was not looked at? (ARCH-AUDIT.md, finding 3.)
+    """
+    answer = git_call(directory, "rev-parse", "--show-toplevel")
+    top = answer.out.strip() if answer.ok else ""
+    return Path(top) if top else None
+
+
 def git_problem(repo):
     """Why git cannot answer questions about `repo`, or None when it can.
 
@@ -1461,6 +1484,24 @@ def source_bytes(row, ledger):
         return data.decode("utf-8"), None
     except UnicodeDecodeError:
         return None, f"bytes for {row['id']} are not UTF-8 text"
+
+
+def unreadable_artifact(path):
+    """Why `path`'s bytes cannot be reached at all, or None — including for a file whose
+    bytes are there and are not UTF-8 text.
+
+    The distinction `read_document` collapses into one `problem` string, separated here
+    because `freshness` has to act on it: a file whose bytes cannot be reached is a
+    comparison that did not happen, and a file whose bytes are not text is an artifact
+    that really did change and cannot be narrowed to a section. `file_problem` cannot
+    tell them apart — `os.stat` succeeds on a mode-000 file, which is the case that
+    matters. (ARCH-AUDIT.md, finding 2; and finding 6, which is this one.)
+    """
+    try:
+        Path(path).read_bytes()
+    except OSError as exc:
+        return f"cannot be read ({exc.strerror or exc})"
+    return None
 
 
 def read_document(path):

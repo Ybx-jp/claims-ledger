@@ -43,11 +43,65 @@ def test_an_empty_ledger_warns_but_is_not_an_error(project, capsys, command):
 
 def test_outside_git_the_skipped_history_checks_are_named(project, capsys):
     """validate's frozen-region and append-only checks read git history. Without a
-    repository they silently do nothing, so the command has to say so."""
+    repository they silently do nothing, so the command has to say so.
+
+    Exit 0 is correct *here* and only here: there is no repository anywhere under or over
+    this ledger, so no entry has a creating commit and nothing was skipped. The case
+    below is the one where that reasoning is false.
+    """
     assert project.cl("validate") == 0
     err = capsys.readouterr().err
-    assert "not a git repository" in err
+    assert "no git repository of its own" in err
     assert "frozen-region and append-only checks did not run" in err
+
+
+def nested_in_a_repository(project):
+    """`project`, committed in a repository one directory above it — the ordinary shape
+    of `--root <subdir>`, or of a ledger vendored inside a larger project."""
+    outer = project.root.parent
+    # The entry is written before the repository exists, because `sha --write` is one of
+    # the commands this case changes and it would refuse afterwards — which is the point.
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    subprocess.run(["git", "-C", str(outer), "init", "-q"], check=True)
+    for args in (
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "in"],
+    ):
+        subprocess.run(["git", "-C", str(outer), *args], check=True, capture_output=True)
+    assert not (project.root / ".git").exists(), "the ledger has no repository of its own"
+    return path
+
+
+def test_a_ledger_inside_someone_elses_repository_says_its_history_was_not_read(project, capsys):
+    """`open_ledger` calls a project a repository when `<root>/.git` is there, so a ledger
+    one directory inside one read as a ledger with no history at all — and "no history"
+    is indexed to "nothing to check" everywhere it matters. `validate` answered
+    `0 failure(s)` over a frozen region a commit was holding. (ARCH-AUDIT.md, finding 3.)
+    """
+    nested_in_a_repository(project)
+    assert project.cl("validate") == 1
+    out = capsys.readouterr().out
+    assert "which this ledger is not reading" in out
+    assert "unknown, not settled" in out
+
+
+def test_sha_write_refuses_an_entry_someone_elses_repository_has_committed(project, capsys):
+    """The same premise, one command over, and the reason it matters: `is_committed`
+    read "no repository" as "nothing is committed", so `sha --write` rewrote the frozen
+    region of an entry that repository had already committed and exited 0. That is the
+    whole of what L0007 says must not happen.
+    """
+    path = nested_in_a_repository(project)
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace("condition: ", "condition: silently substituted, "), "utf-8")
+    capsys.readouterr()
+    assert project.cl("sha", "--write", str(path)) == 2
+    err = capsys.readouterr().err
+    assert "is inside the git repository at" in err
+    assert "nothing was written" in err
+    assert "silently substituted" in path.read_text(encoding="utf-8")
 
 
 def test_inside_git_nothing_is_said_about_skipped_history_checks(project, capsys):

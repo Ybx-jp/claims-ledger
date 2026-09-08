@@ -555,6 +555,36 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
   reach.
 
+### Fixed by the architecture audit
+
+- **An artifact nobody can read is a comparison that did not happen, not a ground that
+  moved** — `ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
+  file came back as `has moved`, at exit 0, naming a section the checker had never read:
+  git lists a file it cannot open as changed, and the section comparison mapped a text it
+  could not get to onto the finding for a text that differs. `freshness` already has the
+  `unknown` class for a comparison it could not make, and this was that, misfiled. The
+  distinction the fix rests on is narrow and is stated where it is made: bytes that are
+  there and are not UTF-8 keep reporting `moved`, because that artifact really did change
+  and simply cannot be narrowed to a section; bytes that cannot be reached at all are
+  `unknown`. `os.stat` succeeds on a mode-000 file, so the existing file guard could not
+  draw that line. The plain-pin branch had the same false confidence and is fixed too.
+- **A ledger inside somebody else's repository says its history was not read** — finding
+  3, and the defect under the one that was reported. A project is treated as a repository
+  when `<root>/.git` is there, so a ledger one directory inside one — `--root <subdir>`,
+  or a ledger vendored in a larger project — read as a ledger with no history at all, and
+  "no history" is indexed to "nothing to check" everywhere it matters. Measured on such a
+  ledger: `sha --write` rewrote the frozen region of an entry that repository had already
+  committed and exited 0, and `validate` then reported `0 failure(s)` over it — which is
+  the whole of what L0007 says must not happen. Both commands now ask whether there is a
+  history nobody looked at, and refuse rather than guess. Nothing adopts the enclosing
+  repository: every evidence path in the package is written relative to the ledger root,
+  and `git show <pin>:<path>` reads its path from the repository's top.
+
+  With no repository anywhere the exit code stays 0, deliberately: no entry has a creating
+  commit, so nothing was skipped. `resolve` and `freshness` exit 1 in the same place
+  because they have real pinned pointers they cannot resolve, which is a different
+  question — the finding read that difference as a disagreement.
+
 ### Changed by the architecture audit
 
 One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and

@@ -7,6 +7,7 @@ prove nothing about the thing being claimed.
 The specification is docs/FRESHNESS.md.
 """
 
+import os
 import subprocess
 
 import pytest
@@ -120,6 +121,75 @@ def test_a_deleted_ground_is_withdrawn_and_fails(pinned):
     assert outcome == "fail"
     assert part == "Grounds 1"
     assert "is not in the working tree" in message
+
+
+ROOT_USER = os.geteuid() == 0
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_artifact_nobody_can_read_is_not_a_ground_that_moved(pinned):
+    """`chmod 000` on the artifact came back as `has moved`, at exit 0, with a message
+    naming a section it had not read: git lists a file it cannot open as changed, and
+    `scoped()` mapped a text it could not get to onto the finding for a text that
+    differs. The class this checker already has for a comparison that did not happen is
+    `unknown`, and this was that, misfiled. (ARCH-AUDIT.md, finding 2.)
+    """
+    note = pinned.root / "docs" / "note-001.md"
+    os.chmod(note, 0o000)
+    try:
+        ((outcome, part, message),) = pinned.outcomes()
+    finally:
+        os.chmod(note, 0o644)
+    assert outcome == "fail", message
+    assert part == "Grounds 1"
+    assert "was not checked" in message
+    assert "cannot be read" in message
+    assert "has moved" not in message
+
+
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_artifact_nobody_can_read_under_a_plain_pin_is_not_a_ground_that_moved(project):
+    """The same, one branch over: a pointer with no section never reads the artifact at
+    all, so the answer is git's `diff` — and git reports a file it cannot open as
+    modified. Both branches now ask whether the bytes were reachable before they call it
+    a change."""
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the artifact")
+    pin = _head(project)
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    text = path.read_text(encoding="utf-8").replace(
+        'lab: docs/note-001.md § "Observation" @working',
+        f"experiment: docs/note-001.md @{pin}",
+    )
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+
+    note = project.root / "docs" / "note-001.md"
+    os.chmod(note, 0o000)
+    try:
+        reports = freshness.run(open_ledger(root=project.root))
+    finally:
+        os.chmod(note, 0o644)
+    ((outcome, message),) = [(r.outcome, r.message) for r in reports]
+    assert outcome == "fail", message
+    assert "was not checked" in message
+    assert "cannot be read" in message
+
+
+def test_an_artifact_that_is_not_text_is_still_a_ground_that_moved(pinned):
+    """The other half of the same branch, and the reason `unknown` is not the answer to
+    every failed read: bytes that are there and are not UTF-8 are an artifact that really
+    did change and simply cannot be narrowed to a section. `moved` is what the file-level
+    comparison already said, and this must keep saying it."""
+    (pinned.root / "docs" / "note-001.md").write_bytes(b"\xff\xfe not text at all\n")
+    ((outcome, _, message),) = pinned.outcomes()
+    assert outcome == "flag", message
+    assert "has moved" in message
 
 
 def test_a_branch_pin_is_unstable_and_the_drift_is_not_reported(pinned):
