@@ -299,6 +299,17 @@ The findings are ranked by consequence, not by effort to fix.
 > stops that variable arriving; this stops the next reason git cannot read an object from
 > being read as an answer.
 >
+> **And it repairs a third case, which the gate found and this had not claimed.** The two
+> commands do not answer the same question at all: `rev-parse --verify` resolves the name
+> through the tree without checking that the object is *present*. With the entry's own loose
+> blob removed from the object store — `git gc` on a corrupted repository, a partial clone,
+> a filesystem that lost it — `cat-file -e HEAD:<rel>` exits **1** and `rev-parse` exits
+> **0**. Exit 1 is a `no` to `git()`, so `main` calls a committed entry uncommitted and
+> `sha --write` rewrites its frozen region at exit 0; the branch answers `committed` and
+> refuses, which is the right answer, because what makes the region immutable is that a
+> commit names it and not whether this checkout can still read the bytes. Measured on git
+> 2.43.0.
+>
 > **`GIT_INDEX_FILE` survives the scrub for the callers whose subject is the index, and
 > that is a measurement rather than a preference.** `git commit -- <path>` commits the
 > working tree's version of the named paths out of a temporary index, and names it to the
@@ -330,17 +341,28 @@ The findings are ranked by consequence, not by effort to fix.
 > universal newlines lives on in `_git_raw` and `blob_text`, which is where the byte-exact
 > comparison actually happens.
 >
-> **One thing found and left open, measured rather than guessed at.** A `GIT_INDEX_FILE`
-> naming a path that does not exist is an **empty index at exit 0**, not an error, so
-> `index_problem`'s `ls-files` reports a healthy index and `load_entries` falls back to the
-> working tree for every entry while `--cached` says nothing. Measured after the fix: over
-> a ledger with a rewritten frozen region, `validate --cached` under a nonexistent
-> `GIT_INDEX_FILE` printed the working tree's four failures rather than the index's two,
-> silently. It is the MEDIUM-33 surface reached by a different road, and the guard that
-> would close it — `index_problem` asking whether the index git was pointed at is a file
-> that exists — is a question about git's own resolution of a relative `GIT_INDEX_FILE`
-> (measured: `.git/index` resolves against the repository's top, not the process's cwd),
-> which is more than this branch should decide on its own.
+> **One thing found and left open, and the gate corrected how it was written down here.**
+> A `GIT_INDEX_FILE` naming a path that does not exist is an **empty index at exit 0**, not
+> an error, so `index_problem`'s `ls-files` reports a healthy index and `load_entries`
+> falls back to the working tree for every entry while `--cached` says nothing. This first
+> recorded the consequence as extra failures — the working tree's four rather than the
+> index's two — which is the loud direction and the one that does not matter. The gate
+> measured the quiet one: with a frozen region rewritten and *staged*, and the working tree
+> then restored, `validate --cached` exits 1 with the immutability failure against the
+> repository's own index and **exits 0 with nothing printed and no note** under a foreign
+> index, a path that is not there, or the empty string. That is a check that did not happen
+> reporting as a check that passed — this project's cardinal defect — and it is on `main`
+> too, so it is pre-existing rather than this branch's.
+>
+> The reason given here for not closing it was also wrong, and self-contradicting: it said
+> the guard needs git's resolution of a relative `GIT_INDEX_FILE`, which the sentence
+> before it already answers. The predicate is known and measured by the gate against all
+> six hook shapes (plain commit, `commit -- <path>`, `commit -a`, from a subdirectory, a
+> linked work tree, a submodule, and `--git-dir`/`--work-tree`): **the named index must
+> exist and must be inside `git rev-parse --absolute-git-dir`.** It accepts every one of
+> those shapes and rejects all three false passes. What is left is not a question, only the
+> work, and it belongs to a branch that can carry a behaviour change to `--cached` through
+> its own gate.
 
 ---
 
@@ -371,10 +393,12 @@ config.py ──► schema.py ◄── validate.py  resolve.py  references.py  
                   └──────────── cli.py ────────────────────┘ ◄── corpus/run.py (lazy, both ways)
 ```
 
-`schema.py` (1,250 lines) holds three layers with no dependency reason to be together:
-entry/pointer/section parsing (its stated purpose); a git subprocess client
-(`GIT_TIMEOUT`, `GitAnswer`, `git_call`, `git`, `git_bytes`, `git_history`, `git_blobs`,
-`git_problem`, `index_problem`); and atomic-write and file-safety
+`schema.py` (1,250 lines when this was written, 1,636 now) holds three layers with no
+dependency reason to be together: entry/pointer/section parsing (its stated purpose); a
+git subprocess client (`GIT_TIMEOUT`, `GitAnswer`, `GIT_REPOSITORY_ENV`, `git_env`,
+`git_call`, `git`, `git_history`, `git_blobs`, `git_problem`, `index_problem` —
+`git_bytes` was here and is deleted, see the QE12-2 disposition); and atomic-write and
+file-safety
 (`file_problem`, `write_bytes_atomically`, `_refuse_a_target_this_process_may_not_write`).
 Neither of the last two imports a schema type. The only import cycle in the package —
 `cli.py` ⇄ `corpus/run.py`, both ends function-local — exists because

@@ -331,3 +331,98 @@ def test_cached_write_records_the_artifact_as_the_named_index_has_it(
     monkeypatch.setenv("GIT_INDEX_FILE", str(index))
     pinned.p.cl("freshness", "--write", "--cached")
     assert f"artifact: {staged}" in pinned.entry_path().read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def plainly_pinned(project):
+    """A project whose entry rests on a whole artifact — no section — at a commit, with
+    nothing edited since. The `pinned` fixture above pins a section, and a sectioned
+    pointer reads the artifact's text and compares the section itself, which quietly
+    corrects a wrong answer from git's `diff`. A plain pointer has nothing inside it to
+    narrow to, so `diff` is the whole verdict — which is what makes this the shape that
+    catches an environment reaching a call nobody thought was reading the index.
+    """
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the artifact, before any claim rests on it")
+    pin = subprocess.run(
+        ["git", "-C", str(project.root), "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert project.cl("new", "fraction-law") == 0
+    path = project.write_full_entry(next(project.entries.glob("A0001-*.md")))
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            'lab: docs/note-001.md § "Observation" @working',
+            f"experiment: docs/note-001.md @{pin}",
+        ),
+        encoding="utf-8",
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+    return project
+
+
+@pytest.mark.parametrize("value", ["", "no-such-index", "{other}/.git/index"])
+def test_an_untouched_plain_ground_is_not_moved_under_a_foreign_index(
+    plainly_pinned, tmp_path, capsys, monkeypatch, value
+):
+    """`GIT_INDEX_FILE` is the one variable kept out of the scrub, and it is kept for
+    `--cached`. This is the call it reaches that has nothing to do with `--cached`:
+    `git diff <pin> --name-only -- <path>` consults the index even when nobody asked it
+    to, so under an index that does not hold the artifact — a foreign one, a path that is
+    not there, the empty string — git calls an untouched file changed. A plain pointer
+    takes that as the verdict, and the run flags a ground nobody edited.
+
+    Measured on git 2.43.0: `git diff <pin> --name-only -- <path>` over an unchanged path
+    prints nothing with the repository's own index and prints the path under all three
+    values above. The scrub is why the ambient variable never arrives — `drift` passes
+    `git_env(index=cached)`, and this run is not `--cached`.
+
+    This is the rule that seven index-site mutants and twelve parametrized variables all
+    missed: `sha --write` reads no index, so the variable cannot bite there, and every
+    other freshness test in the suite pins a section, so `scoped()` re-reads the text and
+    corrects git's answer before anyone sees it. Deleting `"GIT_INDEX_FILE"` from
+    `GIT_REPOSITORY_ENV` — which makes `git_env(index=True)` and `git_env(index=False)`
+    the same environment, and so unmakes the whole distinction this module is about —
+    passed the entire suite until this test existed. (QE14-1.)
+    """
+    other = elsewhere_repository(tmp_path, "another-repository")
+    monkeypatch.setenv("GIT_INDEX_FILE", value.format(other=other))
+    capsys.readouterr()
+    assert plainly_pinned.cl("freshness") == 0
+    assert "has moved" not in capsys.readouterr().out
+
+
+def test_an_entry_whose_blob_is_gone_is_still_a_committed_entry(committed, capsys):
+    """`rev-parse --verify` and `cat-file -e` disagree where neither of them fails, and
+    the disagreement is in this repair's favour. `rev-parse` resolves the name through
+    the tree without checking the object is present; `cat-file -e` reads it and exits 1
+    when it is not there — which `git()` folded into `not committed yet`, so `main`
+    rewrote the frozen region of an entry a commit was holding.
+
+    What makes the region immutable is that a commit names it, not whether this checkout
+    can still read the bytes. Removing the loose blob is how a corrupted object store, a
+    partial clone or a lost file reaches this code. (QE14-4.)
+    """
+    project, path = committed
+    rel = path.relative_to(project.root)
+    blob = subprocess.run(
+        ["git", "-C", str(project.root), "rev-parse", f"HEAD:{rel}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    loose = project.root / ".git" / "objects" / blob[:2] / blob[2:]
+    assert loose.is_file(), "the fixture's blob is packed; this test needs it loose"
+    loose.unlink()
+
+    before = path.read_text(encoding="utf-8")
+    drift_the_frozen_region(path)
+    capsys.readouterr()
+    assert project.cl("sha", "--write", str(path)) == 2
+    assert "is committed" in capsys.readouterr().err
+    assert path.read_text(encoding="utf-8") == before.replace(*FROZEN_EDIT)

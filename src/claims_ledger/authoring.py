@@ -251,6 +251,14 @@ def is_committed(repo, path):
     `sha --write` that rewrote a committed frozen region at exit 0. The scrub in
     `git_env()` is what stops that variable arriving; this is what stops the next reason
     git cannot read an object from being taken for `not committed yet`.
+
+    The two commands also differ where neither of them fails, and that difference is why
+    this one is right rather than merely more legible. `rev-parse --verify` resolves the
+    name through the tree and does not check that the object is *present*: with the
+    entry's own loose blob gone from the object store, `cat-file -e` exits 1 — a `no`, to
+    `git()` — and `rev-parse` exits 0. What makes the region immutable is that a commit
+    names it, not whether this checkout can still read the bytes, so `committed` is the
+    honest answer and `sha --write` refuses. (ARCH-AUDIT.md, QE14-4.)
     """
     if not repo:
         # "No repository" is only "nothing was skipped" when there is no repository
