@@ -555,12 +555,39 @@ def sha_one(args, ledger, raw):
     )
     if changed:
         print(f"{path}: {declared[:12]}… → {computed[:12]}…")
+        say_where_the_citation_sits(ledger, path)
         return 0
     if declared == computed:
         print(f"{path}: {computed}")
+        say_where_the_citation_sits(ledger, path)
         return 0
     print(f"{path}: declared {declared[:12]}…, computed {computed[:12]}… (not written)")
     return 1
+
+
+def say_where_the_citation_sits(ledger, path):
+    """Report a citation of this entry that sits outside the span the entry pins, at the
+    moment the entry is being written.
+
+    `references` asks the same question of the whole ledger and is what refuses a commit.
+    This asks it of one entry, here, because this is the first moment it can be asked at
+    all: in the two-commit shape the citation is written first and the entry second, so
+    until the Grounds exist there is no section to be outside of, and `sha --write` is the
+    step between the two (L0174-the-placement-question-is-asked-when-the-entry-is-written,
+    cites-as-live).
+
+    It prints and does not fail. What this command's exit code answers is whether the
+    fingerprint was written, and a second meaning on it would make a script that reads it
+    wrong about the first. Anything unreadable here means silence rather than a guess: a
+    ledger that cannot be loaded is a failure `check` will report properly, and one this
+    command has no business raising over a fingerprint it already wrote.
+    """
+    if ledger.config.citation_placement == "off":
+        return
+    with contextlib.suppress(LedgerError, ConfigError, OSError):
+        entry = authoring.parse_entry(path)
+        for report in references.misplaced_citations(ledger, only=entry.id):
+            print(f"{report.part}: {report.message}")
 
 
 def cmd_source(args, ledger):

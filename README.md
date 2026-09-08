@@ -9,7 +9,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 86 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 88 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -213,7 +213,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 86 seeds, each a small ledger with committed
+the red-team corpus it was built against: 88 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -223,7 +223,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-86/86 seeds pass
+88/88 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
@@ -295,6 +295,16 @@ propagation-author = "propagation"   # the name machinery writes under
 
 roster = "ROSTER.md"                 # the hand-maintained view of open hypotheses
 archived-prefixes = []               # id series a previous ledger quarantined
+
+# Whether a citation has to sit inside the section its entry pins: "off", "flag" or
+# "fail". The sentence that states a commitment and the span that keeps it then move
+# together, and a reader who finds one finds the other. Off by default, because a project
+# adopting it mid-life wants to see where it stands before it gates anything
+# (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live). Asked by
+# `references`, and again by `sha --write` on the entry being written, which is the first
+# moment the entry's grounds and the citation both exist
+# (L0174-the-placement-question-is-asked-when-the-entry-is-written, cites-as-live).
+citation-placement = "off"
 ```
 
 The schema itself is not configurable. Grades, kinds, statuses, citation acts, the
@@ -483,7 +493,7 @@ refresh, where the schema, the checkers and the corpus were developed together. 
 extraction changed what was project-specific into configuration — where the ledger sits,
 which documents may cite it, what an evidence pointer is called, who may write a verdict
 — and changed nothing about the schema or the checks. Every one of the sixty-two seeds
-the corpus held at extraction still passes unchanged; it has since grown to 86.
+the corpus held at extraction still passes unchanged; it has since grown to 88.
 
 MIT licensed.
 

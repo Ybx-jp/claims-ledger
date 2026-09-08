@@ -23,11 +23,13 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 
+dependencies = []
 # No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
 # pre-commit hook, on a checkout with nothing installed; tomllib is standard library
 # from 3.11, which is what sets the floor.
-# Ledger: (L0011-no-runtime-dependencies, cites-as-live).
-dependencies = []
+# Ledger: (L0011-no-runtime-dependencies, cites-as-live). Below the key and not above it:
+# a `toml-key` section starts at its own line, so a comment above `dependencies` belongs
+# to whatever key precedes it.
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.14", "ty>=0.0.78"]
@@ -128,6 +130,11 @@ documents = [
     "pyproject.toml",
     "src/claims_ledger/*.py",
 ]
+citation-placement = "fail"
+# On, and failing rather than flagging: every citation in this project sits inside the
+# span its entry pins, so a new one that does not is a mistake with a known repair and
+# no judgement to make. A project adopting the rule mid-life wants `flag` until its
+# existing citations are moved.
 evidence-sectioned = ["code", "toml", "toml-key"]
 evidence-plain = []
 

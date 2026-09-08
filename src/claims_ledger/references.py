@@ -4,7 +4,9 @@ Entry to entry, at `run`: an `entry:` ground names an entry that exists, under a
 that entry's current status allows. Document to entry, also at `run`: an inline
 `(A0007-<slug>, cites-as-live)` and the row in the entry's References section have to
 agree with each other and with the status. The hypothesis roster is checked against the
-entries at `check_roster`. Each rule is stated where it is applied.
+entries at `check_roster`. Where the project asks for it, `misplaced_citations` holds a
+citation to the span its entry pins; that one is configured rather than always on, and off
+by default. Each rule is stated where it is applied.
 
 Run:  claims-ledger references
 Exit 1 on any failure.
@@ -27,7 +29,68 @@ from .schema import (
     load_entries,
     normalize,
     read_document,
+    section_span,
 )
+
+
+def misplaced_citations(ledger, entries=None, only=None):
+    """Citations that sit outside the section the entry they name is pinned to.
+
+    The rule is narrow, and every part of the narrowness is load-bearing. It asks only
+    about a citation in a document that the cited entry *also* rests on, by a sectioned
+    ground: then there is a span in this very file that the claim is about, and the
+    sentence promising it belongs in that span, so the promise and the code that keeps it
+    move together and a reader who finds one finds the other. A citation of an entry
+    grounded elsewhere is asked nothing, because there is no section here for it to be
+    outside of (L0173-a-citation-belongs-in-the-span-its-entry-pins, cites-as-live).
+
+    An entry may rest on several sections of one file; the citation need only be inside
+    one of them. `only` narrows the question to one entry, which is what the authoring
+    side asks at the moment that entry is written.
+
+    Returned as reports at whatever outcome the project configured, and never called at
+    all when it configured `off` — the caller decides, because this is one rule with two
+    callers and a second copy of the condition is how two of them come to disagree.
+    """
+    entries = load_entries(ledger) if entries is None else entries
+    index = by_id(entries)
+    config = ledger.config
+    outcome = config.citation_placement
+    out = []
+    for name, path in ledger.docs:
+        body, _ = read_document(path)
+        if body is None:
+            continue  # reported by run(), which is where an unreadable document is a failure
+        for m in CITATION_RE.finditer(body):
+            ident = m.group(1)
+            if only is not None and ident != only:
+                continue
+            target = index.get(ident)
+            if target is None:
+                continue  # a dangling citation, reported as that
+            spans = []
+            for pointer in target.ground_pointers:
+                if pointer.type not in config.evidence_sectioned or pointer.target != name:
+                    continue
+                if not pointer.section:
+                    continue
+                span = section_span(body, config, pointer.type, pointer.section)
+                if span is not None:
+                    spans.append((pointer.section, span))
+            if not spans or any(start <= m.start() < end for _, (start, end) in spans):
+                continue
+            where = ", ".join(f'§ "{section}"' for section, _ in spans)
+            out.append(
+                Report(
+                    "fail" if outcome == "fail" else "flag",
+                    None,
+                    name,
+                    f"cites {ident} from outside {where}, the section of this file its "
+                    "ground names; the sentence that states a commitment belongs in the "
+                    "span that keeps it, so the two move together",
+                )
+            )
+    return out
 
 
 def roster_rows(body):
@@ -262,6 +325,8 @@ def run(ledger, entries=None):
                 )
 
     reports += check_roster(entries, index, status, ledger)
+    if config.citation_placement != "off":
+        reports += misplaced_citations(ledger, entries=entries)
 
     for e in entries:
         for _raw, r in e.references:

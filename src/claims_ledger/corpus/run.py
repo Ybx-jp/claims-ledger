@@ -60,7 +60,13 @@ def corpus_root(override=None):
 def corpus_config(root, entries_dir):
     """The configuration the seeds are written against: the corpus directory is the
     project root, its sources.jsonl is the registry, the bytes are committed fixtures
-    rather than a cache, and the series `C` and `P` stand in for a quarantined archive."""
+    rather than a cache, and the series `C` and `P` stand in for a quarantined archive.
+
+    `citation-placement` is on here and off in the package's defaults, because a rule the
+    corpus does not run is a rule the corpus does not prove. Turning it on costs nothing:
+    every seed but D60 and K28 has documents under `docs/` and grounds naming `fixtures/`,
+    so the rule has no span to ask about and every one of them is a near-negative for it.
+    """
     return Config(
         root=root,
         ledger_dir=root,
@@ -68,6 +74,7 @@ def corpus_config(root, entries_dir):
         registry=root / "sources.jsonl",
         cache=None,
         archived_prefixes=("C", "P"),
+        citation_placement="flag",
     )
 
 
@@ -184,7 +191,19 @@ def blob_id(repo, states, state, rel, pins):
     return out.stdout.decode().strip()
 
 
-def stage(src, dst, pins=None):
+def stage(src, dst, pins=None, shared=None):
+    # The shared fixtures and the source registry are copied in rather than reached for
+    # where they live, so that everything a seed's pointers name is inside the seed's own
+    # tree. Until they were, an evidence path resolved against the corpus root while the
+    # documents came from the staged copy, and a seed could not name one file as both — so
+    # the rule that a citation sits inside the span its entry pins had no seed that could
+    # state it.
+    if shared is not None:
+        for name in ("fixtures",):
+            if (shared / name).is_dir() and not (dst / name).exists():
+                shutil.copytree(shared / name, dst / name, copy_function=shutil.copyfile)
+        if (shared / "sources.jsonl").is_file() and not (dst / "sources.jsonl").exists():
+            shutil.copyfile(shared / "sources.jsonl", dst / "sources.jsonl")
     for name in ("entries", "docs"):
         if (dst / name).exists():
             shutil.rmtree(dst / name)
@@ -327,20 +346,20 @@ def run_seed(seed, root):
             git(tmp, "init", "-q")
             pins = {}
             for state in sorted(p for p in (seed / "commits").iterdir() if p.is_dir()):
-                stage(state, tmp, pins)
+                stage(state, tmp, pins, shared=root)
                 git(tmp, "add", "-A")
                 git(tmp, "commit", "-qm", state.name)
                 pins[state.name] = head(tmp)
                 for name, result in run_checkers(
-                    seed_ledger(root, tmp, repo=tmp), commit=state.name
+                    seed_ledger(tmp, tmp, repo=tmp), commit=state.name
                 ).items():
                     if isinstance(result, Exception):
                         crashes.append((name, state.name, result))
                     else:
                         produced[name] += result
         else:
-            stage(seed, tmp)
-            for name, result in run_checkers(seed_ledger(root, tmp)).items():
+            stage(seed, tmp, shared=root)
+            for name, result in run_checkers(seed_ledger(tmp, tmp)).items():
                 if isinstance(result, Exception):
                     crashes.append((name, None, result))
                 else:

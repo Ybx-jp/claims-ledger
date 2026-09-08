@@ -365,6 +365,7 @@ the record of what else there is still to check.
 | a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | a document citation whose act is not a citation act | D59, K27 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
+| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
@@ -386,8 +387,9 @@ statuses, which is what keeps D57's rule from firing on every entry that mention
 K26 (a `distinguishes` act beside a ground the entry actually rests on, which is what
 keeps D58's rule from firing on the act itself), K27 (a document naming an entry in a
 parenthesis with no act and again in running prose, neither of which is a citation
-shape).
-K01–K03, K09, K15–K18 and K19–K27 test the schema's own rules and encode no claim from
+shape), K28 (a citation inside the section its entry pins, which is the shape the rule
+exists to produce).
+K01–K03, K09, K15–K18 and K19–K28 test the schema's own rules and encode no claim from
 the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon

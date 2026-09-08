@@ -23,6 +23,13 @@ CONFIG_FILENAMES = ("claims-ledger.toml", ".claims-ledger.toml")
 PYPROJECT = "pyproject.toml"
 TABLE = "claims-ledger"
 
+PLACEMENT_OUTCOMES = ("off", "flag", "fail")
+DEFAULT_CITATION_PLACEMENT = "off"
+# What `citation-placement` may be set to. Off by default, because the rule is only worth
+# turning on once a project's existing citations satisfy it: a setting that reports fifty
+# sites the day it ships is one its readers learn to scroll past
+# (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
+
 RESERVED_POINTER_TYPES = ("entry", "source", "search", "defect")
 # Pointer type names the schema reserves for itself; a project cannot use one of these as
 # the name of an evidence type
@@ -88,6 +95,7 @@ class Config:
     section_patterns: tuple = ()
     verdict_authors: tuple = DEFAULT_VERDICT_AUTHORS
     propagation_author: str = DEFAULT_PROPAGATION_AUTHOR
+    citation_placement: str = DEFAULT_CITATION_PLACEMENT
     source: Path | None = None  # the file these values were read from, when there was one
 
     @property
@@ -197,6 +205,7 @@ KEYS = {
     "evidence-plain": list,
     "verdict-authors": list,
     "propagation-author": str,
+    "citation-placement": str,
 }
 # The whole of what a project may set, and the type each value takes. The schema itself —
 # grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is
@@ -363,7 +372,10 @@ def from_table(table, root, source=None):
     machinery writes would carry an author the ledger declines
     (L0054-the-propagation-author-is-one-of-the-verdict-authors, cites-as-live). A
     quarantined prefix is a single uppercase letter
-    (L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live).
+    (L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live). And
+    `citation-placement` is one of the three outcomes the setting has, refused here rather
+    than read as `off` by a checker that then said nothing
+    (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
     """
     unknown = sorted(set(table) - set(KEYS))
     if unknown:
@@ -407,6 +419,11 @@ def from_table(table, root, source=None):
     for prefix in table.get("archived-prefixes", ()):
         if not (isinstance(prefix, str) and len(prefix) == 1 and prefix.isupper()):
             raise ConfigError(f"archived prefix `{prefix}` is not a single uppercase letter")
+    placement = table.get("citation-placement", DEFAULT_CITATION_PLACEMENT)
+    if placement not in PLACEMENT_OUTCOMES:
+        raise ConfigError(
+            f"citation-placement `{placement}` is not one of {list(PLACEMENT_OUTCOMES)}"
+        )
 
     return Config(
         root=root,
@@ -423,6 +440,7 @@ def from_table(table, root, source=None):
         section_patterns=patterns,
         verdict_authors=authors,
         propagation_author=propagation,
+        citation_placement=placement,
         source=Path(source) if source else None,
     )
 

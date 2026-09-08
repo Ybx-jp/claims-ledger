@@ -1,0 +1,14 @@
+{
+  "class": "citation outside the span its entry pins",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "flag",
+      "where": "docs/note-200.md",
+      "why": "the note cites the entry from its preamble, while the entry rests on the note's Observation section; the sentence that states the commitment and the span that keeps it are then in different places, and an edit to either moves only one",
+      "message": "from outside"
+    }
+  ],
+  "note": "K28 is the near-negative: the same citation inside the Observation section. Every other seed is a near-negative too, by construction — each has documents and grounds that name different files, which is the case this rule must never fire on, and the corpus contract fails a seed that catches anything its rows do not list. The rule is configured off by default; the corpus runs with it on, which is what makes these rows reachable at all."
+}
