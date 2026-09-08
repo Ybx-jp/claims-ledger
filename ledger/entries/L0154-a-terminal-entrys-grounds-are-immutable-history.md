@@ -36,6 +36,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T12:02:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  artifact: 703e655370f9a36ce54602a2d3ef776f6d165a33
+  note: propagated from a moved ground
+
+- 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" @aadceb0aba82a85fe71b15394896c43977751709
+  note: read against the change in commit aadceb0, which added the report for a citation-shaped parenthesis whose act is not a citation act; that loop reads documents and the terminal exemption this claim names is untouched
+
 ## References
 
 - src/claims_ledger/references.py · standing · cites-as-live

@@ -37,6 +37,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-08T12:00:00-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0169-every-reader-of-an-entry-shares-one-parser-and-one-normalization · supersedes
+  note: the cohort named the four checkers; the successor states it over every module that reads an entry, which is the population the metric counts over and which freshness, authoring and the command line were already in
 
-- src/claims_ledger/schema.py · standing · cites-as-live
+## References

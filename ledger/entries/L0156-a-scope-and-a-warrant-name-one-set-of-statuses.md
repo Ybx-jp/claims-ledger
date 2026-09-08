@@ -35,6 +35,16 @@ none
 
 ## Verdicts
 
+- 2026-09-08T12:02:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @f8b21e96f8e17ea36b344e076672f701398b3b95
+  artifact: 0ddb75eb47ef7188f6f4c1be6d9f6f78ea5387dd
+  note: propagated from a moved ground
+
+- 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @aadceb0aba82a85fe71b15394896c43977751709
+  note: read against the change in commit aadceb0, which partitioned the grounds into the supporting and the distinguishing ones earlier in the same section; the flag block this claim names is unchanged
+
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live
+- src/claims_ledger/neighbours.py · standing · cites-as-live

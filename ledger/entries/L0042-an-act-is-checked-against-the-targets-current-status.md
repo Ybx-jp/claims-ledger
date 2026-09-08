@@ -43,6 +43,14 @@ none
 - 2026-09-08T09:50:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "run" @5ee55ae6992f10c834510759f026644f42614025
   note: read against the change in commit 5ee55ae, which narrowed the dependent exemption from FALLEN to TERMINAL in that one branch; this claim names a different part of the same section and is unaffected
+- 2026-09-08T12:02:05-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" @c4bcb3db71dbd2bd1c588791a741ecf2fd360487
+  artifact: e0732ba760febd13a14ceb6e44a1378cc061dd4e
+  note: propagated from a moved ground
+
+- 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" @aadceb0aba82a85fe71b15394896c43977751709
+  note: read against the change in commit aadceb0, which added the distinguishes act to the table with every status legal against it; this claim is that an act is checked against the map rather than which acts the map holds, and is unaffected
 
 ## References
 
