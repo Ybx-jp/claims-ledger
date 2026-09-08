@@ -5,6 +5,7 @@ the fingerprint, the status derivation and the citation acts are not.
 """
 
 import dataclasses
+import os
 from datetime import timedelta
 
 import pytest
@@ -273,6 +274,12 @@ def test_a_document_exclude_is_a_glob_and_not_a_substring(tmp_path):
     )
     # And the substring form, which is what this used to take, now excludes nothing.
     assert documents_of(tmp_path, ["docs/draft-"], *TREE) == sorted(TREE)
+    # A pattern is normalized before it is split, so an exclusion written in the same
+    # hand as the inclusion beside it is not silently inert — which is this defect's
+    # exact shape, one level down.
+    assert documents_of(tmp_path, ["./docs/draft-*.md"], *TREE) == sorted(
+        ["README.md", "docs/spec.md", "docs/notes/draft-later.md"]
+    )
 
 
 def test_an_exclude_matches_segment_by_segment_the_way_documents_does(tmp_path):
@@ -285,6 +292,40 @@ def test_an_exclude_matches_segment_by_segment_the_way_documents_does(tmp_path):
     assert documents_of(tmp_path, ["docs/**/draft-*.md"], *TREE) == sorted(
         ["README.md", "docs/spec.md"]
     )
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the permission bits under test")
+def test_an_unlistable_directory_is_reported_unless_the_exclusions_take_all_of_it(tmp_path):
+    """A directory a `documents` pattern reaches and cannot list is reported, because the
+    documents under it were not checked. Now that exclusions work, one can cover such a
+    directory — and then there is nothing unchecked to report.
+
+    The suppression is deliberately narrow: only a pattern ending in `*` or `**`, which
+    takes everything below the point it matches. A pattern that takes some of what is
+    under an unlistable directory leaves the rest both unchecked and unreported, which is
+    the one report this package may not lose. (docs/audits/0.1.0.md, QE10-6.)
+    """
+    (tmp_path / "docs" / "private").mkdir(parents=True)
+    (tmp_path / "docs" / "private" / "secret.md").write_text("# secret\n", encoding="utf-8")
+    (tmp_path / "docs" / "spec.md").write_text("# spec\n", encoding="utf-8")
+    private = tmp_path / "docs" / "private"
+
+    def unlistable(excludes):
+        config = from_table(
+            {"documents": ["docs/**/*.md"], "document-excludes": list(excludes)}, tmp_path
+        )
+        os.chmod(private, 0o000)
+        try:
+            return [rel for rel, _ in open_ledger(config=config).unreadable_docs]
+        finally:
+            os.chmod(private, 0o755)
+
+    assert unlistable([]) == ["docs/private"]
+    assert unlistable(["docs/private/**"]) == []
+    assert unlistable(["docs/private/*"]) == []
+    assert unlistable(["docs/**"]) == []
+    assert unlistable(["docs/private/*.md"]) == ["docs/private"]
+    assert unlistable(["docs/other/**"]) == ["docs/private"]
 
 
 @pytest.mark.parametrize(

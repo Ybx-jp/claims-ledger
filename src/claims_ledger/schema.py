@@ -21,6 +21,7 @@ import glob
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import stat
@@ -197,8 +198,42 @@ def excluded_document(rel, patterns):
     both shipped example configurations wrote, and the only form anything had ever
     demonstrated — excluded nothing at all and said so nowhere. (docs/audits/0.1.0.md,
     QE9-95.)
+
+    Two edges of "the same way", stated because the claim is only worth what it holds:
+    a pattern is normalized first, so `./docs/draft-*.md` excludes what `./docs/*.md`
+    selects — writing the exclusion in the same hand as the inclusion and having it
+    silently match nothing is QE9-95's exact shape. And a directory is not a subtree
+    here any more than it is there: `docs/` excludes the file named `docs`, and `docs/**`
+    is how a subtree is written. What cannot diverge is the dotfile rule — `glob` never
+    selects one, so no dotfile ever reaches this test.
     """
-    return any(_segments_match(rel.split("/"), pattern.split("/")) for pattern in patterns)
+    parts = rel.split("/")
+    return any(_segments_match(parts, _pattern_segments(p)) for p in patterns)
+
+
+def excluded_directory(rel, patterns):
+    """Whether *every* document under the directory `rel` is excluded.
+
+    Asked only of a directory nobody can list, which is otherwise reported: a pattern
+    that excludes some of what is under it leaves the rest unchecked and unreported, and
+    an unreported unchecked document is the one thing this package may not produce. So
+    only a pattern that ends in `*` or `**` — one that takes everything below the point
+    it matches — suppresses the report.
+    """
+    parts = rel.split("/")
+    for pattern in patterns:
+        segments = _pattern_segments(pattern)
+        head, last = segments[:-1], segments[-1]
+        if last == "**" and len(parts) >= len(head) and _segments_match(parts[: len(head)], head):
+            return True
+        if last == "*" and len(parts) == len(head) and _segments_match(parts, head):
+            return True
+    return False
+
+
+def _pattern_segments(pattern):
+    """A `document-excludes` pattern, normalized and split the way a path is."""
+    return posixpath.normpath(pattern.replace(os.sep, "/")).split("/")
 
 
 def _segments_match(parts, segments):
@@ -232,8 +267,12 @@ def tree_documents(config):
     # `no entries` for an unlistable entries directory. The directories the patterns reach
     # into are therefore walked here, where the EACCES is visible.
     unreadable = [
-        (os.path.relpath(d, config.root), f"{problem}; the documents under it were not checked")
-        for d, problem in sorted(unlistable_document_dirs(config).items())
+        (rel, f"{problem}; the documents under it were not checked")
+        for rel, problem in (
+            (os.path.relpath(d, config.root).replace(os.sep, "/"), problem)
+            for d, problem in sorted(unlistable_document_dirs(config).items())
+        )
+        if not excluded_directory(rel, config.document_excludes)
     ]
     docs, seen = [], {}
     for path in sorted(set(paths)):

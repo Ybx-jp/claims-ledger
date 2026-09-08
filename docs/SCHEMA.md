@@ -83,7 +83,10 @@ digits; the letter rolls over (`B0001`) when a series is exhausted and skips any
 the configuration quarantines. A quarantined prefix followed by three digits or more,
 anywhere in the documents, is a quarantine breach by prefix alone — three, not the four
 an id is minted with, because the rule reads prose and an id written a digit wide of the
-schema is still a citation of the archive.
+schema is still a citation of the archive. The rule has no per-occurrence escape: a
+document that has to write such a string — a figure label, a part number — is kept out of
+`documents` or named in `document-excludes`, which costs that file *all* citation
+checking, not just this rule.
 
 **Frontmatter** (publication info): `id`, `kind` (`claim` | `prediction` |
 `hypothesis`), `stated` (ISO 8601 to the second with a UTC offset; a bare date is
