@@ -124,6 +124,15 @@ it now stands:
   `docs/FRESHNESS.md` §"Why moved flags and withdrawn fails" is the argument, and the
   cost is the one that section admits to.
 
+**Before writing the successor, ask what actually moved.** If the pinned section changed
+for a reason the claim does not name, the *ground* is wrong, and carrying the same ground
+into the successor buys exactly one more supersession on the next unrelated edit. Narrow
+it instead: pin the code that carries the rule rather than a caller that follows it, and
+configure a `section-pattern` if the claim is about something narrower than a whole table
+or function. The tell is mechanical — when `sha --write` on the successor computes a
+`verbatim_sha` **byte-identical** to its predecessor's, the claim never moved and only its
+ground did, and that is the case where narrowing is the whole of the repair.
+
 **3. Supersede.** Both directions are checked against each other, and supersession is a
 chain, never a tree — an entry carries exactly one `superseded` verdict.
 
@@ -146,7 +155,28 @@ supersession only when that function changes, where a pin on a file costs one pe
 that touches it — but the cost does not go to zero, and it scales with the number of
 entries rather than with the number of real changes of meaning.
 
-Two things keep it affordable. Pin sections, never files. And choose the grade honestly:
+### Choosing a ground
+
+A ground is evidence, and it should name the code that makes the claim true and nothing
+else. Two failures are common and both are avoidable at the moment the entry is written,
+which is the only cheap moment there is.
+
+**Do not pin a caller.** A claim about what a command does is grounded in the code that
+does it, not in every command that calls it. A ground on a caller goes stale for every
+edit to that caller for the rest of its life, none of which the claim cares about. If the
+claim's cohort really is "all six commands", say that in the Scope and let the Warrant
+name the pattern; a Scope clause is prose the reader checks, and it does not go stale.
+
+**Do not pin more than the claim needs.** A section is the unit, and a section as the
+patterns ship it is a whole table or a whole top-level definition. A claim about one
+setting resting on the table holding it goes stale when an unrelated key beside it
+changes. `section-patterns` is the instrument: a pattern can name something narrower
+than the type's default. A `toml` ground on a table is the whole table; a type configured
+as `'^{name} = '` is one key of it, and a claim about two settings then rests on two
+lines rather than on the thirty around them.
+
+Two more things keep it affordable. Pin sections, never files. And choose the grade
+honestly:
 `measured` is for a claim that the code *does* something and takes a pin that `freshness`
 watches; `asserted` is for a choice the project *made*, forbids an evidence ground, and so
 never goes stale. A preference recorded as `measured` buys a supersession every time the

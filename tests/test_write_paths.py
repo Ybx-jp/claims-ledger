@@ -41,6 +41,7 @@ from conftest import QUOTE, Project
 from test_invariants import append_verdict_text, fill_entry, set_stated
 
 from claims_ledger import propagate
+from claims_ledger.authoring import PLACEHOLDER_GROUNDS
 from claims_ledger.schema import APPEND, open_ledger
 
 # === helpers =========================================================================
@@ -77,7 +78,7 @@ def challenger(project, target_id="A0001-a-claim", slug="b-claim"):
         ("cohort: TODO", "cohort: the synthetic graph of these tests"),
         ("condition: TODO", "condition: mean aggregation, one layer"),
         (
-            "- TODO: one typed pointer per line",
+            PLACEHOLDER_GROUNDS,
             (
                 '- lab: docs/note-001.md § "Observation" @working\n'
                 f"- entry: {target_id} · challenges"
@@ -217,7 +218,7 @@ def test_sha_write_leaves_every_byte_but_the_sha_line_alone(project):
         ("cohort: TODO", "cohort: the synthetic graph of these tests"),
         ("condition: TODO", "condition: mean aggregation, one layer"),
         (
-            "- TODO: one typed pointer per line",
+            PLACEHOLDER_GROUNDS,
             '- lab: docs/note-001.md § "Observation" @working',
         ),
         (

@@ -29,6 +29,20 @@ It now names which of three things went wrong, and they are not the same repair:
 this repository does not have is a rewritten history and a supersession per entry; a
 commit that is there with the path missing is one pin on one entry.
 
+## Ask what moved before you write the successor
+
+`docs/OPERATING.md` has this now; it is repeated here because it is the step that was
+skipped in practice. If the pinned section changed for a reason the claim does not name,
+the ground is wrong, and giving the successor the same ground buys one more supersession
+on the next unrelated edit — which is exactly what L0010 did, carrying `cmd_validate`
+forward after an edit to `cmd_validate` that the claim had nothing to say about.
+
+The tell is mechanical and the tool already prints it: `sha --write` on the successor
+computing a `verbatim_sha` **byte-identical** to its predecessor's means the claim never
+moved and only its ground did. In that case narrowing the ground *is* the repair — pin the
+code carrying the rule rather than a caller that follows it, and configure a
+`section-pattern` if the claim is about something narrower than a table or a function.
+
 ## Two things not to do
 
 **Do not edit an entry above the `<!-- APPEND BELOW THIS LINE ONLY -->` marker**, and do
