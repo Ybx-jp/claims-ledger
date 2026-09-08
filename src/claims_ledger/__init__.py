@@ -29,13 +29,14 @@ from .schema import (
 
 # The single source of truth for the version: pyproject.toml reads it from here
 # (`[tool.hatch.version] path`), so `claims_ledger.__version__`, `pip show` and the
-# PyPI release can never disagree.
+# PyPI release can never disagree
+# (L0152-the-version-is-written-in-one-place, cites-as-live).
 __version__ = "0.1.0"
 
 # The five checkers are listed in `__all__` alongside everything else, in sorted order,
 # because `from claims_ledger import validate` working by implicit submodule import is an
 # accident of Python rather than a declared export, and README.md advertises them as the
-# library API.
+# library API (L0153-the-library-api-is-declared-and-not-inherited, cites-as-live).
 __all__ = [
     "ACTS",
     "GRADES",
