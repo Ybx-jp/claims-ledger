@@ -112,12 +112,19 @@ The findings are ranked by consequence, not by effort to fix.
 >   and the Warrant changed without being named. `validate.py` checks that
 >   `verbatim_change` is present, never what it says.
 >
-> **One environment-dependent test, pre-existing and not from this branch.**
-> `test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit` builds a directory it
-> calls `not-a-repository` and asserts git fails there; with `TMPDIR` inside a checkout it
-> is inside a repository and the precondition is false. Same class as the CI flake in
-> `test_e2_…`, whose precondition deletes a loose object and asserts `git log` then fails.
-> Both belong to finding 7: a test whose verdict depends on where it was launched from.
+> **Environment-dependent tests, pre-existing, and one of them fixed here because it
+> blocked two merges in a day.** `test_e` and `test_e2` in `tests/test_git_degradation.py`
+> degrade git by deleting one loose object, which degrades nothing once the object is in a
+> pack. On the runners this failed twice in one day on different legs and never locally:
+> `test_e` raised FileNotFoundError unlinking a path for a blob `rev-parse` had just
+> resolved, and `test_e2` unlinked HEAD's commit object and watched `git log` go on
+> answering. Both say the object was packed. Auto-packing is now off for those fixtures
+> and each unlink is preceded by a precondition that names the cause, so a future git that
+> packs anyway fails with a sentence rather than a `FileNotFoundError`.
+> `test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit` is the same class and is
+> **not** fixed: it builds a directory it calls `not-a-repository` and asserts git fails
+> there, which is false when `TMPDIR` is inside a checkout. Finding 7's subject — a test
+> whose verdict depends on where and on what it was launched — is wider than either.
 
 > **Round 2 of the gate** (`qe`, ticket `39e244285f044346`) returned **safe to merge**,
 > and recommended taking two of its own findings first because the fix was in hand. Both
