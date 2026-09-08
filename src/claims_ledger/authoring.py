@@ -84,7 +84,14 @@ condition: {condition}
 
 PLACEHOLDER_ASSERTION = "TODO: the claim, in this project's words. No quotation marks."
 PLACEHOLDER_WARRANT = "TODO: the rule by which the grounds support the assertion."
-PLACEHOLDER_GROUNDS = "- TODO: one typed pointer per line"
+# The scaffold is the one place an author is looking at the moment they choose a
+# ground, and the choice is where the avoidable drift comes from: a ground wider than
+# the claim goes stale for edits the claim does not name, and a ground on a caller goes
+# stale for every edit to that caller, forever. Both cost a supersession each time.
+PLACEHOLDER_GROUNDS = (
+    "- TODO: one typed pointer per line — the narrowest section that carries the rule, "
+    "never a caller that follows it"
+)
 TODO_SCOPE = "TODO"
 
 

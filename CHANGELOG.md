@@ -769,6 +769,19 @@ assertion over them was `0 failure(s)`, which an inert rule satisfies.
 
 ### Operating a pinned ledger
 
+- **The advice that would have prevented a badly-chosen ground is on the path that
+  writes an entry, not only on the path that repairs one.** The scaffold's Grounds
+  placeholder asks for "the narrowest section that carries the rule, never a caller that
+  follows it", `claims-ledger new` prints what a wider ground costs, and this document
+  gains a "Choosing a ground" section stating both failures — a ground on a caller goes
+  stale for every edit to that caller for the rest of its life, and a ground wider than
+  the claim goes stale when something beside it changes — with `section-patterns` named
+  as the instrument for the second. The repair path gains the step that is actually
+  skipped: ask what moved before writing the successor, because a successor carrying the
+  same wrong ground buys one more supersession on the next unrelated edit, and
+  `sha --write` computing a byte-identical `verbatim_sha` is the tool already saying the
+  claim never moved and only its ground did.
+
 - `docs/OPERATING.md` — running a ledger that pins commits over time. It states the one
   hazard nothing else in the package named: a squash merge, a rebase merge or a force-push
   removes the commit a `code:` or `toml:` ground pins, at which point every ground pinned
