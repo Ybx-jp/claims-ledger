@@ -1,18 +1,17 @@
 ---
 name: choosing-a-citation-act
-description: Choose the citation act that matches an entry's real status, and pick the honest outcome when an entry goes contested or falls. Use when `references` fails with "act against <id>, whose status is …", when `freshness` or `propagate` has just contested an entry, when a citing sentence needs writing or repairing, and BEFORE reaching for a supersession — supersession is one of four honest outcomes, not the default.
+description: Match a citation's act to the status of the entry it names, and choose among the repairs available when a status moves. Covers the four acts, the statuses each is legal against, and what each repair asserts and costs. Use when `references` reports "<act> against <id>, whose status is …", when a drift or a challenge has contested an entry, and when writing a citing sentence.
 ---
 
 # Choosing a citation act
 
-**`cites-as-live` is not the goal.** The goal is that every citing sentence tells the
-truth about the entry it names. An entry that is contested, and is cited as contested, is
-a correct ledger. An entry that is contested and cited as live is a false sentence, and
-that is the only thing `references` is objecting to.
+A citing sentence promises one thing: that the act it names is true of the entry's status
+as it stands. There is no status a claim is supposed to end up at, and `cites-as-live` is
+not a target — an entry that is contested and cited as contested is a correct ledger.
 
-Agents reliably get this wrong in one direction: they treat a `contested` status as an
-emergency and reach for a supersession to make the checker green. That is the expensive
-answer and usually the wrong one.
+When `references` objects, it is saying the sentence and the status disagree. Four repairs
+make them agree again, and they differ in what they cost and in what they assert. Picking
+among them is the work; the checker has already done its part.
 
 ## The four acts, and what each is legal against
 
@@ -37,7 +36,8 @@ three of the four outcomes below possible.
 
 ## Which checker is objecting
 
-Getting this wrong sends you to repair the wrong thing. The division of labour:
+Each checker answers a different question, and the wording of a finding says which one you
+are holding:
 
 | checker | what it holds | typical message |
 | --- | --- | --- |
@@ -51,11 +51,11 @@ Getting this wrong sends you to repair the wrong thing. The division of labour:
 the message names an act and a status, it is `references`, and no amount of re-pinning
 will answer it — the entry's *status* is what the citing sentence is wrong about.
 
-## When an entry goes contested: four honest outcomes
+## When an entry goes contested: four outcomes
 
-A `contested` status is a question put to a person. All four of these answers are
-legitimate and the checkers accept all four. Pick by what is *true*, never by what is
-cheapest to make green.
+A `contested` status is a question put to a person. All four answers below are legitimate
+and the checkers accept all four; they differ in what they assert, so pick by what is
+true.
 
 **1. The prose should say "contested" — flip the act.**
 Change the citation to `cites-as-contested` in the document, and the matching row in the
@@ -78,20 +78,18 @@ the prose is deliberately discussing the claim that failed.
 Append a `corroborated` verdict. `contested` is not terminal, so the status moves and
 `cites-as-live` becomes legal again.
 
-## The one move that is never legitimate
+## What a corroborating verdict asserts
 
-**Do not append a `corroborated` verdict you did not earn.** A corroborating verdict
-asserts that a person read the artifact and found it still supports the Assertion. If
-that reading did not happen, the verdict is a false statement, and no checker can catch
-it — the checkers hold shapes and statuses, not sincerity.
+Outcome 4 is a statement that a person read the artifact and found it still supports the
+Assertion. The checkers hold shapes and statuses, not sincerity, so this is one of the few
+places where the ledger's accuracy rests entirely on the verdict being true.
 
-Measured, on a real ledger: an entry was contested by a drift, then given a hand-written
-`corroborated` verdict, while the pinned code had in fact been changed so the entry's
-Assertion was **false**. All five checkers reported clean. The verdict was the only thing
-that lied, and it was enough.
+Worth knowing what that costs when it is not: an entry contested by a drift, then given a
+`corroborated` verdict while the pinned code had in fact been changed so the Assertion was
+false, leaves all five checkers reporting clean. One untrue verdict is enough.
 
-Reach for outcome 4 only when you can say which artifact you read and when. If you are
-choosing it because outcome 1 felt like giving up, you want outcome 1.
+So take outcome 4 when you can say which artifact you read and when. Outcome 1 asserts
+much less and is often the more accurate answer.
 
 ## What "fresh" means, and what returning to live costs
 

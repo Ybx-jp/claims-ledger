@@ -34,19 +34,18 @@ afterwards, at which point the repair is a supersession per entry. `merge-guard.
 refuses the commands that do it. See `docs/OPERATING.md`, which is the authority; this
 hook is one enforcement of what that document argues.
 
-**A citation whose act no longer matches its target's status reads as an emergency.**
-`references` says exactly what is wrong, and says nothing about which of four legitimate
-repairs is right — so an agent reaches for the most expensive one, a supersession, to
-make the checker green. `status-guard.sh` fires on that finding alone and names the four
-outcomes. It is not the same failure as a drifted pin and does not have the same repair;
-conflating them is the mistake it exists to stop.
+**A citation's act can stop matching its target's status.** `references` says exactly
+what is wrong and nothing about which of four repairs is right, and they differ in cost
+and in what they assert. `status-guard.sh` fires on that finding alone and lays the four
+out. It is a different failure from a drifted pin and does not share its repair, which is
+why it is a separate hook.
 
-**Three things are got wrong before any checker has run.** Which checker owns which
-failure; that `documents` gates citations and never grounds; and that `cites-as-live` is
-not a goal. Each sends the work in a direction the later hooks cannot recall, so
-`ledger-orientation.sh` says them once at session start and nothing else. It stays silent
-in a checkout with no `ledger/entries`, since the directory it ships in is meant to be
-copied.
+**A session starts without the map.** Which command answers which question, what the
+statuses and acts are, and where the procedures live are all knowable up front, and
+knowing them is what lets a finding be read rather than deciphered.
+`ledger-orientation.sh` hands that over once at session start and carries nothing else. It
+stays silent in a checkout with no `ledger/entries`, since the directory it ships in is
+meant to be copied.
 
 ## Installing them (Claude Code)
 
@@ -117,10 +116,10 @@ ledger; a hook firing behind the author's back is not the place for one, and the
 wrote would be indistinguishable from one a person meant.
 
 **Say what the choices are, never which to take.** `status-guard.sh` lists four outcomes
-and ranks none of them. The one thing it does rule out is a `corroborated` verdict written
-without re-reading the artifact — measured on a real ledger, that took all five checkers
-to clean over an Assertion that was false, because a verdict is the one thing no checker
-can check for sincerity.
+and ranks none of them. It does say what each asserts, which is the part that decides:
+a `corroborated` verdict written without re-reading the artifact takes all five checkers
+to clean over an Assertion that is false, because sincerity is the one thing no checker
+can check.
 
 **Never block on failure.** Every error path in `pin-guard.sh` exits 0 silently — no `jq`,
 no interpreter, an unreadable config. A guard that can break the session is worse than no

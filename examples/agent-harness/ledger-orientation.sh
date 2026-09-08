@@ -1,21 +1,14 @@
 #!/bin/bash
 # claims-ledger orientation — an agent-harness hook. SessionStart.
 #
-# The other two hooks fire at the moment of the mistake, which is the right place for
-# anything that can wait. This one carries only what an agent needs *before* it acts, and
-# is deliberately short: an orientation nobody finishes reading is wallpaper, and the
-# house rule for these hooks is that a reminder which fires constantly is worse than none.
+# The other hooks fire at the moment something is wrong, which is the right place for
+# anything that can wait. This one runs before any of that and carries no warnings: it
+# hands over the map and the vocabulary — which command answers which question, what the
+# statuses and acts are, and where the procedures live — so that a session starts able to
+# read what the checkers say rather than having to work it out from a failure.
 #
-# What is here is the small set of things measured to be got wrong on a first encounter,
-# each of which sends the work in a wrong direction that later hooks cannot recall:
-#
-#   - which checker owns which failure, because repairing the wrong one is silent waste;
-#   - that `documents` gates citations and never grounds, because the opposite belief
-#     makes whole classes of claim look impossible to ground;
-#   - that `cites-as-live` is not a goal, because believing it turns every contested
-#     entry into an emergency supersession.
-#
-# Everything else is left to the skills and to docs/OPERATING.md, which is the authority.
+# Counts are asked of the tool, never written down. A tally in prose is false the next
+# time an entry lands and nothing checks it.
 #
 # The hook never blocks: every failure path exits 0 silently.
 
@@ -37,22 +30,34 @@ for candidate in "$root/.venv/bin/python" "$root/venv/bin/python" "$(command -v 
 done
 [ -n "$python" ] || exit 0
 
-# The live counts, asked of the ledger rather than written down. A tally in prose is false
-# the next time an entry lands, which is the one thing this hook must not become.
 counts=$(cd "$root" && timeout 20 "$python" -m claims_ledger status 2>/dev/null | tail -1) || true
 [ -n "$counts" ] || counts="a ledger under ledger/entries"
 
-jq -cn --arg ctx "claims-ledger is self-hosted in this repository: $counts. \`claims-ledger check\` runs in the pre-commit hook and again in CI. docs/OPERATING.md is the authority on running it; read it before repairing anything.
+jq -cn --arg ctx "This project keeps a claims ledger: $counts. An entry states something the code promises, pinned to the code that keeps it true and cited from the prose that says the same thing in words. \`claims-ledger check\` runs in the pre-commit hook and again in CI, and \`docs/OPERATING.md\` is the authority on running one.
 
-Three things that are got wrong on a first encounter, and that later warnings cannot undo:
+FIVE CHECKERS, each answering a different question. The wording of a finding tells you which one you are holding, and that is what decides the repair:
 
-1. WHICH CHECKER OWNS WHAT. \`validate\` holds one entry's shape and wording. \`resolve\` holds that pointers resolve. \`references\` holds a citation's ACT against its target's current STATUS. \`propagate\` walks entry-to-entry edges. \`freshness\` compares a ground's bytes against its pin. A message naming an act and a status is \`references\`, and re-pinning will not answer it; a message saying a section has moved is \`freshness\`, and rewriting a sentence will not answer that.
+  validate    is this entry well formed?            frontmatter, sections, verdict lines
+  resolve     does every pointer resolve?           'does not resolve', 'has no section'
+  references  does a citation match its target?     '<act> against <id>, whose status is ...'
+  propagate   are the entry-to-entry edges sound?   'carries no contested verdict by ...'
+  freshness   has a pinned ground moved?            'has moved', 'withdrawn', 'unstable pin'
 
-2. \`documents\` GATES CITATIONS, NEVER GROUNDS. The configured document globs decide only where citations are read. A \`code:\` or \`toml:\` ground resolves any path in the repository. 'This file is not a document' never means 'a claim about this code cannot be grounded'.
+THE VOCABULARY you will be writing in:
 
-3. \`cites-as-live\` IS NOT THE GOAL. Every claim needs an HONEST status, and the citing sentence must match it. The acts are \`cites-as-live\` (open, corroborated), \`cites-as-contested\` (contested), \`challenges\` (open, corroborated, contested) and \`cites-as-fallen\` (any status). A contested entry cited as contested is a correct ledger. Do not reach for a supersession to make a checker green.
+  statuses  open · corroborated · contested · refuted · superseded · retracted · non-comparable
+            the last four are terminal; contested is not, so an entry can leave it
 
-Skills: use \`tagging-prose-with-claims\` BEFORE writing a batch of entries over a file — citation placement has to be decided first, and getting it wrong costs a supersession per claim already pinned there. Use \`choosing-a-citation-act\` when an entry's status has moved. Use \`repair-a-drifted-pin\` when a ground has drifted." \
+  acts      cites-as-live       against open or corroborated
+            cites-as-contested  against contested
+            challenges          against open, corroborated or contested
+            cites-as-fallen     against any status at all
+
+A citation names an entry and an act, and the act has to be true of that entry's status as it stands now — \`claims-ledger status\` is what those are. Matching the act to the status is the whole of what a citing sentence promises; there is no status a claim is supposed to end up at.
+
+GROUNDS AND DOCUMENTS are different things. A ground is evidence and can point at any path in the repository. The configured \`documents\` globs decide only where citations are read.
+
+WHERE TO START: the \`tagging-prose-with-claims\` skill for writing entries over a file, \`choosing-a-citation-act\` when an entry's status has moved, \`repair-a-drifted-pin\` when a ground has drifted. Each names the others where they take over." \
   '{hookSpecificOutput:{hookEventName:"SessionStart", additionalContext:$ctx}}'
 
 exit 0

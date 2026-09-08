@@ -14,17 +14,16 @@ that the paragraph fails CI when the code under it moves.
 
 ## Plan citation placement before you write a single entry
 
-This is the step that is skipped and the one that costs the most.
-
 A `code:` ground pins a **section** — under the shipped pattern, a whole top-level
 definition, docstring included. So **a citation written inside a function's docstring is
 inside the span that function's entries pin.** Adding one drifts every claim already
 pinned there.
 
-Measured on a real pass: adding three citations to one function's docstring drifted the
-two entries pinned to that function and cost two supersessions, both cosmetic, both
-producing a `verbatim_sha` byte-identical to their predecessor's. The same function later
-carried seven grounds — at which point the next citation added inside it costs seven.
+The cost compounds with density. Adding three citations to one function's docstring drifts
+every entry already pinned to that function — two, in one measured pass, each costing a
+supersession whose successor computed a `verbatim_sha` byte-identical to its
+predecessor's. A function carrying seven grounds pays seven for the next citation added
+inside it.
 
 Two placements, and you choose per file before you start:
 
@@ -95,8 +94,9 @@ supersession cost of the next edit inside it.
   the phrases `no one` and `not found`; or `no` followed later in the same sentence by
   `has`, `have`, `was`, `were`, `report` or `reports`.
 
-  This fires on ordinary uses. "losing the **first** to the second write" tripped it on a
-  claim that had nothing to do with priority. Reword rather than argue with it.
+  It matches on the word, not the sense, so ordinary uses trip it — "losing the **first**
+  to the second write" fires on a claim that says nothing about priority. Rewording is
+  cheaper than arguing with the heuristic.
 
 - **No quotation marks in an Assertion.**
 - **`measured` requires an evidence ground; `asserted` forbids one.** A preference the
@@ -125,6 +125,6 @@ cite.
    history, so this happens before commit two.
 8. `claims-ledger check`. Commit two, with the hook running normally.
 
-If step 8 reports drift on entries that already existed, you have hit the placement
-problem from the top of this file. Repair it with `choosing-a-citation-act` rather than
-by reflex — supersession is one of four outcomes.
+If step 8 reports drift on entries that already existed, that is the placement question
+from the top of this file arriving late. `choosing-a-citation-act` has the four repairs
+and what each asserts.

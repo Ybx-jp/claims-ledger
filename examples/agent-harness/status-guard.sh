@@ -1,19 +1,18 @@
 #!/bin/bash
 # claims-ledger status guard — an agent-harness hook. PostToolUse, matcher Edit|Write|MultiEdit.
 #
-# `pin-guard.sh` watches the ground; this watches the citation. They are different
-# failures with different repairs, and conflating them is the mistake this exists to stop.
+# `pin-guard.sh` watches the ground; this watches the citation. Different findings, and
+# different repairs, which is why they are separate hooks.
 #
 # When an entry's status moves — a drift contests it, a ground it cites falls, a person
-# refutes it — every sentence citing it under an act that status does not allow becomes a
-# false sentence, and `references` says so by name. The finding is precise and the repair
-# is a judgement, and an agent reading it under time pressure reliably makes the same
-# wrong move: it treats `contested` as an emergency and reaches for a supersession, which
-# is the most expensive of four legitimate outcomes and usually not the right one.
+# refutes it — every sentence citing it under an act that status does not allow says
+# something untrue, and `references` names it. The finding is precise; the repair is a
+# judgement, and four of them are legitimate. They differ in what they assert and in what
+# they cost, and that difference is not in the finding.
 #
 # So this hook does one thing: when `references` objects to an act against a status, it
-# names the four outcomes and leaves the choice where it belongs. It never chooses, and it
-# never writes.
+# lays the four out and leaves the choice where it belongs. It never chooses, and it never
+# writes.
 #
 # Throttled on the digest of the finding, so an unchanged objection is reported once and a
 # NEW one still speaks. Nothing here is repository-specific: the interpreter is discovered
@@ -81,14 +80,14 @@ jq -cn --arg ctx "claims-ledger status guard: a citing sentence names an entry u
 
 $mismatch
 
-This is \`references\`, not \`freshness\`. Re-pinning answers nothing here — the entry's STATUS is what the sentence is wrong about. There are four honest outcomes and the checkers accept all four; choose by what is true, not by what is cheapest to make green:
+This is \`references\`, not \`freshness\`: the entry's STATUS is what the sentence disagrees with, so re-pinning does not answer it. Four repairs make them agree, and the checkers accept all four. They differ in what they assert and what they cost:
 
   1. Flip the act. If the entry is contested and the prose should say so, change the citation to \`cites-as-contested\` AND the matching row in the entry's ## References. A contested claim visibly cited as contested is a correct ledger, not a holding pattern. \`cites-as-fallen\` is legal against any status.
   2. Supersede — the claim still holds on the artifact as it now stands. docs/OPERATING.md has the sequence. Costs an entry, a verdict and every citation moved.
   3. Let it fall — append a refuted or retracted verdict and rewrite the prose.
-  4. Corroborate — ONLY if you have just re-read the artifact and it still supports the Assertion. A corroborating verdict you did not earn is a false statement no checker can catch, and it silences the ground permanently.
+  4. Corroborate — a statement that you have just re-read the artifact and it still supports the Assertion. That returns the entry to a live status, and with it the ground stops reporting drift. Sincerity is the one thing no checker can check, so this one rests entirely on being true.
 
-Never delete the citation to make the check pass: that passes by removing the thing being checked." \
+\`claims-ledger status\` is what the statuses are right now. Deleting the citation also clears the finding, by removing the link the ledger exists to keep." \
   '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'
 
 exit 0
