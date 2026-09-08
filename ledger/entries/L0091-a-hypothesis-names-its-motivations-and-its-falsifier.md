@@ -1,0 +1,40 @@
+---
+id: L0091-a-hypothesis-names-its-motivations-and-its-falsifier
+kind: claim
+stated: 2026-09-08T02:30:57-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: b74d9c2743aaf27c48ba6ad0840c43ae9174dce44302f12cecb5253a40196572
+---
+
+## Assertion
+
+A hypothesis fails unless it names the entries motivating it and its Warrant says what would falsify it.
+
+## Scope
+
+metric: whether a hypothesis lacking motivating entries or a falsifier is reported
+cohort: entries of kind hypothesis
+condition: the falsifier test is a heuristic on the Warrant's wording
+
+## Grounds
+
+- code: src/claims_ledger/validate.py § "check_sections" @34f416118e10a14169475fe23d3176d347d0ed8d
+- code: src/claims_ledger/validate.py § "FALSIFIER_RE" @34f416118e10a14169475fe23d3176d347d0ed8d
+
+## Warrant
+
+check_sections requires an entry ground on a hypothesis and searches its Warrant with FALSIFIER_RE, which matches any word beginning falsif. A hypothesis is a bet on a design: without the claims motivating it the roster displays a question nothing connects to, and without a falsifier there is nothing that would ever settle it. The rule is stated as a word test so that a checker author implements what the corpus seeds exercise.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/validate.py · standing · cites-as-live
