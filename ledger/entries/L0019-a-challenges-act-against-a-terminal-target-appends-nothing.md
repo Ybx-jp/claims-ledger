@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T09:41:22-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/propagate.py § "run" @0af113005f955a4e120d71338993a94cc6efeb7b
+  artifact: d7edcf2d43d01f126a1240c49607dcd4d379e414
+  note: propagated from a moved ground
+
+- 2026-09-08T09:50:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  note: read against the change in commit 5ee55ae, which narrowed the dependent exemption from FALLEN to TERMINAL in that one branch; this claim names a different part of the same section and is unaffected
+
 ## References
 
 - src/claims_ledger/propagate.py · standing · cites-as-live

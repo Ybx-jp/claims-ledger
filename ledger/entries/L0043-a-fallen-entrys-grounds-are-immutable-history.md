@@ -35,6 +35,9 @@ none
 
 ## Verdicts
 
+- 2026-09-08T09:45:00-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0154-a-terminal-entrys-grounds-are-immutable-history · supersedes
+  note: the exemption was written against FALLEN; the successor states it against TERMINAL, which is where the checker now draws it, because a non-comparable entry is as unrepairable as a fallen one
+
 ## References
 
-- src/claims_ledger/references.py · standing · cites-as-live
