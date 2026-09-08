@@ -1,7 +1,7 @@
 #!/bin/bash
 # claims-ledger pin guard — an agent-harness hook. PostToolUse, matcher Edit|Write|MultiEdit.
 #
-# A ledger that pins prose to code has two failures that no checker catches in time:
+# A ledger pinning prose to the artifacts under it has two failures no checker catches in time:
 #
 #   1. An edit lands inside a pinned section and nothing says so until `git commit`, by
 #      which point the edit is finished and its author has moved on. `freshness` answers
@@ -79,7 +79,7 @@ if [ -n "$finding" ] && ! printf '%s' "$finding" | grep -q '0 failure(s), 0 flag
 
 $finding
 
-The pins are what hold the prose to the code. Repair them in this session rather than at \`git commit\`, where the pre-commit hook will refuse the commit anyway. The procedure is in docs/OPERATING.md. Do not delete a verdict or edit a ground to make the checker pass."
+A pin is what holds the prose to the artifact under it. Repair it in this session rather than at \`git commit\`, where the pre-commit hook refuses anyway. The \`repair-a-drifted-pin\` skill has the findings and what discharges each — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Verdicts append and only append: a ground edited or a verdict removed is caught against history on the next run."
     exit 0
   fi
 fi
@@ -107,9 +107,9 @@ if ! fired newclaim; then
   remember newclaim
   emit "claims-ledger pin guard (once per session): you just edited $rel, one of the documents this ledger reads.
 
-If this edit states a NEW commitment — a sentence a reader would take as a promise about what the code does — it needs an entry, pinned to the code that keeps it true and cited from the sentence. No checker can find this for you: \`references\` only checks citations that were actually written, so prose that asserts something and cites nothing passes every check.
+If this edit states a NEW commitment — a sentence a reader would take as a promise the project is answerable for — it needs an entry, grounded in the artifact that keeps it true and cited from the sentence. No checker can find this for you: \`references\` only checks citations that were actually written, so prose that asserts something and cites nothing passes every check.
 
-Adding an entry takes two commits and the pre-commit hook will refuse the first; docs/OPERATING.md says why and what to do. If the edit states no new commitment, ignore this."
+Adding an entry takes two commits and the pre-commit hook refuses the first; the \`tagging-prose-with-claims\` skill says why and what to do. If the edit states no new commitment, ignore this."
 fi
 
 exit 0

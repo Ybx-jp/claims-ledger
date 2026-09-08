@@ -29,10 +29,10 @@ check. No checker can close this — telling a promise from a description is a j
 so `pin-guard.sh` raises it once a session, on the first edit to a configured document,
 and leaves the judgement where it belongs.
 
-**A squash or rebase merge silently destroys every commit pin.** `resolve` reports it
-afterwards, at which point the repair is a supersession per entry. `merge-guard.sh`
-refuses the commands that do it. See `docs/OPERATING.md`, which is the authority; this
-hook is one enforcement of what that document argues.
+**A squash or rebase merge silently destroys every commit pin.** A pin names a revision,
+so rewriting history removes the evidence for every ground pinned into the vanished commits
+at once, and each one then costs a supersession. `merge-guard.sh` refuses the commands that
+do it.
 
 **A citation's act can stop matching its target's status.** `references` says exactly
 what is wrong and nothing about which of four repairs is right, and they differ in cost
@@ -41,11 +41,12 @@ out. It is a different failure from a drifted pin and does not share its repair,
 why it is a separate hook.
 
 **A session starts without the map.** Which command answers which question, what the
-statuses and acts are, and where the procedures live are all knowable up front, and
-knowing them is what lets a finding be read rather than deciphered.
+statuses and acts are, and which skill takes over for which finding are all knowable up
+front, and knowing them is what lets a finding be read rather than deciphered.
 `ledger-orientation.sh` hands that over once at session start and carries nothing else. It
-stays silent in a checkout with no `ledger/entries`, since the directory it ships in is
-meant to be copied.
+asks the installed package for the counts and for the evidence types the project
+configures, rather than carrying either. It stays silent in a checkout with no
+`ledger/entries`, since the directory it ships in is meant to be copied.
 
 ## Installing them (Claude Code)
 
@@ -102,6 +103,12 @@ Nothing, by construction, and it is worth keeping it that way:
 - No counts, anywhere. `ledger-orientation.sh` asks `claims-ledger status` for the tally
   rather than carrying one, because a number written into prose is false the next time an
   entry lands and nothing checks it.
+- Nothing points at a path the reader may not have. `docs/` is not installed with the
+  wheel, and the package's own source is not an interface, so the hooks name only
+  `claims-ledger` commands, importable names, and the skills in `../agent-skills/`.
+- Nothing assumes what an artifact is. A ground may name a module, a settings table, a
+  design document or a run, and which types this project accepts is asked of its
+  configuration.
 
 ## Design notes worth keeping if you adapt them
 

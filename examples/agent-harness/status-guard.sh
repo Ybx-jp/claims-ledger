@@ -80,14 +80,14 @@ jq -cn --arg ctx "claims-ledger status guard: a citing sentence names an entry u
 
 $mismatch
 
-This is \`references\`, not \`freshness\`: the entry's STATUS is what the sentence disagrees with, so re-pinning does not answer it. Four repairs make them agree, and the checkers accept all four. They differ in what they assert and what they cost:
+This is \`claims-ledger references\`: the entry's STATUS is what the sentence disagrees with, so re-pinning does not reach it. Several repairs make them agree, and they differ in what they assert and what they cost:
 
-  1. Flip the act. If the entry is contested and the prose should say so, change the citation to \`cites-as-contested\` AND the matching row in the entry's ## References. A contested claim visibly cited as contested is a correct ledger, not a holding pattern. \`cites-as-fallen\` is legal against any status.
-  2. Supersede — the claim still holds on the artifact as it now stands. docs/OPERATING.md has the sequence. Costs an entry, a verdict and every citation moved.
-  3. Let it fall — append a refuted or retracted verdict and rewrite the prose.
-  4. Corroborate — a statement that you have just re-read the artifact and it still supports the Assertion. That returns the entry to a live status, and with it the ground stops reporting drift. Sincerity is the one thing no checker can check, so this one rests entirely on being true.
+  - Say what is now the case. Change the act in the document AND the matching row in the entry's ## References. \`cites-as-contested\` speaks of a claim under question; \`cites-as-fallen\` is legal against any status.
+  - Acknowledge an immaterial change. If a ground moved but the claim is untouched, the entry can return to a live status without a successor. The \`repair-a-drifted-pin\` skill has the sequence.
+  - Supersede. The claim now rests on different evidence, so it becomes a new entry with its citations moved.
+  - Record that it did not survive — a refuted or retracted verdict, and the prose rewritten.
 
-\`claims-ledger status\` is what the statuses are right now. Deleting the citation also clears the finding, by removing the link the ledger exists to keep." \
+\`claims-ledger status\` is what the statuses are right now, and the \`choosing-a-citation-act\` skill covers which act each status allows. Removing the citation also clears the finding, by removing the link the ledger exists to keep." \
   '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'
 
 exit 0

@@ -1,114 +1,87 @@
 ---
 name: choosing-a-citation-act
-description: Match a citation's act to the status of the entry it names, and choose among the repairs available when a status moves. Covers the four acts, the statuses each is legal against, and what each repair asserts and costs. Use when `references` reports "<act> against <id>, whose status is …", when a drift or a challenge has contested an entry, and when writing a citing sentence.
+description: Match a citation's act to the status of the entry it names, and choose among the repairs available when a status moves. Use when `claims-ledger references` reports "<act> against <id>, whose status is …", when a citing sentence is being written or moved, and when a drift, a challenge or a fallen ground has changed an entry's status.
 ---
 
 # Choosing a citation act
 
-A citing sentence promises one thing: that the act it names is true of the entry's status
-as it stands. There is no status a claim is supposed to end up at, and `cites-as-live` is
-not a target — an entry that is contested and cited as contested is a correct ledger.
+A citing sentence promises one thing: that the act it names is true of that entry's status
+as it stands. `claims-ledger references` checks exactly that, in both directions — the
+citation in the document, and the row in the entry's `## References`.
 
-When `references` objects, it is saying the sentence and the status disagree. Four repairs
-make them agree again, and they differ in what they cost and in what they assert. Picking
-among them is the work; the checker has already done its part.
+When it objects, the sentence and the status disagree. Several repairs make them agree
+again; they differ in what they assert and in what they cost.
 
-## The four acts, and what each is legal against
+**This is the wrong skill if** the finding says `has moved`, `withdrawn`, `unstable pin`
+or `unknown` — that is `claims-ledger freshness`, and `repair-a-drifted-pin` covers it.
+A finding naming an act and a status is about the entry's status, so re-pinning does not
+reach it.
 
-    cites-as-live       open, corroborated
-    cites-as-contested  contested
-    challenges          open, corroborated, contested
-    cites-as-fallen     any status at all
+## Read the current state first
 
-There is **no `cites-as-refuted`**. `cites-as-fallen` is the act that covers a refuted,
-superseded or retracted target, and it is legal against every status, which makes it the
-act you can always fall back to when the prose is deliberately talking about a claim that
-did not survive.
+    claims-ledger status                 every entry and the status it derives to
+    claims-ledger references             every citation, checked both ways
 
-The statuses themselves:
+Statuses derive from the verdict list rather than being stored, so the status an entry had
+when you last looked is not evidence about now.
 
-    open  corroborated  contested  refuted  superseded  retracted  non-comparable
-                        └ not terminal ┘    └────────── terminal ──────────┘
-                                            └──── fallen ────┘  (not non-comparable)
+## The acts
 
-`contested` is **not** terminal. An entry can leave it. That single fact is what makes
-three of the four outcomes below possible.
+    claims-ledger references             names the act and the statuses it allows
 
-## Which checker is objecting
+`reference/vocabulary.md` has the full table and how to read it from the package rather
+than from memory. In short: `cites-as-live` speaks of a claim in good standing,
+`cites-as-contested` of one under question, `cites-as-fallen` of one that did not survive,
+and `challenges` is written by an entry that disputes another.
 
-Each checker answers a different question, and the wording of a finding says which one you
-are holding:
+`cites-as-fallen` is legal against every status, which makes it available whenever the
+prose means to discuss a claim as it stands rather than to rely on it.
 
-| checker | what it holds | typical message |
-| --- | --- | --- |
-| `validate` | one entry's shape and wording | frontmatter, sections, verdict lines |
-| `resolve` | every pointer actually resolves | `does not resolve`, `has no section` |
-| `references` | **an act against the target's current status**, both directions | `cites-as-live against X, whose status is contested` |
-| `propagate` | `entry:` edges — fallen grounds, challenges, orphans | `carries no contested verdict by …` |
-| `freshness` | a ground's bytes against its pin | `has moved`, `withdrawn`, `unstable pin` |
+## When a status moves
 
-**`freshness` never objects to a citation, and `references` never objects to drift.** If
-the message names an act and a status, it is `references`, and no amount of re-pinning
-will answer it — the entry's *status* is what the citing sentence is wrong about.
+The status is a question put to a person, and these answers are all legitimate. Pick the
+one that describes what is true.
 
-## When an entry goes contested: four outcomes
+**Say what is now the case — change the act.**
+Update the citation in the document and the matching row in the entry's `## References`.
+Both sides, or `references` objects the other way. The entry keeps its status, the
+sentence describes it accurately, and the check is clean.
 
-A `contested` status is a question put to a person. All four answers below are legitimate
-and the checkers accept all four; they differ in what they assert, so pick by what is
-true.
+**Re-establish the claim on the artifact as it stands — supersede.**
+A ground cannot be edited once the entry is in history, so a claim re-established on new
+evidence is a new entry: `claims-ledger new <slug> --supersedes <old-id>`, with the old
+one carrying a `superseded` verdict and every citation moved.
+`repair-a-drifted-pin/reference/superseding.md` has the sequence.
 
-**1. The prose should say "contested" — flip the act.**
-Change the citation to `cites-as-contested` in the document, and the matching row in the
-entry's `## References` to `· cites-as-contested`. Both sides, or `references` fails the
-other way. The entry stays contested, the sentence now tells the truth, and `check` is
-clean. This is a real resting state, not a holding pattern: a ledger whose contested
-claims are visibly cited as contested is doing its job.
+**Record that it did not survive.**
+Append a `refuted` or `retracted` verdict whose evidence points at what settles it, then
+rewrite the prose. Citations move with the sentence, or become `cites-as-fallen` where the
+prose still means to name the claim.
 
-**2. The claim still holds on the artifact as it now stands — supersede.**
-A pin cannot be edited, so re-establishing a claim on new evidence is a new entry. Follow
-`docs/OPERATING.md` §"Repairing a drifted pin" step 3. Costs an entry file, a
-`superseded` verdict on the predecessor, and every citation moved.
+**Record that it still stands — corroborate.**
+Append a `corroborated` verdict. This is a statement that a person went and looked, so it
+carries what was read and when. Sincerity is the one thing no checker can check: a
+corroborating verdict that records a reading nobody did leaves every checker clean over an
+Assertion that is false.
 
-**3. The claim is no longer true — let it fall.**
-Append a `refuted` or `retracted` verdict whose evidence points at what shows it false,
-then rewrite the prose. Citations go with the sentence, or become `cites-as-fallen` if
-the prose is deliberately discussing the claim that failed.
+Where the finding is a drift the claim does not depend on — a section that moved, a
+renumbering, a rename — `repair-a-drifted-pin` covers acknowledging it without touching
+the claim.
 
-**4. You re-read the artifact and the claim genuinely still holds — corroborate.**
-Append a `corroborated` verdict. `contested` is not terminal, so the status moves and
-`cites-as-live` becomes legal again.
+## Writing a citation
 
-## What a corroborating verdict asserts
+1. `claims-ledger status` for the entry's status now.
+2. Choose the act that is true of it.
+3. Write it on both sides: the citation in the document, and the row in the entry's
+   `## References`.
+4. `claims-ledger references` before committing — it prints what it read.
 
-Outcome 4 is a statement that a person read the artifact and found it still supports the
-Assertion. The checkers hold shapes and statuses, not sincerity, so this is one of the few
-places where the ledger's accuracy rests entirely on the verdict being true.
+Removing the citation also clears the finding, by removing the link the ledger exists to
+keep.
 
-Worth knowing what that costs when it is not: an entry contested by a drift, then given a
-`corroborated` verdict while the pinned code had in fact been changed so the Assertion was
-false, leaves all five checkers reporting clean. One untrue verdict is enough.
+## Reference
 
-So take outcome 4 when you can say which artifact you read and when. Outcome 1 asserts
-much less and is often the more accurate answer.
-
-## What "fresh" means, and what returning to live costs
-
-`freshness` reports drift **since the pin**, and a drift that has been recorded is no
-longer news. Once a contested verdict naming that ground is committed, the finding is
-discharged and that ground stops reporting — permanently. That is the intended reading of
-the name, and `docs/FRESHNESS.md` §"How a finding is discharged" is the rule.
-
-The consequence is worth stating plainly, because it is the real cost of outcome 4:
-**an entry returned to a live status carries a ground that will not flag again.** The
-normal flow hides this, because outcomes 2 and 3 retire the entry and `freshness` skips
-terminal entries anyway. Choosing outcome 4 is choosing to stop watching that ground, so
-choose it only when you have just looked.
-
-## Before you write any citation
-
-1. Read the entry's **current** status — `claims-ledger status`, not what you remember.
-2. Pick the act that is true of that status, from the table above.
-3. Write it on **both** sides: the citation in the document, and the row in the entry's
-   `## References`. `references` checks both directions and will name whichever is
-   missing.
-4. Run `claims-ledger references` before committing. It prints what it read.
+- `reference/vocabulary.md` — statuses, acts, grades and kinds, and the command that
+  prints each of them.
+- `reference/status-derivation.md` — how a verdict list becomes a status, and which
+  verdicts stop the walk.

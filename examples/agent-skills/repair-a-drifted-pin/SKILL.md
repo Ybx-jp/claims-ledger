@@ -1,72 +1,109 @@
 ---
 name: repair-a-drifted-pin
-description: Repair a claims-ledger entry when a pinned ground drifts — reading a freshness finding, writing the contested verdict, re-judging, and superseding an entry with its citations moved. Use when `claims-ledger freshness` or `check` reports a moved, withdrawn or unstable ground, when the pre-commit hook refuses a commit for any of the five checkers, when an edit lands inside a section named by a `code:` or `toml:` ground, and BEFORE hand-editing any file under `ledger/`.
+description: Discharge a finding from `claims-ledger freshness` — moved, withdrawn, unstable pin or unknown — by choosing among acknowledging an immaterial change, superseding the entry, or recording that the claim did not survive. Use when freshness or check reports any of those, when the pre-commit hook refuses a commit, and when an edit lands inside a span a ground names.
 ---
 
 # Repair a drifted pin
 
-**The procedure is `docs/OPERATING.md` §"Repairing a drifted pin". Read it and follow it.**
-It ships with the package and is the authority; this file exists to get you there
-quickly and to say the two things that are easiest to get wrong under time pressure.
+`claims-ledger freshness` compares each pinned ground against the revision it names. It
+reports four things, and they do not mean the same thing.
 
-Drift is not the only thing that can be wrong, and reaching for this procedure when the
-finding was something else is wasted work. If the message names an ACT and a STATUS
-(`cites-as-live against X, whose status is contested`) that is `references`, not
-`freshness`, and re-pinning answers nothing — use `choosing-a-citation-act`.
+**This is the wrong skill if** the finding names an act and a status —
+`<act> against <id>, whose status is …`. That is `claims-ledger references` objecting to a
+citation, and `choosing-a-citation-act` covers it.
 
-## Before anything
+## Read the finding before deciding anything
 
-Run the checkers and read what they actually said:
+    claims-ledger freshness
 
-    <project venv>/bin/python -m claims_ledger freshness
+| finding | | what it needs |
+| --- | --- | --- |
+| `fresh` | silent | nothing |
+| `has moved` | flag | a discharge, below |
+| `withdrawn` | fail | a discharge, below; the path is gone from the working tree |
+| `unstable pin` | flag | re-pin at a revision — **no verdict discharges this** |
+| `unknown` | fail | fix the repository — **no verdict discharges this** |
 
-Named as an interpreter plus `-m`, never as the `claims-ledger` console script — the
-virtualenv is not active in every context this runs from.
+The last two are not drift. An `unstable pin` names no revision, so there is nothing to
+compare and nothing to discharge. An `unknown` is version control declining to answer, and
+a verdict written over it records a judgement nobody made.
+`reference/findings.md` has each in full, including which kinds of change land where —
+a rename reports as `withdrawn` rather than `moved`, because the path a ground names is
+gone from the working tree.
 
-`freshness` reports five things and only two of them are drift. **`unstable pin` and
-`unknown` must never be given a verdict**: the first has no revision to compare against,
-the second is git declining to answer, and a verdict over either records a judgement
-nobody made. `docs/OPERATING.md` has the table.
+## Discharging a moved or withdrawn ground
 
-If the failure came from `resolve` rather than `freshness`, read its sentence to the end.
-It now names which of three things went wrong, and they are not the same repair: a commit
-this repository does not have is a rewritten history and a supersession per entry; a
-commit that is there with the path missing is one pin on one entry.
+### 1. Let the machinery record what it saw
 
-## Ask what moved before you write the successor
+    claims-ledger freshness --write
 
-`docs/OPERATING.md` has this now; it is repeated here because it is the step that was
-skipped in practice. If the pinned section changed for a reason the claim does not name,
-the ground is wrong, and giving the successor the same ground buys one more supersession
-on the next unrelated edit — which is exactly what L0010 did, carrying `cmd_validate`
-forward after an edit to `cmd_validate` that the claim had nothing to say about.
+This appends a `contested` verdict carrying the drifted pointer and what the artifact
+reads as now. Exit 1 is correct — it wrote something. Write this one with the tool rather
+than by hand: it carries provenance the checkers hold it to, and a hand-written one under
+the propagation author claims a check that did not run.
 
-The tell is mechanical and the tool already prints it: `sha --write` on the successor
-computing a `verbatim_sha` **byte-identical** to its predecessor's means the claim never
-moved and only its ground did. In that case narrowing the ground *is* the repair — pin the
-code carrying the rule rather than a caller that follows it, and configure a
-`section-pattern` if the claim is about something narrower than a table or a function.
+The entry is now `contested`, so `claims-ledger references` names every document citing it
+`cites-as-live`. That list is the prose the repair has to reach.
 
-## Two things not to do
+### 2. Decide what actually changed
 
-**Do not edit an entry above the `<!-- APPEND BELOW THIS LINE ONLY -->` marker**, and do
-not delete a verdict or change a ground to make a checker pass. `validate` compares
-against git history over the whole history, so it is caught on the next run anywhere, and
-by then it is in the record.
+Read the Assertion against the artifact as it now stands. Four outcomes, and the checkers
+accept all of them.
 
-**Do not write the `contested` verdict by hand.** `freshness --write` appends it with the
-`artifact:` provenance the checker is entitled to; a hand-written one under the propagation
-author is a person borrowing the authority of a check that did not run.
+**The artifact moved; the claim is untouched.** A renumbering, a reformat, a section moved
+within a file or to a different file, a rename. Append a `corroborated` verdict naming the
+section where it now is, at the current revision, with a note recording the move:
 
-## Landing the repair
+    - <timestamp> · corroborated · grade: <grade> · author: <you>
+      evidence: <type>: <path> § "<section>" @<revision>
+      note: <what moved, and that the assertion is unaffected>
 
-- **Ask the tool, do not trust a written-down summary.** `claims-ledger status` for the
-  entries and their statuses, `claims-ledger references` for the citation sites the repair
-  has to move. A count of entries or pins recorded in prose is false the next time an
-  entry lands, and nothing checks it.
-- **Two commits**, the first with `--no-verify`, then `claims-ledger check` by hand before
-  the second. `docs/OPERATING.md` says why the first is refused.
-- **`sha --write` on the successor before it is committed** — it refuses an entry that is
-  already in history.
-- **Merge commits only** on any branch whose commits are pinned. A squash or rebase merge
-  destroys every pin in the branch and costs a supersession per ground.
+`contested` is not terminal, so the status moves to `corroborated`, citations that read
+`cites-as-live` stay legal, and the entry keeps its id. The evidence must name the artifact
+as it is now rather than restating the ground — `claims-ledger validate` refuses a
+corroborating verdict pointing at a ground the entry already cites, which is what makes
+this a record of a reading rather than a restatement.
+
+That is the whole repair for an immaterial change. What it asserts is that someone went and
+looked; the ground stays as written, and the verdict is the note tracking where the artifact
+went.
+
+**The claim is re-established on different evidence.** Supersede —
+`reference/superseding.md` has the sequence. A ground cannot be edited once the entry is in
+history, so a claim resting on new evidence is a new entry.
+
+**The claim no longer holds.** Append a `refuted` or `retracted` verdict whose evidence
+points at what settles it, and rewrite the prose. Citations move with the sentence.
+
+**The question is open and should stay visible.** Leave the entry `contested` and change
+the citing prose to `cites-as-contested`. `choosing-a-citation-act` covers writing that on
+both sides.
+
+## Before writing a successor, ask what moved
+
+If a span changed for a reason the claim does not name, the *ground* is the thing that was
+wrong, and carrying it into a successor buys another supersession on the next unrelated
+edit. Narrow it instead: name the thing that carries the rule rather than something that
+follows it, and configure a section pattern if the claim is about something smaller than a
+whole definition or table.
+
+The tell is mechanical. `claims-ledger sha --write` on the successor computing a
+`verbatim_sha` byte-identical to its predecessor's means the claim never moved and only its
+ground did — the case where narrowing is the whole of the repair, and often the case where
+acknowledging is enough and no successor is needed at all.
+
+## Two things that stay true
+
+**Verdicts append and only append.** Everything above the append marker is frozen once the
+entry is in history, and `claims-ledger validate` compares against history to catch an edit
+there. Repair by adding to the end, never by revising a ground or removing a verdict.
+
+**Land it without rewriting history.** A pin names a revision, so a squash merge, a rebase
+merge or a force-push over rewritten history removes the evidence for every ground pinned
+into the vanished commits at once, and each one then costs a supersession. Merge commits
+only, on any branch whose commits are pinned.
+
+## Reference
+
+- `reference/findings.md` — the four findings, what produces each, and what discharges it.
+- `reference/superseding.md` — the supersession sequence, both directions checked.

@@ -1,14 +1,14 @@
 #!/bin/bash
 # claims-ledger orientation — an agent-harness hook. SessionStart.
 #
-# The other hooks fire at the moment something is wrong, which is the right place for
-# anything that can wait. This one runs before any of that and carries no warnings: it
-# hands over the map and the vocabulary — which command answers which question, what the
-# statuses and acts are, and where the procedures live — so that a session starts able to
-# read what the checkers say rather than having to work it out from a failure.
+# The other hooks fire when something is wrong, which is the right place for anything that
+# can wait. This one runs first and carries the map: which command answers which question,
+# what the vocabulary is and where to print it, and which skill takes over for which
+# finding. A session that has it reads a finding instead of deciphering one.
 #
-# Counts are asked of the tool, never written down. A tally in prose is false the next
-# time an entry lands and nothing checks it.
+# Everything variable is asked of the installed package rather than written here — the
+# counts, the evidence types this project configures, the statuses. A tally or a table in
+# prose is wrong as soon as the project changes and nothing checks it.
 #
 # The hook never blocks: every failure path exits 0 silently.
 
@@ -23,6 +23,8 @@ root=$(cd -- "$here/../.." && pwd) || exit 0
 # directory that people copy, and firing in a project with no ledger is noise.
 [ -d "$root/ledger/entries" ] || exit 0
 
+# An interpreter plus `-m`, never the `claims-ledger` console script: a console script in a
+# virtualenv that is not active is not on PATH, and the hook would fail on every firing.
 python=""
 for candidate in "$root/.venv/bin/python" "$root/venv/bin/python" "$(command -v python3 2>/dev/null)"; do
   [ -n "$candidate" ] && [ -x "$candidate" ] || continue
@@ -33,31 +35,31 @@ done
 counts=$(cd "$root" && timeout 20 "$python" -m claims_ledger status 2>/dev/null | tail -1) || true
 [ -n "$counts" ] || counts="a ledger under ledger/entries"
 
-jq -cn --arg ctx "This project keeps a claims ledger: $counts. An entry states something the code promises, pinned to the code that keeps it true and cited from the prose that says the same thing in words. \`claims-ledger check\` runs in the pre-commit hook and again in CI, and \`docs/OPERATING.md\` is the authority on running one.
+# What a claim may rest on is per project, so it is asked rather than assumed. A ledger
+# over source configures different types from one over papers or design documents.
+kinds=$(cd "$root" && timeout 20 "$python" -c \
+  'from claims_ledger import open_ledger; print(", ".join(open_ledger().config.evidence_types))' 2>/dev/null) || true
+[ -n "$kinds" ] || kinds="see the project configuration"
 
-FIVE CHECKERS, each answering a different question. The wording of a finding tells you which one you are holding, and that is what decides the repair:
+jq -cn --arg counts "$counts" --arg kinds "$kinds" --arg ctx "This project keeps a claims ledger: __COUNTS__. An entry states one thing the project is answerable for, grounded in the artifact that makes it true and cited from the prose that says the same thing in words. This project's grounds may name: __KINDS__. \`claims-ledger check\` runs in the pre-commit hook and again in CI.
 
-  validate    is this entry well formed?            frontmatter, sections, verdict lines
-  resolve     does every pointer resolve?           'does not resolve', 'has no section'
-  references  does a citation match its target?     '<act> against <id>, whose status is ...'
-  propagate   are the entry-to-entry edges sound?   'carries no contested verdict by ...'
-  freshness   has a pinned ground moved?            'has moved', 'withdrawn', 'unstable pin'
+SIX COMMANDS ANSWER DIFFERENT QUESTIONS, and the wording of a finding says which one you are holding — that is what decides the repair.
 
-THE VOCABULARY you will be writing in:
+  claims-ledger status       what every entry is, and the status it derives to right now
+  claims-ledger validate     is each entry well formed?           frontmatter, sections, verdicts
+  claims-ledger resolve      does every pointer resolve?          'does not resolve', 'has no section'
+  claims-ledger references   does a citation match its target?    '<act> against <id>, whose status is ...'
+  claims-ledger propagate    are the entry-to-entry edges sound?
+  claims-ledger freshness    has a pinned ground changed?         'has moved', 'withdrawn', 'unstable pin', 'unknown'
 
-  statuses  open · corroborated · contested · refuted · superseded · retracted · non-comparable
-            the last four are terminal; contested is not, so an entry can leave it
+\`claims-ledger --help\` lists them all and \`claims-ledger <command> --help\` its options. The package is importable, and exports its own vocabulary rather than asking you to remember it:
 
-  acts      cites-as-live       against open or corroborated
-            cites-as-contested  against contested
-            challenges          against open, corroborated or contested
-            cites-as-fallen     against any status at all
+  python -c 'from claims_ledger import STATUSES, ACTS, GRADES, KINDS; print(STATUSES, ACTS)'
 
-A citation names an entry and an act, and the act has to be true of that entry's status as it stands now — \`claims-ledger status\` is what those are. Matching the act to the status is the whole of what a citing sentence promises; there is no status a claim is supposed to end up at.
+TWO THINGS TO HAVE STRAIGHT. A citation names an entry and an act, and the act has to be true of that entry's status as it stands — matching them is the whole of what a citing sentence promises. And a ground is evidence that can name any path the project holds, while the configured document globs decide only where citations are read.
 
-GROUNDS AND DOCUMENTS are different things. A ground is evidence and can point at any path in the repository. The configured \`documents\` globs decide only where citations are read.
-
-WHERE TO START: the \`tagging-prose-with-claims\` skill for writing entries over a file, \`choosing-a-citation-act\` when an entry's status has moved, \`repair-a-drifted-pin\` when a ground has drifted. Each names the others where they take over." \
-  '{hookSpecificOutput:{hookEventName:"SessionStart", additionalContext:$ctx}}'
+WHERE TO GO. \`tagging-prose-with-claims\` to turn prose into entries. \`choosing-a-citation-act\` for a finding naming an act and a status. \`repair-a-drifted-pin\` for a moved, withdrawn, unstable or unknown ground — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Each skill carries a reference/ directory with the detail." \
+  '{hookSpecificOutput:{hookEventName:"SessionStart",
+    additionalContext:($ctx | sub("__COUNTS__"; $counts) | sub("__KINDS__"; $kinds))}}'
 
 exit 0

@@ -1,130 +1,119 @@
 ---
 name: tagging-prose-with-claims
-description: Extract claims from existing prose — a docstring, a README paragraph, a comment — into ledger entries, and cite them from the sentence that states them. Use BEFORE writing a batch of new entries over a file, when a source file's prose states commitments nothing holds, and when planning where a citation will physically sit. Covers citation placement, the two-commit shape, ground width, and the wording rules that fail `validate` silently.
+description: Turn prose that promises something — a docstring, a README paragraph, a design-document sentence, a comment — into ledger entries, and cite each from the sentence that states it. Use before writing a batch of entries over a file, when prose asserts something no entry holds, and when deciding where a citation will physically sit.
 ---
 
 # Tagging prose with claims
 
-A tagging pass reads a file's prose, finds the sentences that make checkable promises
-about the code, and gives each one an entry pinned to the code that keeps it true.
+A tagging pass reads a file's prose, finds the sentences that promise something the
+project is answerable for, and gives each one an entry pinned to the artifact that keeps
+it true.
 
-**The prose does not shrink.** Tagging adds a citation and an entry; it deletes nothing.
-If the goal was fewer lines of comment, this is the wrong instrument. What it buys is
-that the paragraph fails CI when the code under it moves.
+Tagging adds a citation and an entry; it removes nothing. What it buys is that the
+sentence fails a check when the thing under it moves.
 
-## Plan citation placement before you write a single entry
+## Decide where the citation will sit, before writing any entry
 
-A `code:` ground pins a **section** — under the shipped pattern, a whole top-level
-definition, docstring included. So **a citation written inside a function's docstring is
-inside the span that function's entries pin.** Adding one drifts every claim already
-pinned there.
+A pinned ground names a **section** of an artifact, and what counts as a section is a
+per-project pattern. Print the patterns this project uses before assuming:
 
-The cost compounds with density. Adding three citations to one function's docstring drifts
-every entry already pinned to that function — two, in one measured pass, each costing a
-supersession whose successor computed a `verbatim_sha` byte-identical to its
-predecessor's. A function carrying seven grounds pays seven for the next citation added
-inside it.
+    python -c "from claims_ledger import open_ledger; print(open_ledger().config.section_patterns)"
 
-Two placements, and you choose per file before you start:
+If a citation is written *inside* a span that entries already pin, adding it moves that
+span, and every entry pinned there is flagged. The cost compounds with density: a section
+carrying seven grounds has seven entries flagged by the next citation written into it.
+
+Two placements, chosen per file before starting:
 
 - **Inside the section** — the citation sits in the sentence it manages, which is the
-  whole point of the mechanism. Every later citation added to that section drifts every
-  entry pinned to it.
-- **In the module docstring** — a module docstring is not inside any section, because the
-  pattern matches only a top-level `def`, `class` or assignment. Citations there drift
-  nothing, and the grounds still point at the individual functions. The cost is that the
-  citation leaves the sentence it belongs to, and one module docstring cannot readably
-  carry forty of them.
+  point of the mechanism. Every later citation written there flags the entries pinned
+  there.
+- **Outside every section** — prose that no pattern matches, such as a file-level preamble
+  above the first definition, carries citations without moving any pinned span. The
+  grounds still name the individual sections. The trade is distance: the citation no
+  longer sits in the sentence it belongs to, and one preamble cannot readably carry
+  dozens.
 
-A workable default: **claims about a specific definition get their citation in the module
-docstring when the file will be tagged densely, and in the definition's own docstring
-when it will not.** Decide once, per file, and write all the citations in one commit —
-the drift is paid once whichever way you go.
+Either way, write all the citations for a file in one commit; the movement is paid once.
 
-## Documents and grounds are different things
+## Documents and grounds are different
 
-- **Documents** are the prose scanned for citations — the `documents` globs in
-  configuration. This is the *only* thing that list controls.
-- **Grounds** are evidence, and they are **not** gated by `documents`. A `code:` or
-  `toml:` ground resolves any path in the repository, whether or not that path is a
-  document.
+- **Documents** are the prose scanned for citations. Ask which files those are:
 
-So "this file isn't in `documents`" never means "a claim about it cannot be grounded." It
-means only that prose in that file cannot carry a citation.
+      python -c "from claims_ledger import open_ledger; print(open_ledger().config.documents)"
 
-## Adding an entry takes two commits
+- **Grounds** are evidence, and the document list does not gate them. A ground names any
+  path the project holds.
 
-The citation usually lives inside the section the entry pins, so a single commit cannot
-work — the entry would name a commit that does not exist yet.
+So a file being outside the document list means only that prose in it cannot carry a
+citation — never that a claim about it cannot be grounded.
 
-1. **Commit one:** the code and the prose that cites the entry. **The pre-commit hook
-   will refuse this**, because `references` sees a citation to an entry that does not
-   exist. `git commit --no-verify` is the promise that commit two is coming.
-2. **Commit two:** the entry files, with grounds pinned to commit one.
+## Two commits
 
-Run `claims-ledger check` yourself before committing the second half. Never resolve the
-refusal by deleting the citation — that passes the check by removing the thing checked.
+The citation usually sits inside the span the entry pins, so one commit cannot do it: the
+entry would have to name a revision that does not exist yet.
 
-Batching helps: N citations in commit one, N entries in commit two, one bypass total.
+1. **The prose that cites the entry.** The pre-commit hook refuses this, because the
+   citation names an entry that is not there — `git commit --no-verify` is the promise
+   that the second commit is coming.
+2. **The entry files**, with grounds pinned to the first commit.
+
+Run `claims-ledger check` yourself between the two. Resolving the refusal by deleting the
+citation passes the check by removing what is being checked.
+
+Batching helps: every citation in the first commit, every entry in the second, one bypass.
 
 ## Choosing a ground
 
-`docs/OPERATING.md` §"Choosing a ground" is the authority. The three that bite:
+A ground should name what makes the claim true and nothing else.
+`reference/choosing-a-ground.md` has the cases. The short of it:
 
-- **Do not pin a caller.** Pin the code that carries the rule. A ground on a caller goes
-  stale for every edit to that caller forever.
-- **Do not pin more than the claim needs** — but know that over-narrowing is the worse
-  failure. A ground that can never go stale is worse than one that goes stale too often,
-  because nothing will ever tell you. Before resting a claim on a narrow pattern, check
-  what the pattern actually spans.
-- **A big function is a code-shape problem, not a ledger problem.** If one definition
-  accumulates eight claims, the honest fix is usually to split the definition, not to
-  invent a narrower pattern.
+- **Name the thing that carries the rule**, not something that merely follows it. A ground
+  on a consumer goes stale for every edit to that consumer.
+- **Narrower is not always better.** A ground that can never go stale is worse than one
+  that goes stale often, because nothing will ever tell you. Check what a narrow pattern
+  actually spans before resting a claim on it — `claims-ledger references` prints what it
+  read.
+- **Grade honestly.** `claims-ledger new --help` lists the grades. A choice the project
+  *made* is `asserted`, forbids an evidence ground, and never goes stale. A statement that
+  something *does* what it says is `measured` and takes a pin that `freshness` watches.
 
-Several claims resting on one section is a normal shape, not an error — it is what
-enumerating a definition's invariants looks like. Just know that the count is also the
-supersession cost of the next edit inside it.
+Several claims resting on one section is a normal shape — it is what enumerating a
+section's invariants looks like. The count is also how many entries the next edit inside
+it flags.
 
-## Wording rules that fail after you have written the entry
+## What `validate` checks in the wording
 
-`validate` applies heuristics to the **Assertion** text. Check yours before writing:
+`claims-ledger validate` applies rules to the Assertion itself, and reports each by name.
+Two worth knowing before drafting:
 
-- **Absence and priority claims need a `search:` ground.** Triggered by any of
-  `nobody`, `neither`, `first`, `novel`, `unique`, `unprecedented` as standalone words;
-  the phrases `no one` and `not found`; or `no` followed later in the same sentence by
-  `has`, `have`, `was`, `were`, `report` or `reports`.
+- **An Assertion that reads as an absence or a priority claim needs a `search:` ground.**
+  The test is on words, not sense, so an ordinary sentence can trip it. Rewording is
+  usually cheaper than adding a search ground you did not mean.
+- **An Assertion carries no quotation marks.** Quoted material belongs in Backing, where
+  it is checked against its source.
 
-  It matches on the word, not the sense, so ordinary uses trip it — "losing the **first**
-  to the second write" fires on a claim that says nothing about priority. Rewording is
-  cheaper than arguing with the heuristic.
+`reference/entry-anatomy.md` covers what each section of an entry is for.
 
-- **No quotation marks in an Assertion.**
-- **`measured` requires an evidence ground; `asserted` forbids one.** A preference the
-  project *made* is `asserted` and never goes stale. A statement that the code *does*
-  something is `measured` and takes a pin. Recording a preference as `measured` buys a
-  supersession every time the file is reformatted, in exchange for nothing.
+## Order of operations
 
-## Do not write counts into prose
-
-A sentence that says how many entries there are, or how many pins sit on which commit, is
-false the next time an entry lands, and no checker will tell you. `claims-ledger status`
-is the count. This is the one class of prose a tagging pass should *remove* rather than
-cite.
-
-## The order of operations
-
-1. Read the file's prose and list the sentences that make checkable promises.
-2. Decide citation placement for this file (module docstring vs in-section).
-3. Draft each Assertion; check it against the wording rules above.
-4. Choose each ground: the narrowest section that carries the rule, never a caller.
-5. Write **all** the citations. Commit one, `--no-verify`.
-6. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant,
-   Backing; pin grounds to commit one; add the `## References` row for each citing
-   document.
-7. `claims-ledger sha --write` on every new entry — it refuses an entry already in
-   history, so this happens before commit two.
-8. `claims-ledger check`. Commit two, with the hook running normally.
+1. List the sentences in the file that promise something.
+2. Decide citation placement for this file.
+3. Draft each Assertion.
+4. Choose each ground: the narrowest section that carries the rule.
+5. Write every citation. First commit, `--no-verify`.
+6. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
+   Backing; pin each ground to the first commit; add the `## References` row naming each
+   citing document and the act it uses.
+7. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
+   entry version control already has.
+8. `claims-ledger check`, then the second commit with the hook running.
 
 If step 8 reports drift on entries that already existed, that is the placement question
-from the top of this file arriving late. `choosing-a-citation-act` has the four repairs
-and what each asserts.
+arriving late; `repair-a-drifted-pin` covers discharging it.
+
+## Reference
+
+- `reference/entry-anatomy.md` — the sections of an entry and what each is for.
+- `reference/choosing-a-ground.md` — ground width, and the two failures that are cheap to
+  avoid while writing and expensive afterwards.
