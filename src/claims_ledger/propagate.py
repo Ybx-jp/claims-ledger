@@ -5,11 +5,14 @@ superseded, retracted), the dependent must carry a `contested` verdict by the
 propagation author naming the fallen entry; when an entry is named by a `challenges`
 act, the challenged entry must carry a `contested` verdict by the propagation author
 naming the challenger. A missing verdict is appended with `--write` and is a failure
-either way, so the flag is seen. A `challenges` act against a fallen target is reported
-as illegal and nothing is appended. A propagated verdict whose stated cause does not
-exist — no such challenger, no such fall — is an orphan and fails. A dependent that has
-itself fallen needs no flag: a verdict after a terminal status is illegal, and its
-successor is walked.
+either way, so the flag is seen
+(L0012-a-propagated-append-is-still-a-failing-run, cites-as-live). A `challenges` act
+against a fallen target is reported as illegal and nothing is appended. A propagated
+verdict whose stated cause does not exist — no such challenger, no such fall — is an
+orphan and fails
+(L0013-a-propagated-verdict-names-a-cause-that-happened, cites-as-live). A dependent
+that has itself fallen needs no flag: a verdict after a terminal status is illegal, and
+its successor is walked.
 
 Run:  claims-ledger propagate [--write]
       Without --write nothing is modified; the missing verdicts are reported. With it
@@ -72,6 +75,8 @@ def grouped(pending):
     Each block is built from `entry.text` as it was parsed, so two writes to one entry
     make the second overwrite the first. An entry citing two fallen grounds earns two
     verdicts and must keep both.
+
+    Ledger: (L0014-one-append-carries-every-verdict-an-entry-is-owed, cites-as-live).
     """
     order, blocks = [], {}
     for entry, block in pending:
@@ -105,6 +110,9 @@ def append_verdict(entry, block, *, root):
     does not require `validate` to be clean before it writes — so choosing the insertion
     point by that heading alone put the verdict inside the frozen region of a committed
     entry.
+
+    Ledger: (L0015-an-append-cannot-reach-above-the-marker, cites-as-live) and
+    (L0016-an-append-keeps-the-line-endings-it-found, cites-as-live).
     """
     if (outside := leaves_root(root, entry.path)) is not None:
         raise LedgerError(
