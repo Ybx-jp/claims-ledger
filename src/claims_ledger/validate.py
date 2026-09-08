@@ -1,11 +1,7 @@
 """Every entry in the ledger is well-formed: schema, verbatim fingerprint, grade–grounds
 consistency, a hypothesis's motivating entries and falsifier, verdict legality,
-supersession both ways, and — when the ledger is in a git repository — immutability of
-the region above the APPEND marker
-(L0083-the-frozen-region-is-compared-against-the-creating-commit, cites-as-live) and
-append-only verdicts, checked over the whole history so a commit that bypassed the hook
-is caught by the next run anywhere
-(L0082-verdicts-append-and-only-append-across-every-edge, cites-as-live).
+supersession both ways, and — when the ledger is in a git repository — the two
+immutability rules, which are stated at `check_history` where git is asked.
 
 Run:  claims-ledger validate [--cached]
       --cached reads staged entries from the index instead of the working tree.
@@ -667,7 +663,10 @@ def check_history(ledger, entries, cached=False):
 
     The comparison is against the blob at the commit that created the file, so what an
     entry has to match is what it was committed as and not what it was last edited to
-    (L0083-the-frozen-region-is-compared-against-the-creating-commit, cites-as-live).
+    (L0083-the-frozen-region-is-compared-against-the-creating-commit, cites-as-live). The
+    append-only rule is checked over the whole history rather than against the tip, so a
+    commit that bypassed the pre-commit hook is caught by the next run anywhere
+    (L0082-verdicts-append-and-only-append-across-every-edge, cites-as-live).
 
     Three git processes for the whole ledger — one to ask whether anything is committed,
     one walk of the history under the entries directory, one `cat-file --batch` for every

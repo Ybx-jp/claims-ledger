@@ -1,34 +1,10 @@
 """The one place machinery writes into an entry.
 
-Walks the `entry:` edges. When an entry cited `cites-as-live` has fallen (refuted,
-superseded, retracted), the dependent must carry a `contested` verdict by the
-propagation author naming the fallen entry
-(L0017-a-fallen-ground-demands-a-verdict-on-its-dependent, cites-as-live); when an entry
-is named by a `challenges` act, the challenged entry must carry a `contested` verdict by
-the propagation author naming the challenger
-(L0018-a-challenges-act-demands-a-verdict-on-its-target, cites-as-live). A missing
-verdict is appended with `--write` and is a failure either way, so the flag is seen
-(L0012-a-propagated-append-is-still-a-failing-run, cites-as-live). A `challenges` act
-against a fallen target is reported as illegal and nothing is appended
-(L0019-a-challenges-act-against-a-terminal-target-appends-nothing, cites-as-live). A
-propagated verdict whose stated cause does not exist — no such challenger, no such fall
-— is an orphan and fails
-(L0013-a-propagated-verdict-names-a-cause-that-happened, cites-as-live). A dependent
-whose own status is terminal needs no flag: a verdict after a terminal status is
-illegal, and its successor is walked
-(L0155-a-terminal-dependent-is-not-flagged, cites-as-live).
-
-Two acts walk and the rest do not. A `distinguishes` ground carries nothing here: it says
-the two entries are different claims about the same artifact, which is a statement about
-their Scopes, so the target's fall is not news about the entry that distinguished itself
-from it (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live).
+Walks the `entry:` edges: a fallen ground flags its dependent, a `challenges` act flags
+its target, and the verdicts either is owed are appended under `--write`. Every rule the
+walk holds is stated at `run`, which is where the walk is.
 
 Run:  claims-ledger propagate [--write]
-      Without --write nothing is modified
-      (L0021-without-write-nothing-is-modified, cites-as-live); the missing verdicts are
-      reported. With it they are appended, each attributed to the propagation author,
-      and the run still exits non-zero so the change is looked at before it is
-      committed.
 Exit 1 on any failure.
 Proven against the red-team corpus by `claims-ledger corpus`.
 """
@@ -190,6 +166,38 @@ def append_verdict(entry, block, *, root):
 
 
 def run(ledger, write=False, entries=None):
+    """The walk, and every rule it holds.
+
+    When an entry cited `cites-as-live` has fallen (refuted, superseded, retracted), the
+    dependent must carry a `contested` verdict by the propagation author naming the fallen
+    entry (L0017-a-fallen-ground-demands-a-verdict-on-its-dependent, cites-as-live); when
+    an entry is named by a `challenges` act, the challenged entry must carry a `contested`
+    verdict by the propagation author naming the challenger
+    (L0018-a-challenges-act-demands-a-verdict-on-its-target, cites-as-live).
+
+    A missing verdict is appended with `--write` and is a failure either way, so the flag
+    is seen (L0012-a-propagated-append-is-still-a-failing-run, cites-as-live), and without
+    `--write` nothing is modified at all
+    (L0021-without-write-nothing-is-modified, cites-as-live) — the missing verdicts are
+    reported instead, and the run still exits non-zero so the change is looked at before
+    it is committed.
+
+    A `challenges` act against a fallen target is reported as illegal and nothing is
+    appended
+    (L0019-a-challenges-act-against-a-terminal-target-appends-nothing, cites-as-live). A
+    propagated verdict whose stated cause does not exist — no such challenger, no such
+    fall — is an orphan and fails
+    (L0013-a-propagated-verdict-names-a-cause-that-happened, cites-as-live). A dependent
+    whose own status is terminal needs no flag: a verdict after a terminal status is
+    illegal, and its successor is walked
+    (L0155-a-terminal-dependent-is-not-flagged, cites-as-live).
+
+    Two acts walk and the rest do not. A `distinguishes` ground carries nothing here: it
+    says the two entries are different claims about the same artifact, which is a
+    statement about their Scopes, so the target's fall is not news about the entry that
+    distinguished itself from it
+    (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live).
+    """
     entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}

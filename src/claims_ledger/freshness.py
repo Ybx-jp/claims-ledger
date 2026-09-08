@@ -10,35 +10,17 @@ This checker asks the other question. For each evidence ground of an entry that 
 fallen: the pin is a commit and not a name that moves (`unstable pin`, flag); the path is
 still in the tree (`withdrawn`, fail); and the artifact there is byte-identical to the
 artifact at the pin (`moved`, flag). It never judges whether a difference matters — that
-is the warrant's job, and the warrant is prose a person reads
-(L0109-a-question-git-declined-is-unknown-and-never-a-fresh-ground, cites-as-live).
+is the warrant's job, and the warrant is prose a person reads. `drift` decides which of
+those a ground is; `run` settles what the whole pass does, and states the rules it holds.
 
 A finding is discharged by a `contested` verdict by the propagation author naming the
 pointer, which `--write` appends; a verdict naming a ground that has not drifted is an
 orphan and fails, as in `propagate`. Nothing more is needed, because a contested entry
 cannot be cited `cites-as-live` and `references` fails every document that still does.
 
-Four things the run itself settles, before any of that. Grounds pinned to commits with no
-repository to ask about them is a failure and not a silence: a check that did not run,
-reported as one that passed, is the failure mode this package exists to refuse
-(L0114-pinned-grounds-without-a-repository-are-a-failure-and-not-silence, cites-as-live).
-A fallen entry's grounds are history — what it was established on, not what anyone should
-now believe — and are left alone
-(L0117-a-fallen-entrys-grounds-are-exempt-from-freshness, cites-as-live). Each pointer is
-evaluated once, keyed on the whole pointer rather than on the path it names, because two
-grounds on one file naming two sections are two questions
-(L0118-each-pointer-is-evaluated-once-per-run, cites-as-live). And a drift this run cannot
-say the artifact of is reported rather than discharged, because a verdict recording
-nothing is one nothing could ever check
-(L0116-a-drift-whose-artifact-cannot-be-stated-is-not-discharged, cites-as-live).
-
 Run:  claims-ledger freshness [--write] [--cached]
-      Without --write nothing is modified. With it the missing verdicts are appended,
-      each attributed to the propagation author, and the run still exits non-zero so the
-      change is looked at before it is committed
-      (L0115-a-write-that-appended-still-exits-non-zero, cites-as-live). With --cached the
-      artifact is compared as the index has it rather than as the working tree does,
-      matching what the rest of a `check --cached` is reading.
+      With --cached the artifact is compared as the index has it rather than as the
+      working tree does, matching what the rest of a `check --cached` is reading.
 Exit 1 on a withdrawn ground, a ground that could not be checked, an orphan verdict, or a
 --write that appended something; flags print and exit 0.
 Proven against the red-team corpus by `claims-ledger corpus`.
@@ -445,6 +427,28 @@ def since_phrase(count, where):
 
 
 def run(ledger, write=False, cached=False, entries=None):
+    """The pass over every ground, and the four things it settles before asking about any
+    of them.
+
+    Grounds pinned to commits with no repository to ask about them is a failure and not a
+    silence: a check that did not run, reported as one that passed, is the failure mode
+    this package exists to refuse
+    (L0114-pinned-grounds-without-a-repository-are-a-failure-and-not-silence,
+    cites-as-live). A fallen entry's grounds are history — what it was established on, not
+    what anyone should now believe — and are left alone
+    (L0117-a-fallen-entrys-grounds-are-exempt-from-freshness, cites-as-live). Each pointer
+    is evaluated once, keyed on the whole pointer rather than on the path it names,
+    because two grounds on one file naming two sections are two questions
+    (L0118-each-pointer-is-evaluated-once-per-run, cites-as-live). And a drift this run
+    cannot say the artifact of is reported rather than discharged, because a verdict
+    recording nothing is one nothing could ever check
+    (L0116-a-drift-whose-artifact-cannot-be-stated-is-not-discharged, cites-as-live).
+
+    Without `--write` nothing is modified. With it the missing verdicts are appended, each
+    attributed to the propagation author, and the run still exits non-zero so the change is
+    looked at before it is committed
+    (L0115-a-write-that-appended-still-exits-non-zero, cites-as-live).
+    """
     entries = load_entries(ledger, cached=cached) if entries is None else entries
     config = ledger.config
     author = config.propagation_author

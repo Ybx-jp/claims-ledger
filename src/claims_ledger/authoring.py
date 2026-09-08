@@ -4,12 +4,9 @@ Everything here is a convenience for an author: the next free id, a scaffolded e
 file, the recomputation of `verbatim_sha` after Scope or Backing is edited, and the
 registration of a source together with the bytes a quotation is checked against.
 
-Two rules the checkers enforce shape what this module will and will not do. The region
-above the APPEND marker is immutable once committed, so `restamp` refuses to touch an
-entry that git already has (L0007-sha-write-refuses-a-committed-entry, cites-as-live);
-and a registry row without its bytes is a check that cannot run, so registering a source
-stores the bytes in the same call that writes the row
-(L0064-a-registry-row-and-its-bytes-are-written-together, cites-as-live).
+Two rules the checkers enforce shape what this module will and will not do — the frozen
+region, which `restamp` refuses to touch, and a registry row that would arrive without
+its bytes, which `register_source` will not write. Each is stated where it is kept.
 """
 
 from __future__ import annotations
@@ -86,16 +83,16 @@ condition: {condition}
 
 PLACEHOLDER_ASSERTION = "TODO: the claim, in this project's words. No quotation marks."
 PLACEHOLDER_WARRANT = "TODO: the rule by which the grounds support the assertion."
+PLACEHOLDER_GROUNDS = (
+    "- TODO: one typed pointer per line — the narrowest section that carries the rule, "
+    "never a caller that follows it"
+)
 # The scaffold is the one place an author is looking at the moment they choose a
 # ground, and the choice is where the avoidable drift comes from: a ground wider than
 # the claim goes stale for edits the claim does not name, and a ground on a caller goes
 # stale for every edit to that caller, forever. Both cost a supersession each time, so
 # the rule is written into the placeholder rather than left to the documentation
 # (L0078-the-scaffold-states-the-ground-rule-where-the-author-chooses, cites-as-live).
-PLACEHOLDER_GROUNDS = (
-    "- TODO: one typed pointer per line — the narrowest section that carries the rule, "
-    "never a caller that follows it"
-)
 TODO_SCOPE = "TODO"
 
 

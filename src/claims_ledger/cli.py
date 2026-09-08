@@ -1,9 +1,8 @@
 """The `claims-ledger` command.
 
-Five checkers, an authoring side, and the corpus that proves the checkers. Every
-subcommand exits non-zero on a failure and zero on a flag, so a hook can be a list of
-commands and a flag is a report a human judges rather than a gate
-(L0119-a-failure-exits-non-zero-and-a-flag-exits-zero, cites-as-live).
+Five checkers, an authoring side, the neighbours lookup, and the corpus that proves the
+checkers. What every checking subcommand exits with is decided in one place,
+`report_command`, which is where the rule is stated.
 """
 
 from __future__ import annotations
@@ -47,10 +46,6 @@ from .schema import (
 
 CHECKERS = ("validate", "resolve", "references", "propagate", "freshness")
 
-# Ledger: (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook asks
-# each checker for the index wherever that checker has a `--cached` of its own, so a
-# drift that is staged and then reverted in the working tree cannot commit silently
-# (L0120-the-hook-reads-the-index-wherever-a-checker-can, cites-as-live).
 HOOK_TEMPLATE = """#!/bin/sh
 # Installed by `claims-ledger hook --install`.
 # The ledger's rules, held before the commit that would break them.
@@ -78,6 +73,11 @@ set -e
 {python} -m claims_ledger propagate
 {python} -m claims_ledger freshness --cached
 """
+# The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
+# console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
+# asks each checker for the index wherever that checker has a `--cached` of its own, so a
+# drift that is staged and then reverted in the working tree cannot commit silently
+# (L0120-the-hook-reads-the-index-wherever-a-checker-can, cites-as-live).
 
 
 def hook_text(python=None):
@@ -348,6 +348,12 @@ def guard(ledger, cached=False):
 
 
 def report_command(name, reports, entries, ledger):
+    """Print what a checker found, and exit as its findings say.
+
+    Non-zero on a failure and zero on a flag, so a hook can be a list of these commands
+    and a flag is a report a human judges rather than a gate
+    (L0119-a-failure-exits-non-zero-and-a-flag-exits-zero, cites-as-live).
+    """
     print_reports(reports, f"{name} ({plural(len(entries), 'entry', 'entries')})")
     return exit_code(reports)
 

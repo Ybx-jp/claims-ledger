@@ -1,34 +1,10 @@
 """Citations, both directions, checked.
 
-Entry to entry: every `entry:` ground names an entry that exists and carries an act
-compatible with the target's current status — `cites-as-live` needs open or
-corroborated, `cites-as-contested` needs contested, `challenges` needs open,
-corroborated or contested, `cites-as-fallen` and `distinguishes` accept any status, and
-`cites-as-fallen` is the only *citation* act legal against a fallen one
-(L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The filter
-a reader must apply every time is applied for them here. An entry whose own status is
-terminal is exempt: its Grounds are immutable history, no further verdict may be
-appended to it, and a dependent whose live-cited ground fell is superseded rather than
-repaired (L0154-a-terminal-entrys-grounds-are-immutable-history, cites-as-live).
-
-Document to entry: a document cites an entry inline as `(A0007-<slug>, cites-as-live)`.
-Every cited id exists, the act is compatible with the target's status, and the entry's
-References section lists the citing document; every location an entry lists really
-cites it (L0044-a-citation-and-its-references-row-must-agree, cites-as-live). No
-document may cite an id in a quarantined series, by prefix alone
-(L0045-an-archived-series-is-refused-by-prefix, cites-as-live). A document that carries
-an entry's Assertion verbatim without citing it is reported too
-(L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
-and says nothing about restatements in other words. A document this checker could not
-read is a failure rather than one it quietly passed over
-(L0047-an-unreadable-document-is-a-failure-not-a-clean-run, cites-as-live).
-
-The hypothesis roster (a ROSTER.md among the documents, or whatever the project's
-configuration names) is a hand-maintained view of the entries and is checked against
-them: one row per hypothesis whose status is not terminal
-(L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's first
-cell citing it and its last cell stating its status
-(L0049-a-roster-row-states-what-the-entry-says, cites-as-live).
+Entry to entry, at `run`: an `entry:` ground names an entry that exists, under an act
+that entry's current status allows. Document to entry, also at `run`: an inline
+`(A0007-<slug>, cites-as-live)` and the row in the entry's References section have to
+agree with each other and with the status. The hypothesis roster is checked against the
+entries at `check_roster`. Each rule is stated where it is applied.
 
 Run:  claims-ledger references
 Exit 1 on any failure.
@@ -138,6 +114,27 @@ def check_roster(entries, index, status, ledger):
 
 
 def run(ledger, entries=None):
+    """Both directions.
+
+    **Entry to entry.** Every `entry:` ground names an entry that exists and carries an
+    act compatible with the target's current status — `cites-as-live` needs open or
+    corroborated, `cites-as-contested` needs contested, `challenges` needs open,
+    corroborated or contested, `cites-as-fallen` and `distinguishes` accept any status,
+    and `cites-as-fallen` is the only *citation* act legal against a fallen one
+    (L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The
+    filter a reader would otherwise apply every time is applied for them here.
+
+    **Document to entry.** A document cites an entry inline as
+    `(A0007-<slug>, cites-as-live)`. Every cited id exists, the act is compatible with the
+    target's status, and the entry's References section lists the citing document; every
+    location an entry lists really cites it
+    (L0044-a-citation-and-its-references-row-must-agree, cites-as-live). No document may
+    cite an id in a quarantined series, by prefix alone
+    (L0045-an-archived-series-is-refused-by-prefix, cites-as-live). A document that
+    carries an entry's Assertion verbatim without citing it is reported too
+    (L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
+    and says nothing about restatements in other words.
+    """
     entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}

@@ -1,24 +1,11 @@
 """Every pointer in every entry resolves to the artifact that established the fact, and
 every quotation is a contiguous span of the source it names.
 
-Grounds and verdict evidence: an evidence path exists at its pin and names a section
-that is there (L0034-a-sections-presence-is-checked-at-the-pin, cites-as-live); an
-`entry:` id exists; a `source:` id has a registry row; a `search:` block is complete.
-Backing: the source's bytes are present and hash to the registry row; each quoted span
-is found in the source after the same normalization the fingerprint uses, spans in
-source order (L0036-quoted-spans-are-found-in-source-order, cites-as-live); a span that
-starts or ends inside a sentence carries the elision mark on that side
-(L0037-a-quote-cut-mid-sentence-carries-an-elision-mark, cites-as-live); a
-consultation-type source's speaker is its expert
-(L0038-a-consultation-backs-only-its-experts-own-judgment, cites-as-live), and a
-consultation sentence that names another registered author or `et al.` is flagged as
-relayed third-party material
-(L0039-a-consultation-sentence-naming-another-author-is-flagged, cites-as-live). A
-retracted entry's quotes are not re-reported; instead the defect its verdict states
-must reproduce (L0041-a-retraction-must-reproduce-its-defect, cites-as-live).
-
-A cache or registry miss never passes silently: it is a failure that says the check
-could not run (L0035-a-registry-miss-fails-rather-than-passing, cites-as-live).
+Two halves. `resolve_pointer` takes the grounds and the verdict evidence: an evidence
+path at its pin, an `entry:` id, a `source:` row, a `search:` block. `check_quote` takes
+the Backing: the source's bytes, and each quoted span found in them. `Sources` holds the
+registry between them, `check_retraction` reads a retracted entry's defect instead of its
+quotes, and the rule each of those keeps is stated where it is kept.
 
 Run:  claims-ledger resolve
 Exit 1 on any failure; flags print and exit 0.

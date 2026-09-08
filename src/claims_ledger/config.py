@@ -2,24 +2,9 @@
 
 Everything a project can legitimately name differently lives here: where the entries
 sit, which documents may cite them, what an evidence pointer is called, which id
-prefixes are quarantined, and which authors may write a verdict. The schema itself —
-grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is not
-configurable, because those are the claims model rather than a project's naming
-(L0050-the-schema-itself-is-not-configurable, cites-as-live).
-
-Every one of those names is checked as the configuration is read, rather than at the
-entry that turns out to need it. A value of the wrong type is refused by name
-(L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live). An
-evidence type may not take a name the schema reserves for a pointer of its own
-(L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live), nor be both
-sectioned and plain, and a configuration leaving the project without any evidence type is
-refused because a measured grade would have nothing it could rest on
-(L0053-the-evidence-types-are-disjoint-and-there-is-one, cites-as-live). The propagation
-author has to be one of the verdict authors, or every verdict the machinery writes would
-carry an author the ledger declines
-(L0054-the-propagation-author-is-one-of-the-verdict-authors, cites-as-live). A
-quarantined prefix is a single uppercase letter
-(L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live).
+prefixes are quarantined, and which authors may write a verdict. What is settable at all
+is the list `KEYS`; what each value has to be, and every consistency rule between them,
+is checked in `from_table` as the configuration is read.
 
 A project declares its configuration in `claims-ledger.toml` at the project root, or in
 a `[tool.claims-ledger]` table in `pyproject.toml`. With neither, the defaults below
@@ -38,9 +23,10 @@ CONFIG_FILENAMES = ("claims-ledger.toml", ".claims-ledger.toml")
 PYPROJECT = "pyproject.toml"
 TABLE = "claims-ledger"
 
-# Pointer type names the schema reserves for itself; a project cannot use one of these
-# as the name of an evidence type.
 RESERVED_POINTER_TYPES = ("entry", "source", "search", "defect")
+# Pointer type names the schema reserves for itself; a project cannot use one of these as
+# the name of an evidence type
+# (L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live).
 
 DEFAULT_DOCUMENTS = ("*.md", "docs/*.md")
 DEFAULT_DOCUMENT_EXCLUDES = ()
@@ -212,6 +198,13 @@ KEYS = {
     "verdict-authors": list,
     "propagation-author": str,
 }
+# The whole of what a project may set, and the type each value takes. The schema itself —
+# grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is
+# absent from this table on purpose: those are the claims model rather than a project's
+# naming, and a project that could rename them would have a different model
+# (L0050-the-schema-itself-is-not-configurable, cites-as-live). The types are what
+# `from_table` refuses a value by name against
+# (L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live).
 
 
 def _escapes(root, path):
@@ -352,9 +345,26 @@ def _section_patterns(table, sectioned):
 
 
 def from_table(table, root, source=None):
-    """A Config from a parsed table. Unknown keys are an error, not a silent no-op: a
-    misspelled key that changes nothing is how a project ends up unchecked.
-    Ledger: (L0003-unknown-configuration-key-is-an-error, cites-as-live)."""
+    """A Config from a parsed table, with every name checked here rather than at the entry
+    that turns out to need it.
+
+    Unknown keys are an error, not a silent no-op: a misspelled key that changes nothing
+    is how a project ends up unchecked
+    (L0003-unknown-configuration-key-is-an-error, cites-as-live). A value of the wrong
+    type is refused by name
+    (L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live).
+
+    An evidence type may not take a name the schema reserves for a pointer of its own
+    (L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live), nor be
+    both sectioned and plain, and a configuration leaving the project without any evidence
+    type is refused because a measured grade would have nothing it could rest on
+    (L0053-the-evidence-types-are-disjoint-and-there-is-one, cites-as-live). The
+    propagation author has to be one of the verdict authors, or every verdict the
+    machinery writes would carry an author the ledger declines
+    (L0054-the-propagation-author-is-one-of-the-verdict-authors, cites-as-live). A
+    quarantined prefix is a single uppercase letter
+    (L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live).
+    """
     unknown = sorted(set(table) - set(KEYS))
     if unknown:
         raise ConfigError(f"unknown key(s) {', '.join(unknown)}; known keys are {sorted(KEYS)}")

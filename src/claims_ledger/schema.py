@@ -1,10 +1,9 @@
 """The ledger entry as everything that reads one reads it.
 
-One parser, one normalization, one fingerprint, one status derivation, shared by every
-module that reads an entry — the five checkers, the authoring side, the neighbours
-lookup and the command line — so that no two of them can disagree about what an entry
-says
-(L0169-every-reader-of-an-entry-shares-one-parser-and-one-normalization, cites-as-live).
+One parser, one normalization, one fingerprint and one status derivation, defined here
+and imported by every module that reads an entry — the rule that keeps them the only
+ones is stated at `parse_entry`, where the parsing starts.
+
 The schema itself is stated in full in docs/SCHEMA.md, which an installed copy does not
 carry and the repository has at
 https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md. It is restated in
@@ -89,12 +88,12 @@ TIMESTAMP_RE = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[+-][0-9]{2}:[0-9]{2}|Z)$"
 )
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
-# A plain decimal number, in ASCII digits.
-# (L0149-a-decimal-is-checked-in-ascii-digits, cites-as-live)
+DECIMAL_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
+# A plain decimal number, in ASCII digits
+# (L0149-a-decimal-is-checked-in-ascii-digits, cites-as-live).
 # `float()` is wider than the schema: it accepts any Unicode decimal digit, so a credence
 # written in Arabic-Indic numerals would pass as an ordinary 0.5, and it accepts `nan`
 # and digit-grouping underscores as well.
-DECIMAL_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
 HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
@@ -108,20 +107,20 @@ MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]
 # regex reading documents did not match them and nothing else looked
 # (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
 
+UNPINNED = ("working", "corpus")
 # Pins that name no revision: the artifact is read from the working tree as it stands.
 # A ledger kept outside version control needs one, and the red-team corpus uses
 # `@corpus`. Anywhere else it is an escape hatch, and a pointer that uses it is only as
 # reproducible as the working tree it was read in — and, because there is no revision to
 # compare against, freshness has nothing to say about it
 # (L0150-an-unpinned-pointer-is-outside-what-freshness-can-say, cites-as-live).
-UNPINNED = ("working", "corpus")
 
+ABSENT = "absent"
 # What a verdict's `artifact:` line may say: the object id git would store the drifted
 # artifact under, or that the ground was gone. Defined here rather than in `freshness`,
 # which writes the line, because `validate` is the checker that holds it to a shape and a
 # rule enforced only by the code that writes the value is a rule a hand-edit walks past
 # (L0151-the-artifact-shape-is-defined-where-it-is-checked, cites-as-live).
-ABSENT = "absent"
 OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 NULL_OBJECT_ID = "0" * 40
 
@@ -1018,6 +1017,13 @@ def split_frontmatter(text):
 
 
 def parse_entry(path, text=None):
+    """The one parser. It, `normalize`, `fingerprint` and `derive_status` are defined once
+    here and imported by every module that reads an entry — the five checkers, the
+    authoring side, the neighbours lookup and the command line — rather than reimplemented
+    in any of them, so no two of them can disagree about what an entry says
+    (L0169-every-reader-of-an-entry-shares-one-parser-and-one-normalization,
+    cites-as-live).
+    """
     path = Path(path)
     if text is None:
         text = read_text_or_raise(path, "entry")
@@ -1168,12 +1174,6 @@ class GitAnswer:
 # it had not made. The scrub used to be one call's argument — the discovery walk's — and
 # so it held for finding the repository and for nothing asked of it afterwards.
 # (ARCH-AUDIT.md, QE12-2.)
-#
-# Taken as a documented section rather than assembled from the three that were measured
-# to bite: a variable that reroutes the repository is a false pass waiting for a git
-# version that reads it, and there is nothing to weigh against dropping one this package
-# never wants.
-# (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live)
 GIT_REPOSITORY_ENV = (
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -1188,6 +1188,11 @@ GIT_REPOSITORY_ENV = (
     "GIT_DEFAULT_HASH",
     "GIT_DEFAULT_REF_FORMAT",
 )
+# Taken as a documented section rather than assembled from the three that were measured
+# to bite: a variable that reroutes the repository is a false pass waiting for a git
+# version that reads it, and there is nothing to weigh against dropping one this package
+# never wants
+# (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
 
 
 def git_env(index=False):
