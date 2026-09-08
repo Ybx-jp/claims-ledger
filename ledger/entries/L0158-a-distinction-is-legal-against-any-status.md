@@ -43,6 +43,14 @@ none
 - 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
   note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed, into the literal; every act still maps to the same statuses and distinguishes still takes all of them
+- 2026-09-08T14:43:44-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: f9db731e0b23468e3e0628c6ac6c35712cd7310d
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
 
 ## References
 

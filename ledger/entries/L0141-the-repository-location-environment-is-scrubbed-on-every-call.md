@@ -36,6 +36,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:43:43-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "GIT_REPOSITORY_ENV" @4af0acd253eeef1571cd7615ea3a041eda9e945e
+  artifact: 36052faf227379aac7e17f339c1c6b3937d1f6c1
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "GIT_REPOSITORY_ENV" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

@@ -32,6 +32,15 @@ from_table computes the keys that are not in KEYS before it reads any value, and
 
 ## Verdicts
 
+- 2026-09-08T14:43:42-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: ddafd109dfd34f6f75aed2b26773ec283ee64d71
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+
 ## References
 
 - README.md · standing · cites-as-live

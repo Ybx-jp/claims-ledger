@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:43:43-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @a3df5b5b0d1ea7ec0d3cd95ba40a2aaa3d716395
+  artifact: 70593c15b5bc7b0d9c71b393eb5f7f5e1829e29b
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

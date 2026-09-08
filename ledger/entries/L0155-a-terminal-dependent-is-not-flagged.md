@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T14:43:44-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/propagate.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  artifact: 7f7532d47e721ce6ba2629cfe518b085455035e5
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/propagate.py · standing · cites-as-live

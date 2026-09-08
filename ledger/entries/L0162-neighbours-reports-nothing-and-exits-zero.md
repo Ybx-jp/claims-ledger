@@ -44,6 +44,14 @@ none
 - 2026-09-08T13:55:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/neighbours.py § "run" @989493fa4655725014cedb6408b4ff9c7e680498
   note: read against the change in commit 989493f, which made run append the ground line the answer hands over; it still builds no Report, writes nothing and returns without an exit code of its own, which is what this claim names
+- 2026-09-08T14:43:44-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "CHECKERS" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: 70593c15b5bc7b0d9c71b393eb5f7f5e1829e29b
+  note: propagated from a moved ground
+
+- 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "CHECKERS" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
 
 ## References
 
