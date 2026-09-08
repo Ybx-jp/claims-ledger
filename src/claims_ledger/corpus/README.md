@@ -348,6 +348,9 @@ the record of what else there is still to check.
 | a section withdrawn from a file that remains | D49 | catch |
 | a pin that names a branch or a tag rather than a commit | D47 | flag — a pin that follows the work can never go stale |
 | a pin git can neither resolve nor classify | D51 | catch — a comparison that did not happen is never a fresh ground |
+| a pin whose commit is not in the repository | D54 | catch, and name the cause — the state a squashed, rebased or force-pushed history leaves every pinned ground in |
+| a pin whose commit is there and whose path is not | D55 | catch — the near-negative of D54, holding the diagnosis to telling a vanished commit from a moved file, whose repairs are nothing alike |
+| an unpinned ground whose file is not in the tree | D56 | catch, without asking git anything — `@working` names no revision, and the seed is staged outside a repository so that a diagnosis reaching for one reaches out of the seed |
 | an orphan freshness verdict | D48 | catch |
 | a discharge laundered by a touch and a revert | D53 | catch — a verdict is held to the artifact it records, not to whether anything has touched the file, and the record it carries does not silence the drift the touch really makes |
 | a drift acknowledged by a propagated verdict | K20 | pass |

@@ -1,0 +1,15 @@
+{
+  "class": "a pin whose commit is not in the repository",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 01, A0001 Grounds",
+      "why": "the ground pins an object name this repository does not have, which is the state a squashed or rebased merge leaves every pinned ground in. The failure is not the finding on its own: `does not resolve` is also what a renamed path says, and the two repairs are nothing alike, so the report must name which one happened",
+      "message": "this repository has no such commit"
+    }
+  ],
+  "note": "the corpus builds linear, append-only history and cannot make a commit unreachable, so the pin is written as an object name that was never there. What the checker sees is identical either way — git is asked for a commit and does not have it — and that identity is the point: this seed holds the diagnosis, not the mechanism that produced it",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

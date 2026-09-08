@@ -556,3 +556,76 @@ def test_write_does_not_append_a_verdict_it_cannot_state_and_says_why(
     assert [m for _, _, m in got if "no verdict was appended" in m], (
         f"the run failed without saying that no verdict was appended, or why: {got}"
     )
+
+
+# --- GITFAIL-8: a diagnosis of the pin, built on a git that failed to answer -----------
+#
+# `resolve` names why a pinned pointer did not resolve, because `does not resolve` alone
+# said the same thing for a commit dropped by a squashed history and for a renamed path,
+# whose repairs differ by a supersession per entry. A diagnosis is worth more than a
+# symptom and costs more when it is wrong, so these three hold the sentence to what git
+# actually established. The `qe` fix-review gate on ticket `f52f2f29823b4650` measured
+# the first two as confident falsehoods before they were fixed.
+
+
+def test_l_a_show_that_failed_is_not_reported_as_a_path_that_is_missing(
+    pinned, tmp_path, monkeypatch
+):
+    """The commit is there, the path is in it, and `git show` failed anyway. `git()` folds
+    `no` and `could not answer` into one None, so a diagnosis built on it stated as fact
+    what it never established — and this state passes the `unasked` gate in `run()`, which
+    asks `rev-parse --git-dir` and nothing more. The answer must name git, not the pointer.
+    """
+    monkeypatch.setenv(
+        "PATH", f"{_shim_git_that_cannot(tmp_path, 'show')}{os.pathsep}{os.environ['PATH']}"
+    )
+    got = [(r.outcome, r.message) for r in resolve.run(pinned.ledger())]
+    assert [o for o, _ in got] == ["fail"], f"the pointer must still fail: {got}"
+    assert "still did not return the content" in got[0][1], (
+        f"the failure blamed the pointer for a git that could not answer: {got}"
+    )
+    assert "is not in it" not in got[0][1], (
+        f"it asserted the path is absent from a commit that has it: {got}"
+    )
+
+
+def test_m_a_shallow_clone_is_not_reported_as_a_rewritten_history(pinned, tmp_path):
+    """A shallow clone has no object for a commit that is perfectly well upstream, which
+    is the same silence a squash leaves behind. Telling a person their history was
+    rewritten sends them to a supersession per entry for a repair that is `--unshallow`.
+    """
+    clone = tmp_path / "shallow"
+    rc, _, err = _git(
+        pinned.root, "clone", "-q", "--depth", "1", f"file://{pinned.root}", str(clone)
+    )
+    assert rc == 0, err
+    assert _git(clone, "rev-parse", "--is-shallow-repository")[1].strip() == "true"
+    assert _git(clone, "cat-file", "-t", pinned.pin)[0] != 0, (
+        "precondition: the pinned commit is outside the graft boundary"
+    )
+    # The clone carries no `ledger/cache/` — it is gitignored — so the source bytes fail
+    # too. The pin's own report is the subject here, selected rather than assumed alone.
+    got = [(r.outcome, r.message) for r in resolve.run(open_ledger(root=clone))]
+    pin = [m for o, m in got if o == "fail" and "does not resolve" in m]
+    assert len(pin) == 1, f"the pointer must still fail, exactly once: {got}"
+    assert "shallow clone" in pin[0], f"the shallow clone was read as a rewrite: {pin}"
+    assert "squashed" not in pin[0], f"it named a rewrite that did not happen: {pin}"
+
+
+def test_n_a_pin_that_is_a_blob_is_not_reported_as_a_commit_that_is_gone(project):
+    """The object is right there; it is simply not a commit. `rev-parse <pin>^{commit}`
+    fails for it exactly as it fails for an object that is absent, so a diagnosis that
+    asks only that question calls a mistyped pin a rewritten history.
+    """
+    # Hashed rather than read back out of a commit, so that `make_pinned` still makes the
+    # repository's first commit itself and the object is one git really has.
+    blob = subprocess.run(
+        ["git", "hash-object", str(project.root / "docs" / "note-001.md")],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    p = make_pinned(project, pin_text=blob)
+    got = [(r.outcome, r.message) for r in resolve.run(p.ledger())]
+    assert [o for o, _ in got] == ["fail"], f"the pointer must still fail: {got}"
+    assert "is a blob, not a commit" in got[0][1], f"a blob pin was misdiagnosed: {got}"

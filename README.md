@@ -9,7 +9,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 76 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 79 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -172,7 +172,9 @@ supports the assertion over this cohort.
 </picture>
 
 The schema in full — every field, every rule, and what each heuristic is known to miss —
-is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md).
+is in [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md). Running one over time — what a squashed or
+rebased history costs, and how a drifted claim is repaired — is in
+[docs/OPERATING.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/OPERATING.md).
 
 ## The five checks
 
@@ -209,7 +211,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 76 seeds, each a small ledger with committed
+the red-team corpus it was built against: 79 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -219,7 +221,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-76/76 seeds pass
+79/79 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
@@ -337,6 +339,22 @@ reaches the package with `-m`
 `claims-ledger` would fail with `not found` on every commit for anyone who installed
 into a virtualenv that was not active.
 
+### Landing an entry takes two commits
+
+An entry's citation usually sits *inside* the section that entry pins — the docstring is
+in the function. One commit cannot pin itself, so the pair is: first the code and the
+prose that cites the entry, then the entry, with its grounds pinned to that first commit.
+
+The installed hook refuses the first of the two. It runs `references`, and commit one
+carries a citation naming an entry that does not exist yet — which is the defect
+`references` exists to catch, and which it cannot tell apart from a half-written pair,
+because at commit one the two are the same bytes. Commit it with `git commit --no-verify`,
+run `claims-ledger check` by hand before the second, and never resolve the refusal by
+deleting the citation. CI reads the full history and is what catches a promise not kept.
+
+`docs/OPERATING.md` covers this, what a rewritten history costs a pinned ledger, and the
+order in which a drifted claim is repaired.
+
 ## As a library
 
 ```python
@@ -415,7 +433,7 @@ refresh, where the schema, the checkers and the corpus were developed together. 
 extraction changed what was project-specific into configuration — where the ledger sits,
 which documents may cite it, what an evidence pointer is called, who may write a verdict
 — and changed nothing about the schema or the checks. Every one of the sixty-two seeds
-the corpus held at extraction still passes unchanged; it has since grown to 76.
+the corpus held at extraction still passes unchanged; it has since grown to 79.
 
 MIT licensed.
 

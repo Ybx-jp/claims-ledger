@@ -175,6 +175,10 @@ a checker that does that gets switched off.
 
 ## How a finding is discharged, and what the schema already forces
 
+This section argues *why* the discharge is shaped as it is. `docs/OPERATING.md` gives the
+same ground as a sequence to follow, along with the two findings here that are not drift
+and must never be given a verdict.
+
 A `moved` flag is discharged in one of three ways, and the machinery for all three
 already exists.
 

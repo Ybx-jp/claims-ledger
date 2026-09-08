@@ -16,7 +16,7 @@ change to what it expects would dissolve the argument.
 First public release. Extracted from the claims ledger built for a research project on
 dynamic graph embedding refresh, where the schema, the checkers and the corpus were
 developed together. All 62 corpus seeds passed unchanged from the ledger it came out of;
-the release ships 76.
+the release ships 79.
 
 **Everything below is in this release, and this file has one version heading rather than
 several on purpose.** The five adversarial passes recorded in `docs/audits/0.1.0.md`, the fifth
@@ -32,7 +32,7 @@ would have put a `0.1.0` on the record that nobody could ever install.
 - Five checkers — `validate`, `resolve`, `references`, `propagate`, `freshness` — and
   `check`, which runs all five. The first four are described here; `freshness` has its own
   section below, because it was written after this one.
-- A red-team corpus, 62 seeds at extraction and 76 at release, with committed expected
+- A red-team corpus, 62 seeds at extraction and 79 at release, with committed expected
   outcomes, shipped inside the package and runnable from an installed copy as
   `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
   the seed or the checker, never a bonus, and one row is satisfied by one report.
@@ -636,5 +636,40 @@ Recorded as methodology changes, with the seeds named, under this file's own rul
   that is reasoning, not a run on Windows, and this line says which of the two it is.
 - The tool does not decide whether a claim is true. See "What this does not do" in the
   README.
+
+### Operating a pinned ledger
+
+- `docs/OPERATING.md` — running a ledger that pins commits over time. It states the one
+  hazard nothing else in the package named: a squash merge, a rebase merge or a force-push
+  removes the commit a `code:` or `toml:` ground pins, at which point every ground pinned
+  into it fails at once and the only repair is a supersession per entry. It also states the
+  two-commit shape for landing an entry — including why the pre-commit hook must refuse the
+  first of the two, which is not conservatism but an impossibility: at commit one a citation
+  to an entry arriving in the next commit and a citation to an entry that never existed are
+  the same bytes — and the order in which a drifted claim is repaired.
+- `resolve` names why a pinned pointer failed rather than only that it did. `does not
+  resolve` was one sentence for a commit dropped by a rewritten history and for a path that
+  was renamed, whose repairs differ by a supersession per entry. It now separates: the pin
+  names no revision and the file is not in the tree; the pin is not a commit but some other
+  object; the commit is there and the path is not; git has both and still did not answer;
+  the name is a prefix of several objects; the clone is shallow, where an absent object
+  cannot be told from a rewritten one; and, only when the rest are excluded, that the
+  repository has no such commit.
+
+  Every question it asks goes through `git_call` rather than `git()`, which is the whole of
+  its honesty: `git()` folds "no" and "could not answer" into one `None`, and a diagnosis
+  built on that folding states as fact what it never established. A git broken only in
+  `show` passes the `unasked` gate — which asks `rev-parse --git-dir` and nothing more —
+  and was told, of a healthy commit and a present path, that the path was not in it.
+  `tests/test_git_degradation.py` holds that case, the shallow clone and the non-commit
+  object; the ambiguous short name was measured by hand against a repository built to
+  contain one, since 120,000 objects is not a fixture.
+- Three corpus seeds for the same ground: `D54-pin-names-a-commit-that-is-gone`,
+  `D55-pin-resolves-but-the-path-does-not` (its near-negative — the repair is one pin, not a
+  supersession per entry) and `D56-unpinned-ground-with-no-file`, which is staged outside a
+  repository so that a diagnosis reaching for git reaches out of the seed and is caught.
+- `examples/agent-harness/` — two coding-agent hooks this repository runs on itself, with
+  the thirteen expected verdicts that hold the merge guard to its matching. Examples, not
+  package: not in the wheel or the sdist, and they need `jq`, which the package does not.
 
 [0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0

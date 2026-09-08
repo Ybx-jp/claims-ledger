@@ -28,6 +28,7 @@ from .schema import (
     Report,
     by_id,
     git,
+    git_call,
     git_problem,
     load_entries,
     load_registry,
@@ -82,6 +83,79 @@ def pinned_evidence(entry, config):
     ]
 
 
+# A pin written as a bare object name, which is what `freshness --write` and the authoring
+# commands produce. Only these are candidates for the rewritten-history reading: a hex name
+# git does not have may be a commit that is gone, where `HEAD@{99}` or a deleted branch is a
+# revision expression that never named one here.
+OBJECT_NAME = re.compile(r"\A[0-9a-f]{7,40}\Z")
+
+
+def why_not(ledger, p):
+    """Why an evidence pointer did not resolve, in terms of what git was actually asked.
+
+    `git show <pin>:<path>` fails for unrelated reasons and says the same thing for all of
+    them, which left the checker reporting the symptom and never the cause. The commit that
+    vanishes under a squashed, rebased or force-pushed history is the expensive one — every
+    ground pinned into it fails at once, and the repair is a supersession per entry — so it
+    is worth asking to name it rather than leaving a person to compare object ids by eye.
+
+    Every question here goes through `git_call` and not `git()`, and the difference is the
+    whole of this function's honesty. `git()` folds `no` and `could not answer` into one
+    None, and a diagnosis built on that folding states as fact what it never established:
+    a git broken only in `show` passes the `unasked` gate in `run()` — which asks
+    `rev-parse --git-dir` and nothing more — and would be told, of a healthy commit and a
+    present path, that the path is not in it. So the cases where git failed to answer are
+    named as that, and the rewritten-history reading is reached only after the object is
+    known to be absent, the pin is known to be an object name, the name is not a prefix of
+    several, and the clone is not shallow. A shallow clone has no object for a commit that
+    is perfectly well upstream, which is the same silence a rewrite leaves behind.
+    """
+    if p.pin in UNPINNED:
+        return (
+            f"the pin names no revision, so {p.target} is read from the working tree, where "
+            "it is not a readable file"
+        )
+    repo = ledger.repo or ledger.tree
+    obj = git_call(repo, "cat-file", "-t", p.pin)
+    if obj.ok:
+        kind = obj.out.strip()
+        if kind != "commit":
+            return f"{p.pin} is a {kind}, not a commit"
+        blob = git_call(repo, "cat-file", "-e", f"{p.pin}:{p.target}")
+        if blob.ok:
+            return (
+                f"git has that commit and has {p.target} in it, and still did not return the "
+                "content; that is git failing to answer rather than a pointer that is wrong"
+            )
+        if blob.code is None:
+            return f"the commit is there and git could not be asked for {p.target} ({blob.why})"
+        return f"the commit is there and {p.target} is not in it"
+    if obj.code is None:
+        return f"git could not be asked what {p.pin} is ({obj.why})"
+    if not OBJECT_NAME.match(p.pin):
+        return f"git cannot resolve {p.pin} to an object in this repository"
+    # `--disambiguate` and not the error text: git's last stderr line for an ambiguous
+    # prefix is `fatal: Not a valid object name`, the same line it prints for one that is
+    # simply absent — the candidates go to earlier `hint:` lines that `git_call` drops.
+    # Keying on the wording would have left this branch dead and sent an ambiguous pin to
+    # the rewritten-history reading, which is the one thing it must not say. This command
+    # answers with the names themselves: none for absent, several for ambiguous.
+    names = git_call(repo, "rev-parse", f"--disambiguate={p.pin}")
+    if names.ok and len(names.out.split()) > 1:
+        return f"{p.pin} is a prefix of more than one object here, so it names none of them"
+    if (git(repo, "rev-parse", "--is-shallow-repository") or "").strip() == "true":
+        return (
+            "this repository does not have that object, and it is a shallow clone, where a "
+            "commit outside the graft boundary cannot be told apart from one that was never "
+            "here; deepen the clone before reading this as a rewritten history"
+        )
+    return (
+        "this repository has no such commit; a squashed, rebased or force-pushed history "
+        "drops the commit a pin names, and every ground pinned into it fails at once — "
+        "docs/OPERATING.md says what that costs and how it is repaired"
+    )
+
+
 def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     """Reports for one typed pointer; empty when it resolves. `unasked` is why git could
     not be asked at all, in which case a pinned pointer is left unjudged: `run()` has
@@ -103,7 +177,7 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
             # history seed the repository is built in a temporary directory.
             text = git(ledger.repo or ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:
-            fail(f"{p.type}: {p.target} @{p.pin} does not resolve")
+            fail(f"{p.type}: {p.target} @{p.pin} does not resolve: {why_not(ledger, p)}")
         elif p.section and section_span(text, ledger.config, p.type, p.section) is None:
             fail(f"{p.target} @{p.pin} has no section {p.section!r}")
     elif p.type == "entry":

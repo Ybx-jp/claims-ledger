@@ -1,0 +1,153 @@
+# Operating a ledger that pins commits
+
+`docs/SCHEMA.md` says what an entry is. `docs/FRESHNESS.md` says what a pin is and what
+the fifth checker does with it. This says what it costs to run one over time: the two
+things that break a pinned ledger from the outside, and the order in which a claim is
+repaired once it has drifted.
+
+None of it is enforced by a checker. A checker can tell you afterwards that the pins are
+broken; nothing here can stop you breaking them, which is why it is written down.
+
+## The history rewrite
+
+A `code:` or `toml:` ground pins a section of a file **at a commit**:
+
+    - code: src/thing.py § "widget" @4023af4006273319aec9ae2512d197e4a99fce8c
+
+That commit id is the whole of the ground's reproducibility. Anything that removes the
+commit from the branch's history removes the evidence with it:
+
+- **A squash merge** replaces a branch's commits with one new commit.
+- **A rebase merge** rewrites every commit with a new id.
+- **A force-push over rewritten history**, an `amend` of a commit a pin names, a
+  `filter-branch` or `filter-repo` pass — the same thing by other means.
+
+After any of them `resolve` fails for every ground pinned into the vanished commits, at
+once. The failures are not repairable in place: Grounds sit above the append-only marker
+and a pin cannot be edited, so the only route back is a supersession per entry — a new
+entry pinned at a commit that exists, a `superseded` verdict on each old one, and every
+citation moved. Eight entries is an afternoon. A hundred is a rewrite of the ledger.
+
+**So: merge commits only, on any branch whose commits are pinned.** Turn the other
+strategies off at the source rather than relying on habit. On GitHub that is
+`allow_squash_merge` and `allow_rebase_merge` set false on the repository, which stops the
+merge button as well as the command line:
+
+    gh api -X PATCH repos/<owner>/<repo> \
+      -F allow_squash_merge=false -F allow_rebase_merge=false
+
+`examples/agent-harness/merge-guard.sh` refuses the local commands for a coding agent, and
+is one enforcement of this section rather than a substitute for it.
+
+**If it has already happened**, do not paper over it. `resolve` naming a commit that is
+not in the repository is a true report of a real loss, and an entry whose evidence is gone
+is not an entry whose evidence is fine. Supersede them, and say in the new entries' notes
+what happened; a ledger that quietly re-pins is worth less than one that records that its
+history was rewritten.
+
+## Adding an entry takes two commits
+
+This bites the first time and then never again, so it is worth stating plainly.
+
+An entry's citation usually lives *inside* the section that entry pins — the docstring
+sits in the function, the README sentence sits in a file that some other entry pins. So a
+single commit cannot work: the entry would have to name a commit that does not exist yet,
+and pinning the commit before it flags the ground as `moved` on the entry's first run.
+
+1. **Commit one:** the code, and the prose that cites the entry — README sentence,
+   docstring, comment.
+2. **Commit two:** the entry file, with its grounds pinned to commit one.
+
+**The installed pre-commit hook will refuse commit one.** It runs `references`, commit one
+carries a citation naming an entry that does not exist yet, and that is exactly the defect
+`references` exists to catch.
+
+The checker is not being conservative here; it cannot do better. At commit one a citation
+to an entry that is arriving in the next commit and a citation to an entry that never
+existed are the same bytes in the same file with the same ledger beside them. Nothing
+distinguishes them until the second commit exists, so there is no flag that could be added
+to tell them apart — only a promise, from you, that the second commit is coming. `git
+commit --no-verify` is that promise. Then let the hook run normally on commit two.
+
+Two things follow. Run `claims-ledger check` yourself before committing the second half:
+between the two commits the tree is knowingly inconsistent, and the hook you bypassed is
+the only thing that would otherwise tell you when it stopped being. If the promise is not
+kept — if commit two never arrives — CI is what catches it, which is why the workflow
+checks out the full history and runs `check` on every push; the bypass is local and
+one commit deep, and nothing downstream of it is bypassed. And never resolve the refusal
+by deleting the citation: the citation is the link the ledger exists to keep, and a commit
+that drops it passes the check by removing the thing being checked.
+
+## Repairing a drifted pin
+
+`freshness` reports five things, and they do not all mean the same thing. Two of them are
+not drift and **must not be given a verdict**:
+
+| finding | | what it needs |
+| --- | --- | --- |
+| fresh | | nothing; it is silent |
+| **moved** | flag | the sequence below |
+| **withdrawn** | fail | the sequence below; the artifact reads `absent` |
+| **unstable pin** | flag | re-pin at a revision — there is no verdict for this |
+| **unknown** | fail | fix the repository; **no verdict discharges it** |
+
+An `unstable pin` names no revision, so there is nothing to compare and nothing to
+discharge. An `unknown` is git declining to answer; a verdict written over it records a
+judgement that was never made. Both are argued in `docs/FRESHNESS.md`.
+
+For a `moved` or `withdrawn` ground:
+
+**1. Let the machinery write the verdict.**
+
+    claims-ledger freshness --write
+
+This appends a `contested` verdict under the propagation author, carrying the pointer as
+evidence and the object id git would store the drifted artifact under as `artifact:`. Exit
+1 is correct — it wrote something. Write this verdict with the tool and never by hand:
+`artifact:` is machine provenance and is checked as such, and a hand-written propagation
+verdict is a person borrowing the authority of a check that did not run.
+
+The entry is now `contested`, so `references` fails every site citing it `cites-as-live`,
+by name. That list is how you find the prose to repair.
+
+**2. Re-judge.** This is the step no tool does. Read the Assertion against the artifact as
+it now stands:
+
+- **The claim still holds.** Supersede it — step 3. A pin cannot be edited, and that is
+  deliberate: a claim re-established on new evidence is a different claim from the one
+  established on the old.
+- **The claim is no longer true.** Append a `refuted` verdict whose evidence points at
+  what shows it false, and rewrite the prose. The citations are removed with the sentence,
+  not moved.
+- **The flag is cosmetic** — a reformat, a comment, a rename that changed no meaning. It
+  is still a supersession. There is no acknowledge-without-superseding path, by design;
+  `docs/FRESHNESS.md` §"Why moved flags and withdrawn fails" is the argument, and the
+  cost is the one that section admits to.
+
+**3. Supersede.** Both directions are checked against each other, and supersession is a
+chain, never a tree — an entry carries exactly one `superseded` verdict.
+
+    claims-ledger new <slug>
+
+Copy Assertion, Scope, Warrant and Backing across; re-pin the Grounds to the artifact as
+it now stands; declare `supersedes: <old id>` in the successor's frontmatter; append to
+the predecessor a verdict whose evidence is `entry: <new id> · supersedes`; move every
+citation the reference check named; and run `claims-ledger sha --write` on the successor
+**before** it is committed, since `sha --write` refuses an entry that is already in
+history.
+
+Then commit the pair as above, and merge without rewriting history.
+
+## What this costs, honestly
+
+Every meaningful edit to a pinned section is a supersession: a new entry file, a verdict,
+and moved citations. Pins on narrow sections make this rare — a pin on a function costs a
+supersession only when that function changes, where a pin on a file costs one per commit
+that touches it — but the cost does not go to zero, and it scales with the number of
+entries rather than with the number of real changes of meaning.
+
+Two things keep it affordable. Pin sections, never files. And choose the grade honestly:
+`measured` is for a claim that the code *does* something and takes a pin that `freshness`
+watches; `asserted` is for a choice the project *made*, forbids an evidence ground, and so
+never goes stale. A preference recorded as `measured` buys a supersession every time the
+file is reformatted, in exchange for nothing.
