@@ -1,10 +1,10 @@
 ---
-id: L0015-an-append-cannot-reach-above-the-marker
+id: L0028-an-append-cannot-reach-above-the-marker
 kind: claim
-stated: 2026-09-07T22:47:42-07:00
+stated: 2026-09-07T23:20:23-07:00
 author: main
 grade: measured
-supersedes: none
+supersedes: L0015-an-append-cannot-reach-above-the-marker
 verbatim_sha: 143f9aec9f0c20a60e919dbc791fc4aacc875be6e49f16847748241120fdd8ad
 ---
 
@@ -20,7 +20,7 @@ condition: any entry layout, including one whose References heading sits above t
 
 ## Grounds
 
-- code: src/claims_ledger/propagate.py § "append_verdict" @e80ad36e50c2c2a2afab6603592ff5fb1818f89e
+- code: src/claims_ledger/propagate.py § "append_verdict" @0af113005f955a4e120d71338993a94cc6efeb7b
 
 ## Warrant
 
@@ -34,13 +34,6 @@ none
 
 ## Verdicts
 
-- 2026-09-07T23:20:05-07:00 · contested · grade: measured · author: propagation
-  evidence: code: src/claims_ledger/propagate.py § "append_verdict" @e80ad36e50c2c2a2afab6603592ff5fb1818f89e
-  artifact: 5599aaa78e6bd3f74622dee9b5baab4e44c37199
-  note: propagated from a moved ground
-
-- 2026-09-07T23:22:00-07:00 · superseded · grade: measured · author: main
-  evidence: entry: L0028-an-append-cannot-reach-above-the-marker · supersedes
-  note: a docstring gained three citations inside the pinned section; the Assertion, Scope, Warrant and Backing are carried across unchanged and the successor re-pins the same section
-
 ## References
+
+- src/claims_ledger/propagate.py · standing · cites-as-live

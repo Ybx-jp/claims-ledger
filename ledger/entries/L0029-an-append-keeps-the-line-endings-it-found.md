@@ -1,10 +1,10 @@
 ---
-id: L0016-an-append-keeps-the-line-endings-it-found
+id: L0029-an-append-keeps-the-line-endings-it-found
 kind: claim
-stated: 2026-09-07T22:47:42-07:00
+stated: 2026-09-07T23:20:23-07:00
 author: main
 grade: measured
-supersedes: none
+supersedes: L0016-an-append-keeps-the-line-endings-it-found
 verbatim_sha: 24ad4a511584a983f39ea0fb858eac37b51d37632c316c3010e72e88df566ab3
 ---
 
@@ -20,8 +20,8 @@ condition: an append by the propagation machinery, over a file the parser has al
 
 ## Grounds
 
-- code: src/claims_ledger/propagate.py § "append_verdict" @e80ad36e50c2c2a2afab6603592ff5fb1818f89e
-- code: src/claims_ledger/schema.py § "read_text_exact" @e80ad36e50c2c2a2afab6603592ff5fb1818f89e
+- code: src/claims_ledger/propagate.py § "append_verdict" @0af113005f955a4e120d71338993a94cc6efeb7b
+- code: src/claims_ledger/schema.py § "read_text_exact" @0af113005f955a4e120d71338993a94cc6efeb7b
 
 ## Warrant
 
@@ -35,13 +35,6 @@ none
 
 ## Verdicts
 
-- 2026-09-07T23:20:05-07:00 · contested · grade: measured · author: propagation
-  evidence: code: src/claims_ledger/propagate.py § "append_verdict" @e80ad36e50c2c2a2afab6603592ff5fb1818f89e
-  artifact: 5599aaa78e6bd3f74622dee9b5baab4e44c37199
-  note: propagated from a moved ground
-
-- 2026-09-07T23:22:00-07:00 · superseded · grade: measured · author: main
-  evidence: entry: L0029-an-append-keeps-the-line-endings-it-found · supersedes
-  note: a docstring gained three citations inside the pinned section; the Assertion, Scope, Warrant and Backing are carried across unchanged and the successor re-pins the same section
-
 ## References
+
+- src/claims_ledger/propagate.py · standing · cites-as-live
