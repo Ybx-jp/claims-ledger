@@ -38,7 +38,9 @@ report a human judges).
 
 - **validate** — every entry is well-formed: ids, timestamps, the no-quotation-marks
   rule in Assertion, Scope at `measured` and above, grade–grounds consistency, the
-  absence-claim rule, the verbatim fingerprint, verdict legality and authorship,
+  absence-claim rule, a Scope scoped to the fallen statuses while the Warrant argues from
+  terminality (a flag: the two sets are nested, and only the author knows which was
+  meant), the verbatim fingerprint, verdict legality and authorship,
   supersession both ways, and — from git — immutability of the region above the APPEND
   marker and append-only verdicts over the whole history. `--cached` reads staged entries
   from the index, for a pre-commit hook.

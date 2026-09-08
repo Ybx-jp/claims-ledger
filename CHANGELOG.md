@@ -782,6 +782,27 @@ checker could see the gap between them.
   no existing seed's expected outcome moved. Superseded L0020 and L0043, whose Scope named
   the narrower set.
 
+### Added by the same review
+
+- **`validate` flags an entry that scopes itself to the fallen statuses and then argues
+  from terminality.** `FALLEN` and `TERMINAL` are nested — the second is the first plus
+  `non-comparable` — and they are one word apart in prose. An entry written that way
+  states a rule over one population in its Scope and a rule over another in its Warrant,
+  and it is the Warrant a person implements, which is exactly how the defect above got
+  written. A flag rather than a failure: the test is on words rather than on sense, and
+  widening the Scope and narrowing the Warrant are both legal repairs. Seeds `D57` and
+  `K25`, the second being the near-negative that keeps the rule from firing on every entry
+  that names a status at all. It flags nothing in this repository's own 155 entries or in
+  the 105 entries the corpus holds, and it flags L0020 as that entry stood before the fix
+  above.
+
+  This is a check *within* one entry. The gap the review was looking for is between
+  entries, and that one is not mechanically decidable here: two entries that name nothing
+  of each other are out of range of all five checks by construction, and a heuristic over
+  their Scopes flags 261 pairs on this ledger to find two worth reading. Where the schema's
+  own controlled vocabulary appears, consistency can be checked; elsewhere it cannot, and
+  saying so is more useful than a checker nobody trusts.
+
 ### Release
 
 - Every action in both workflows is pinned to a commit, including

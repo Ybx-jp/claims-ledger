@@ -26,6 +26,7 @@ from .schema import (
     ACTS,
     APPEND,
     DECIMAL_RE,
+    FALLEN,
     GRADES,
     ID_RE,
     KINDS,
@@ -63,6 +64,38 @@ NO_FOLLOWERS = {"has", "have", "was", "were", "report", "reports"}
 # The falsifier rule is a heuristic on the Warrant's wording, stated so a checker author
 # implements what the seeds test: any word beginning `falsif`.
 FALSIFIER_RE = re.compile(r"\bfalsif", re.IGNORECASE)
+
+
+# The schema names two nested sets of statuses: `FALLEN`, the three ways an entry falls,
+# and `TERMINAL`, those three plus `non-comparable`. They are one word apart in prose and
+# a different population in fact, which is the only place in this vocabulary where a
+# writer can say one and mean the other without any checker noticing. Stated as a shape a
+# checker author can implement rather than as a sense: the Scope names each of the fallen
+# three and never the word `terminal`, and the Assertion or Warrant names `terminal`, or a
+# terminal status that is not one of the three.
+STATUS_WORD_RE = re.compile("|".join(rf"\b{re.escape(s)}\b" for s in STATUSES))
+TERMINAL_WORD_RE = re.compile(r"\bterminal\b", re.IGNORECASE)
+TERMINAL_NOT_FALLEN = tuple(s for s in TERMINAL if s not in FALLEN)
+
+
+def wider_than_its_scope(e):
+    """What the reasoning names, where the Scope named the fallen three and only those;
+    None when the two agree, or when neither is in play.
+
+    A flag rather than a failure. The test is on words rather than on sense, and an entry
+    may name terminality in passing for a reason a reader can see and a regular expression
+    cannot — so this reports a pair of sentences to read, and never refuses a commit
+    (L0156-a-scope-and-a-warrant-name-one-set-of-statuses, cites-as-live)."""
+    scoped = {m.group(0) for m in STATUS_WORD_RE.finditer(e.scope_text)}
+    if scoped != set(FALLEN) or TERMINAL_WORD_RE.search(e.scope_text):
+        return None
+    reasoning = e.assertion + "\n" + e.sections.get("Warrant", "")
+    if TERMINAL_WORD_RE.search(reasoning):
+        return "terminal"
+    for s in TERMINAL_NOT_FALLEN:
+        if re.search(rf"\b{re.escape(s)}\b", reasoning):
+            return s
+    return None
 
 
 def is_absence_claim(text):
@@ -186,9 +219,16 @@ def check_sections(e, config):
     Warrant saying what would falsify it. Without either it is a bet the roster can
     display and nothing can settle
     (L0091-a-hypothesis-names-its-motivations-and-its-falsifier, cites-as-live).
+
+    An entry that scopes itself to the fallen statuses and then argues from terminality is
+    flagged. The two sets are nested and the wider one holds `non-comparable`, so an entry
+    written that way states one rule in its Scope and a different one in its Warrant, and
+    it is the Warrant a person implements
+    (L0156-a-scope-and-a-warrant-name-one-set-of-statuses, cites-as-live).
     """
     out = []
     fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
+    flag = lambda part, msg: out.append(Report("flag", e.prefix, part, msg))  # noqa: E731
     expected = list(SECTIONS) + list(TAIL_SECTIONS)
     present = [s for s in e.section_order if s in expected]
     if present != expected:
@@ -274,6 +314,18 @@ def check_sections(e, config):
                 "Warrant",
                 "a hypothesis states what would falsify it; no sentence here says `falsified if`, "
                 "`falsifier` or the like",
+            )
+
+    # A terminal entry is exempt for the reason its Grounds are: the Scope sits in the
+    # frozen region, so a report against it names no repair anybody could make.
+    if e.status() not in TERMINAL:
+        said = wider_than_its_scope(e)
+        if said is not None:
+            flag(
+                "Scope",
+                f"the Scope names the fallen statuses and the reasoning says `{said}`; "
+                f"`{'`, `'.join(TERMINAL_NOT_FALLEN)}` is terminal without being a fall, "
+                "so these are two populations and the entry states a rule over each",
             )
 
     for b in e.backing:
