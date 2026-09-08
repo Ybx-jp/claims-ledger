@@ -32,6 +32,11 @@ The project table carries an empty dependencies array and requires-python at 3.1
 
 ## Verdicts
 
+- 2026-09-07T21:13:45-07:00 · contested · grade: measured · author: propagation
+  evidence: toml: pyproject.toml § "project" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: 234538ea4cc75af521d309063aac8535d24e7bcb
+  note: propagated from a moved ground
+
 ## References
 
 - README.md · standing · cites-as-live

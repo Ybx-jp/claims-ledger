@@ -26,7 +26,7 @@ classifiers = [
 # No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
 # pre-commit hook, on a checkout with nothing installed; tomllib is standard library
 # from 3.11, which is what sets the floor.
-# Ledger: (L0002-no-runtime-dependencies, cites-as-live).
+# Ledger: (L0011-no-runtime-dependencies, cites-as-live).
 dependencies = []
 
 [project.optional-dependencies]
@@ -128,12 +128,16 @@ documents = [
     "pyproject.toml",
     "src/claims_ledger/*.py",
 ]
-evidence-sectioned = ["code", "toml"]
+evidence-sectioned = ["code", "toml", "toml-key"]
 evidence-plain = []
 
 [tool.claims-ledger.section-patterns]
 # A section of a source file is a top-level def, class or assignment, and runs to the next
 # one. The lookahead keeps an indented assignment from ending a function at its first
-# local. A section of a TOML file is a table.
+# local. A section of a TOML file is a table — and `toml-key` is one key of one, for a
+# claim about a single setting: the whole `[project]` table was the finest ground the
+# dependency claim could take, so adding a classifier moved a claim about `dependencies`.
+# The space before `=` is what keeps the boundary off a `>=` inside an array element.
 code = '^(?![ \t])(?:(?:def|class)[ \t]+{name}\b|{name}[ \t]*=)'
 toml = '^\[{name}\]'
+toml-key = '^{name} = '

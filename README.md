@@ -17,7 +17,7 @@ Nothing is installed alongside it: the checkers use the standard library only, s
 `python3 -m claims_ledger check` runs from a plain interpreter — which is how the
 pre-commit hook invokes them, rather than by console-script name that git's own
 environment may not have on PATH. Python 3.11 or newer
-(L0002-no-runtime-dependencies, cites-as-live).
+(L0011-no-runtime-dependencies, cites-as-live).
 
 ## Why
 
