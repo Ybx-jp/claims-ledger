@@ -3,8 +3,8 @@
 Entry to entry: every `entry:` ground names an entry that exists and carries an act
 compatible with the target's current status — `cites-as-live` needs open or
 corroborated, `cites-as-contested` needs contested, `challenges` needs open,
-corroborated or contested, `cites-as-fallen` accepts any status and is the only act
-legal against a fallen one
+corroborated or contested, `cites-as-fallen` and `distinguishes` accept any status, and
+`cites-as-fallen` is the only *citation* act legal against a fallen one
 (L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The filter
 a reader must apply every time is applied for them here. An entry whose own status is
 terminal is exempt: its Grounds are immutable history, no further verdict may be
@@ -41,7 +41,9 @@ import os
 
 from .schema import (
     ACT_ALLOWS,
+    ACTS,
     CITATION_RE,
+    MISCITATION_RE,
     TERMINAL,
     Report,
     archived_id_re,
@@ -197,6 +199,23 @@ def run(ledger, entries=None):
                     name,
                     f"cites archived id(s) {', '.join(seen_archived)}; no document may "
                     "cite the archive",
+                )
+            )
+        for m in MISCITATION_RE.finditer(body):
+            if m.group(2) in ACTS or m.group(1)[0] in config.archived_prefixes:
+                continue  # a citation, or already reported by prefix
+            # A parenthetical shaped like a citation whose act is not a citation act.
+            # `CITATION_RE` does not match it and no other rule reads documents, so a
+            # mistyped act — and `distinguishes`, which an entry may perform and a
+            # document may not — used to sit in a checked document as unchecked prose
+            # (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
+            reports.append(
+                Report(
+                    "fail",
+                    None,
+                    name,
+                    f"`{m.group(0)}` is shaped like a citation but `{m.group(2)}` is not a "
+                    f"citation act; a document cites an entry with one of {list(ACTS)}",
                 )
             )
         for m in CITATION_RE.finditer(body):

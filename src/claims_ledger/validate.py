@@ -26,6 +26,7 @@ from .schema import (
     ACTS,
     APPEND,
     DECIMAL_RE,
+    ENTRY_ACTS,
     FALLEN,
     GRADES,
     ID_RE,
@@ -220,6 +221,10 @@ def check_sections(e, config):
     display and nothing can settle
     (L0091-a-hypothesis-names-its-motivations-and-its-falsifier, cites-as-live).
 
+    A `distinguishes` ground is not support. It says what the entry is *not*, so an entry
+    whose every ground is one rests on nothing, and it is not a motivation a hypothesis
+    can be built on either (L0160-a-distinction-is-not-support, cites-as-live).
+
     An entry that scopes itself to the fallen statuses and then argues from terminality is
     flagged. The two sets are nested and the wider one holds `non-comparable`, so an entry
     written that way states one rule in its Scope and a different one in its Warrant, and
@@ -271,8 +276,8 @@ def check_sections(e, config):
                 "Grounds",
                 f"`{raw}` is not a typed pointer ({'/'.join(config.ground_types)})",
             )
-        elif p.type == "entry" and p.act not in ACTS:
-            fail("Grounds", f"`{raw}` carries act `{p.act}`, not one of {list(ACTS)}")
+        elif p.type == "entry" and p.act not in ENTRY_ACTS:
+            fail("Grounds", f"`{raw}` carries act `{p.act}`, not one of {list(ENTRY_ACTS)}")
         elif p.type in config.evidence_types and p.sectioned != config.is_sectioned(p.type):
             want = (
                 f'{p.type}: <path> § "<section>" @<commit>'
@@ -280,7 +285,16 @@ def check_sections(e, config):
                 else f"{p.type}: <path> @<commit>"
             )
             fail("Grounds", f"`{raw}` is not written as `{want}`")
-    kinds = {p.type for p in e.ground_pointers}
+    supporting = [
+        p for p in e.ground_pointers if not (p.type == "entry" and p.act == "distinguishes")
+    ]
+    if e.grounds and not supporting:
+        fail(
+            "Grounds",
+            "every ground is a `distinguishes` act; a distinction says what this entry is "
+            "not, and a Warrant needs something to rest on",
+        )
+    kinds = {p.type for p in supporting}
     evidence = kinds & set(config.evidence_types)
     if e.grade in MEASURED_AND_ABOVE and not evidence:
         fail(

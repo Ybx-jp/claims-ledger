@@ -803,6 +803,61 @@ checker could see the gap between them.
   own controlled vocabulary appears, consistency can be checked; elsewhere it cannot, and
   saying so is more useful than a checker nobody trusts.
 
+### Added for the between-entries half
+
+The two pieces the entry above says are missing. Neither is a checker, and that is the
+point: what is mechanically available about two entries nobody has read together is that
+they are *near* each other, and near is not inconsistent.
+
+- **`claims-ledger neighbours`** — an authoring-time lookup, asked of one entry, one entry
+  file, or one ground pointer written as an entry would write it. It answers with the
+  entries that share an evidence span — the same type, path and section, with the pin
+  dropped, because two entries about the same function were written at different commits —
+  or whose cohort words nest inside another cohort's, in either direction. Containment
+  rather than a similarity threshold: nested Scopes are the shape that has actually gone
+  wrong in this ledger, and a score tuned until it surfaced that shape would be a number
+  chosen to fit the one example it came from.
+
+  It reports nothing, writes nothing, always exits 0, and `check` does not run it. Asked
+  of the whole ledger at once the same heuristic names **327 pairs over 169 entries**; asked
+  one entry at a time it answers with a **median of 3**, a mean of 3.9, at most 12, and 21
+  entries with none. That distribution is not written down anywhere but here: it is asked
+  of the installed package with `claims-ledger neighbours --count`, which runs the same
+  lookup over every entry. `claims-ledger new` prints the command for the entry it just
+  scaffolded, because nothing downstream asks the question and that is the only moment it
+  has.
+
+  Each answer names the relation the ledger already records between the pair — a ground
+  either way, or a supersession — and orders the pairs with none first. A pair somebody has
+  already read is not the pair the lookup exists to surface.
+
+- **A `distinguishes` act**, so that reading a pair lands in the ledger once instead of
+  being redone by every reader. One entry performs it on another; a document may not,
+  because a document has no Scope to hold apart from anything, and the pattern that reads
+  documents is built from the citation acts alone. It is legal against a target of any
+  status — it is a claim about two Scopes rather than about a truth, and Grounds are frozen,
+  so an act somebody else's verdict could make illegal would be a failure with no repair.
+  It propagates nothing when its target falls. And it is not support: an entry whose every
+  ground is one has stated a difference and rested on nothing, and it is not a motivation a
+  hypothesis can be built on. Seeds `D58` and `K26`.
+
+- **`references` reports a parenthesis shaped like a citation whose act is not one.**
+  `CITATION_RE` is built from the four citation acts, so a mistyped `cites-as-liv` — and
+  `distinguishes`, written in a document where it does not belong — matched nothing, and no
+  other rule reads documents: the sentence sat in a checked document as text nothing looked
+  at. The rule is narrow. An id in a parenthesis of its own, or named in running prose, is a
+  document mentioning an entry rather than citing it, and is left alone. Seeds `D59` and
+  `K27`. It fires on nothing in this repository's own documents or in the corpus.
+
+- Superseded **L0136**, whose cohort named four checkers while its metric counted over the
+  package. `freshness`, the authoring side and the command line already read entries through
+  the same parser, normalization, fingerprint and status derivation when it was written; the
+  neighbours lookup is the reader whose arrival made the gap worth repairing rather than
+  restating. The successor states it over every module that reads an entry.
+
+  It was `claims-ledger neighbours` that found it, on its first run over this ledger:
+  L0136's cohort nests inside L0005's and L0010's.
+
 ### Release
 
 - Every action in both workflows is pinned to a commit, including

@@ -18,6 +18,11 @@ whose own status is terminal needs no flag: a verdict after a terminal status is
 illegal, and its successor is walked
 (L0155-a-terminal-dependent-is-not-flagged, cites-as-live).
 
+Two acts walk and the rest do not. A `distinguishes` ground carries nothing here: it says
+the two entries are different claims about the same artifact, which is a statement about
+their Scopes, so the target's fall is not news about the entry that distinguished itself
+from it (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live).
+
 Run:  claims-ledger propagate [--write]
       Without --write nothing is modified
       (L0021-without-write-nothing-is-modified, cites-as-live); the missing verdicts are

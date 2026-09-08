@@ -12,10 +12,20 @@ import argparse
 import contextlib
 import os
 import shlex
+import statistics
 import sys
 from pathlib import Path
 
-from . import __version__, authoring, freshness, propagate, references, resolve, validate
+from . import (
+    __version__,
+    authoring,
+    freshness,
+    neighbours,
+    propagate,
+    references,
+    resolve,
+    validate,
+)
 from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
@@ -153,6 +163,22 @@ def build_parser():
     c.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
     sub.add_parser("status", help="every entry with its kind, grade and derived status")
+
+    nb = sub.add_parser(
+        "neighbours",
+        help="entries already about the same span or a nesting cohort; advisory, never a gate",
+    )
+    nb.add_argument(
+        "target",
+        nargs="?",
+        help="an entry id, a path to an entry, or a ground pointer written as it would be "
+        "written in an entry",
+    )
+    nb.add_argument(
+        "--count",
+        action="store_true",
+        help="how many neighbours every entry has, instead of one entry's",
+    )
 
     n = sub.add_parser(
         "new",
@@ -422,6 +448,41 @@ def cmd_status(args, ledger):
     return 0
 
 
+def cmd_neighbours(args, ledger):
+    """Advisory, and so exit 0 whatever it finds: the exit code of every other command
+    here answers `is the ledger sound`, and a lookup that answered it with `somebody
+    should read these two` would be a gate wearing a lookup's name
+    (L0162-neighbours-reports-nothing-and-exits-zero, cites-as-live). Naming a target that
+    is neither an entry nor a ground is a usage error and exits 2, as a mistyped path does
+    everywhere else.
+    """
+    stop = guard(ledger)
+    if stop is not None:
+        return stop
+    entries = load_entries(ledger)
+    if args.count:
+        counts = sorted(neighbours.count(ledger, entries=entries).values())
+        if not counts:
+            print(f"no entries under {ledger.config.relative(ledger.entries_dir)}")
+            return 0
+        print(
+            f"{plural(len(counts), 'entry', 'entries')}: median {statistics.median(counts):g}, "
+            f"mean {statistics.fmean(counts):.1f}, most {counts[-1]}, "
+            f"{counts.count(0)} with none"
+        )
+        return 0
+    if not args.target:
+        print(
+            "claims-ledger: neighbours needs an entry id, an entry path or a ground "
+            "pointer; --count summarizes the whole ledger",
+            file=sys.stderr,
+        )
+        return 2
+    for line in neighbours.run(ledger, args.target, entries=entries):
+        print(line)
+    return 0
+
+
 def cmd_new(args, ledger):
     path = authoring.create_entry(
         ledger,
@@ -444,6 +505,13 @@ def cmd_new(args, ledger):
     print(
         "A ground wider than the claim goes stale for edits the claim does not name, and "
         "repairing that costs a supersession. See docs/OPERATING.md."
+    )
+    # Named here because this is the moment the grounds are about to be chosen, and that
+    # is the only moment the question has: nothing downstream asks it, by design
+    # (L0168-the-scaffold-names-the-neighbour-lookup, cites-as-live).
+    print(
+        f"Once the Grounds are filled in, `claims-ledger neighbours {path.stem}` says "
+        "which entries are already about the same code."
     )
     return 0
 
@@ -703,6 +771,7 @@ COMMANDS = {
     "freshness": cmd_freshness,
     "check": cmd_check,
     "status": cmd_status,
+    "neighbours": cmd_neighbours,
     "new": cmd_new,
     "sha": cmd_sha,
     "source": cmd_source,
