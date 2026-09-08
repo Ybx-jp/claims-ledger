@@ -5,6 +5,7 @@ import subprocess
 import pytest
 
 from claims_ledger import cli
+from claims_ledger.authoring import PLACEHOLDER_GROUNDS
 
 SOURCE_TEXT = """A synthetic source, written for these tests.
 
@@ -85,7 +86,7 @@ class Project:
             ("cohort: TODO", "cohort: the synthetic graph of these tests"),
             ("condition: TODO", "condition: mean aggregation, one layer"),
             (
-                "- TODO: one typed pointer per line",
+                PLACEHOLDER_GROUNDS,
                 (
                     '- lab: docs/note-001.md § "Observation" @working\n'
                     "- source: fx-source · whole text"

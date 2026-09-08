@@ -427,6 +427,12 @@ def cmd_new(args, ledger):
         "Fill in Assertion, Scope, Grounds, Warrant and Backing, then "
         "`claims-ledger sha --write` before the first commit."
     )
+    # Said here as well as in the scaffold because this is the sentence that carries the
+    # cost, and the cost is what makes the rule worth following.
+    print(
+        "A ground wider than the claim goes stale for edits the claim does not name, and "
+        "repairing that costs a supersession. See docs/OPERATING.md."
+    )
     return 0
 
 
