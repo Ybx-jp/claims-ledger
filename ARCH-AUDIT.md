@@ -87,7 +87,9 @@ The findings are ranked by consequence, not by effort to fix.
 >   both callers report the `why`.
 > - **QE11-3.** `git rev-parse --show-toplevel` with `GIT_DIR` set answers with the
 >   directory it was run in, so a ledger with no repository anywhere reported *itself* as
->   the repository holding it — and every git hook exports `GIT_DIR`. The walk is the
+>   the repository holding it. (This first said "every git hook exports `GIT_DIR`", which
+>   round 2 measured as false on git 2.43.0: a hook gets `GIT_INDEX_FILE`, and `GIT_DIR`
+>   reaches one when git itself was invoked with `--git-dir`.) The walk is the
 >   filesystem's now: `.git` above the root, no git process for a project that is not
 >   under version control, a strict ancestor by construction.
 > - **QE11-4, MED-HIGH.** `in_this_run` was `path.is_file()`, which raises PermissionError
@@ -116,6 +118,40 @@ The findings are ranked by consequence, not by effort to fix.
 > is inside a repository and the precondition is false. Same class as the CI flake in
 > `test_e2_…`, whose precondition deletes a loose object and asserts `git log` then fails.
 > Both belong to finding 7: a test whose verdict depends on where it was launched from.
+
+> **Round 2 of the gate** (`qe`, ticket `39e244285f044346`) returned **safe to merge**,
+> and recommended taking two of its own findings first because the fix was in hand. Both
+> taken:
+>
+> - **QE12-1, MED-HIGH — the false negative, and the worse direction of QE11-1.** The walk
+>   stopped at the *first* `.git` above the root, so a repository between the ledger and
+>   the one that actually committed it read as "no history". Measured: one `git init` in an
+>   intervening directory took `validate` from exit 1 to exit 0 and `sha --write` from
+>   refusing to rewriting a committed frozen region — a check somebody else's `git init`
+>   turns off, silently, on a branch whose whole subject is that this must not happen.
+>   Every `.git` above the root is asked now.
+> - **QE12-3, MEDIUM — two of the seven new rules were held by nothing.** The `env=` scrub
+>   and the containment guard each survived deletion at 857 passed. Both have tests now,
+>   each reddened by deleting its own rule; the walk has one too, and the first version of
+>   *that* test was wrong — `git init` on the directory the fixture had already committed
+>   in is a no-op, so it never built the intervening repository it claimed to. Replaced
+>   with one that builds the three-level layout.
+>
+> **Two findings left open, both wider than this branch and both pre-existing.**
+>
+> - **QE12-2, MED-HIGH — the scrub stops at discovery.** `enclosing_repository` scrubs and
+>   finds the right repository; `git_problem` and the `cat-file` that follow ask *that*
+>   repository through the ambient environment. Under `GIT_DIR`/`GIT_WORK_TREE`,
+>   `is_committed` flips to "not committed" and `sha --write` rewrites a committed frozen
+>   region at exit 0 — measured identically on `main` at `b142311`, on the ordinary layout
+>   with the ledger's own repository, so it is not this branch's. It is a question about
+>   every `git_call` in the package: which of them are asking about the directory they
+>   name, and which about whatever the environment names. Its own branch.
+> - **QE12-4, MEDIUM — finding 2's class is still live in `resolve.py`.**
+>   `text = read_document(path)[0] if path.is_file() else None`, under a comment reading
+>   "never a crash". With the artifact's directory at mode 000 and an `@working` ground:
+>   `check` exit 2, `unexpected PermissionError … this is a bug. Please report it`, four of
+>   five checkers unrun. The same `is_file()` that QE11-4 replaced in `freshness`.
 
 ---
 

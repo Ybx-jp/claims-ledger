@@ -1340,12 +1340,13 @@ def enclosing_repository(root, entries_dir):
     the question, and it separates the untracked seed from the committed ledger cleanly.
 
     **The walk is the filesystem's, not git's.** `git rev-parse --show-toplevel` with
-    `GIT_DIR` in the environment — which every git hook exports — answers with the
-    directory it was run in, so a ledger with no repository anywhere reported *itself* as
-    the repository holding it. Looking for `.git` above the root asks nothing of the
-    environment, needs no git process for a project that is simply not under version
-    control, and is a strict ancestor by construction. A `.git` file counts: that is how a
-    submodule and a linked work tree name their repository.
+    `GIT_DIR` in the environment answers with the directory it was run in, so a ledger
+    with no repository anywhere reported *itself* as the repository holding it. Looking
+    for `.git` above the root asks nothing of the environment, needs no git process for a
+    project that is simply not under version control, and is a strict ancestor by
+    construction. A `.git` file counts: that is how a submodule and a linked work tree
+    name their repository. **Every** `.git` above the root is asked, not the first: the
+    nearest repository is often not the one that committed the ledger.
 
     **A git that cannot answer is not a git answering no.** Returning None for a failed
     call put back the exact false pass this function exists to remove: with an enclosing
@@ -1359,44 +1360,48 @@ def enclosing_repository(root, entries_dir):
     package against a different origin.
     """
     root, entries_dir = Path(root).resolve(), Path(entries_dir).resolve()
-    if not entries_dir.is_relative_to(root):
-        # A ledger whose entries are not under its own root — the corpus runner stages
-        # seeds into a scratch directory and points a Config at them — is not asking this
-        # question, and a repository above the root has nothing to say about them.
-        return None, None
+    env = git_env_without_location()
     for parent in root.parents:
+        # Every `continue` below is a repository that has nothing to say about these
+        # entries, and the walk goes on past it. Stopping at the first one instead was a
+        # false negative of exactly the shape this function exists to catch: one
+        # `git init` in a directory between the ledger and the repository that committed
+        # it took `validate` from exit 1 to exit 0 and let `sha --write` rewrite a
+        # committed frozen region. (ARCH-AUDIT.md, finding 3, QE12-1.)
         if not (parent / ".git").exists():
             continue
-        env = git_env_without_location()
+        if not entries_dir.is_relative_to(parent):
+            # The entries are somewhere else entirely — the corpus runner stages seeds
+            # into a scratch directory and points a Config at them — so this repository
+            # could not be holding them, and asking it would be `git log` on a path
+            # outside it.
+            continue
         # A repository with no commits in it at all fails `git log` the way a repository
         # nobody can read does, and it is the ordinary state of a project being started
         # around a ledger. Separated here rather than collapsed into the reason string.
         head = git_call(parent, "rev-parse", "--verify", "--quiet", "HEAD", env=env)
         if head.code == 1:
-            return None, None
+            continue
         if not head.ok:
             return None, f"git cannot read the repository at {parent} ({head.why})"
         rel = os.path.relpath(entries_dir, parent).replace(os.sep, "/")
-        answer = git_call(
-            parent,
-            "log",
-            "-1",
-            "--format=%H",
-            "--",
-            f":(literal){rel}",
-            env=git_env_without_location(),
-        )
+        answer = git_call(parent, "log", "-1", "--format=%H", "--", f":(literal){rel}", env=env)
         if not answer.ok:
             return None, f"git cannot read the repository at {parent} ({answer.why})"
+        if answer.out.strip():
+            return parent, None
         # No commit has ever touched these entries in it: untracked, ignored, or freshly
-        # staged into a scratch directory. Nothing was committed and nothing was skipped.
-        return (parent, None) if answer.out.strip() else (None, None)
+        # staged into a scratch directory. Nothing here was committed — but a repository
+        # further up may still hold them, so this is not the end of the walk.
     return None, None
 
 
-# The variables that tell git where the repository is. A pre-commit hook exports `GIT_DIR`
-# and `GIT_INDEX_FILE`, and under them a `-C <elsewhere>` is not the question it looks
-# like: `rev-parse --show-toplevel` answers about the hook's repository, not the directory.
+# The variables that tell git where the repository is. Under any of them a `-C <elsewhere>`
+# is not the question it looks like — `rev-parse --show-toplevel` answers about whatever
+# they name rather than about the directory. Measured on git 2.43.0, no hook exports
+# `GIT_DIR`; a hook does get `GIT_INDEX_FILE`, and `GIT_DIR` reaches one when git itself
+# was invoked with `--git-dir`. An earlier version of this comment said every hook exports
+# it, which is wrong and is corrected here rather than quietly dropped.
 GIT_LOCATION_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE")
 
 

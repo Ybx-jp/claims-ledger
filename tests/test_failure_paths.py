@@ -133,6 +133,32 @@ def test_a_ledger_merely_sitting_under_a_work_tree_is_not_a_history_nobody_read(
     assert "not reading" not in capsys.readouterr().out
 
 
+def test_the_walk_asks_the_directory_it_names_and_not_what_git_dir_names(
+    project, capsys, monkeypatch
+):
+    """`GIT_DIR` redirects every git call in the process, including the one that asks
+    whether the enclosing repository has ever committed these entries — under a `GIT_DIR`
+    naming some other repository it answers about *that* one, finds no history for the
+    path, and the report disappears. The environment is scrubbed for this call, and this
+    is the test of it: the sibling above proves the report appears, and nothing proved it
+    still appeared with the variable set. (QE12-3.)
+    """
+    nested_in_a_repository(project)
+    elsewhere = project.root.parent.parent / "elsewhere"
+    elsewhere.mkdir()
+    subprocess.run(["git", "-C", str(elsewhere), "init", "-q"], check=True)
+    (elsewhere / "x.txt").write_text("x\n", encoding="utf-8")
+    for args in (
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "x"],
+    ):
+        subprocess.run(["git", "-C", str(elsewhere), *args], check=True, capture_output=True)
+    monkeypatch.setenv("GIT_DIR", str(elsewhere / ".git"))
+    capsys.readouterr()
+    assert project.cl("validate") == 1
+    assert "which this ledger is not reading" in capsys.readouterr().out
+
+
 def test_git_dir_in_the_environment_does_not_invent_a_repository(project, capsys, monkeypatch):
     """`git rev-parse --show-toplevel` with `GIT_DIR` set and no `GIT_WORK_TREE` answers
     with the directory it was run in, so a ledger with no repository anywhere reported

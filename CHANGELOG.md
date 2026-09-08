@@ -606,7 +606,11 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   when `GIT_DIR` is set — which every git hook exports — and because a project that is
   not under version control should cost no git process at all. And a git that cannot
   answer is reported rather than read as "there is no repository", which is the same rule
-  as everywhere else in this checker and was the first version's own worst defect.
+  as everywhere else in this checker and was the first version's own worst defect. And
+  every repository above the ledger is asked rather than only the nearest: stopping at the
+  first was a false negative of the same shape, where one `git init` in a directory
+  between the ledger and the repository that committed it turned the frozen-region check
+  off without a word.
 - **An artifact whose directory cannot be searched is not a withdrawn ground.** The
   presence check was `Path.is_file()`, which raises PermissionError out of pathlib on 3.12
   — `freshness` exited 2 having printed nothing, and `check` printed four checkers and
