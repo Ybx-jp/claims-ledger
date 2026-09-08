@@ -10,6 +10,7 @@ from . import freshness, propagate, references, resolve, validate
 from .config import Config, ConfigError, default_config, load_config
 from .schema import (
     ACTS,
+    ENTRY_ACTS,
     GRADES,
     KINDS,
     STATUSES,
@@ -39,6 +40,7 @@ __version__ = "0.1.0"
 # library API (L0153-the-library-api-is-declared-and-not-inherited, cites-as-live).
 __all__ = [
     "ACTS",
+    "ENTRY_ACTS",
     "GRADES",
     "KINDS",
     "STATUSES",

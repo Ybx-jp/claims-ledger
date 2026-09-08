@@ -849,6 +849,20 @@ they are *near* each other, and near is not inconsistent.
   document mentioning an entry rather than citing it, and is left alone. Seeds `D59` and
   `K27`. It fires on nothing in this repository's own documents or in the corpus.
 
+- **`ENTRY_ACTS` is a declared export**, beside `ACTS`. The two lists differ by exactly the
+  new act, and the difference is the one a writer has to get right — what a document may
+  write against what a ground may carry — so it is printable rather than memorable:
+  `python -c "from claims_ledger import ACTS, ENTRY_ACTS; print(ACTS, ENTRY_ACTS)"`.
+
+- **The shipped agent skills and hooks cover all of the above.**
+  `choosing-a-citation-act` gains the act, the two lists and the parenthetical finding;
+  `tagging-prose-with-claims` gains the lookup at the point a ground is chosen and the
+  Scope-versus-Warrant flag from the previous release note; `repair-a-drifted-pin` gains
+  the supersession no checker asks for. `ledger-orientation.sh` hands over `neighbours`
+  and says which commands are checkers and which only answer; `status-guard.sh` reports
+  the not-a-citation-act finding on its own throttle; `pin-guard.sh` names the lookup at
+  the moment a new claim is being written.
+
 - Superseded **L0136**, whose cohort named four checkers while its metric counted over the
   package. `freshness`, the authoring side and the command line already read entries through
   the same parser, normalization, fingerprint and status derivation when it was written; the

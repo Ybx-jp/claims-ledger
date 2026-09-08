@@ -37,6 +37,13 @@ Grounds sit above the append marker and cannot be edited once the entry is in hi
 That immutability is what makes a pin reproducible, and it is why re-establishing a claim
 on new evidence is a new entry rather than an edit.
 
+Not every ground is evidence. An `entry:` ground names another entry and carries an act,
+and two of those are relations rather than support: `challenges`, which disputes the other
+entry and demands a verdict on it, and `distinguishes`, which says the two are different
+claims about the same artifact. `validate` reports an entry whose every ground is a
+distinction, because it has said what it is not and rested on nothing. Because Grounds are
+frozen, only the newer entry can write either one; the older never points back.
+
 ## Warrant
 
 The rule by which the grounds support the assertion — the step a reader would otherwise

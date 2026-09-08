@@ -15,8 +15,8 @@ what is documented here is what is actually run.
 
 ## What they are for
 
-The five checkers are complete about what they check and silent about two things that
-happen earlier:
+The five checkers are complete about what they check, and silent about what happens
+before and around a check:
 
 **A drifted pin is found at commit time, not edit time.** The pre-commit hook is the
 right place to *refuse* the commit, and the wrong place to *learn*: by then the edit is
@@ -36,13 +36,21 @@ do it.
 
 **A citation's act can stop matching its target's status.** `references` says exactly
 what is wrong and nothing about which of four repairs is right, and they differ in cost
-and in what they assert. `status-guard.sh` fires on that finding alone and lays the four
-out. It is a different failure from a drifted pin and does not share its repair, which is
-why it is a separate hook.
+and in what they assert. `status-guard.sh` fires on that finding and lays the four out. It
+is a different failure from a drifted pin and does not share its repair, which is why it
+is a separate hook.
+
+**Or the act is not an act at all.** An id, a comma and an act-shaped word that is not a
+citation act — a mistyped act, or one of the acts only an entry may perform written into a
+document. `references` reports it, because the citation pattern is built from the citation
+acts and would otherwise pass it over as prose. `status-guard.sh` reports it too, on its
+own throttle, because the repair is the act rather than the sentence and the session that
+wrote it is the one that can fix it.
 
 **A session starts without the map.** Which command answers which question, what the
-statuses and acts are, and which skill takes over for which finding are all knowable up
-front, and knowing them is what lets a finding be read rather than deciphered.
+statuses and acts are, which of the commands is a checker and which only answers, and
+which skill takes over for which finding are all knowable up front, and knowing them is
+what lets a finding be read rather than deciphered.
 `ledger-orientation.sh` hands that over once at session start and carries nothing else. It
 asks the installed package for the counts and for the evidence types the project
 configures, rather than carrying either. It stays silent in a checkout with no
@@ -98,8 +106,9 @@ Nothing, by construction, and it is worth keeping it that way:
 - Which files are documents is asked of the package. `pin-guard.sh` calls the same
   `tree_documents` the checkers call, so excludes, glob semantics and the rule that the
   ledger does not cite itself come along for free. A hook that restated any of that would
-  drift from the checker it serves. `status-guard.sh` does the same with act legality: it
-  reads what `references` said rather than restating `ACT_ALLOWS`.
+  drift from the checker it serves. `status-guard.sh` does the same with act legality
+  and with which words are citation acts: it reads what `references` said rather than
+  restating `ACT_ALLOWS` or `ACTS`.
 - No counts, anywhere. `ledger-orientation.sh` asks `claims-ledger status` for the tally
   rather than carrying one, because a number written into prose is false the next time an
   entry lands and nothing checks it.
@@ -115,7 +124,9 @@ Nothing, by construction, and it is worth keeping it that way:
 **Throttle everything, on the right key.** An always-on reminder is wallpaper. Drift is
 keyed on a digest of the finding, so unchanged drift is reported once and *new* drift
 still speaks, and it goes quiet by itself once a verdict discharges the flag. The
-new-claim reminder is keyed once per session.
+new-claim reminder is keyed once per session. Two findings that share a hook get two keys,
+never one: `status-guard.sh` throttles the act-versus-status shape and the
+not-a-citation-act shape separately, so silencing one cannot silence the other.
 
 **Never write.** `pin-guard.sh` runs `freshness` without `--write`, and `status-guard.sh`
 runs `references`, which cannot write at all. Appending a verdict is a judgement about the

@@ -1,6 +1,6 @@
 ---
 name: tagging-prose-with-claims
-description: Turn prose that promises something — a docstring, a README paragraph, a design-document sentence, a comment — into ledger entries, and cite each from the sentence that states it. Use before writing a batch of entries over a file, when prose asserts something no entry holds, and when deciding where a citation will physically sit.
+description: Turn prose that promises something — a docstring, a README paragraph, a design-document sentence, a comment — into ledger entries, and cite each from the sentence that states it. Use before writing a batch of entries over a file, when prose asserts something no entry holds, when deciding where a citation will physically sit, and to ask with `claims-ledger neighbours` which entries are already about the ground being chosen.
 ---
 
 # Tagging prose with claims
@@ -82,16 +82,57 @@ Several claims resting on one section is a normal shape — it is what enumerati
 section's invariants looks like. The count is also how many entries the next edit inside
 it flags.
 
+## Ask who is already there
+
+    claims-ledger neighbours 'code: path/to/file.py § "the_section" @HEAD'
+    claims-ledger neighbours <entry id>
+
+Once a ground is chosen and before the entry is written, this answers with the entries
+already resting on that span, or whose Scope `cohort` nests inside the one being drafted.
+The pointer form is the one that works before the entry exists — the question is asked of
+the ground being considered.
+
+It is advisory. It exits 0 whatever it finds, `check` does not run it, and it decides
+nothing. What it is for is the pair no checker can see: two entries about the same
+function that name nothing of each other are out of range of every rule by construction,
+and the moment the grounds are being chosen is the only moment anything asks.
+
+Each answer says whether the ledger already relates the two. For one it does not:
+
+- **The same claim, said twice** — write one entry, or supersede the older.
+- **Different claims about the same artifact** — record it once, as a `distinguishes`
+  ground in the entry being written, with the Warrant saying how they differ. It sits
+  *beside* the grounds the entry rests on: a distinction is not support, and `validate`
+  reports an entry whose every ground is one. `choosing-a-citation-act` has the act in
+  full.
+- **Neither** — near is not inconsistent, and most neighbours are neither. Leave them.
+
+`claims-ledger neighbours --count` prints the distribution over a whole ledger — median,
+mean, most, and how many entries have none — which is what says whether the lookup is
+worth running on a given project.
+
 ## What `validate` checks in the wording
 
-`claims-ledger validate` applies rules to the Assertion itself, and reports each by name.
-Two worth knowing before drafting:
+`claims-ledger validate` applies rules to the wording itself, and reports each by name.
+Three worth knowing before drafting. Two read the Assertion:
 
 - **An Assertion that reads as an absence or a priority claim needs a `search:` ground.**
   The test is on words, not sense, so an ordinary sentence can trip it. Rewording is
   usually cheaper than adding a search ground you did not mean.
 - **An Assertion carries no quotation marks.** Quoted material belongs in Backing, where
   it is checked against its source.
+
+And one reads the Scope against the Warrant:
+
+- **A Scope and a Warrant name one set of statuses, not two nested ones.** Where a Scope
+  names each of the ways an entry falls and never says `terminal`, while the Assertion or
+  Warrant does, `validate` **flags** it. Those are two populations — a status can be
+  terminal without being a fall — and it is the Warrant a person implements, so an entry
+  written that way states one rule and gets another. A flag, not a failure: widening the
+  Scope and narrowing the Warrant are both legal repairs, and only the author knows which
+  claim was meant. The finding names the status that separates the two sets, and
+  `choosing-a-citation-act/reference/vocabulary.md` has the statuses with which are
+  terminal.
 
 `reference/entry-anatomy.md` covers what each section of an entry is for.
 
@@ -101,15 +142,17 @@ Two worth knowing before drafting:
 2. Decide citation placement for this file.
 3. Draft each Assertion.
 4. Choose each ground: the narrowest section that carries the rule.
-5. Write every citation. First commit, `--no-verify`.
-6. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
+5. `claims-ledger neighbours` on each ground, before writing the entry, and decide what to
+   do with anything it surfaces.
+6. Write every citation. First commit, `--no-verify`.
+7. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
    Backing; pin each ground to the first commit; add the `## References` row naming each
    citing document and the act it uses.
-7. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
+8. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
    entry version control already has.
-8. `claims-ledger check`, then the second commit with the hook running.
+9. `claims-ledger check`, then the second commit with the hook running.
 
-If step 8 reports drift on entries that already existed, that is the placement question
+If step 9 reports drift on entries that already existed, that is the placement question
 arriving late; `repair-a-drifted-pin` covers discharging it.
 
 ## Reference

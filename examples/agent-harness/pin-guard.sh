@@ -109,7 +109,7 @@ if ! fired newclaim; then
 
 If this edit states a NEW commitment — a sentence a reader would take as a promise the project is answerable for — it needs an entry, grounded in the artifact that keeps it true and cited from the sentence. No checker can find this for you: \`references\` only checks citations that were actually written, so prose that asserts something and cites nothing passes every check.
 
-Adding an entry takes two commits and the pre-commit hook refuses the first; the \`tagging-prose-with-claims\` skill says why and what to do. If the edit states no new commitment, ignore this."
+Adding an entry takes two commits and the pre-commit hook refuses the first; the \`tagging-prose-with-claims\` skill says why and what to do. Once you have chosen the ground, \`claims-ledger neighbours 'code: <path> § \"<section>\" @HEAD'\` says which entries are already about it — the pair that is one claim said twice, or two different claims about one artifact, is out of range of every checker and this is the moment anything asks. If the edit states no new commitment, ignore this."
 fi
 
 exit 0

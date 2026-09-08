@@ -3,8 +3,9 @@
 Every list here is exported by the package. Print it rather than trusting a copy — a
 project can configure some of it, and this file is a description, not the source.
 
-    python -c "from claims_ledger import STATUSES, ACTS, GRADES, KINDS
+    python -c "from claims_ledger import STATUSES, ACTS, ENTRY_ACTS, GRADES, KINDS
     print('statuses', STATUSES); print('acts', ACTS)
+    print('acts a ground may carry', ENTRY_ACTS)
     print('grades', GRADES); print('kinds', KINDS)"
 
 For the parts a project configures — which evidence types exist, which authors may write
@@ -37,19 +38,52 @@ through either and come out the other side.
 
 An act is how a citation names an entry, and it is legal against a set of statuses.
 
-| act | legal against |
-| --- | --- |
-| `cites-as-live` | `open`, `corroborated` |
-| `cites-as-contested` | `contested` |
-| `challenges` | `open`, `corroborated`, `contested` |
-| `cites-as-fallen` | every status |
+| act | legal against | where it may be written |
+| --- | --- | --- |
+| `cites-as-live` | `open`, `corroborated` | a document, or an `entry:` ground |
+| `cites-as-contested` | `contested` | a document, or an `entry:` ground |
+| `cites-as-fallen` | every status | a document, or an `entry:` ground |
+| `challenges` | `open`, `corroborated`, `contested` | an `entry:` ground only |
+| `distinguishes` | every status | an `entry:` ground only |
 
-`challenges` is written as an `entry:` ground by an entry disputing another; the other
-three appear in documents, written inline as `(A0007-a-slug, cites-as-live)`, and in an
-entry's `## References` rows.
+Two lists, and the difference between them is the last column. `ACTS` is the **citation**
+acts, which is what a document may write inline as `(A0007-a-slug, cites-as-live)` and
+what an entry's `## References` rows carry. `ENTRY_ACTS` is what an `entry:` ground may
+carry, and it is the citation acts plus `distinguishes`.
 
 `claims-ledger references` states the allowed set in its own findings, which is the
 authority when this table and the installed version disagree.
+
+## `distinguishes`
+
+One entry saying of another that the two are about the same artifact and are **different
+claims**, with the Warrant saying how. It is not support and not an attack:
+
+- **Legal against every status.** It says something about two Scopes rather than about a
+  truth, so no verdict on the target can make it wrong. Grounds are frozen, so an act
+  somebody else's verdict could turn illegal would be a failure with no available repair.
+- **It propagates nothing.** `claims-ledger propagate` walks `cites-as-live` and
+  `challenges`. A target that falls is news about anything that rested on it, and a
+  distinction is the statement that this entry did not.
+- **It is not support.** An entry whose every ground is one has said what it is not and
+  rested on nothing; `validate` reports that, and a `distinguishes` ground is not one of
+  the entries motivating a hypothesis either.
+- **Only the newer entry can write it.** Grounds are frozen once committed, so the older
+  entry never points back. `claims-ledger neighbours` is what reads the relation from the
+  other side, and it says so, rather than proposing a pair somebody has already read.
+
+## A parenthesis that is not a citation
+
+`references` reports an id, a comma and an act-shaped word in a document when the word is
+not a citation act:
+
+    `(A0007-a-slug, distinguishes)` is shaped like a citation but `distinguishes` is not
+    a citation act
+
+The two ways in: a mistyped act, and `distinguishes` written in a document, which is not a
+thing a document can do. The rule is narrow — an id in a parenthesis of its own, or named
+in running prose, is a document mentioning an entry rather than citing it, and is left
+alone.
 
 ## Grades
 

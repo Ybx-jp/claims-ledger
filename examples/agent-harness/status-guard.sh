@@ -14,9 +14,15 @@
 # lays the four out and leaves the choice where it belongs. It never chooses, and it never
 # writes.
 #
-# Throttled on the digest of the finding, so an unchanged objection is reported once and a
-# NEW one still speaks. Nothing here is repository-specific: the interpreter is discovered
-# and the ledger is asked about itself.
+# It reports a second shape for the same reason, and separately: an id, a comma and an
+# act-shaped word that is not a citation act. That is a citation with the wrong act rather
+# than the wrong target, its repair is the act and not the sentence, and the two ways in —
+# a mistyped act, and an act only an entry may perform written into a document — are both
+# things an editing session produces and can fix on the spot.
+#
+# Throttled per shape, on the digest of the finding, so an unchanged objection is reported
+# once and a NEW one still speaks. Nothing here is repository-specific: the interpreter is
+# discovered and the ledger is asked about itself.
 #
 # The hook never blocks: every failure path exits 0 silently. A guard that can break the
 # session is worse than no guard.
@@ -66,10 +72,35 @@ remember() { mkdir -p "$state_dir" 2>/dev/null && printf '%s\n' "$1" >> "$state_
 finding=$(cd "$root" && timeout 20 "$python" -m claims_ledger references 2>&1) || true
 [ -n "$finding" ] || exit 0
 
-# Only the act-vs-status shape. Every other `references` failure — a dangling id, a
+# Two act shapes, and no others. Every remaining `references` failure — a dangling id, a
 # one-way reference, an Assertion carried verbatim — has its own repair and is left to the
 # checker's own words at commit time.
 mismatch=$(printf '%s\n' "$finding" | grep -E 'against .*, whose status is ' || true)
+
+# The other act shape: a parenthesis that is a citation in every respect but the act.
+# Which words are citation acts is `references`' question and is left to it; this reads
+# what it said.
+miswritten=$(printf '%s\n' "$finding" | grep -F 'is not a citation act' || true)
+
+if [ -n "$miswritten" ]; then
+  key="miscite:$(printf '%s' "$miswritten" | cksum | tr -d ' ')"
+  if ! fired "$key"; then
+    remember "$key"
+    jq -cn --arg ctx "claims-ledger status guard: a document holds a parenthesis shaped like a citation whose act is not a citation act.
+
+$miswritten
+
+The citation pattern is built from the citation acts, so this matched nothing and no other rule reads documents — before this check it sat in a checked document as prose nothing looked at. Two ways in, and the repair differs:
+
+  - A mistyped act. Print the list rather than retyping from memory: \`python -c 'from claims_ledger import ACTS; print(ACTS)'\`. Then write it on both sides — the document AND the row in the entry's ## References.
+  - An act only an entry may perform, written in a document. \`challenges\` and \`distinguishes\` are relations one entry states about another, in an \`entry:\` ground; a document has no Scope to hold apart from anything. If the sentence means to record that two entries are different claims about one artifact, that belongs in the newer entry's Grounds, not here. The \`choosing-a-citation-act\` skill has both acts in full.
+
+An id in a parenthesis of its own, or named in running prose, is a document mentioning an entry rather than citing it, and is not what this reports." \
+      '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'
+    exit 0
+  fi
+fi
+
 [ -n "$mismatch" ] || exit 0
 
 key="act:$(printf '%s' "$mismatch" | cksum | tr -d ' ')"
