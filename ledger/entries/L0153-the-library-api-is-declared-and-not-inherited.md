@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T13:17:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @94e61e9404b22bd766f6cd97126c73413d0c7e2e
+  artifact: d88ddc2f9fa96ab9afc61043b7007ffd0c33a166
+  note: propagated from a moved ground
+
+- 2026-09-08T13:35:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @3d35a815b1a4ae4b2da74af69e2c413230f597b5
+  note: read against the change in commit 3d35a81, which added ENTRY_ACTS to the export list so the act vocabulary can be printed rather than remembered; the five checkers this claim names are declared exactly as before
+
 ## References
 
 - src/claims_ledger/__init__.py · standing · cites-as-live
