@@ -198,7 +198,7 @@ A check that could not run never reports that it passed. Pointed at a directory 
 entries directory in it — the wrong `--root`, a configuration file moved away from its
 ledger — every checking command stops with exit 2 and says nothing was checked, rather
 than printing five clean lines over an empty room
-(L0005-a-missing-entries-directory-stops-the-command, cites-as-live). Where a check is genuinely skipped
+(L0010-a-missing-entries-directory-stops-the-command, cites-as-live). Where a check is genuinely skipped
 rather than passed, it is named on stderr: outside a git repository, or with no `git` on
 PATH, validate's frozen-region and append-only checks cannot run and say so.
 

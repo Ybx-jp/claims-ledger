@@ -33,6 +33,11 @@ guard asks for the listing error of the entries directory before any checker run
 
 ## Verdicts
 
+- 2026-09-07T20:35:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_validate" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: 58799c38582c87607e65b36ee17d8c1cd30561b3
+  note: propagated from a moved ground
+
 ## References
 
 - README.md · standing · cites-as-live

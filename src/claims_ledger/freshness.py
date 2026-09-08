@@ -397,8 +397,8 @@ def since_phrase(count, where):
     return f"{verb} touched {where} since the pin"
 
 
-def run(ledger, write=False, cached=False):
-    entries = load_entries(ledger, cached=cached)
+def run(ledger, write=False, cached=False, entries=None):
+    entries = load_entries(ledger, cached=cached) if entries is None else entries
     config = ledger.config
     author = config.propagation_author
     reports = []
@@ -425,6 +425,21 @@ def run(ledger, write=False, cached=False):
     if (problem := git_problem(repo)) is not None:
         return [Report("fail", None, "freshness", f"{problem}; freshness did not run")]
 
+    asked = {}
+
+    def drifted(pointer):
+        """`drift()` for one pointer, computed once for the whole run.
+
+        The findings are a function of the pointer, the repository and the tree, all of
+        which are fixed here, so a second caller asking about the same pointer gets the
+        same answer for 4 to 6 more git processes. `orphans()` below asked again for every
+        ground this loop had already evaluated, and two entries resting on one artifact
+        asked twice over. (ARCH-AUDIT.md, finding 4.)
+        """
+        if pointer.raw not in asked:
+            asked[pointer.raw] = drift(repo, pointer, repo, config, cached=cached)
+        return asked[pointer.raw]
+
     for e, (i, raw, p) in pinned:
         if e.status() in TERMINAL:
             # A fallen entry's Grounds are history: they record what it was established
@@ -432,7 +447,7 @@ def run(ledger, write=False, cached=False):
             # same reason.
             continue
         part = f"Grounds {i}"
-        finding, detail = drift(repo, p, repo, config, cached=cached)
+        finding, detail = drifted(p)
         if finding is None:
             continue
         if finding == "unknown":
@@ -528,7 +543,7 @@ def run(ledger, write=False, cached=False):
             continue
         pending.append((e, verdict_block(e.grade, p, note, author, seen)))
 
-    reports += orphans(entries, config, repo, repo, author, cached=cached)
+    reports += orphans(entries, config, repo, repo, author, cached=cached, drifted=drifted)
 
     if write:
         for e, block in grouped(pending):
@@ -672,7 +687,7 @@ def naming(verdicts):
     return "verdicts " + ", ".join(str(v.index) for v in verdicts)
 
 
-def orphans(entries, config, repo, tree, author, cached=False):
+def orphans(entries, config, repo, tree, author, cached=False, drifted=None):
     """A ground whose acknowledgement states a cause that did not happen. Without this the
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
@@ -713,7 +728,9 @@ def orphans(entries, config, repo, tree, author, cached=False):
                     )
                 )
                 continue
-            finding = drift(repo, ground, tree, config, cached=cached)[0]
+            finding = (
+                drifted(ground) if drifted else drift(repo, ground, tree, config, cached=cached)
+            )[0]
             if finding == "unknown":
                 # An orphan is a verdict whose stated cause did not happen. Whether it
                 # happened is exactly what git declined to say, and `run()` reports that;

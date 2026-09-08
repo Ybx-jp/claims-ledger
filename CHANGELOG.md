@@ -619,6 +619,20 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   directly, and gone, not-a-regular-file and could-not-be-reached are three answers rather
   than two.
 
+### Faster by the architecture audit
+
+- **`freshness` asks git about a pointer once.** `orphans()` re-ran the whole drift
+  comparison for every ground `run()` had already evaluated — 4 to 6 git processes per
+  pinned pointer, for an answer that cannot have changed inside one run — and two entries
+  resting on the same artifact asked twice over. Measured on the 12-entry example research
+  repository: `freshness` 17 git processes to 8, `check` 31 to 22.
+- **`check` parses the entries once rather than five times.** Each checker loaded them
+  itself and each command loaded them a second time for the count in its summary line.
+  The checkers now take the entries the caller already has. Under `--cached` there are two
+  lists and not one, because `validate` and `freshness` read what is staged while the
+  other three read the working tree, and that difference is what `--cached` is for.
+  `load_entries` calls per `check`: 5 to 1.
+
 ### Changed by the architecture audit
 
 One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and

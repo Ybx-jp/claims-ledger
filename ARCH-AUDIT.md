@@ -160,6 +160,38 @@ The findings are ranked by consequence, not by effort to fix.
 >   `check` exit 2, `unexpected PermissionError … this is a bug. Please report it`, four of
 >   five checkers unrun. The same `is_file()` that QE11-4 replaced in `freshness`.
 
+> **Disposition — 2026-09-07, finding 4.** Fixed on branch `arch/process-counts`, measured
+> on `examples/research-repo` (12 entries) with a PATH shim counting `git` executions:
+>
+> | | before | after |
+> |---|---|---|
+> | `check`, git processes | 31 | **22** |
+> | `freshness`, git processes | 17 | **8** |
+> | `check`, `load_entries` calls | 5 | **1** |
+>
+> `drift()` is asked once per pointer per run and remembered: the findings are a function
+> of the pointer, the repository and the tree, all fixed for the run, so `orphans()`
+> asking again for every ground `run()` had already evaluated bought 4 to 6 more git
+> processes for the same answer — and two entries resting on one artifact asked twice
+> over, which the memo also closes. The five checkers take the entries the caller already
+> parsed; `check` parses once for all five, and twice only under `--cached`, where
+> `validate` and `freshness` read what is staged and the other three read the working
+> tree. That is the difference `--cached` exists to make and it is not collapsed.
+>
+> **What this cost the ledger, and what that says.** `cmd_validate` is one of L0005's two
+> grounds, so loading the entries once and passing them down drifted it and cost a
+> supersession — L0010. That is the second time in a day this ledger has priced a design
+> decision, and both times the pinned section was a *caller* rather than the code carrying
+> the rule: `guard` is where "a missing entries directory stops the command" actually
+> lives, and `cmd_validate` is named as the pattern its callers follow. A ground on a
+> caller goes stale for every edit to that caller, whatever it was for. Worth weighing
+> against `docs/OPERATING.md`'s own advice to pin narrowly, which this obeys in letter.
+>
+> Not done, and named rather than left implicit: the pre-commit hook still runs the five
+> checkers as five interpreter processes. One process would need the hook to call a single
+> entry point, which is a change to what is installed in every generated repository and to
+> `HOOK_TEMPLATE`, which L0001 pins. Its own branch.
+
 ---
 
 ## Verdict
