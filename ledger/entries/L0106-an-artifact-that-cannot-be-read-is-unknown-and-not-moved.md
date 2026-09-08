@@ -1,0 +1,41 @@
+---
+id: L0106-an-artifact-that-cannot-be-read-is-unknown-and-not-moved
+kind: claim
+stated: 2026-09-08T02:37:34-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: 9dbef7eaa8c4250270d85b8a14e1b3f27a1c5ad810ccf81000bbdddfd36a7880
+---
+
+## Assertion
+
+An artifact that could not be read at all yields an unknown finding, and never a moved or a withdrawn one.
+
+## Scope
+
+metric: the finding for an artifact whose bytes could not be obtained
+cohort: evidence artifacts in the working tree or the index
+condition: an artifact that is present and is not text is a different case
+
+## Grounds
+
+- code: src/claims_ledger/freshness.py § "now_text" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+- code: src/claims_ledger/freshness.py § "in_this_run" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+- code: src/claims_ledger/freshness.py § "drift" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+
+## Warrant
+
+now_text returns the reason the bytes could not be had alongside the text, and drift turns any such reason into unknown with the reason attached. An artifact that is there and is not UTF-8 text is deliberately not one of these: it really did change and simply cannot be narrowed to a section, which is what moved already says. Throwing the reason away is what made an unreadable evidence file come back as a confident finding of movement at exit 0.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/freshness.py · standing · cites-as-live
