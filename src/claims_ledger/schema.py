@@ -21,6 +21,7 @@ import glob
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import stat
@@ -103,11 +104,19 @@ QUOTE_MARKS = '"“”„«»'
 
 
 def archived_id_re(config):
-    """An archived id anywhere in a document is a quarantine breach by prefix alone.
-    None when the project quarantines no series."""
+    r"""An archived id anywhere in a document is a quarantine breach by prefix alone.
+    None when the project quarantines no series.
+
+    Three digits or more — `CITATION_RE`'s tolerance rather than `ID_RE`'s exactly four.
+    The rule reads prose a person wrote, where an id a digit wide of the schema is still
+    a citation of the archive, and the width the schema actually mints has to be among
+    the widths that fire. `\d{3}` alone — what this was — put a word boundary where no
+    four-digit id has one, so the quarantine could not match a single id the schema
+    permits. (docs/audits/0.1.0.md, QE9-105.)
+    """
     if not config.archived_prefixes:
         return None
-    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"]\d{3}\b")
+    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"]\d{3,}\b")
 
 
 # --- reports -------------------------------------------------------------------------
@@ -178,6 +187,71 @@ class Ledger:
         return self.config.cache
 
 
+def excluded_document(rel, patterns):
+    """Whether `rel` — a path from the project root, `/`-separated — is excluded by one
+    of `document-excludes`.
+
+    Matched the way a `documents` pattern is matched, segment by segment: `*` and `?`
+    stop at a separator, `**` spans any number of segments. The two keys sit one line
+    apart in every template this package ships and nothing has ever said they differ, so
+    they do not. This was substring containment, under which `docs/draft-*.md` — the form
+    both shipped example configurations wrote, and the only form anything had ever
+    demonstrated — excluded nothing at all and said so nowhere. (docs/audits/0.1.0.md,
+    QE9-95.)
+
+    Two edges of "the same way", stated because the claim is only worth what it holds:
+    a pattern is normalized first, so `./docs/draft-*.md` excludes what `./docs/*.md`
+    selects — writing the exclusion in the same hand as the inclusion and having it
+    silently match nothing is QE9-95's exact shape. And a directory is not a subtree
+    here any more than it is there: `docs/` excludes the file named `docs`, and `docs/**`
+    is how a subtree is written. What cannot diverge is the dotfile rule — `glob` never
+    selects one, so no dotfile ever reaches this test.
+    """
+    parts = rel.split("/")
+    return any(_segments_match(parts, _pattern_segments(p)) for p in patterns)
+
+
+def excluded_directory(rel, patterns):
+    """Whether *every* document under the directory `rel` is excluded.
+
+    Asked only of a directory nobody can list, which is otherwise reported: a pattern
+    that excludes some of what is under it leaves the rest unchecked and unreported, and
+    an unreported unchecked document is the one thing this package may not produce. So
+    only a pattern that ends in `*` or `**` — one that takes everything below the point
+    it matches — suppresses the report.
+    """
+    parts = rel.split("/")
+    for pattern in patterns:
+        segments = _pattern_segments(pattern)
+        head, last = segments[:-1], segments[-1]
+        if last == "**" and len(parts) >= len(head) and _segments_match(parts[: len(head)], head):
+            return True
+        if last == "*" and len(parts) == len(head) and _segments_match(parts, head):
+            return True
+    return False
+
+
+def _pattern_segments(pattern):
+    """A `document-excludes` pattern, normalized and split the way a path is."""
+    return posixpath.normpath(pattern.replace(os.sep, "/")).split("/")
+
+
+def _segments_match(parts, segments):
+    """`parts` against the pattern `segments`, both already split on `/`."""
+    if not segments:
+        return not parts
+    if segments[0] == "**":  # zero segments or any number of them, as glob reads it
+        return any(_segments_match(parts[i:], segments[1:]) for i in range(len(parts) + 1))
+    return (
+        bool(parts)
+        # fnmatchcase, not fnmatch: fnmatch normalizes case for the platform, and a
+        # pattern that excluded a document on one machine and not on another would be a
+        # checker whose document count depends on where it ran.
+        and fnmatch.fnmatchcase(parts[0], segments[0])
+        and _segments_match(parts[1:], segments[1:])
+    )
+
+
 def tree_documents(config):
     """(documents, unreadable) — the documents that may cite an entry, addressed from the
     project root, and everything a pattern reached that could not be read.
@@ -193,19 +267,22 @@ def tree_documents(config):
     # `no entries` for an unlistable entries directory. The directories the patterns reach
     # into are therefore walked here, where the EACCES is visible.
     unreadable = [
-        (os.path.relpath(d, config.root), f"{problem}; the documents under it were not checked")
-        for d, problem in sorted(unlistable_document_dirs(config).items())
+        (rel, f"{problem}; the documents under it were not checked")
+        for rel, problem in (
+            (os.path.relpath(d, config.root).replace(os.sep, "/"), problem)
+            for d, problem in sorted(unlistable_document_dirs(config).items())
+        )
+        if not excluded_directory(rel, config.document_excludes)
     ]
     docs, seen = [], {}
     for path in sorted(set(paths)):
-        norm = path.replace(os.sep, "/")
-        if any(x in norm for x in config.document_excludes):
+        rel = os.path.relpath(path, config.root).replace(os.sep, "/")
+        if excluded_document(rel, config.document_excludes):
             continue
         if os.path.commonpath([os.path.realpath(path), os.path.realpath(config.ledger_dir)]) == str(
             os.path.realpath(config.ledger_dir)
         ):
             continue  # the ledger does not cite itself
-        rel = os.path.relpath(path, config.root)
         if not os.path.isfile(path):
             # A FIFO, a directory or a dangling symlink whose name matched a pattern. Not
             # silently skipped: it was addressed as a document and it was not checked.

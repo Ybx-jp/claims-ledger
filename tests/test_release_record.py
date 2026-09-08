@@ -191,6 +191,64 @@ def test_every_sdist_include_pattern_is_anchored_to_the_root():
     assert not unanchored, unanchored
 
 
+def test_the_sdist_carries_the_trees_its_own_tests_read():
+    """`tests/` ships, and `tests/test_examples.py` reads `examples/`. With the include
+    list unanchored the sdist carried 10 of the example tree's files — the ones that
+    happened to live under a directory called `src` or `docs` — and the suite inside the
+    distribution failed four ways on a missing `examples/FEATURES.md`. Anchoring the
+    patterns fixed the leak out of `.qe` and made this hole exact rather than accidental.
+    (docs/audits/0.1.0.md, QE9-94.)"""
+    config = tomllib.loads(project_file("pyproject.toml").read_text(encoding="utf-8"))
+    include = config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    for required in ("/src", "/tests", "/docs", "/examples"):
+        assert required in include, required
+
+
+def test_the_sdists_own_suite_is_run_from_the_extracted_tree():
+    """The corpus proves the checkers ship. Nothing proved the *tests* ship, and a
+    distribution carrying a suite that cannot pass inside it would have reached PyPI:
+    `twine check` reads metadata, and the corpus rides in the package rather than in the
+    tarball. The gate has to run pytest from the extracted sdist, against the copy
+    installed from a clean environment.
+
+    Asserted line by line rather than as `"pytest" in build`, which four mutants of this
+    step satisfied: running the *checkout's* suite instead, `--collect-only`, `|| true`,
+    and the literal string `echo pytest skipped`. Six letters in the right region of a
+    file is not a gate. (docs/audits/0.1.0.md, QE10-2.)
+    """
+    build = release_yml()
+    build = build[build.index("\n  build:") : build.index("\n  publish:")]
+    assert "tar -xzf" in build, "the sdist is never extracted"
+    assert build.index("tar -xzf") > build.index("proves itself from elsewhere")
+
+    runs = [line.strip() for line in build.splitlines() if "-m pytest" in line]
+    assert len(runs) == 1, runs
+    (run,) = runs
+    assert 'cd "$extracted"' in run, run
+    assert "/tmp/clean-sdist/bin/python -m pytest" in run, run
+    for defeat in ("|| true", "|| :", "--collect-only", "GITHUB_WORKSPACE", "--co"):
+        assert defeat not in run, run
+
+
+def test_every_tree_the_sdist_names_is_present_where_this_suite_runs():
+    """The one assertion in this file that is load-bearing *inside* the distribution.
+
+    The gate that runs this suite from an extracted sdist has an oracle problem: nearly
+    every test here reads its file through `project_file`, which turns "absent from the
+    distribution" into a skip because it cannot tell that from "not a checkout". Deleting
+    `docs/` from an extracted sdist and running the gate's own command gives exit 0 with
+    counts identical to a healthy tree; `LICENSE`, `QUALITY.md` and `CHANGELOG.md` go the
+    same way, differing only in the skip count nothing pins. A floor on skips would have
+    caught two of those four and missed `docs/` entirely. This reads the include list from
+    the tree it is running in and requires every entry to be there, which is the question
+    the gate was added to ask. (docs/audits/0.1.0.md, QE10-1.)
+    """
+    config = tomllib.loads((PROJECT / "pyproject.toml").read_text(encoding="utf-8"))
+    include = config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    missing = [pattern for pattern in include if not (PROJECT / pattern.lstrip("/")).exists()]
+    assert not missing, missing
+
+
 def test_every_action_the_release_uses_is_pinned_to_a_commit():
     unpinned = [
         line.strip()

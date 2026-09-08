@@ -18,7 +18,8 @@
       "checker": "references",
       "outcome": "fail",
       "where": "docs/prereg-digest.md",
-      "why": "a document cites an archived id (C012); no document may cite the archive"
+      "why": "a document cites archived ids at three widths, one of them the four digits every entry id has (C012, P00042, P0007), and a two-digit figure label that is not an id; no document may cite the archive",
+      "message": "C012, P00042, P0007"
     }
   ]
 }

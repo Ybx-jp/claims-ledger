@@ -40,7 +40,12 @@ from claims_ledger.corpus import run as corpus_run
 CORPUS = Path(corpus_run.CORPUS)
 SEEDS = sorted(p for p in (CORPUS / "seeds").iterdir() if p.is_dir())
 SEED_NAMES = [s.name for s in SEEDS]
-REPO = CORPUS.parents[2]  # …/<root>/src/claims_ledger/corpus -> <root>
+# The tree these tests were read from, not the tree the *module* was imported from. It
+# was `CORPUS.parents[2]`, which under an installed copy is a directory inside the
+# environment — so every test here that reads a repository file skipped rather than ran,
+# including inside a source distribution that carries all of them. Seven tests, silently.
+# (docs/audits/0.1.0.md, QE10-3.)
+REPO = Path(__file__).resolve().parent.parent
 SRC = REPO / "src"
 WORKFLOWS = REPO / ".github" / "workflows"
 

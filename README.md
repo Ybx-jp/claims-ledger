@@ -252,7 +252,11 @@ entries = "entries"
 registry = "sources.jsonl"
 cache = "cache"                      # empty string: no cache, rows name their bytes
 
-# Documents that may cite an entry, as globs from the project root.
+# Documents that may cite an entry, as globs from the project root. Both keys are
+# matched the same way, segment by segment: `*` and `?` stop at a separator and `**`
+# spans any number of segments, so a whole subtree is `docs/private/**` rather than
+# `docs/private/`. An excluded document is not checked at all — every citation rule is
+# off for it, not just the one you had in mind.
 documents = ["*.md", "docs/*.md"]
 document-excludes = []
 

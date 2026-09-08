@@ -91,6 +91,62 @@ def test_research_statuses_show_prediction_hypothesis_supersession_and_challenge
     )
 
 
+def scanned_documents(materializer, repo: Path) -> int:
+    """The document count `references` prints for `repo`."""
+    heading = materializer.ledger(repo, "references").splitlines()[0]
+    match = re.search(r"(\d+) document", heading)
+    assert match, heading
+    return int(match.group(1))
+
+
+@pytest.mark.parametrize(
+    ("repo_name", "excluded", "failure"),
+    [
+        ("documentation-repo", "docs/draft-scratch.md", "cites archived id(s) Z0001"),
+        (
+            "ui-webapp",
+            "docs/internal-notes.md",
+            "cites U0009-banner-copy-rewritten, which does not exist",
+        ),
+    ],
+)
+def test_a_configured_exclusion_is_what_keeps_the_check_green(
+    tmp_path, repo_name, excluded, failure
+):
+    """Both example configurations write `document-excludes` as a glob, and
+    `draft-scratch.md` states in its own text that it is excluded from citation scanning.
+    Under substring containment none of that was true: the file was scanned, and the
+    sentence was false in a repository whose subject is checked claims.
+    (docs/audits/0.1.0.md, QE9-95.)
+
+    Each excluded file now carries a citation that *would* fail — an archived id in the
+    repository that quarantines the `Z` series, an entry that does not exist in the other
+    — so the exclusion is load-bearing and this test has an oracle that names a document
+    rather than only counting them. A count-delta alone passes over an exclusion that
+    removes the wrong file; the count is still asserted, beside the identity.
+    """
+    materializer = load_materializer()
+    repos = materializer.materialize(tmp_path / "portfolio")
+    repo = next(r for r in repos if r.name == repo_name)
+    assert (repo / excluded).is_file()
+
+    with_exclusion = scanned_documents(materializer, repo)
+    config = repo / "claims-ledger.toml"
+    text = config.read_text(encoding="utf-8")
+    emptied = re.sub(
+        r"^document-excludes = .*$", "document-excludes = []", text, flags=re.MULTILINE
+    )
+    assert emptied != text, text
+    config.write_text(emptied, encoding="utf-8")
+
+    with pytest.raises(subprocess.CalledProcessError) as scanned:
+        materializer.ledger(repo, "references")
+    output = scanned.value.stdout
+    assert f"FAIL {excluded}" in output, output
+    assert failure in output, output
+    assert f"{with_exclusion + 1} documents" in output, output
+
+
 def test_feature_guide_snippets_are_exact_repository_excerpts():
     guide = (PROJECT / "examples" / "FEATURES.md").read_text(encoding="utf-8")
     pattern = re.compile(

@@ -613,11 +613,52 @@ Recorded as methodology changes, with the seeds named, under this file's own rul
   puts it back. It is the forgery the orphan rule exists to refuse, in the history that
   used to launder it, and it fails against the unfixed checker at `commit 04` and passes
   against the fixed one. The corpus is 76 seeds.
+- **`D20-bad-ids-and-archived-citation` pins every edge of the archived-id width.** Its
+  document planted `C012` — three digits — which is the one width the quarantine rule
+  could match and a width no entry id can have, so the seed passed while the rule was
+  unreachable from every id the schema mints. It now plants `P0007` and `P00042` beside
+  it, and a two-digit `C42` written as a figure label that must *not* be read as an id;
+  the row names the three matches in its `message`. Measured: `\d{3}`, `\d{4}`, `\d{3,4}`,
+  `\d{2,}` and `\d{5,}` each take the corpus to 78/79, where before only the first two
+  did. No seed's outcome moves; what the row proves does.
 - **The corpus runner stages by content, not by timestamp.** `shutil.copytree` preserves
   mtime, and git's index skips reading a file whose (mtime, size) pair is unchanged, so a
   history seed that edits a line without changing its length staged a change git did not
   see: `git add -A` picked up nothing and the run died with `nothing to commit`. Found
   while writing `D53`, whose drift is `0.041` to `0.991`.
+
+### Fixed by the ninth adversarial pass
+
+The pass ran over the example portfolio and the documents that advertise it, and found two
+rules in `src/` that could not do what they said. Both had shipped because the only
+assertion over them was `0 failure(s)`, which an inert rule satisfies.
+
+- **`document-excludes` is matched as a glob, the way `documents` is** — `docs/audits/0.1.0.md`
+  QE9-95. It was substring containment: `"docs/draft-*.md"` is not a substring of
+  `docs/draft-scratch.md`, so both exclusions in the example portfolio were inert, and
+  `examples/templates/documentation-repo/docs/draft-scratch.md` — a file whose text says it
+  is excluded from citation scanning — was scanned. The two keys sit one line apart in every
+  template this package ships and nothing had ever said they differ, so they no longer do:
+  `*` and `?` stop at a separator, `**` spans any number of segments, matched
+  segment by segment against the normalized path from the project root — an exclusion
+  written `./docs/draft-*.md`, in the same hand as the inclusion beside it, is the same
+  defect one level down. A directory that a `documents` pattern reaches and cannot list
+  is still reported unless an exclusion takes *everything* under it, which only a pattern
+  ending in `*` or `**` does: a pattern that takes some of what is under an unlistable
+  directory leaves the rest unchecked, and an unchecked document nobody was told about is
+  the one report this package may not lose. Both excluded example documents now carry a
+  citation that would fail if it were scanned — an archived `Z0001` in the repository that
+  quarantines the `Z` series, an entry that does not exist in the other — so the exclusion
+  is load-bearing and the regression names a document rather than only counting them. A
+  count-delta alone passes over an exclusion that removes the wrong file; a test that
+  asserted `0 failure(s)` is what passed over the inert exclusion in the first place.
+- **The archived-prefix rule can fire on the ids the schema mints** — QE9-105. The pattern
+  was `[<prefixes>]\d{3}\b`: exactly three digits, with a word boundary that cannot fall
+  between the third and fourth. Every entry id is a letter and four digits, so the
+  quarantine — a documented rule, with a corpus seed — could not match a single id the
+  schema permits. `Q001` failed the check; `Q0001` passed it. The width is now three or
+  more, which is what `CITATION_RE` already tolerated, because the rule reads prose and an
+  id written a digit wide of the schema is still a citation of the archive.
 
 ### Release
 
@@ -627,6 +668,31 @@ Recorded as methodology changes, with the seeds named, under this file's own rul
 - The sdist is installed into a clean environment and made to run the corpus before
   publication, as the wheel already was. An sdist is what pip falls back to wherever
   wheels are refused, and `twine check` reads its metadata rather than running it.
+- **The sdist ships the trees its own tests read, and is made to pass them.** The
+  `include` list is gitignore-style, so an unanchored `src` or `docs` matched at any
+  depth: the tarball carried `tests/test_examples.py` and 10 of the example tree's files —
+  the ones that happened to live under a directory with one of those names — and four of
+  its tests failed inside it on a missing `examples/FEATURES.md`. Nothing would have caught
+  it; the corpus rides in the package rather than in the tarball, and `twine check` reads
+  metadata. `/examples` is now named in the list, and `release.yml` extracts the built
+  sdist and runs `pytest` there against the copy installed from a clean environment.
+  `docs/audits/0.1.0.md`, QE9-94.
+- **That gate has an oracle inside the distribution, and the step that runs it is asserted
+  line by line.** Nearly every test that reads a repository file reads it through a helper
+  that turns "absent from the distribution" into a skip, because it cannot tell that from
+  "not a checkout" — so deleting `docs/` from an extracted sdist left the gate at exit 0
+  with counts identical to a healthy tree, and `LICENSE`, `QUALITY.md` and `CHANGELOG.md`
+  differed only in a skip count nothing pinned. A floor on skips would have caught two of
+  those four. One test now reads the `include` list from the tree it is running in and
+  requires every entry to be present. Separately, the guard over the workflow asserted
+  only that the six letters `pytest` appeared after the extraction, which four mutants of
+  the step satisfied — running the checkout's suite instead, `--collect-only`, `|| true`,
+  and the literal `echo pytest skipped`. QE10-1 and QE10-2.
+- **Seven tests that had never run outside a checkout now run.**
+  `tests/test_corpus_integrity.py` derived the repository root from the *installed*
+  module rather than from the test file, so inside a source distribution that carries all
+  of them — the report-site inventory guard and the four mutation-anchor guards among
+  them — every one skipped. QE10-3.
 
 ### Known limits
 
