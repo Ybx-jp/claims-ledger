@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T10:05:05-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @34f416118e10a14169475fe23d3176d347d0ed8d
+  artifact: dcebe963e990823a9449a085659c86c005628252
+  note: propagated from a moved ground
+
+- 2026-09-08T10:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @f8b21e96f8e17ea36b344e076672f701398b3b95
+  note: read against the change in commit f8b21e96, which added a flag block at the end of check_sections and a wording heuristic beside FALSIFIER_RE; this rule is stated elsewhere in the same section and is unaffected
+
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live
