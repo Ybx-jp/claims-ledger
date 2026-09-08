@@ -35,29 +35,46 @@ Where the entry genuinely cannot be written yet — the artifact it would pin do
 — say so in the same breath as the reason, and write it as soon as it can be. Silence is
 the failure mode, not delay.
 
-## Decide where the citation will sit, before writing any entry
+## The citation goes inside the section its entry pins
 
-A pinned ground names a **section** of an artifact, and what counts as a section is a
-per-project pattern. Print the patterns this project uses before assuming:
+That is the mechanism, not a preference. A pinned ground names a **section** of an
+artifact, and what counts as a section is a per-project pattern:
 
     python -c "from claims_ledger import open_ledger; print(open_ledger().config.section_patterns)"
 
-If a citation is written *inside* a span that entries already pin, adding it moves that
-span, and every entry pinned there is flagged. The cost compounds with density: a section
-carrying seven grounds has seven entries flagged by the next citation written into it.
+The sentence that makes the promise and the code that keeps it then live in one span, and
+they move together: an edit to either is an edit to the same section, and a reader who
+finds one finds the other. A citation parked away from that span still passes every check
+— which is the problem. Nothing will ever object, and the reader who most needs the
+citation is the one editing the code, who never sees it.
 
-Two placements, chosen per file before starting:
+**Writing the citation flags the entries already pinned there, and that is the mechanism
+working.** A section carrying seven grounds will flag seven entries when the next citation
+is written into it, and each one is discharged by a re-read: `freshness --write`, then a
+`corroborated` verdict recording what was read. That is a few minutes and it is the price
+of the thing being checked at all. It is not a cost to design around, and a placement
+chosen to keep the checker quiet has bought silence by moving the citation away from what
+it is about. Batch a file's citations into one commit so the flags arrive once — that is
+sequencing, not avoidance.
 
-- **Inside the section** — the citation sits in the sentence it manages, which is the
-  point of the mechanism. Every later citation written there flags the entries pinned
-  there.
-- **Outside every section** — prose that no pattern matches, such as a file-level preamble
-  above the first definition, carries citations without moving any pinned span. The
-  grounds still name the individual sections. The trade is distance: the citation no
-  longer sits in the sentence it belongs to, and one preamble cannot readably carry
-  dozens.
+**Watch the section boundary on a module-level definition.** A section starts at its own
+line, so a comment written *above* `NAME = ...` belongs to whatever is defined before it,
+and a citation there sits outside the span its entry pins while looking adjacent. Put it
+below the assignment, or inside the literal. Check rather than assume — this is invisible
+in a diff:
 
-Either way, write all the citations for a file in one commit; the movement is paid once.
+    python -c "from claims_ledger import open_ledger
+    from claims_ledger.schema import section_span, read_document
+    k = open_ledger().config
+    body, _ = read_document('path/to/file.py')
+    start, end = section_span(body, k, 'code', 'THE_NAME')
+    print(body[start:end])"
+
+**The module docstring is for a claim about the file as a whole**, which is the case where
+no section is the right ground — the module has no single definition that keeps the claim
+true. It is not the place to put a claim about one function because that function's
+section is crowded. If most of a file's citations have collected in its docstring, that is
+the tell.
 
 ## Documents and grounds are different
 
@@ -169,21 +186,22 @@ And one reads the Scope against the Warrant:
 ## Order of operations
 
 1. List the sentences in the file that promise something.
-2. Decide citation placement for this file.
-3. Draft each Assertion.
-4. Choose each ground: the narrowest section that carries the rule.
-5. `claims-ledger neighbours` on each ground, before writing the entry, and decide what to
+2. Draft each Assertion.
+3. Choose each ground: the narrowest section that carries the rule.
+4. `claims-ledger neighbours` on each ground, before writing the entry, and decide what to
    do with anything it surfaces.
-6. Write every citation. First commit, `--no-verify`.
-7. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
+5. Write every citation, each inside the section its entry pins. First commit,
+   `--no-verify`.
+6. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
    Backing; pin each ground to the first commit; add the `## References` row naming each
    citing document and the act it uses.
-8. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
+7. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
    entry version control already has.
-9. `claims-ledger check`, then the second commit with the hook running.
+8. `claims-ledger check`, then the second commit with the hook running.
 
-If step 9 reports drift on entries that already existed, that is the placement question
-arriving late; `repair-a-drifted-pin` covers discharging it.
+Step 8 will report drift on entries already pinned to the sections the citations went
+into. That is expected and it is the mechanism working; `repair-a-drifted-pin` covers
+discharging each with a re-read.
 
 ## Reference
 

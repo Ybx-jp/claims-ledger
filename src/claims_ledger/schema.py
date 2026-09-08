@@ -57,16 +57,20 @@ STATUSES = (
 TERMINAL = ("refuted", "superseded", "retracted", "non-comparable")
 FALLEN = ("refuted", "superseded", "retracted")
 ACTS = ("cites-as-live", "cites-as-contested", "cites-as-fallen", "challenges")
+ENTRY_ACTS = (*ACTS, "distinguishes")
+# Written below the assignment, not above it: a section starts at its own line, so a
+# comment above `ENTRY_ACTS` is the tail of `ACTS` and a citation there would sit outside
+# the span its entry pins.
+#
 # `distinguishes` is an act one entry performs on another and a document may not: it says
 # the two are about the same artifact and are different claims, and the Warrant says how.
 # A document has no Scope to hold apart from anything, so there is nothing for it to
 # distinguish (L0157-distinguishes-is-an-act-between-entries, cites-as-live).
-ENTRY_ACTS = (*ACTS, "distinguishes")
-# Which target statuses each act is legal against. `distinguishes` takes any, for the
-# reason `cites-as-fallen` does and a different one: it is a claim about two Scopes rather
-# than about a truth, so no verdict on the target can make it wrong
-# (L0158-a-distinction-is-legal-against-any-status, cites-as-live).
 ACT_ALLOWS = {
+    # Which target statuses each act is legal against. `distinguishes` takes any, for the
+    # reason `cites-as-fallen` does and a different one: it is a claim about two Scopes
+    # rather than about a truth, so no verdict on the target can make it wrong
+    # (L0158-a-distinction-is-legal-against-any-status, cites-as-live).
     "cites-as-live": {"open", "corroborated"},
     "cites-as-contested": {"contested"},
     "challenges": {"open", "corroborated", "contested"},
@@ -97,12 +101,12 @@ BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-<slug>, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
-# The same shape with any act-shaped word, so that one CITATION_RE does not read as prose:
-# a mistyped `cites-as-liv`, and `distinguishes`, which is an act between entries and not
-# a citation. Both used to be a citation nobody checked, because the only regex reading
-# documents did not match them and nothing else looked
-# (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
 MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]*)\)")
+# The same shape as CITATION_RE with any act-shaped word, so that one of them does not
+# read as prose: a mistyped `cites-as-liv`, and `distinguishes`, which is an act between
+# entries and not a citation. Both used to be a citation nobody checked, because the only
+# regex reading documents did not match them and nothing else looked
+# (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
 
 # Pins that name no revision: the artifact is read from the working tree as it stands.
 # A ledger kept outside version control needs one, and the red-team corpus uses

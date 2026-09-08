@@ -870,6 +870,18 @@ they are *near* each other, and near is not inconsistent.
   the not-a-citation-act finding on its own throttle; `pin-guard.sh` names the lookup at
   the moment a new claim is being written.
 
+  A third correction went with them. Measured over the package's Python documents, 48 of
+  186 citations sat in a module docstring and 11 in a section other than the one their
+  entry pins — a habit the guidance was teaching: the placement section framed the choice
+  as a cost trade with drift on one side, and drift was the only quantified thing in it.
+  It now says the citation goes inside the section its entry pins, that the flags this
+  causes are the mechanism working, and that a module docstring is for a claim about the
+  file as a whole. Two mechanical traps are named with it: a comment above `NAME = ...`
+  belongs to whatever is defined before it, so a citation there sits outside the span it
+  looks adjacent to; and `pin-guard.sh` was telling sessions the pre-commit hook would
+  refuse a drifted pin, which it does not — `moved` is a flag and exits 0. Saying so
+  taught that drift is a block to clear rather than a report to act on.
+
   Two rules were added to all of them at once. **An entry that is owed is written in the
   pass that owes it** — prose that promises something and cites nothing passes every
   check, so nothing comes back for a deferred entry, and the citation sits inside the span

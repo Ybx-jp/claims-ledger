@@ -79,7 +79,9 @@ if [ -n "$finding" ] && ! printf '%s' "$finding" | grep -q '0 failure(s), 0 flag
 
 $finding
 
-A pin is what holds the prose to the artifact under it. Repair it in this session rather than at \`git commit\`, where the pre-commit hook refuses anyway. The \`repair-a-drifted-pin\` skill has the findings and what discharges each — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Verdicts append and only append: a ground edited or a verdict removed is caught against history on the next run."
+A pin is what holds the prose to the artifact under it. Read the finding before deciding anything: \`has moved\` and \`unstable pin\` are FLAGS and exit 0, so the pre-commit hook does not refuse them and this is a report to act on rather than a block to clear; \`withdrawn\` and \`unknown\` are failures and the hook does refuse those. Either way the moment to answer it is now, while the edit is in hand and the artifact is still in front of you.
+
+A flag is not a penalty and not a thing to design around. Drift is this ledger noticing that something a claim rests on has changed, which is what it is for; where the claim is untouched, the answer is a re-read verdict and takes a minute. The \`repair-a-drifted-pin\` skill has each finding and what discharges it. Verdicts append and only append: a ground edited or a verdict removed is caught against history on the next run."
     exit 0
   fi
 fi

@@ -7,28 +7,14 @@ mechanically available is the observation that they are *near* each other — th
 pinned span, or a cohort that nests inside another cohort — and near is not the same as
 inconsistent. Only a person can say which.
 
-So this is a lookup and not a checker. It reports nothing, appends nothing and exits 0,
-and `check` does not run it
-(L0162-neighbours-reports-nothing-and-exits-zero, cites-as-live). The same heuristic run
-as a gate over this repository's ledger flags a few hundred pairs to surface the two worth
-reading; a gate at that rate teaches people to ignore it. Asked one entry at a time it
-answers with a handful.
+So this is a lookup and not a checker. The same heuristic run as a gate over this
+repository's ledger names a few hundred pairs to surface the two worth reading; a gate at
+that rate teaches people to ignore it. Asked one entry at a time it answers with a
+handful.
 
-A neighbour is an entry that shares a ground span, or whose cohort nests with this one's
-(L0163-a-neighbour-shares-a-span-or-nests-a-cohort, cites-as-live). Pins are ignored on
-purpose: two entries resting on the same function at different commits are about the same
-function (L0164-a-shared-span-is-compared-without-its-pin, cites-as-live).
-
-Every result says whether the two are already related — an `entry:` ground either way, or
-a supersession — because the pair worth surfacing is the one nobody has read together yet,
-and a pair somebody has already distinguished is not that pair
-(L0165-a-recorded-relation-is-named-so-it-is-not-drawn-twice, cites-as-live). For the pairs
-with no relation recorded, the answer ends with the ground line that would record one,
-written out for each of them
-(L0171-the-lookup-hands-over-the-line-it-would-take, cites-as-live). That is as far as a
-lookup can go without deciding: the line is the same text whichever neighbour it names,
-and whether to write it at all is the judgement this command exists to hand over rather
-than to make.
+Each rule this file holds itself to is stated where it is kept — `find` for what makes a
+neighbour, `span` for the pin it drops, `relation` for the link it reads back, `handover`
+for the line it writes out, and `run` for the fact that it reports nothing at all.
 
 Run:  claims-ledger neighbours <entry id | entry path | ground pointer>
 Always exits 0.
@@ -116,6 +102,10 @@ def find(entries, config, mine, words, subject=None):
     """[(entry, reasons, relation)] — every neighbour, the ones nobody has related first,
     and among those the ones sharing the most spans.
 
+    An entry is a neighbour when it shares an evidence span or when the two cohorts nest,
+    and on no other test
+    (L0163-a-neighbour-shares-a-span-or-nests-a-cohort, cites-as-live).
+
     `subject` is None when the question was asked with a bare ground pointer: there is no
     entry yet, so there is no cohort to nest and no relation to report.
     """
@@ -184,7 +174,12 @@ def handover(unrelated):
 
 def run(ledger, target, entries=None):
     """The lookup, as lines of text — returned rather than printed, so that the one thing
-    that writes to a terminal is the command."""
+    that writes to a terminal is the command.
+
+    No Report is built here and nothing is written: this answers a question rather than
+    holding the ledger to a rule, so it has no failure to report and `check` does not run
+    it (L0162-neighbours-reports-nothing-and-exits-zero, cites-as-live).
+    """
     entries = load_entries(ledger) if entries is None else entries
     subject, mine, words = subject_of(ledger, entries, target)
     found = find(entries, ledger.config, mine, words, subject)

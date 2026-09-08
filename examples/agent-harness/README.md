@@ -18,10 +18,16 @@ what is documented here is what is actually run.
 The five checkers are complete about what they check, and silent about what happens
 before and around a check:
 
-**A drifted pin is found at commit time, not edit time.** The pre-commit hook is the
-right place to *refuse* the commit, and the wrong place to *learn*: by then the edit is
-finished and its author has moved on. `pin-guard.sh` runs `freshness` read-only after an
-edit and reports drift while the edit is still in hand.
+**A drifted pin is found at commit time, not edit time.** By then the edit is finished
+and its author has moved on. `pin-guard.sh` runs `freshness` read-only after an edit and
+reports drift while the edit is still in hand.
+
+For a `moved` ground the hook is not even a backstop. `moved` is a *flag*, so `freshness`
+exits 0 and the pre-commit hook lets the commit through: the finding is real and nothing
+refuses it, which makes edit time the only time anybody reliably meets it. The guard used
+to say the hook would refuse anyway; it does not, and saying so taught the wrong lesson
+twice over — that drift is a block to clear rather than a report to act on, and that
+something downstream would catch it.
 
 **Nothing notices prose that should have been an entry.** `references` checks citations
 that were written; a sentence asserting a commitment and citing nothing passes every
