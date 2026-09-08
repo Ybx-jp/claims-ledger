@@ -1,9 +1,9 @@
 # Working in this repository
 
-This package holds a ledger of the claims about *itself*. Eight entries under `ledger/`
-are pinned to the code that keeps them true and cited from the README sentence and the
-docstring that state the same commitment in prose. `claims-ledger check` runs in the
-pre-commit hook and again in CI.
+This package holds a ledger of the claims about *itself*. Nine entries under `ledger/` —
+eight live and one superseded — pinned to the code that keeps them true and cited from the
+README sentence and the docstring that state the same commitment in prose.
+`claims-ledger check` runs in the pre-commit hook and again in CI.
 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
 commits — the history-rewrite hazard, the two-commit shape for landing an entry, and the
@@ -20,7 +20,8 @@ for that guard are committed beside it in `merge-guard.cases`; run
 `bash examples/agent-harness/merge-guard-test.sh` after touching either.
 
 The reason is in `docs/OPERATING.md`. The short of it: the entries pin commit
-`4023af40`, and a rewrite that drops it costs eight supersessions.
+`4023af40` (L0009 pins `7b1f3414`), and a rewrite that drops one costs a supersession
+per entry pinned into it.
 
 ## What the checkers read here
 

@@ -555,6 +555,18 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
   reach.
 
+### The self-hosted ledger
+
+- **L0008 is superseded by L0009.** Its pinned section, `freshness.py § "scoped"`, is the
+  one the finding-2 fix rewrites, so the ground moved and the claim had to be
+  re-established rather than re-pinned — `docs/OPERATING.md` says why a pin cannot be
+  edited. The successor states the same rule and the case the fix added: a side that could
+  not be read at all is a comparison that did not happen, not drift. Its `verbatim_change`
+  says what moved in the verbatim record. The two citations, in `docs/FRESHNESS.md` and in
+  the docstring the claim is about, moved with it. This is the first supersession in this
+  package's own ledger, and it cost what the manual says it costs: one entry, one verdict,
+  two moved citations, and two commits.
+
 ### Fixed by the architecture audit
 
 - **An artifact nobody can read is a comparison that did not happen, not a ground that
