@@ -1,8 +1,11 @@
 """Every entry in the ledger is well-formed: schema, verbatim fingerprint, grade–grounds
 consistency, a hypothesis's motivating entries and falsifier, verdict legality,
 supersession both ways, and — when the ledger is in a git repository — immutability of
-the region above the APPEND marker and append-only verdicts, checked over the whole
-history so a commit that bypassed the hook is caught by the next run anywhere.
+the region above the APPEND marker
+(L0083-the-frozen-region-is-compared-against-the-creating-commit, cites-as-live) and
+append-only verdicts, checked over the whole history so a commit that bypassed the hook
+is caught by the next run anywhere
+(L0082-verdicts-append-and-only-append-across-every-edge, cites-as-live).
 
 Run:  claims-ledger validate [--cached]
       --cached reads staged entries from the index instead of the working tree.
@@ -66,7 +69,13 @@ def is_absence_claim(text):
     """The heuristic stated in corpus/README.md: standalone trigger words, the phrases
     `no one` and `not found`, or `no` followed within the sentence by has/have/was/were/
     report/reports. Words are whitespace-delimited with edge punctuation stripped, so
-    `no-refresh` is a name and contains no `no`."""
+    `no-refresh` is a name and contains no `no`.
+
+    What it decides is whether the entry owes a `search:` ground: a claim that something
+    is absent, or that this project got somewhere before anyone else, rests on having
+    looked rather than on having built
+    (L0088-an-absence-claim-needs-a-search-ground, cites-as-live).
+    """
     for sentence in re.split(r"(?<=[.;!?])\s+", text):
         words = [w.strip(".,;:!?()\"'“”").lower() for w in sentence.split()]
         words = [w for w in words if w]
@@ -83,6 +92,14 @@ def is_absence_claim(text):
 
 
 def check_frontmatter(e, entries, config):
+    """The frontmatter against the schema: id, kind, timestamp, author, grade,
+    supersedes and the fingerprint.
+
+    `credence` and `resolves_when` belong to a prediction and a hypothesis, are required
+    of both, and are refused on a claim rather than defaulted onto one: a credence nobody
+    stated is a number the ledger would go on to report as if somebody had
+    (L0097-credence-and-resolves-when-are-omitted-rather-than-guessed, cites-as-live).
+    """
     out = []
     fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     f = e.front
@@ -152,6 +169,24 @@ def check_frontmatter(e, entries, config):
 
 
 def check_sections(e, config):
+    """The body against the schema: the sections and their order, the marker, and what
+    each section is allowed to contain.
+
+    The Assertion carries no quotation marks: source words live in Backing, where they
+    are checked against the source that supplied them, and a quotation in the Assertion
+    is a claim wearing evidence it never had to resolve
+    (L0090-an-assertion-carries-no-quotation-marks, cites-as-live).
+
+    Grade and grounds are held to each other in both directions — a measured grade or
+    better requires an evidence ground, and an asserted grade forbids one, because an
+    observation is measured (L0089-measured-requires-evidence-and-asserted-forbids-it,
+    cites-as-live).
+
+    A hypothesis carries two things a claim does not: the entries motivating it, and a
+    Warrant saying what would falsify it. Without either it is a bet the roster can
+    display and nothing can settle
+    (L0091-a-hypothesis-names-its-motivations-and-its-falsifier, cites-as-live).
+    """
     out = []
     fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     expected = list(SECTIONS) + list(TAIL_SECTIONS)
@@ -258,6 +293,34 @@ def check_sections(e, config):
 
 
 def check_verdicts(e, entries, config):
+    """Every verdict on one entry: shape, authorship, ordering, and what may follow what.
+
+    A verdict under the propagation author has to be one of the two shapes the machinery
+    writes — propagate's, naming the entry whose fall or challenge caused the flag, and
+    freshness's, naming the pinned ground that moved. Anything else under that name is a
+    person borrowing the authority of a check that did not run
+    (L0092-a-machine-authored-verdict-has-one-of-two-shapes, cites-as-live). The
+    `artifact:` line those verdicts carry is checked here, of every verdict and in every
+    state, because the checker that holds it to the ledger asks only once the ground
+    looks fresh again (L0093-a-propagated-verdicts-artifact-is-checked-in-every-state,
+    cites-as-live).
+
+    A corroborating verdict has to point somewhere the entry's Grounds do not already,
+    which is what makes it the record of a reading rather than a restatement of what was
+    already cited (L0094-a-corroborating-verdict-points-somewhere-new, cites-as-live).
+
+    Supersession is a chain and not a tree: one superseded verdict per entry, naming a
+    successor whose own `supersedes:` names it back
+    (L0095-supersession-is-a-chain-and-not-a-tree, cites-as-live). Nothing follows a
+    terminal verdict, with one exception — a `superseded` after a `refuted` or a
+    `non-comparable`, which is how a fallen entry is reinstated by a successor rather
+    than edited back to life
+    (L0096-nothing-follows-a-terminal-verdict-except-one-reinstatement, cites-as-live).
+
+    Timestamps do not decrease down the file and none precedes the entry's own `stated`,
+    so the order the verdicts are read in is the order they happened in
+    (L0098-verdict-timestamps-do-not-decrease, cites-as-live).
+    """
     out = []
     fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     flag = lambda part, msg: out.append(Report("flag", e.prefix, part, msg))  # noqa: E731
@@ -430,7 +493,9 @@ def check_verdicts(e, entries, config):
 
 def check_supersession(e, entries):
     """The successor's side of a chain: its predecessor carries the final verdict naming
-    it, and the verbatim record is unchanged unless verbatim_change says why."""
+    it, and the verbatim record is unchanged unless verbatim_change says why. Both
+    directions are checked, so a successor that forks the chain is caught from whichever
+    end is read (L0095-supersession-is-a-chain-and-not-a-tree, cites-as-live)."""
     out = []
     sup = e.front.get("supersedes")
     if not sup or sup == "none" or sup not in entries:
@@ -485,7 +550,8 @@ def _frozen_region(text):
     frozen: a section runs from its own heading to the next, so every byte before the
     first heading belongs to no section and left the parsed comparison untouched. The
     scaffold leaves that region empty, which is what made it a hiding place — nothing
-    legitimate is ever written there, so nothing legitimate ever changes there.
+    legitimate is ever written there, so nothing legitimate ever changes there
+    (L0080-the-frozen-region-includes-the-bytes-no-section-owns, cites-as-live).
     """
     head, marker, _ = text.partition(APPEND)
     return head if marker else None
@@ -502,7 +568,13 @@ def _read_bytes(path):
 
 
 def _frozen_bytes(data):
-    """The frozen region of an entry as raw bytes, or None when there is no marker."""
+    """The frozen region of an entry as raw bytes, or None when there is no marker.
+
+    Raw, because every other comparison in this file reads both sides as text through
+    universal newlines, and a frozen region rewritten from CRLF to LF compares equal to
+    itself while every byte of it has changed. Immutable means the bytes
+    (L0079-the-frozen-region-is-compared-as-bytes-and-not-only-as-text, cites-as-live).
+    """
     if data is None:
         return None
     head, marker, _ = data.partition(APPEND.encode("utf-8"))
@@ -510,7 +582,9 @@ def _frozen_bytes(data):
 
 
 def _unread_verdicts(e, rel, at, why):
-    """A revision the append-only check could not read is reported, never waived."""
+    """A revision the append-only check could not read is reported, never waived
+    (L0081-a-revision-that-could-not-be-read-is-reported-and-never-waived,
+    cites-as-live)."""
     return Report(
         "fail",
         e.prefix,
@@ -525,11 +599,16 @@ def check_history(ledger, entries, cached=False):
     equals the blob at the commit that created the file, and across every consecutive
     pair of revisions the verdict blocks only ever grow.
 
+    The comparison is against the blob at the commit that created the file, so what an
+    entry has to match is what it was committed as and not what it was last edited to
+    (L0083-the-frozen-region-is-compared-against-the-creating-commit, cites-as-live).
+
     Three git processes for the whole ledger — one to ask whether anything is committed,
     one walk of the history under the entries directory, one `cat-file --batch` for every
-    blob the walk named — rather than two plus one per revision for each entry. The walk
-    is the part that scaled worst: `git log -- <path>` visits every commit however few
-    touched the path, so the old per-entry loop cost the product of entries and commits.
+    blob the walk named — rather than two plus one per revision for each entry
+    (L0084-the-whole-history-costs-three-git-processes, cites-as-live). The walk is the
+    part that scaled worst: `git log -- <path>` visits every commit however few touched
+    the path, so the old per-entry loop cost the product of entries and commits.
     """
     out = []
     if not ledger.repo:
@@ -538,7 +617,9 @@ def check_history(ledger, entries, cached=False):
         # it has a history and this run is not reading it. `resolve` and `freshness`
         # already report a check they could not make; this one returned an empty list,
         # so `validate` alone answered `0 failure(s)` over a frozen region a commit was
-        # holding. (ARCH-AUDIT.md, finding 3.)
+        # holding.
+        # (L0085-a-ledger-inside-another-repository-is-unchecked-and-not-clean, cites-as-live)
+        # (ARCH-AUDIT.md, finding 3.)
         holder, why = enclosing_repository(ledger.config.root, ledger.entries_dir)
         problem = why or (
             f"the entries are inside the git repository at {holder}, which this ledger is "
@@ -563,7 +644,8 @@ def check_history(ledger, entries, cached=False):
     # `git log` exits non-zero over a repository with no commits in it at all, which is
     # the ordinary state of a ledger being scaffolded and is not a failure to report. It
     # is also how a repository that cannot be read fails, so the two are separated once,
-    # here, rather than collapsed into the empty revision list they both produce.
+    # here, rather than collapsed into the empty revision list they both produce
+    # (L0086-an-empty-repository-is-told-apart-from-an-unreadable-one, cites-as-live).
     committed_anything = git_call(repo, "rev-parse", "--verify", "--quiet", "HEAD").ok
     rels = [(e, os.path.relpath(e.path, repo)) for e in entries]
     # No --follow: it runs rename detection against every file in the parent, so a
@@ -571,6 +653,7 @@ def check_history(ledger, entries, cached=False):
     # reported as "renamed" from it, and the creating commit comes back as one where
     # this file did not exist (corpus K18). An entry is never renamed: its id is its
     # filename.
+    # (L0087-rename-detection-is-off-because-an-entry-is-never-renamed, cites-as-live)
     history, why = git_history(repo, os.path.relpath(ledger.entries_dir, repo))
     if history is None:
         if committed_anything:
