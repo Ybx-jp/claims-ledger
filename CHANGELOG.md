@@ -638,6 +638,18 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   for a reason the claim did not care about, and both pinned a *caller* — the code that
   follows the rule — rather than the code carrying it. Recorded in `ARCH-AUDIT.md` as
   something to weigh, not as a defect in the tool.
+- **A section pattern can name one key of a TOML table, and L0002 is superseded by L0011
+  on that ground.** `toml` names a table, which was the finest ground available for a
+  claim about two settings: L0002 asserted no runtime dependencies and a 3.11 floor and
+  rested on the whole 31-line `[project]` table, so adding a classifier or editing the
+  description moved a claim about `dependencies`. Measured on this file: `[project]` 31
+  lines, `dependencies` 3, `requires-python` 1. The successor's `verbatim_sha` is
+  byte-identical to its predecessor's, which is the record saying the claim did not move
+  and only its ground narrowed. The three lines rather than one are a boundary artefact
+  and are stated rather than hidden: one pattern decides both ends of a section, so the
+  span runs to the next key assignment and takes the `[project.optional-dependencies]`
+  header with it — one line of exposure where there were thirty, and arguably the right
+  line, since it is where the runtime dependencies end.
 
 ### Changed by the architecture audit
 

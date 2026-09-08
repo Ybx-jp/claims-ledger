@@ -1,7 +1,7 @@
 # Working in this repository
 
-This package holds a ledger of the claims about *itself*. Ten entries under `ledger/` —
-eight live and two superseded — pinned to the code that keeps them true and cited from the
+This package holds a ledger of the claims about *itself*. Eleven entries under `ledger/`
+— eight live and three superseded — pinned to the code that keeps them true and cited from the
 README sentence and the docstring that state the same commitment in prose.
 `claims-ledger check` runs in the pre-commit hook and again in CI.
 

@@ -187,6 +187,31 @@ The findings are ranked by consequence, not by effort to fix.
 > caller goes stale for every edit to that caller, whatever it was for. Worth weighing
 > against `docs/OPERATING.md`'s own advice to pin narrowly, which this obeys in letter.
 >
+> **The pin-width exposure, measured and half repaired.** The observation above was
+> checked against every live ground rather than left as a pair of anecdotes. Line counts
+> of the pinned sections, against the claims resting on them:
+>
+> | lines | ground | what the claim is about |
+> |---|---|---|
+> | 66 | `config.py § from_table` | one rule: an unknown key is refused |
+> | 47 | `authoring.py § restamp` | the refusal, which is most of the function |
+> | 31 | `pyproject.toml § [project]` | two keys |
+> | 29 | `cli.py § HOOK_TEMPLATE` | the shebang and `-m` |
+> | 9 | `cli.py § cmd_validate` | nothing; it is a caller |
+>
+> One of these is now repaired: a `toml-key` section pattern names a single key, and
+> L0011 supersedes L0002 on `dependencies` (3 lines) and `requires-python` (1) rather
+> than the table (31). The successor's `verbatim_sha` is byte-identical, which is the
+> record saying the claim did not move and only its ground narrowed.
+>
+> The others are open, and two of them cannot be closed the same way. `HOOK_TEMPLATE` is
+> a string literal, so a line-anchored pattern cannot reach inside it — and a ninth-pass
+> finding already says the ~20 lines of audit commentary in it should be deleted, which
+> will move L0001. `from_table` and `restamp` would need a pattern matching something
+> narrower than a top-level `def`, which is exactly what the `code` pattern's docstring
+> warns against anchoring loosely. `cmd_validate` is not a width problem at all: it is a
+> caller, pinned to evidence a cohort clause, and no pattern makes a caller stop changing.
+>
 > Not done, and named rather than left implicit: the pre-commit hook still runs the five
 > checkers as five interpreter processes. One process would need the hook to call a single
 > entry point, which is a change to what is installed in every generated repository and to

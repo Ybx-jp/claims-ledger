@@ -37,7 +37,9 @@ The project table carries an empty dependencies array and requires-python at 3.1
   artifact: 234538ea4cc75af521d309063aac8535d24e7bcb
   note: propagated from a moved ground
 
+- 2026-09-07T21:14:00-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0011-no-runtime-dependencies · supersedes
+  note: the ground was the whole project table; the successor pins the two keys the claim is about
+
 ## References
 
-- README.md · standing · cites-as-live
-- pyproject.toml · standing · cites-as-live

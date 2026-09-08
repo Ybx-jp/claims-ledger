@@ -276,6 +276,12 @@ evidence-plain = ["experiment"]
 [tool.claims-ledger.section-patterns]
 code = '^(?:def|class)[ \t]+{name}\b'
 
+# A pattern is how narrow a ground can be, and narrowness is what keeps a claim from
+# going stale for a reason it does not care about. A claim about one setting should not
+# rest on the table holding it:
+#   toml     = '^\[{name}\]'    # the whole table
+#   toml-key = '^{name} = '      # one key of it
+
 verdict-authors = ["main", "propagation"]
 propagation-author = "propagation"   # the name machinery writes under
 
