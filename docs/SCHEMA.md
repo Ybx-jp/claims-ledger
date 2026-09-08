@@ -255,9 +255,9 @@ and the flag is reported until a human re-verdicts. A `challenges` act whose tar
 verdict, or whose target is fallen, is a failure, and so is a propagated verdict whose
 named cause does not exist. A dependent flagged because its live-cited ground fell
 cannot return to `corroborated`: its Grounds are immutable and still cite the fallen
-entry, so the reference check keeps failing until it is superseded; once it has fallen
-itself, its Grounds are history, exempt from the act check, and it needs no further
-flag, since a verdict after a terminal status is illegal.
+entry, so the reference check keeps failing until it is superseded; once its own status is
+terminal — fallen, or `non-comparable` — its Grounds are history, exempt from the act
+check, and it needs no further flag, since a verdict after a terminal status is illegal.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/propagation-dark.svg">

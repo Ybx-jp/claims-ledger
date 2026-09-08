@@ -14,9 +14,9 @@ against a fallen target is reported as illegal and nothing is appended
 propagated verdict whose stated cause does not exist — no such challenger, no such fall
 — is an orphan and fails
 (L0013-a-propagated-verdict-names-a-cause-that-happened, cites-as-live). A dependent
-that has itself fallen needs no flag: a verdict after a terminal status is illegal, and
-its successor is walked
-(L0020-a-dependent-that-has-fallen-is-not-flagged, cites-as-live).
+whose own status is terminal needs no flag: a verdict after a terminal status is
+illegal, and its successor is walked
+(L0155-a-terminal-dependent-is-not-flagged, cites-as-live).
 
 Run:  claims-ledger propagate [--write]
       Without --write nothing is modified
@@ -197,10 +197,16 @@ def run(ledger, write=False, entries=None):
             if p is None or p.type != "entry" or p.target not in index:
                 continue
             target = index[p.target]
-            if status[e.id] in FALLEN and p.act == "cites-as-live":
-                # A dependent that has itself fallen needs no flag: its status is
-                # terminal, a verdict after it is illegal, and its successor is what
-                # is walked.
+            if status[e.id] in TERMINAL and p.act == "cites-as-live":
+                # A dependent whose own status is terminal needs no flag: a verdict after
+                # it is illegal, and its successor is what is walked. The test is
+                # `TERMINAL` and not `FALLEN`: a `non-comparable` dependent is terminal
+                # without having fallen, and flagging it demanded a verdict `validate`
+                # then refused as one following a terminal verdict — `propagate --write`
+                # wrote what `validate` rejects, and neither run could be made to pass.
+                # The target side below stays `FALLEN`: what propagates is a ground that
+                # fell, while what exempts is this entry's own terminality
+                # (L0155-a-terminal-dependent-is-not-flagged, cites-as-live).
                 continue
             if p.act == "cites-as-live" and status[target.id] in FALLEN:
                 if not has_propagated(e, target.id, "fallen", author):

@@ -342,6 +342,7 @@ the record of what else there is still to check.
 | open hypothesis without a roster row | D43, K15 | catch |
 | roster status cell stale | D44 | catch |
 | fallen citer held to its immutable acts, or flagged after a terminal status | K16, K17 | pass — a fallen entry's Grounds are history |
+| terminal citer that has not fallen, held to its acts or flagged | K24 | pass — what freezes the Grounds is terminality, and `non-comparable` is terminal without being a fall |
 | creating commit misread by rename detection when a successor copies a kept predecessor | K18 | pass — the creating commit is the one that added the file |
 | a pinned ground moved after the claim rested on it | D45, K19, K23 | flag — the claim may or may not survive it, and a human decides |
 | a pinned ground withdrawn from the tree | D46 | catch |
@@ -370,9 +371,11 @@ fell, with and without the propagated flag), K18 (a successor written as a near-
 a predecessor that stays in the tree, committed together with the predecessor's
 `superseded` verdict), K19 (a commit that touched nothing the claim rests on), K20 (a
 drift the propagation author has acknowledged), K21 (a fallen entry whose ground drifted),
-K22 (an unpinned ground), K23 (an edit outside the section a claim rests on). K01–K03,
-K09, K15–K18 and K19–K23 test the schema's own rules and encode no claim from the canon;
-the others each stand for one.
+K22 (an unpinned ground), K23 (an edit outside the section a claim rests on), K24 (a
+`non-comparable` dependent citing a ground that fell — terminal without having fallen,
+where `references` once held it to an act it could not edit and `propagate` once demanded
+a verdict `validate` refuses). K01–K03, K09, K15–K18 and K19–K24 test the schema's own
+rules and encode no claim from the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon
 

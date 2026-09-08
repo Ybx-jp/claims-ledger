@@ -760,6 +760,28 @@ assertion over them was `0 failure(s)`, which an inert rule satisfies.
   more, which is what `CITATION_RE` already tolerated, because the rule reads prose and an
   id written a digit wide of the schema is still a citation of the archive.
 
+### Fixed by a consistency review of the ledger's own entries
+
+The review read all 153 entries against each other rather than against the code, looking
+for pairs that disagree. It found one, and the disagreement was a real defect: two entries
+stating the same exemption with two different status sets, neither citing the other, so no
+checker could see the gap between them.
+
+- **A dependent's own terminality, not its fallenness, exempts it.** `references` and
+  `propagate` both tested an entry's own status against `FALLEN` — `refuted`, `superseded`,
+  `retracted` — where the rule they were implementing is about *terminal* status, which also
+  includes `non-comparable`. For an entry that is `non-comparable` and cites a ground that
+  has since fallen, `references` reported an act it is impossible to repair (the Grounds sit
+  in the frozen region) and `propagate` demanded a contested verdict that `validate` refuses
+  as one following a terminal verdict — so `propagate --write` wrote exactly what `validate`
+  rejects, and `check` could not be made to pass in either direction. `check` runs in the
+  pre-commit hook and in CI, so one such entry wedged the repository. Both tests are now
+  `TERMINAL`, matching `freshness`, which already drew the line there. The target side of
+  each rule stays `FALLEN`: what propagates is a ground that fell, and what exempts is the
+  entry's own terminality. New known-good seed `K24-non-comparable-dependent-needs-no-flag`;
+  no existing seed's expected outcome moved. Superseded L0020 and L0043, whose Scope named
+  the narrower set.
+
 ### Release
 
 - Every action in both workflows is pinned to a commit, including

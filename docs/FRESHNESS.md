@@ -348,9 +348,11 @@ discharged verdict.
 
 ## What is exempt, and why
 
-**Fallen entries.** An entry that is refuted, superseded, retracted or non-comparable is
+**Terminal entries.** An entry that is refuted, superseded, retracted or non-comparable is
 history. Its Grounds record what it was established on, not what anyone should now
-believe, and `references` already exempts fallen entries for the same reason.
+believe, and `references` and `propagate` draw the same line at the same place, for the
+same reason: no verdict may follow a terminal status, and the Grounds are frozen, so
+there is nothing a report against one could ask anybody to repair.
 
 **Verdict evidence.** A verdict is a dated act — *on this evidence, on this day, I judged
 it so*. Its evidence pointer is frozen by construction. Only Grounds are checked.

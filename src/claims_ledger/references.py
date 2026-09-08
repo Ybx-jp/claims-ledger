@@ -6,10 +6,10 @@ corroborated, `cites-as-contested` needs contested, `challenges` needs open,
 corroborated or contested, `cites-as-fallen` accepts any status and is the only act
 legal against a fallen one
 (L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The filter
-a reader must apply every time is applied for them here. An entry that has itself fallen
-is exempt: its Grounds are immutable history, and a dependent whose live-cited ground
-fell is superseded rather than repaired
-(L0043-a-fallen-entrys-grounds-are-immutable-history, cites-as-live).
+a reader must apply every time is applied for them here. An entry whose own status is
+terminal is exempt: its Grounds are immutable history, no further verdict may be
+appended to it, and a dependent whose live-cited ground fell is superseded rather than
+repaired (L0154-a-terminal-entrys-grounds-are-immutable-history, cites-as-live).
 
 Document to entry: a document cites an entry inline as `(A0007-<slug>, cites-as-live)`.
 Every cited id exists, the act is compatible with the target's status, and the entry's
@@ -42,7 +42,6 @@ import os
 from .schema import (
     ACT_ALLOWS,
     CITATION_RE,
-    FALLEN,
     TERMINAL,
     Report,
     archived_id_re,
@@ -145,11 +144,14 @@ def run(ledger, entries=None):
     reports = []
 
     for e in entries:
-        if status[e.id] in FALLEN:
-            # A fallen entry's Grounds are immutable and are history: a dependent whose
+        if status[e.id] in TERMINAL:
+            # A terminal entry's Grounds are immutable and are history: a dependent whose
             # live-cited ground fell is superseded, and the successor's acts are what is
-            # held to the targets' current statuses
-            # (L0043-a-fallen-entrys-grounds-are-immutable-history, cites-as-live).
+            # held to the targets' current statuses. The line is terminality and not
+            # `FALLEN`, because what makes the act unrepairable is that no verdict may
+            # follow — true of `non-comparable` as much as of a fall — while the Grounds
+            # sit in the frozen region and cannot be edited either
+            # (L0154-a-terminal-entrys-grounds-are-immutable-history, cites-as-live).
             continue
         for _raw, p in e.grounds:
             if p is None or p.type != "entry" or p.act not in ACT_ALLOWS:
