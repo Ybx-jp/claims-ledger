@@ -69,6 +69,54 @@ The findings are ranked by consequence, not by effort to fix.
 > passed, 2 xfailed, 79/79 seeds, ruff and ty clean. Superseding L0008 is part of this
 > branch: its pinned section is `freshness.py § "scoped"`, which the fix rewrites.
 
+> **The fix-review gate on findings 2, 3 and 6** (`qe`, ticket `88bb70784a8746da`)
+> returned **do not merge**, with three HIGHs, all against the finding-3 half. Fixed on
+> the branch before merge, each re-measured:
+>
+> - **QE11-1.** `enclosing_repository` asked "is there a work tree above me", not "is
+>   there a history nobody read". The corpus stages seeds through `tempfile`, so a
+>   `TMPDIR` inside any repository took it from 79/79 to **18/79** and the suite to 146
+>   failures — and `claims-ledger init` in any repository subdirectory, with zero entries,
+>   exited 1. The predicate is now `git log -1 -- <entries>` in the nearest `.git`-bearing
+>   ancestor: a directory that merely sits under a work tree, untracked, has no history.
+>   Re-measured: 79/79 both ways, and the negative case has a test.
+> - **QE11-2.** A failed `rev-parse` was read as "there is no repository", which put back
+>   the exact false pass this branch removes: with an enclosing repository git refuses to
+>   open — `detected dubious ownership` is the everyday one — `sha --write` rewrote a
+>   committed entry's frozen region and exited 0 again. It returns `(holder, why)` now and
+>   both callers report the `why`.
+> - **QE11-3.** `git rev-parse --show-toplevel` with `GIT_DIR` set answers with the
+>   directory it was run in, so a ledger with no repository anywhere reported *itself* as
+>   the repository holding it — and every git hook exports `GIT_DIR`. The walk is the
+>   filesystem's now: `.git` above the root, no git process for a project that is not
+>   under version control, a strict ancestor by construction.
+> - **QE11-4, MED-HIGH.** `in_this_run` was `path.is_file()`, which raises PermissionError
+>   out of pathlib on 3.12 when the artifact's *directory* is unsearchable — `freshness`
+>   exit 2 printing nothing, `check` silently omitting it — and on 3.13 swallows the EACCES
+>   for a confident false `withdrawn`. `os.stat` is asked directly and the three states are
+>   three answers.
+> - **QE11-5, MED.** The classification read the file twice, at +319 MB peak RSS on a
+>   300 MB artifact and with a race between the reads. `read_artifact` does it in one; the
+>   plain-pin branch, which never wants the text, probes one byte.
+> - **QE11-6, MED.** `docs/FRESHNESS.md` step 5 still said any diff output means `moved`.
+>   Corrected for both halves. **Open:** the plain-pin half is claimed by no entry — L0009's
+>   cohort is sectioned grounds — so that behaviour is documented and unledgered.
+> - **QE11-7, LOW, open.** Both mode-000 guards skip under root, so a contributor in a
+>   default container gets a green suite with this branch's headline guards unrun.
+> - **QE11-9, LOW, standing.** The supersession record survives attack — `contested` was
+>   right, `refuted` would have been wrong — with two nits now uncorrectable because they
+>   are in append-only regions: L0009's `verbatim_change` says "Backing is unchanged",
+>   true of the fingerprint and false of the section bytes (`'\n\n\n'` → `'\nnone\n\n\n\n'`),
+>   and the Warrant changed without being named. `validate.py` checks that
+>   `verbatim_change` is present, never what it says.
+>
+> **One environment-dependent test, pre-existing and not from this branch.**
+> `test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit` builds a directory it
+> calls `not-a-repository` and asserts git fails there; with `TMPDIR` inside a checkout it
+> is inside a repository and the precondition is false. Same class as the CI flake in
+> `test_e2_…`, whose precondition deletes a loose object and asserts `git log` then fails.
+> Both belong to finding 7: a test whose verdict depends on where it was launched from.
+
 ---
 
 ## Verdict

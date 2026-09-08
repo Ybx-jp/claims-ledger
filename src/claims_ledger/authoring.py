@@ -238,13 +238,19 @@ def is_committed(repo, path):
         # anywhere. A ledger inside somebody else's repository has a history, and this
         # returning `not committed` is what let `sha --write` rewrite the frozen region of
         # an entry that repository had already committed. (ARCH-AUDIT.md, finding 3.)
-        holder = enclosing_repository(Path(path).parent)
+        #
+        # Answered against that repository rather than refused over it: an entry path is a
+        # path in the tree, not an evidence pointer read out of a pin, so nothing here
+        # needs the rebasing that adopting the repository wholesale would.
+        # Walked from the entry's own directory: this asks about a file, and the
+        # directory holding it is the honest place to start. Handing the ledger root
+        # down instead would have edited `restamp`, which L0007 pins.
+        holder, why = enclosing_repository(Path(path).parent, Path(path).parent)
+        if why is not None:
+            return None, why
         if holder is None:
             return False, None
-        return (
-            None,
-            f"the entry is inside the git repository at {holder}, which this ledger is not reading",
-        )
+        repo = holder
     try:
         rel = Path(path).resolve().relative_to(Path(repo).resolve())
     except ValueError:

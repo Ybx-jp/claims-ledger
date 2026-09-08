@@ -130,11 +130,15 @@ not in `UNPINNED`, and whose entry's status is not terminal:
    matching whatever the rest of the run is reading. Absent means **withdrawn**.
 4. `git diff --name-only <pin> -- :(literal)<path>`, with `--cached` when the run is
    reading the index. Empty output means fresh, and the checker says nothing.
-5. Any output means **moved** — or, for a `§ "<section>"` pointer, the two texts are read
-   and only the named section is compared, so an edit elsewhere in the artifact is not this
-   ground's drift, and a side that could not be read at all is **unknown** rather than
-   moved (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live). Only
-   now, and only for the message, run
+5. Any output means **moved** — unless the artifact's bytes cannot be reached at all, in
+   which case it is **unknown**: git lists a file it cannot open as modified, and a
+   comparison nobody could make is never a finding about the claim. For a
+   `§ "<section>"` pointer the two texts are read and only the named section is compared,
+   so an edit elsewhere in the artifact is not this ground's drift, and there too a side
+   that could not be read at all is **unknown** rather than moved
+   (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live). Bytes
+   that are *there* and are not UTF-8 stay **moved**: that artifact did change, and it
+   simply cannot be narrowed to a section. Only now, and only for the message, run
    `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count.
 
 **Built — `git diff`, and not the blob identity this specification first described.** An

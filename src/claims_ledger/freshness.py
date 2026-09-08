@@ -33,6 +33,8 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
 
 from __future__ import annotations
 
+import os
+import stat
 from datetime import datetime
 
 from .propagate import append_verdict, grouped
@@ -47,9 +49,9 @@ from .schema import (
     git_call,
     git_problem,
     load_entries,
-    read_document,
+    read_artifact,
     section_text,
-    unreadable_artifact,
+    unreachable_artifact,
 )
 
 
@@ -236,16 +238,33 @@ def now_text(repo, pointer, path, cached):
         if answer.ok:
             return answer.out, None
         return None, f"git could not read `{pointer.target}` from the index: {answer.why}"
-    text, _ = read_document(path)
-    return (text, None) if text is not None else (None, unreadable_artifact(path))
+    return read_artifact(path)
 
 
 def in_this_run(repo, pointer, path, cached):
-    """Whether the artifact is still there to be read — in the index under `--cached`,
-    and in the working tree otherwise."""
+    """(whether the artifact is still there to be read, why that could not be
+    established) — in the index under `--cached`, and in the working tree otherwise.
+
+    `path.is_file()` was the whole of it, and it does not have two answers where three are
+    needed. With the artifact's *directory* unsearchable it raises PermissionError out of
+    pathlib on 3.12 — `freshness` exited 2 having printed nothing, and `check` printed
+    four checkers and silently omitted the fifth — while 3.13 swallows the EACCES and
+    answers False, which is a confident `withdrawn` for a file nobody could look at.
+    `os.stat` is asked directly, the way `file_problem` asks it and for the same reason.
+    (ARCH-AUDIT.md finding 2, QE11-4.)
+    """
     if cached:
-        return git_call(repo, "ls-files", "--error-unmatch", "--", literal(pointer.target)).ok
-    return path.is_file()
+        answer = git_call(repo, "ls-files", "--error-unmatch", "--", literal(pointer.target))
+        return answer.ok, None
+    try:
+        info = os.stat(path)
+    except FileNotFoundError:
+        return False, None  # gone, or a symlink to nothing: withdrawn, and that is true
+    except (OSError, ValueError) as exc:
+        return False, f"cannot be reached ({getattr(exc, 'strerror', None) or exc})"
+    # A directory or a FIFO where the artifact was is not an artifact to read either, and
+    # unlike the case above this one is established rather than guessed at.
+    return stat.S_ISREG(info.st_mode), None
 
 
 def scoped(repo, pointer, path, config, cached=False):
@@ -329,7 +348,10 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
         )
         return (out or "").strip()
 
-    if not in_this_run(repo, pointer, path, cached):
+    present, unreachable = in_this_run(repo, pointer, path, cached)
+    if unreachable:
+        return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
+    if not present:
         # Deleted, or replaced by something that is not a file to read. Either way there
         # is nothing left for a person to look at and judge.
         return "withdrawn", since()
@@ -353,7 +375,7 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     # answer — unless the reason git called it changed is that nothing can read it. git
     # reports a file it cannot open as modified, which is the same false confidence one
     # surface out.
-    unreachable = None if cached else unreadable_artifact(path)
+    unreachable = None if cached else unreachable_artifact(path)
     if unreachable:
         return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
     return "moved", since()
@@ -468,7 +490,7 @@ def run(ledger, write=False, cached=False):
             where_it_was = "the index" if cached else "the working tree"
             gone = (
                 f"section {p.section!r} is no longer in `{p.target}`"
-                if p.sectioned and in_this_run(repo, p, repo / p.target, cached)
+                if p.sectioned and in_this_run(repo, p, repo / p.target, cached)[0]
                 else f"`{raw}` is not in {where_it_was}"
             )
             reports.append(

@@ -538,18 +538,23 @@ def check_history(ledger, entries, cached=False):
         # already report a check they could not make; this one returned an empty list,
         # so `validate` alone answered `0 failure(s)` over a frozen region a commit was
         # holding. (ARCH-AUDIT.md, finding 3.)
-        holder = enclosing_repository(ledger.entries_dir)
-        if holder is not None:
+        holder, why = enclosing_repository(ledger.config.root, ledger.entries_dir)
+        problem = why or (
+            f"the entries are inside the git repository at {holder}, which this ledger is "
+            "not reading"
+            if holder is not None
+            else None
+        )
+        if problem is not None:
             out.append(
                 Report(
                     "fail",
                     None,
                     "history",
-                    f"the entries are inside the git repository at {holder}, which this "
-                    "ledger is not reading, so the frozen-region and append-only checks "
-                    "did not run; whether every committed entry still matches the blob it "
-                    "was created with is unknown, not settled. Point --root at the "
-                    "repository root, or at a ledger of its own.",
+                    f"{problem}, so the frozen-region and append-only checks did not run; "
+                    "whether every committed entry still matches the blob it was created "
+                    "with is unknown, not settled. Point --root at the repository root, or "
+                    "at a ledger of its own.",
                 )
             )
         return out

@@ -181,6 +181,27 @@ def test_an_artifact_nobody_can_read_under_a_plain_pin_is_not_a_ground_that_move
     assert "cannot be read" in message
 
 
+@pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
+def test_an_artifact_whose_directory_cannot_be_searched_is_not_a_withdrawn_ground(pinned):
+    """One level above the file: `path.is_file()` was the presence check, and it does not
+    have two answers where three are needed. With `docs/` unsearchable it raises
+    PermissionError out of pathlib on 3.12 — `freshness` exited 2 having printed nothing
+    and `check` printed four checkers and silently omitted the fifth — while 3.13 swallows
+    the EACCES and answers False, which is a confident `withdrawn` for a file nobody could
+    look at. Neither is an answer. (ARCH-AUDIT.md finding 2, QE11-4.)
+    """
+    docs = pinned.root / "docs"
+    os.chmod(docs, 0o000)
+    try:
+        ((outcome, _, message),) = pinned.outcomes()
+    finally:
+        os.chmod(docs, 0o755)
+    assert outcome == "fail", message
+    assert "was not checked" in message
+    assert "cannot be reached" in message
+    assert "gone" not in message
+
+
 def test_an_artifact_that_is_not_text_is_still_a_ground_that_moved(pinned):
     """The other half of the same branch, and the reason `unknown` is not the answer to
     every failed read: bytes that are there and are not UTF-8 are an artifact that really

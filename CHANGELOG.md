@@ -597,6 +597,24 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   because they have real pinned pointers they cannot resolve, which is a different
   question — the finding read that difference as a disagreement.
 
+  The predicate is *history*, not *location*, which took a fix-review gate to establish:
+  a first version asked whether a work tree existed above the ledger, and since the corpus
+  stages its seeds through `tempfile`, a `TMPDIR` inside any repository took the corpus
+  from 79/79 to 18/79. A directory that merely sits under a work tree, untracked, has no
+  history and nothing was skipped. The walk is the filesystem's rather than
+  `git rev-parse --show-toplevel`, because that answers with the directory it was run in
+  when `GIT_DIR` is set — which every git hook exports — and because a project that is
+  not under version control should cost no git process at all. And a git that cannot
+  answer is reported rather than read as "there is no repository", which is the same rule
+  as everywhere else in this checker and was the first version's own worst defect.
+- **An artifact whose directory cannot be searched is not a withdrawn ground.** The
+  presence check was `Path.is_file()`, which raises PermissionError out of pathlib on 3.12
+  — `freshness` exited 2 having printed nothing, and `check` printed four checkers and
+  silently omitted the fifth — while on 3.13 it swallows the EACCES and answers False,
+  which is a confident `withdrawn` for a file nobody could look at. `os.stat` is asked
+  directly, and gone, not-a-regular-file and could-not-be-reached are three answers rather
+  than two.
+
 ### Changed by the architecture audit
 
 One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and

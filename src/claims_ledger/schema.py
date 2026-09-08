@@ -1115,11 +1115,14 @@ class GitAnswer:
         return self.code == 0
 
 
-def git_call(repo, *args):
-    """A git command in `repo`, as a GitAnswer."""
+def git_call(repo, *args, env=None):
+    """A git command in `repo`, as a GitAnswer. `env` replaces this process's environment
+    for the call, for the one caller that has to ask about a directory rather than about
+    whatever `GIT_DIR` names."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), *args],
+            env=env,
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT,
@@ -1314,9 +1317,9 @@ def git_available():
     return shutil.which("git") is not None
 
 
-def enclosing_repository(directory):
-    """The git work tree holding `directory`, or None. Asked only when the ledger has no
-    repository of its own.
+def enclosing_repository(root, entries_dir):
+    """(the repository whose history holds `entries_dir`, why git could not say). Both
+    None when there is no such repository.
 
     `open_ledger` calls a project a repository when `<root>/.git` is there, so a ledger in
     a subdirectory of one — `--root <subdir>`, or a ledger vendored inside a larger
@@ -1324,17 +1327,83 @@ def enclosing_repository(directory):
     "nothing to check" everywhere it matters. Measured on such a ledger: `sha --write`
     rewrote the frozen region of an entry that repository had already committed and exited
     0, and `validate` then reported `0 failure(s)` over it — which is the whole of what
-    L0007 says must not happen.
+    L0007 says must not happen. (ARCH-AUDIT.md, finding 3.)
 
-    Nothing here *adopts* that repository. Every evidence path in the package is written
-    relative to the ledger root, and `git show <pin>:<path>` reads its path from the
-    repository's top, so adopting one would mean rebasing every git path in the package
-    against a different origin. This answers the narrower question the callers need: is
-    there a history that was not looked at? (ARCH-AUDIT.md, finding 3.)
+    Three things this asks that the first version of it did not, each measured as a defect
+    of that version rather than imagined:
+
+    **The question is not "is there a work tree above me".** It is "is there a *history*
+    nobody read", and a directory that merely sits under a work tree, untracked, has none.
+    The corpus stages its seeds through `tempfile`, so a `TMPDIR` inside any repository —
+    a checkout under a dotfiles `$HOME`, a scratch directory in a project — took the
+    corpus from 79/79 to 18/79 and the suite to 146 failures. `git log -1 -- <entries>` is
+    the question, and it separates the untracked seed from the committed ledger cleanly.
+
+    **The walk is the filesystem's, not git's.** `git rev-parse --show-toplevel` with
+    `GIT_DIR` in the environment — which every git hook exports — answers with the
+    directory it was run in, so a ledger with no repository anywhere reported *itself* as
+    the repository holding it. Looking for `.git` above the root asks nothing of the
+    environment, needs no git process for a project that is simply not under version
+    control, and is a strict ancestor by construction. A `.git` file counts: that is how a
+    submodule and a linked work tree name their repository.
+
+    **A git that cannot answer is not a git answering no.** Returning None for a failed
+    call put back the exact false pass this function exists to remove: with an enclosing
+    repository git refuses to open — `detected dubious ownership` is the everyday one —
+    `sha --write` rewrote a committed entry's frozen region and exited 0 again. The reason
+    comes back, and the callers report it.
+
+    Nothing here *adopts* that repository for the evidence pointers. Every evidence path
+    is written relative to the ledger root and `git show <pin>:<path>` reads its path from
+    the repository's top, so adopting one would mean rebasing every git path in the
+    package against a different origin.
     """
-    answer = git_call(directory, "rev-parse", "--show-toplevel")
-    top = answer.out.strip() if answer.ok else ""
-    return Path(top) if top else None
+    root, entries_dir = Path(root).resolve(), Path(entries_dir).resolve()
+    if not entries_dir.is_relative_to(root):
+        # A ledger whose entries are not under its own root — the corpus runner stages
+        # seeds into a scratch directory and points a Config at them — is not asking this
+        # question, and a repository above the root has nothing to say about them.
+        return None, None
+    for parent in root.parents:
+        if not (parent / ".git").exists():
+            continue
+        env = git_env_without_location()
+        # A repository with no commits in it at all fails `git log` the way a repository
+        # nobody can read does, and it is the ordinary state of a project being started
+        # around a ledger. Separated here rather than collapsed into the reason string.
+        head = git_call(parent, "rev-parse", "--verify", "--quiet", "HEAD", env=env)
+        if head.code == 1:
+            return None, None
+        if not head.ok:
+            return None, f"git cannot read the repository at {parent} ({head.why})"
+        rel = os.path.relpath(entries_dir, parent).replace(os.sep, "/")
+        answer = git_call(
+            parent,
+            "log",
+            "-1",
+            "--format=%H",
+            "--",
+            f":(literal){rel}",
+            env=git_env_without_location(),
+        )
+        if not answer.ok:
+            return None, f"git cannot read the repository at {parent} ({answer.why})"
+        # No commit has ever touched these entries in it: untracked, ignored, or freshly
+        # staged into a scratch directory. Nothing was committed and nothing was skipped.
+        return (parent, None) if answer.out.strip() else (None, None)
+    return None, None
+
+
+# The variables that tell git where the repository is. A pre-commit hook exports `GIT_DIR`
+# and `GIT_INDEX_FILE`, and under them a `-C <elsewhere>` is not the question it looks
+# like: `rev-parse --show-toplevel` answers about the hook's repository, not the directory.
+GIT_LOCATION_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE")
+
+
+def git_env_without_location():
+    """The environment with git's location variables removed, for a call that has to ask
+    about the directory it names rather than about whatever set them."""
+    return {k: v for k, v in os.environ.items() if k not in GIT_LOCATION_ENV}
 
 
 def git_problem(repo):
@@ -1486,19 +1555,42 @@ def source_bytes(row, ledger):
         return None, f"bytes for {row['id']} are not UTF-8 text"
 
 
-def unreadable_artifact(path):
-    """Why `path`'s bytes cannot be reached at all, or None — including for a file whose
-    bytes are there and are not UTF-8 text.
+def read_artifact(path):
+    """(text, unreachable) — the artifact as UTF-8 text, and why its bytes could not be
+    reached at all.
 
-    The distinction `read_document` collapses into one `problem` string, separated here
-    because `freshness` has to act on it: a file whose bytes cannot be reached is a
-    comparison that did not happen, and a file whose bytes are not text is an artifact
-    that really did change and cannot be narrowed to a section. `file_problem` cannot
-    tell them apart — `os.stat` succeeds on a mode-000 file, which is the case that
-    matters. (ARCH-AUDIT.md, finding 2; and finding 6, which is this one.)
+    The distinction `read_document` collapses into one `problem` string, made here in one
+    read because `freshness` has to act on it: bytes that are there and are not UTF-8 are
+    an artifact that really did change and cannot be narrowed to a section, and bytes that
+    cannot be reached are a comparison that did not happen. `file_problem` cannot draw
+    that line — `os.stat` succeeds on a mode-000 file, which is the case that matters.
+
+    One read, not two. Asking `read_document` and then reading the file again to classify
+    the failure cost a second full pass over every drifted artifact — measured at +319 MB
+    of peak resident memory on a 300 MB one — and left a race in between where the first
+    read failed, the second succeeded, and the caller fell through to the answer this
+    exists to replace. (ARCH-AUDIT.md finding 2, and finding 6, which is this one.)
     """
     try:
-        Path(path).read_bytes()
+        return Path(path).read_text(encoding="utf-8"), None
+    except UnicodeDecodeError:
+        return None, None
+    except OSError as exc:
+        return None, f"cannot be read ({exc.strerror or exc})"
+
+
+def unreachable_artifact(path):
+    """Why the artifact's bytes cannot be reached at all, or None.
+
+    One byte rather than the file: the caller — the branch for a pin that names no
+    section — never wants the text, only whether a read is possible at all, and git has
+    already told it the path differs. Safe to open only because the caller has established
+    that `path` is a regular file first; on a FIFO this would block a pre-commit hook
+    forever with no writer on the other end.
+    """
+    try:
+        with open(path, "rb") as fh:
+            fh.read(1)
     except OSError as exc:
         return f"cannot be read ({exc.strerror or exc})"
     return None
