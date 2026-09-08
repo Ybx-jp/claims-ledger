@@ -18,7 +18,8 @@
       "checker": "references",
       "outcome": "fail",
       "where": "docs/prereg-digest.md",
-      "why": "a document cites an archived id (C012); no document may cite the archive"
+      "why": "a document cites archived ids at both widths a citation can be written (C012, P0007); no document may cite the archive",
+      "message": "C012, P0007"
     }
   ]
 }

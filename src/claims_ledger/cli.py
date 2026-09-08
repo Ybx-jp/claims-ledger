@@ -80,8 +80,10 @@ ledger = "{ledger}"
 
 # Documents that may cite an entry, as globs from the project root. A citation reads
 # `(A0001-<slug>, cites-as-live)` and is held to the entry's current status at every check.
+# `document-excludes` is matched the same way, segment by segment: `*` stops at a
+# separator, `**` spans any number of them.
 documents = ["*.md", "docs/*.md"]
-# document-excludes = []
+# document-excludes = []                    # e.g. ["docs/draft-*.md"]
 
 # The named artifacts an entry may rest on. A `sectioned` type is written
 # `lab: <path> § "<section>" @<commit>`; a plain one `experiment: <path> @<commit>`.

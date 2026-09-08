@@ -91,6 +91,47 @@ def test_research_statuses_show_prediction_hypothesis_supersession_and_challenge
     )
 
 
+def scanned_documents(materializer, repo: Path) -> int:
+    """The document count `references` prints for `repo`."""
+    heading = materializer.ledger(repo, "references").splitlines()[0]
+    match = re.search(r"(\d+) document", heading)
+    assert match, heading
+    return int(match.group(1))
+
+
+@pytest.mark.parametrize(
+    ("repo_name", "excluded"),
+    [
+        ("documentation-repo", "docs/draft-scratch.md"),
+        ("ui-webapp", "docs/internal-notes.md"),
+    ],
+)
+def test_a_configured_exclusion_removes_a_document_that_is_there(tmp_path, repo_name, excluded):
+    """Both example configurations write `document-excludes` as a glob, and
+    `draft-scratch.md` states in its own text that it is excluded from citation scanning.
+    Under substring containment none of that was true: the file was scanned, and the
+    sentence was false in a repository whose subject is checked claims. The count is
+    compared against the same repository with the key emptied rather than against a
+    literal, so a template that gains a document does not redden this.
+    (docs/audits/0.1.0.md, QE9-95.)
+    """
+    materializer = load_materializer()
+    repos = materializer.materialize(tmp_path / "portfolio")
+    repo = next(r for r in repos if r.name == repo_name)
+    assert (repo / excluded).is_file()
+
+    with_exclusion = scanned_documents(materializer, repo)
+    config = repo / "claims-ledger.toml"
+    text = config.read_text(encoding="utf-8")
+    emptied = re.sub(
+        r"^document-excludes = .*$", "document-excludes = []", text, flags=re.MULTILINE
+    )
+    assert emptied != text, text
+    config.write_text(emptied, encoding="utf-8")
+
+    assert scanned_documents(materializer, repo) == with_exclusion + 1
+
+
 def test_feature_guide_snippets_are_exact_repository_excerpts():
     guide = (PROJECT / "examples" / "FEATURES.md").read_text(encoding="utf-8")
     pattern = re.compile(

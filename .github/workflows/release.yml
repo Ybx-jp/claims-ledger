@@ -66,6 +66,18 @@ jobs:
           /tmp/clean-sdist/bin/pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
           /tmp/clean-sdist/bin/claims-ledger corpus
           /tmp/clean-sdist/bin/claims-ledger --version
+      - name: The sdist carries a suite that passes inside it
+        # The corpus proves the checkers ship; nothing proved the *tests* did. An sdist
+        # once carried `tests/test_examples.py` and 10 of the 45 example files it reads,
+        # and it would have gone to PyPI: `twine check` reads metadata, and the corpus
+        # rides in the package rather than in the tarball. Run from the extracted tree,
+        # against the sdist installed in its own environment, so this is the distribution
+        # answering and not the checkout.
+        run: |
+          mkdir -p /tmp/sdist && tar -xzf "$GITHUB_WORKSPACE"/dist/*.tar.gz -C /tmp/sdist
+          extracted=$(echo /tmp/sdist/*/)
+          /tmp/clean-sdist/bin/pip install pytest
+          cd "$extracted" && /tmp/clean-sdist/bin/python -m pytest -q
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: dist

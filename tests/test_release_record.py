@@ -191,6 +191,32 @@ def test_every_sdist_include_pattern_is_anchored_to_the_root():
     assert not unanchored, unanchored
 
 
+def test_the_sdist_carries_the_trees_its_own_tests_read():
+    """`tests/` ships, and `tests/test_examples.py` reads `examples/`. With the include
+    list unanchored the sdist carried 10 of the example tree's files — the ones that
+    happened to live under a directory called `src` or `docs` — and the suite inside the
+    distribution failed four ways on a missing `examples/FEATURES.md`. Anchoring the
+    patterns fixed the leak out of `.qe` and made this hole exact rather than accidental.
+    (docs/audits/0.1.0.md, QE9-94.)"""
+    config = tomllib.loads(project_file("pyproject.toml").read_text(encoding="utf-8"))
+    include = config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    for required in ("/src", "/tests", "/docs", "/examples"):
+        assert required in include, required
+
+
+def test_the_sdists_own_suite_is_run_from_the_extracted_tree():
+    """The corpus proves the checkers ship. Nothing proved the *tests* ship, and a
+    distribution carrying a suite that cannot pass inside it would have reached PyPI:
+    `twine check` reads metadata, and the corpus rides in the package rather than in the
+    tarball. The gate has to run pytest from the extracted sdist, after the tarball has
+    been installed from a clean environment."""
+    build = release_yml()
+    build = build[build.index("\n  build:") : build.index("\n  publish:")]
+    assert "tar -xzf" in build, "the sdist is never extracted"
+    assert "pytest" in build[build.index("tar -xzf") :], "nothing runs the extracted suite"
+    assert build.index("tar -xzf") > build.index("proves itself from elsewhere")
+
+
 def test_every_action_the_release_uses_is_pinned_to_a_commit():
     unpinned = [
         line.strip()

@@ -56,7 +56,21 @@ packages = ["src/claims_ledger"]
 [tool.hatch.build.targets.sdist]
 # Anchored with a leading `/`: an unanchored `README.md` is a gitignore-style pattern that
 # matches at any depth, and pulled a stray README out of `.qe` into the sdist.
-include = ["/src", "/tests", "/docs", "/README.md", "/QUALITY.md", "/CHANGELOG.md", "/LICENSE"]
+#
+# `/examples` is named because `tests/` ships and four of its tests read the portfolio: an
+# unanchored list once carried 10 of the 45 example files — the ones whose own directory
+# happened to be called `src` or `docs` — and the suite inside the sdist could not pass.
+# `release.yml` runs that suite from an extracted sdist, which is what holds this line.
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/examples",
+    "/README.md",
+    "/QUALITY.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

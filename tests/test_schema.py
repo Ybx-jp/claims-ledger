@@ -243,6 +243,50 @@ def test_the_ledger_reads_its_paths_from_the_configuration(tmp_path):
     )
 
 
+def documents_of(tmp_path, excludes, *relatives):
+    """The documents a ledger scans, given `document-excludes` and a tree."""
+    for rel in relatives:
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# fixture\n", encoding="utf-8")
+    config = from_table(
+        {"documents": ["*.md", "docs/*.md", "docs/**/*.md"], "document-excludes": list(excludes)},
+        tmp_path,
+    )
+    return sorted(rel for rel, _ in open_ledger(config=config).docs)
+
+
+TREE = ("README.md", "docs/spec.md", "docs/draft-scratch.md", "docs/notes/draft-later.md")
+
+
+def test_a_document_exclude_is_a_glob_and_not_a_substring(tmp_path):
+    """The count of scanned documents has to fall when an exclusion is configured, which
+    is the assertion this key never had. It was substring containment, so
+    `docs/draft-*.md` — the form both shipped example configurations write, one line under
+    `documents`, which is globbed — matched no path at all and excluded nothing. A test
+    asserting only `0 failure(s)` passes over an inert exclusion, which is how it shipped.
+    (docs/audits/0.1.0.md, QE9-95.)
+    """
+    assert documents_of(tmp_path, (), *TREE) == sorted(TREE)
+    assert documents_of(tmp_path, ["docs/draft-*.md"], *TREE) == sorted(
+        ["README.md", "docs/spec.md", "docs/notes/draft-later.md"]
+    )
+    # And the substring form, which is what this used to take, now excludes nothing.
+    assert documents_of(tmp_path, ["docs/draft-"], *TREE) == sorted(TREE)
+
+
+def test_an_exclude_matches_segment_by_segment_the_way_documents_does(tmp_path):
+    """`*` stops at a separator and `**` spans any number of segments, because the two
+    keys sit one line apart in every template this package ships."""
+    assert documents_of(tmp_path, ["*.md"], *TREE) == sorted(
+        ["docs/spec.md", "docs/draft-scratch.md", "docs/notes/draft-later.md"]
+    )
+    assert documents_of(tmp_path, ["**/*.md"], *TREE) == []
+    assert documents_of(tmp_path, ["docs/**/draft-*.md"], *TREE) == sorted(
+        ["README.md", "docs/spec.md"]
+    )
+
+
 @pytest.mark.parametrize(
     ("value", "offset_hours"),
     [

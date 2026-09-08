@@ -252,7 +252,9 @@ entries = "entries"
 registry = "sources.jsonl"
 cache = "cache"                      # empty string: no cache, rows name their bytes
 
-# Documents that may cite an entry, as globs from the project root.
+# Documents that may cite an entry, as globs from the project root. Both keys are
+# matched the same way, segment by segment: `*` and `?` stop at a separator and `**`
+# spans any number of segments.
 documents = ["*.md", "docs/*.md"]
 document-excludes = []
 
