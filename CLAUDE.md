@@ -32,16 +32,22 @@ that live in other ledgers, and a glob that reached them would turn fixtures int
 failures. Widening one is a change to run before it is committed.
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
-does, so a citation written here is checked. `.claude/` is not, which is why the skill
-there can show citation syntax literally.
+does, so a citation written here is checked. Neither `.claude/` nor `examples/` is, which
+is why the skills can show citation syntax literally; a skill moved inside the document
+globs would have its examples checked as real citations and fail.
 
-## The agent hooks live in `examples/`
+## The agent hooks and skills live in `examples/`
 
-`.claude/settings.json` points at `examples/agent-harness/`, not at a private copy. The
-hooks are an example that ships to readers and the thing this repository actually runs;
-keeping one copy is what stops the example rotting. Nothing in them is
-repository-specific — the interpreter is discovered and the document list is asked of the
-package — so keep it that way when editing.
+`.claude/settings.json` points at `examples/agent-harness/`, and `.claude/skills/` holds
+symlinks into `examples/agent-skills/` — neither is a private copy. Both are examples that
+ship to readers and the thing this repository actually runs; keeping one copy is what
+stops the example rotting. Nothing in either is repository-specific — the interpreter is
+discovered, the document list is asked of the package, act legality is read from what
+`references` said, and counts are asked of `claims-ledger status` rather than written
+down — so keep it that way when editing.
+
+The hooks name the skills and the skills name each other. `merge-guard.sh` has committed
+expected verdicts; the others do not, so a change to one is checked by running it.
 
 ## The pre-commit hook is not tracked
 

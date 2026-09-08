@@ -1,20 +1,24 @@
 ---
 name: repair-a-drifted-pin
-description: Repair this repository's self-hosted ledger when a pinned ground drifts — reading a freshness finding, writing the contested verdict, re-judging, and superseding an entry with its citations moved. Use when `claims-ledger freshness` or `check` reports a moved, withdrawn or unstable ground, when the pre-commit hook refuses a commit for any of the five checkers, when an edit lands inside a section named by a `code:` or `toml:` ground, and BEFORE hand-editing any file under `ledger/`.
+description: Repair a claims-ledger entry when a pinned ground drifts — reading a freshness finding, writing the contested verdict, re-judging, and superseding an entry with its citations moved. Use when `claims-ledger freshness` or `check` reports a moved, withdrawn or unstable ground, when the pre-commit hook refuses a commit for any of the five checkers, when an edit lands inside a section named by a `code:` or `toml:` ground, and BEFORE hand-editing any file under `ledger/`.
 ---
 
 # Repair a drifted pin
 
 **The procedure is `docs/OPERATING.md` §"Repairing a drifted pin". Read it and follow it.**
-It ships with the package and is the authority; this file exists to get you there with the
-repository-specific parts already answered, and to say the two things that are easiest to
-get wrong under time pressure.
+It ships with the package and is the authority; this file exists to get you there
+quickly and to say the two things that are easiest to get wrong under time pressure.
+
+Drift is not the only thing that can be wrong, and reaching for this procedure when the
+finding was something else is wasted work. If the message names an ACT and a STATUS
+(`cites-as-live against X, whose status is contested`) that is `references`, not
+`freshness`, and re-pinning answers nothing — use `choosing-a-citation-act`.
 
 ## Before anything
 
 Run the checkers and read what they actually said:
 
-    .venv/bin/python -m claims_ledger freshness
+    <project venv>/bin/python -m claims_ledger freshness
 
 Named as an interpreter plus `-m`, never as the `claims-ledger` console script — the
 virtualenv is not active in every context this runs from.
@@ -54,15 +58,15 @@ by then it is in the record.
 `artifact:` provenance the checker is entitled to; a hand-written one under the propagation
 author is a person borrowing the authority of a check that did not run.
 
-## This repository's specifics
+## Landing the repair
 
-- Interpreter: `.venv/bin/python -m claims_ledger`.
-- Entries are `ledger/entries/L000n-<slug>.md`, eight of them, all pinned into commit
-  `4023af40`.
-- Citation sites are README sentences and docstrings in `src/claims_ledger/*.py`. The
-  reference check names them for you once the entry goes contested.
-- Landing the repair: two commits, the first with `--no-verify`, then
-  `.venv/bin/python -m claims_ledger check` by hand before the second. `docs/OPERATING.md`
-  says why.
-- Merging: merge commit only. The guard at `examples/agent-harness/merge-guard.sh` will
-  refuse the alternatives, and GitHub will too.
+- **Ask the tool, do not trust a written-down summary.** `claims-ledger status` for the
+  entries and their statuses, `claims-ledger references` for the citation sites the repair
+  has to move. A count of entries or pins recorded in prose is false the next time an
+  entry lands, and nothing checks it.
+- **Two commits**, the first with `--no-verify`, then `claims-ledger check` by hand before
+  the second. `docs/OPERATING.md` says why the first is refused.
+- **`sha --write` on the successor before it is committed** — it refuses an entry that is
+  already in history.
+- **Merge commits only** on any branch whose commits are pinned. A squash or rebase merge
+  destroys every pin in the branch and costs a supersession per ground.

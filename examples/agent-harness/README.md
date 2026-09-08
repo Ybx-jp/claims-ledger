@@ -1,7 +1,7 @@
 # Agent-harness hooks
 
-Two hooks for a coding-agent harness, for projects whose ledger pins claims to code. They
-are **examples, not part of the package**: nothing installs them, nothing supports them,
+Four hooks for a coding-agent harness, for projects whose ledger pins claims to code.
+They are **examples, not part of the package**: nothing installs them, nothing supports them,
 and they are not in the wheel or the sdist. Copy them into your project and adapt.
 
 They are here rather than in `src/` for two reasons. The hook-configuration format below
@@ -34,6 +34,20 @@ afterwards, at which point the repair is a supersession per entry. `merge-guard.
 refuses the commands that do it. See `docs/OPERATING.md`, which is the authority; this
 hook is one enforcement of what that document argues.
 
+**A citation whose act no longer matches its target's status reads as an emergency.**
+`references` says exactly what is wrong, and says nothing about which of four legitimate
+repairs is right — so an agent reaches for the most expensive one, a supersession, to
+make the checker green. `status-guard.sh` fires on that finding alone and names the four
+outcomes. It is not the same failure as a drifted pin and does not have the same repair;
+conflating them is the mistake it exists to stop.
+
+**Three things are got wrong before any checker has run.** Which checker owns which
+failure; that `documents` gates citations and never grounds; and that `cites-as-live` is
+not a goal. Each sends the work in a direction the later hooks cannot recall, so
+`ledger-orientation.sh` says them once at session start and nothing else. It stays silent
+in a checkout with no `ledger/entries`, since the directory it ships in is meant to be
+copied.
+
 ## Installing them (Claude Code)
 
 Copy this directory into your project and add to `.claude/settings.json`:
@@ -41,6 +55,10 @@ Copy this directory into your project and add to `.claude/settings.json`:
 ```json
 {
   "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command",
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/ledger-orientation.sh" }] }
+    ],
     "PreToolUse": [
       { "matcher": "Bash",
         "hooks": [{ "type": "command",
@@ -49,14 +67,20 @@ Copy this directory into your project and add to `.claude/settings.json`:
     "PostToolUse": [
       { "matcher": "Edit|Write|MultiEdit",
         "hooks": [{ "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh" }] }
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh" },
+                  { "type": "command",
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/status-guard.sh" }] }
     ]
   }
 }
 ```
 
-Both scripts derive the project root from their own location, two directories up. Move
+Every script derives the project root from its own location, two directories up. Move
 them and adjust the `..` count.
+
+The hooks name the skills in `../agent-skills/`, which carry the procedures the hooks only
+point at. Installing one without the other leaves an agent told what is wrong and not what
+the choices are.
 
 For another harness, the parts to replace are the input parsing (a JSON payload on stdin
 carrying an event name, a session id and either a file path or a command) and the output
@@ -74,7 +98,11 @@ Nothing, by construction, and it is worth keeping it that way:
 - Which files are documents is asked of the package. `pin-guard.sh` calls the same
   `tree_documents` the checkers call, so excludes, glob semantics and the rule that the
   ledger does not cite itself come along for free. A hook that restated any of that would
-  drift from the checker it serves.
+  drift from the checker it serves. `status-guard.sh` does the same with act legality: it
+  reads what `references` said rather than restating `ACT_ALLOWS`.
+- No counts, anywhere. `ledger-orientation.sh` asks `claims-ledger status` for the tally
+  rather than carrying one, because a number written into prose is false the next time an
+  entry lands and nothing checks it.
 
 ## Design notes worth keeping if you adapt them
 
@@ -83,9 +111,16 @@ keyed on a digest of the finding, so unchanged drift is reported once and *new* 
 still speaks, and it goes quiet by itself once a verdict discharges the flag. The
 new-claim reminder is keyed once per session.
 
-**Never write.** `pin-guard.sh` runs `freshness` without `--write`. Appending a verdict is
-a judgement about the ledger; a hook firing behind the author's back is not the place for
-one, and the verdict it wrote would be indistinguishable from one a person meant.
+**Never write.** `pin-guard.sh` runs `freshness` without `--write`, and `status-guard.sh`
+runs `references`, which cannot write at all. Appending a verdict is a judgement about the
+ledger; a hook firing behind the author's back is not the place for one, and the verdict it
+wrote would be indistinguishable from one a person meant.
+
+**Say what the choices are, never which to take.** `status-guard.sh` lists four outcomes
+and ranks none of them. The one thing it does rule out is a `corroborated` verdict written
+without re-reading the artifact — measured on a real ledger, that took all five checkers
+to clean over an Assertion that was false, because a verdict is the one thing no checker
+can check for sincerity.
 
 **Never block on failure.** Every error path in `pin-guard.sh` exits 0 silently — no `jq`,
 no interpreter, an unreadable config. A guard that can break the session is worse than no
