@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T15:43:45-07:00 · contested · grade: measured · author: propagation
+  evidence: toml-key: pyproject.toml § "dependencies" @d1474db8b09e734b7a1c975e1b24aa6107438af1
+  artifact: 8c26797e65fb0ea7aa79b643eaa5b832b4bf7a38
+  note: propagated from a moved ground
+
+- 2026-09-08T16:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: toml-key: pyproject.toml § "dependencies" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  note: read against commit abb827e, which moved this claim's citing comment below the key rather than above it, where a toml-key section does not reach; the key is still an empty array and requires-python still names 3.11
+
 ## References
 
 - README.md · standing · cites-as-live

@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T15:43:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "sha_one" @a3df5b5b0d1ea7ec0d3cd95ba40a2aaa3d716395
+  artifact: 35b4942e4e85bac4d174a747be76674c1e9612e0
+  note: propagated from a moved ground
+
+- 2026-09-08T16:10:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "sha_one" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  note: read against commit abb827e, which added the call reporting where a citation of the entry being fingerprinted sits; the message about a path read from the current directory, which is what this claim names, is unchanged and still first in the function
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

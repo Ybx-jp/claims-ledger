@@ -76,6 +76,18 @@ true. It is not the place to put a claim about one function because that functio
 section is crowded. If most of a file's citations have collected in its docstring, that is
 the tell.
 
+**Ask rather than eyeball it.** Where a project has turned the rule on, `references`
+reports a citation that sits outside the span its entry pins, and `claims-ledger sha
+--write` reports it for the entry in front of you — which is the moment it becomes
+answerable, since the citation is written in the commit before the entry and until the
+Grounds exist there is no span to be outside of. Whether a project asks at all is
+`citation-placement` in its configuration, and it is off unless somebody set it:
+
+    python -c "from claims_ledger import open_ledger; print(open_ledger().config.citation_placement)"
+
+`off` does not mean the rule is wrong for that project. It usually means the project has
+citations that would fail it, and turning it on is a sweep followed by the setting.
+
 ## Documents and grounds are different
 
 - **Documents** are the prose scanned for citations. Ask which files those are:

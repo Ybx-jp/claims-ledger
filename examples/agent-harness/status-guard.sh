@@ -101,6 +101,27 @@ An id in a parenthesis of its own, or named in running prose, is a document ment
   fi
 fi
 
+# The third shape, and the only one that arrives because a project asked for it. Whether
+# it is reported at all is `citation-placement` in the configuration; this reads what
+# `references` said rather than asking the configuration itself.
+placement=$(printf '%s\n' "$finding" | grep -F 'from outside' || true)
+
+if [ -n "$placement" ]; then
+  key="placement:$(printf '%s' "$placement" | cksum | tr -d ' ')"
+  if ! fired "$key"; then
+    remember "$key"
+    jq -cn --arg ctx "claims-ledger status guard: a citation sits outside the span the entry it names is pinned to.
+
+$placement
+
+The entry rests on a section of this very document, and the citing sentence is somewhere else in it. Move the sentence into that section: what the rule holds is that a promise and the code keeping it sit in one span, so an edit reaches both and a reader who finds either finds the other. Changing the act or the ground is not the repair.
+
+Moving it will flag every entry already pinned to the section it lands in. That is the mechanism working and not a reason to leave the citation where it is — \`has moved\` is a flag, it exits 0, and a claim the change did not touch is discharged by a re-read verdict. The \`choosing-a-citation-act\` skill has the rule and \`repair-a-drifted-pin\` the discharge." \
+      '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'
+    exit 0
+  fi
+fi
+
 [ -n "$mismatch" ] || exit 0
 
 key="act:$(printf '%s' "$mismatch" | cksum | tr -d ' ')"

@@ -867,7 +867,8 @@ they are *near* each other, and near is not inconsistent.
   Scope-versus-Warrant flag from the previous release note; `repair-a-drifted-pin` gains
   the supersession no checker asks for. `ledger-orientation.sh` hands over `neighbours`
   and says which commands are checkers and which only answer; `status-guard.sh` reports
-  the not-a-citation-act finding on its own throttle; `pin-guard.sh` names the lookup at
+  the not-a-citation-act finding on its own throttle and, where a project configured it, the
+  misplaced-citation one on a throttle of its own; `pin-guard.sh` names the lookup at
   the moment a new claim is being written.
 
   A third correction went with them. Measured over the package's Python documents, 48 of
@@ -897,6 +898,40 @@ they are *near* each other, and near is not inconsistent.
 
   It was `claims-ledger neighbours` that found it, on its first run over this ledger:
   L0136's cohort nests inside L0005's and L0010's.
+
+### Added, and off unless a project asks for it
+
+- **`citation-placement`** — a setting, not a sixth checker. `references` gains a rule
+  that a citation sits inside the section its entry pins, at `off`, `flag` or `fail`, and
+  `off` unless the project says otherwise. A rule that reports fifty sites the day it
+  ships is one its readers learn to scroll past, so a project turns it on when its
+  citations are ready for it; this one is on and failing.
+
+  The question is narrow, and every part of the narrowness carries weight. It is asked
+  only of a citation in a document the cited entry *also* rests on, by a sectioned ground
+  — then there is a span in this very file the claim is about, and the sentence promising
+  it belongs there. A citation of an entry grounded elsewhere is asked nothing. An entry
+  resting on several sections of one file satisfies the rule from any of them.
+
+  **Asked at write time too.** `claims-ledger sha --write` reports it for the entry in
+  front of you, which is the earliest point it can be asked at all: the citation is
+  written in the commit before the entry, so until the Grounds exist there is no span to
+  be outside of, and the fingerprint is the step between the two. It prints and does not
+  fail — that command's exit code answers whether the fingerprint was written, and
+  `references` is what refuses the commit. One function answers both callers, so the two
+  cannot come to disagree.
+
+  Seeds `D60` and `K28`, and every other seed is a near-negative by construction — their
+  documents and their grounds name different files, which is the case the rule must never
+  fire on. Making the two expressible needed a change to the corpus runner: evidence paths
+  resolved against the corpus root while documents came from the staged seed, so no seed
+  could name one file as both. The shared `fixtures/` and `sources.jsonl` are now staged
+  into the seed and everything resolves locally.
+
+  It found something on its first run that the sweep's own script had missed:
+  `pyproject.toml` cited L0011 from a comment above `dependencies = []`, and a `toml-key`
+  section starts at its own line — the same trap as in Python, in a file that script never
+  read because it only looked at `.py`.
 
 ### Release
 

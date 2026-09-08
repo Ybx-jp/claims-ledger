@@ -27,6 +27,7 @@ told:
 | prose that promises something and cites nothing | `tagging-prose-with-claims` |
 | `<act> against <id>, whose status is …` | `choosing-a-citation-act` |
 | `is shaped like a citation but … is not a citation act` | `choosing-a-citation-act` |
+| `cites … from outside § "…"` | `choosing-a-citation-act`, then `repair-a-drifted-pin` for the flags moving it causes |
 | an entry's status moved and its citations need deciding | `choosing-a-citation-act` |
 | two entries that may be about the same thing, or a `claims-ledger neighbours` answer | `choosing-a-citation-act` |
 | `has moved`, `withdrawn`, `unstable pin`, `unknown` | `repair-a-drifted-pin` |

@@ -79,6 +79,18 @@ Where the finding is a drift the claim does not depend on — a section that mov
 renumbering, a rename — `repair-a-drifted-pin` covers acknowledging it without touching
 the claim.
 
+## `cites … from outside § "…"`
+
+The entry named rests on a section of this very document, and the citation is somewhere
+else in it. The repair is to move the citing sentence into that section, not to change the
+act or the ground: what the rule is protecting is that a promise and the code keeping it
+sit in one span, so that an edit reaches both.
+
+It arrives only where a project set `citation-placement`, and it is the one `references`
+finding that says nothing about a status. Moving the sentence flags every entry pinned to
+the section it lands in — that is the mechanism, and `repair-a-drifted-pin` covers
+discharging each with a re-read.
+
 ## Two entries about the same thing
 
 Not every relation between two entries is agreement or attack. Two claims can be about the
