@@ -4,7 +4,22 @@ Everything a project can legitimately name differently lives here: where the ent
 sit, which documents may cite them, what an evidence pointer is called, which id
 prefixes are quarantined, and which authors may write a verdict. The schema itself —
 grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is not
-configurable, because those are the claims model rather than a project's naming.
+configurable, because those are the claims model rather than a project's naming
+(L0050-the-schema-itself-is-not-configurable, cites-as-live).
+
+Every one of those names is checked as the configuration is read, rather than at the
+entry that turns out to need it. A value of the wrong type is refused by name
+(L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live). An
+evidence type may not take a name the schema reserves for a pointer of its own
+(L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live), nor be both
+sectioned and plain, and a configuration leaving the project without any evidence type is
+refused because a measured grade would have nothing it could rest on
+(L0053-the-evidence-types-are-disjoint-and-there-is-one, cites-as-live). The propagation
+author has to be one of the verdict authors, or every verdict the machinery writes would
+carry an author the ledger declines
+(L0054-the-propagation-author-is-one-of-the-verdict-authors, cites-as-live). A
+quarantined prefix is a single uppercase letter
+(L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live).
 
 A project declares its configuration in `claims-ledger.toml` at the project root, or in
 a `[tool.claims-ledger]` table in `pyproject.toml`. With neither, the defaults below
@@ -63,7 +78,8 @@ ANY_NAME = "[^\n]+?"
 
 class ConfigError(Exception):
     """A configuration file that cannot be honoured. Raised rather than defaulted: a
-    checker that silently ran under a configuration nobody wrote proves nothing."""
+    checker that silently ran under a configuration nobody wrote proves nothing
+    (L0063-a-configuration-that-cannot-be-read-stops-the-command, cites-as-live)."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -125,7 +141,8 @@ def default_config(root):
 
     The default layout is confined the same way a configured one is: a project with no
     `claims-ledger.toml` at all can still have a `ledger` that is a symlink out of the
-    tree, and the containment is a property of the tool rather than of the file.
+    tree, and the containment is a property of the tool rather than of the file
+    (L0060-the-default-layout-is-confined-too, cites-as-live).
     """
     root = resolved(root)
     ledger = confined(root, "ledger", "ledger")
@@ -139,9 +156,11 @@ def default_config(root):
 
 
 def find_config_file(start):
-    """The nearest configuration file at or above `start`, or None. A `pyproject.toml`
-    counts only when it carries a `[tool.claims-ledger]` table, so a package that merely
-    depends on this one is not mistaken for the project root."""
+    """The nearest configuration file at or above `start`, or None
+    (L0057-the-nearest-configuration-at-or-above-the-start-is-used, cites-as-live). A
+    `pyproject.toml` counts only when it carries a `[tool.claims-ledger]` table, so a
+    package that merely depends on this one is not mistaken for the project root
+    (L0056-a-pyproject-is-a-configuration-only-with-the-table, cites-as-live)."""
     start = resolved(start)
     for directory in (start, *start.parents):
         for name in CONFIG_FILENAMES:
@@ -173,7 +192,8 @@ def _read_table(path):
     except (OSError, tomllib.TOMLDecodeError) as exc:
         raise ConfigError(f"{path}: {exc}") from exc
     # A standalone file may use the bare keys or nest them under [tool.claims-ledger],
-    # so a table lifted out of a pyproject.toml keeps working when it is moved.
+    # so a table lifted out of a pyproject.toml keeps working when it is moved
+    # (L0058-a-table-keeps-working-when-it-leaves-pyproject, cites-as-live).
     return data.get("tool", {}).get(TABLE, data)
 
 
@@ -204,7 +224,8 @@ def resolved(path, what="root"):
 
     A symlink loop reaches pathlib as a RuntimeError on 3.12 and earlier and as the
     unresolved path on 3.14; `--root` pointing at one is a misconfigured root either way,
-    not an internal error to ask for a bug report over.
+    not an internal error to ask for a bug report over
+    (L0061-an-unresolvable-path-is-a-configuration-error, cites-as-live).
     """
     try:
         return Path(path).resolve()
@@ -262,9 +283,12 @@ def leaves_root(root, path):
     """Where `path` really is, when that is outside `root`; None when it is not.
 
     The same question `confined()` asks of a configured path, asked of a file the tool is
-    about to write. A configuration is not the only thing a clone carries: an entry inside
-    `entries/` can be a symlink to anywhere, and following one on a write is a write
-    outside the project root — which is the property this package states it has.
+    about to write, through the same escape test rather than through a second one that
+    could drift from it
+    (L0062-one-test-answers-confinement-for-configured-paths-and-writes, cites-as-live). A
+    configuration is not the only thing a clone carries: an entry inside `entries/` can be
+    a symlink to anywhere, and following one on a write is a write outside the project
+    root — which is the property this package states it has.
     """
     followed = _followed(path)
     return followed if _escapes(_followed(Path(root)), followed) else None
@@ -290,10 +314,17 @@ def confined_pattern(root, key, value):
 
 
 def _section_patterns(table, sectioned):
-    """((type, pattern), …), every one checked here rather than at the first entry that
-    uses it. A pattern that does not compile, or that never mentions the section it is
-    supposed to find, would otherwise become a checker that quietly matched the wrong
-    text or nothing at all."""
+    """((type, pattern), …), every one checked here rather than at the entry that turns
+    out to use it. A pattern that does not compile, or that never mentions the section it
+    is supposed to find, would otherwise become a checker that quietly matched the wrong
+    text or nothing at all
+    (L0059-a-section-pattern-is-checked-when-it-is-read, cites-as-live).
+
+    Both substitutions are compiled, because the pattern is used twice: once with the
+    section's own name to find where it starts, and once with the name slot widened to
+    find where the next one does. A pattern that compiles under one and not the other is
+    a section with an end nothing can locate.
+    """
     out = []
     for name in sorted(table):
         pattern = table[name]
