@@ -2,7 +2,8 @@
 
 Five checkers, an authoring side, and the corpus that proves the checkers. Every
 subcommand exits non-zero on a failure and zero on a flag, so a hook can be a list of
-commands and a flag is a report a human judges rather than a gate.
+commands and a flag is a report a human judges rather than a gate
+(L0119-a-failure-exits-non-zero-and-a-flag-exits-zero, cites-as-live).
 """
 
 from __future__ import annotations
@@ -36,7 +37,10 @@ from .schema import (
 
 CHECKERS = ("validate", "resolve", "references", "propagate", "freshness")
 
-# Ledger: (L0001-hook-names-the-interpreter-absolutely, cites-as-live).
+# Ledger: (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook asks
+# each checker for the index wherever that checker has a `--cached` of its own, so a
+# drift that is staged and then reverted in the working tree cannot commit silently
+# (L0120-the-hook-reads-the-index-wherever-a-checker-can, cites-as-live).
 HOOK_TEMPLATE = """#!/bin/sh
 # Installed by `claims-ledger hook --install`.
 # The ledger's rules, held before the commit that would break them.
@@ -238,7 +242,14 @@ def skipped_checks(ledger, cached=False):
 
     A checker that could not run has to say so. `0 failure(s)` printed over a check that
     never happened is the one report this tool must never produce, and every line here is
-    a case where the machinery is silently doing less than the README promises.
+    a case where the machinery is silently doing less than the README promises
+    (L0121-every-check-that-did-not-run-is-named-before-the-report, cites-as-live).
+
+    `--cached` that quietly fell back to the working tree is one of them, and the one
+    that matters most in a hook: reading `show :<path>` fails identically for a path that
+    is not staged and for an index nothing can parse, so the fallback is a report about
+    something other than what is being committed
+    (L0122-a-cached-run-that-fell-back-to-the-working-tree-says-so, cites-as-live).
     """
     notes = []
     problem = git_problem(ledger.repo) if ledger.repo else None
@@ -374,6 +385,7 @@ def cmd_check(args, ledger):
     # and not one: under `--cached` `validate` and `freshness` read what is staged and the
     # other three read the working tree, which is the difference `--cached` exists to
     # make. (ARCH-AUDIT.md, finding 4.)
+    # (L0123-check-parses-the-entries-once-into-two-lists, cites-as-live)
     working = load_entries(ledger)
     staged = load_entries(ledger, cached=True) if args.cached else working
     for name in CHECKERS:
@@ -445,6 +457,7 @@ def cmd_sha(args, ledger):
             # Each path is its own write. Letting the first refusal out of the loop left
             # the paths after it neither written nor named, which reads as a run that
             # stopped where it says it stopped.
+            # (L0124-each-path-given-to-sha-is-its-own-write, cites-as-live)
             print(f"claims-ledger: {exc}", file=sys.stderr)
             worst = 2
     return worst
@@ -455,6 +468,7 @@ def sha_one(args, ledger, raw):
     # A path argument is read from the current directory, as every other command-line
     # tool reads one — but with --root pointing elsewhere, the same entry named two
     # ways gave two answers and nothing said why. It says why now.
+    # (L0125-a-path-argument-is-read-from-the-current-directory, cites-as-live)
     with contextlib.suppress(OSError):
         if not path.exists() and (ledger.config.root / raw).exists():
             print(
@@ -523,6 +537,7 @@ def cmd_init(args, _ledger):
     # names sent the scaffolder outside the project, exit 0, printing the in-root path it
     # had not written to. The root is resolved above, so the question the guard asks is
     # one that can be answered here: where does this name really lead.
+    # (L0126-init-asks-the-containment-question-of-every-name-it-writes, cites-as-live)
     for path, what in (
         (ledger_dir, "the ledger directory"),
         (config_path, "the configuration"),
@@ -542,6 +557,7 @@ def cmd_init(args, _ledger):
         # Opening a FIFO for writing blocks until a reader appears, which is a wedged job
         # with no output at all. The registry is only written when it does not exist, and
         # `--force` is what makes the configuration a write over something already there.
+        # (L0127-init-writes-its-files-only-onto-regular-files, cites-as-live)
         if os.path.lexists(path) and file_problem(path, what) is not None:
             print(
                 f"claims-ledger: {path} is not a regular file; {what} is written to a "
@@ -585,7 +601,8 @@ def hooks_dir(repo):
     `Not a directory` at a path that was never the right one.
 
     `git rev-parse --git-path hooks` answers all three, because it is the question git
-    asks itself. Resolved against the repository, since git answers relative to it.
+    asks itself. Resolved against the repository, since git answers relative to it
+    (L0128-the-hooks-directory-is-asked-of-version-control, cites-as-live).
     """
     answer = git_call(repo, "rev-parse", "--git-path", "hooks")
     if not answer.ok or not answer.out.strip():
@@ -615,6 +632,7 @@ def cmd_hook(args, ledger):
         # containment guard so that a deliberate `pre-commit -> ../../shared/pre-commit`
         # — a team sharing one hook — is met with "leaving it alone" and the hook text,
         # which is what it was always met with, rather than with an accusation.
+        # (L0129-an-existing-hook-is-left-alone-and-the-text-is-printed, cites-as-live)
         if os.path.lexists(path):
             print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
             print(hook_text(), end="")
@@ -624,6 +642,7 @@ def cmd_hook(args, ledger):
         # `pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming
         # the in-root path it had not written to; a `hooks -> /tmp` does the same one
         # level up, and `lexists` above cannot see that one.
+        # (L0130-the-hook-is-not-installed-through-an-escaping-link, cites-as-live)
         outside = leaves_root(hooks, path)
         if outside is not None:
             print(
@@ -646,6 +665,14 @@ def cmd_hook(args, ledger):
 
 
 def cmd_corpus(args, _ledger):
+    """The red-team corpus, which needs version control and says so rather than passing.
+
+    The seeds are applied as commits in a temporary repository, so without git there is
+    nothing to run them against — and a corpus run that reported success over seeds it
+    never applied would be the one report this tool must never produce, about the very
+    thing that proves the checkers
+    (L0131-the-corpus-refuses-to-run-without-version-control, cites-as-live).
+    """
     if not git_available():
         print(
             "claims-ledger: git is not on PATH, and the corpus cannot run without it: "
@@ -691,7 +718,8 @@ def soften_output_encoding():
     Under an ASCII locale, printing the schema's own `·` separator raises
     UnicodeEncodeError — and it raises on the path that was about to explain why a check
     failed, replacing the diagnostic with `this is a bug`. `backslashreplace` keeps the
-    character visible as an escape rather than taking the message down with it.
+    character visible as an escape rather than taking the message down with it
+    (L0132-a-report-survives-a-locale-that-cannot-encode-it, cites-as-live).
     """
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -702,6 +730,23 @@ def soften_output_encoding():
 
 
 def main(argv=None):
+    """The entry point, and the last place an exception can be turned into a message.
+
+    Nothing reaches a stranger as a traceback: an unexpected exception prints its type
+    and its message, says plainly that it is a bug, gives the address to report it at,
+    and names the environment variable that puts the traceback back for whoever is
+    debugging (L0133-an-unexpected-error-is-a-message-and-never-a-traceback,
+    cites-as-live).
+
+    A closed reader is not an error at all — `status | head` is an ordinary thing to
+    type — so stdout is pointed at the null device before returning, and the code
+    returned is the one a shell reports for the same signal
+    (L0134-a-closed-reader-exits-as-the-shell-would-report-it, cites-as-live).
+
+    `init` and `corpus` are dispatched without opening a ledger, because neither may fail
+    on a configuration that is not there yet or that belongs to someone else
+    (L0135-init-and-corpus-open-no-ledger, cites-as-live).
+    """
     soften_output_encoding()
     args = build_parser().parse_args(argv)
     try:
