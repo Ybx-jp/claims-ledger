@@ -119,10 +119,14 @@ it now stands:
 - **The claim is no longer true.** Append a `refuted` verdict whose evidence points at
   what shows it false, and rewrite the prose. The citations are removed with the sentence,
   not moved.
-- **The flag is cosmetic** — a reformat, a comment, a rename that changed no meaning. It
-  is still a supersession. There is no acknowledge-without-superseding path, by design;
-  `docs/FRESHNESS.md` §"Why moved flags and withdrawn fails" is the argument, and the
-  cost is the one that section admits to.
+- **The artifact moved and the claim did not** — a reformat, a comment, a renumbering, a
+  section moved to another path, a rename. Acknowledge it rather than superseding it:
+  append a `corroborated` verdict naming the artifact as it now stands, with a note
+  recording what moved. The entry keeps its id, its Grounds and its citations. Its
+  evidence must name the artifact as it is now rather than restate the ground —
+  `validate` refuses a corroborating verdict pointing at a ground the entry already
+  cites, which is what makes it a record of a reading. `docs/FRESHNESS.md` §"How a
+  finding is discharged" has the shape and the one thing it costs.
 
 **Before writing the successor, ask what actually moved.** If the pinned section changed
 for a reason the claim does not name, the *ground* is wrong, and carrying the same ground
@@ -131,7 +135,8 @@ it instead: pin the code that carries the rule rather than a caller that follows
 configure a `section-pattern` if the claim is about something narrower than a whole table
 or function. The tell is mechanical — when `sha --write` on the successor computes a
 `verbatim_sha` **byte-identical** to its predecessor's, the claim never moved and only its
-ground did, and that is the case where narrowing is the whole of the repair.
+ground did. That is the case where narrowing is the whole of the repair, and often the
+case where acknowledging is and no successor is needed at all.
 
 **3. Supersede.** Both directions are checked against each other, and supersession is a
 chain, never a tree — an entry carries exactly one `superseded` verdict.
@@ -149,11 +154,14 @@ Then commit the pair as above, and merge without rewriting history.
 
 ## What this costs, honestly
 
-Every meaningful edit to a pinned section is a supersession: a new entry file, a verdict,
-and moved citations. Pins on narrow sections make this rare — a pin on a function costs a
-supersession only when that function changes, where a pin on a file costs one per commit
-that touches it — but the cost does not go to zero, and it scales with the number of
-entries rather than with the number of real changes of meaning.
+Every edit that changes what a claim rests on is a supersession: a new entry file, a
+verdict, and moved citations. An edit that moves the artifact without touching the claim
+is an acknowledgement instead — one verdict, and the entry keeps its id, its Grounds and
+its citations — so the expensive path is paid for real changes of meaning rather than for
+every edit. Pins on narrow sections make even the acknowledgements rare: a pin on a
+function is flagged only when that function changes, where a pin on a file is flagged by
+every commit that touches it. The cost does not go to zero, and it scales with the number
+of entries pinned rather than with the number of real changes of meaning.
 
 ### Choosing a ground
 
