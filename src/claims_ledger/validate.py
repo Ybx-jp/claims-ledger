@@ -43,6 +43,7 @@ from .schema import (
     enclosing_repository,
     git_blobs,
     git_call,
+    git_env,
     git_history,
     load_entries,
     normalize,
@@ -600,7 +601,10 @@ def check_history(ledger, entries, cached=False):
             wanted.append(f"HEAD:{rel}")
             if cached:
                 wanted.append(f":{rel}")
-    blobs, unread = git_blobs(repo, dict.fromkeys(wanted))
+    # `git_env(index=cached)`: this batch asks for `:{rel}` — the staged blob — only when
+    # `--cached` was passed, and that is the one spec whose answer depends on which index
+    # git is looking at. Every other spec names a commit and is unaffected.
+    blobs, unread = git_blobs(repo, dict.fromkeys(wanted), env=git_env(index=cached))
     for e, rel in rels:
         revs = revisions[rel]
         if not revs:

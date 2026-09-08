@@ -146,7 +146,8 @@ The findings are ranked by consequence, not by effort to fix.
 >
 > **Two findings left open, both wider than this branch and both pre-existing.**
 >
-> - **QE12-2, MED-HIGH — the scrub stops at discovery.** `enclosing_repository` scrubs and
+> - **QE12-2, MED-HIGH — the scrub stops at discovery. Fixed; disposition below.**
+>   `enclosing_repository` scrubs and
 >   finds the right repository; `git_problem` and the `cat-file` that follow ask *that*
 >   repository through the ambient environment. Under `GIT_DIR`/`GIT_WORK_TREE`,
 >   `is_committed` flips to "not committed" and `sha --write` rewrites a committed frozen
@@ -259,6 +260,110 @@ The findings are ranked by consequence, not by effort to fix.
 > that test does not exist — coverage in `tests/` is per-command. Writing it is the work,
 > and it is not this branch's.
 
+> **Disposition — 2026-09-07, QE12-2.** Fixed on branch
+> `arch/git-calls-ask-the-directory-they-name`. The finding asked which git calls in the
+> package are about the directory they name and which about whatever the environment
+> names. The answer is all of them and none of them respectively, so the scrub is not an
+> argument passed at one call site any more: `git_env()` is the environment every git call
+> gets, and `GIT_REPOSITORY_ENV` is git's own "The Git Repository" section entire rather
+> than a list of the variables somebody happened to test.
+>
+> **Reproduced first, on `main` at `9c924c6`, on the ordinary layout** — the ledger's own
+> repository at the ledger's own root, no nesting, no `--root` — with one committed entry
+> and one edit to its Scope:
+>
+> | variable, naming another repository | `sha --write` on a committed entry |
+> |---|---|
+> | `GIT_DIR` | rewrote the frozen region, exit 0 |
+> | `GIT_COMMON_DIR` | rewrote the frozen region, exit 0 |
+> | `GIT_OBJECT_DIRECTORY` | rewrote the frozen region, exit 0 |
+> | `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, `GIT_NAMESPACE`, `GIT_CEILING_DIRECTORIES` | refused, exit 2 |
+>
+> `validate` under `GIT_DIR` was the quieter half of the same thing: over an entry whose
+> frozen region had been rewritten it printed two immutability failures without the
+> variable and none with it, and said nothing about a check it had not made. Both are
+> zero under the fix, and every variable in the table is parametrized in
+> `tests/test_git_environment.py` — the three that bite redden when the scrub is deleted,
+> and the other five are held so that a git version which starts reading one of them is a
+> failing test rather than a false pass.
+>
+> **`GIT_OBJECT_DIRECTORY` needed a second repair, and it is the more interesting one.**
+> That variable does not reroute the repository; it makes git unable to read an object out
+> of it. `is_committed` asked `git(repo, "cat-file", "-e", f"HEAD:{rel}")`, and `git()`
+> answers None both for an entry HEAD does not have and for a git that could not look — so
+> `could not read` arrived as `not committed yet` and the frozen region was rewritten.
+> `cat-file -e` cannot tell the two apart at all: measured on git 2.43.0, it exits **128**
+> for a path no commit holds *and* for an unreadable object store. `rev-parse --verify
+> --quiet HEAD:<rel>` separates them — **1** and **128** — which is the distinction
+> `resolve` is already written around, and it is what `is_committed` asks now. The scrub
+> stops that variable arriving; this stops the next reason git cannot read an object from
+> being read as an answer.
+>
+> **And it repairs a third case, which the gate found and this had not claimed.** The two
+> commands do not answer the same question at all: `rev-parse --verify` resolves the name
+> through the tree without checking that the object is *present*. With the entry's own loose
+> blob removed from the object store — `git gc` on a corrupted repository, a partial clone,
+> a filesystem that lost it — `cat-file -e HEAD:<rel>` exits **1** and `rev-parse` exits
+> **0**. Exit 1 is a `no` to `git()`, so `main` calls a committed entry uncommitted and
+> `sha --write` rewrites its frozen region at exit 0; the branch answers `committed` and
+> refuses, which is the right answer, because what makes the region immutable is that a
+> commit names it and not whether this checkout can still read the bytes. Measured on git
+> 2.43.0.
+>
+> **`GIT_INDEX_FILE` survives the scrub for the callers whose subject is the index, and
+> that is a measurement rather than a preference.** `git commit -- <path>` commits the
+> working tree's version of the named paths out of a temporary index, and names it to the
+> hook: measured on git 2.43.0, a plain commit's hook gets `GIT_INDEX_FILE=.git/index` and
+> a partial commit's gets `.git/next-index-<pid>.lock`. Over an entry whose frozen region
+> was rewritten in the working tree and staged into that temporary index, `validate
+> --cached` reports the immutability failure with the variable in the environment and
+> **zero** failures with it scrubbed — the same false pass as the rest of the list,
+> pointed the other way, and it would let exactly the commit being made land. So
+> `git_env(index=True)` is passed by the seven calls that read what is staged
+> (`load_entries`, `index_problem`, `check_history`'s batch, and `seen_at`, `now_text`,
+> `in_this_run` and the `diff --cached` in `drift`) and by nothing else.
+>
+> **Every rule here is held by a test that its own deletion reddens**, which is the
+> standard the finding-4 gate set (QE13). Seven index sites, seven mutants, seven distinct
+> observables: an id that does not match its filename (`load_entries`), a frozen region
+> whose bytes changed and whose text did not (`check_history`'s batch), an unparseable
+> index named in the variable (`index_problem`), the recorded `artifact:` of a written
+> verdict (`seen_at`), a section that moved (`now_text`), a staged deletion (`in_this_run`)
+> and the comparison against the pin (`drift`). 876 passed, 2 xfailed; 79/79 seeds; ruff,
+> `ruff format` and ty clean; `claims-ledger check` 0 failures over this repository's own
+> ledger, so nothing pinned drifted — `restamp` is untouched and L0007 needed no
+> supersession.
+>
+> **`git_bytes` is deleted rather than scrubbed.** It had no callers left after finding 1
+> replaced the three-reads-per-entry path with `git_blobs`, and a git reader nothing calls
+> is a rule no mutant can redden — leaving an unscrubbed one in a branch whose whole
+> subject is that every git call is scrubbed is the worse of the two. Its lesson about
+> universal newlines lives on in `_git_raw` and `blob_text`, which is where the byte-exact
+> comparison actually happens.
+>
+> **One thing found and left open, and the gate corrected how it was written down here.**
+> A `GIT_INDEX_FILE` naming a path that does not exist is an **empty index at exit 0**, not
+> an error, so `index_problem`'s `ls-files` reports a healthy index and `load_entries`
+> falls back to the working tree for every entry while `--cached` says nothing. This first
+> recorded the consequence as extra failures — the working tree's four rather than the
+> index's two — which is the loud direction and the one that does not matter. The gate
+> measured the quiet one: with a frozen region rewritten and *staged*, and the working tree
+> then restored, `validate --cached` exits 1 with the immutability failure against the
+> repository's own index and **exits 0 with nothing printed and no note** under a foreign
+> index, a path that is not there, or the empty string. That is a check that did not happen
+> reporting as a check that passed — this project's cardinal defect — and it is on `main`
+> too, so it is pre-existing rather than this branch's.
+>
+> The reason given here for not closing it was also wrong, and self-contradicting: it said
+> the guard needs git's resolution of a relative `GIT_INDEX_FILE`, which the sentence
+> before it already answers. The predicate is known and measured by the gate against all
+> six hook shapes (plain commit, `commit -- <path>`, `commit -a`, from a subdirectory, a
+> linked work tree, a submodule, and `--git-dir`/`--work-tree`): **the named index must
+> exist and must be inside `git rev-parse --absolute-git-dir`.** It accepts every one of
+> those shapes and rejects all three false passes. What is left is not a question, only the
+> work, and it belongs to a branch that can carry a behaviour change to `--cached` through
+> its own gate.
+
 ---
 
 ## Verdict
@@ -288,10 +393,12 @@ config.py ──► schema.py ◄── validate.py  resolve.py  references.py  
                   └──────────── cli.py ────────────────────┘ ◄── corpus/run.py (lazy, both ways)
 ```
 
-`schema.py` (1,250 lines) holds three layers with no dependency reason to be together:
-entry/pointer/section parsing (its stated purpose); a git subprocess client
-(`GIT_TIMEOUT`, `GitAnswer`, `git_call`, `git`, `git_bytes`, `git_history`, `git_blobs`,
-`git_problem`, `index_problem`); and atomic-write and file-safety
+`schema.py` (1,250 lines when this was written, 1,636 now) holds three layers with no
+dependency reason to be together: entry/pointer/section parsing (its stated purpose); a
+git subprocess client (`GIT_TIMEOUT`, `GitAnswer`, `GIT_REPOSITORY_ENV`, `git_env`,
+`git_call`, `git`, `git_history`, `git_blobs`, `git_problem`, `index_problem` —
+`git_bytes` was here and is deleted, see the QE12-2 disposition); and atomic-write and
+file-safety
 (`file_problem`, `write_bytes_atomically`, `_refuse_a_target_this_process_may_not_write`).
 Neither of the last two imports a schema type. The only import cycle in the package —
 `cli.py` ⇄ `corpus/run.py`, both ends function-local — exists because

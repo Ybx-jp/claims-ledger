@@ -1115,14 +1115,65 @@ class GitAnswer:
         return self.code == 0
 
 
+# git's own "The Git Repository" environment, entire. Every variable in it answers the
+# question "which repository, and where are its parts" — which is the question each git
+# call in this package has already answered by naming the directory with `-C`. Left in
+# place they override that silently, and silence is the failure mode that matters here.
+# Measured on git 2.43.0 against a ledger whose entry a commit already holds: under
+# `GIT_DIR`, `GIT_COMMON_DIR` or `GIT_OBJECT_DIRECTORY` naming any other repository,
+# `sha --write` rewrote the frozen region of that committed entry and exited 0, and under
+# `GIT_DIR` `validate` dropped both immutability failures with nothing said about a check
+# it had not made. The scrub used to be one call's argument — the discovery walk's — and
+# so it held for finding the repository and for nothing asked of it afterwards.
+# (ARCH-AUDIT.md, QE12-2.)
+#
+# Taken as a documented section rather than assembled from the three that were measured
+# to bite: a variable that reroutes the repository is a false pass waiting for a git
+# version that reads it, and there is nothing to weigh against dropping one this package
+# never wants.
+GIT_REPOSITORY_ENV = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_NAMESPACE",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+    "GIT_INDEX_FILE",
+    "GIT_INDEX_VERSION",
+    "GIT_DEFAULT_HASH",
+    "GIT_DEFAULT_REF_FORMAT",
+)
+
+
+def git_env(index=False):
+    """The environment for a git call about the repository that call names.
+
+    `index=True` keeps `GIT_INDEX_FILE`, and is for the callers whose subject *is* the
+    index. Under a pre-commit hook git names the index it is building the commit in, and
+    for a partial commit that is not `.git/index`: measured on git 2.43.0, a plain
+    `git commit` gives the hook `GIT_INDEX_FILE=.git/index` and `git commit -- <path>`
+    gives it `.git/next-index-<pid>.lock`, holding HEAD plus the named paths. Scrubbing it
+    there would take `validate --cached` and `freshness --cached` off the content being
+    committed and onto content that is not — the same false pass as the rest of this list,
+    pointed the other way. So the one question this package does ask of the environment is
+    asked — by the callers whose subject is the index, under `--cached`, and by no others.
+    """
+    drop = set(GIT_REPOSITORY_ENV)
+    if index:
+        drop.discard("GIT_INDEX_FILE")
+    return {k: v for k, v in os.environ.items() if k not in drop}
+
+
 def git_call(repo, *args, env=None):
-    """A git command in `repo`, as a GitAnswer. `env` replaces this process's environment
-    for the call, for the one caller that has to ask about a directory rather than about
-    whatever `GIT_DIR` names."""
+    """A git command in `repo`, as a GitAnswer. The environment is `git_env()`, because
+    the call is about the directory it names and not about whatever `GIT_DIR` names;
+    `env` replaces it, for the callers that read the index."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), *args],
-            env=env,
+            env=git_env() if env is None else env,
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT,
@@ -1150,33 +1201,15 @@ def git(repo, *args):
     return answer.out if answer.ok else None
 
 
-def git_bytes(repo, *args):
-    """stdout of a git command in `repo` as raw bytes, or None on failure.
-
-    `git_call` decodes, and decoding runs the bytes through universal newlines: a blob
-    committed with CRLF comes back with LF and compares equal to a working file that has
-    been rewritten. For the frozen-region check that comparison is the whole point, so
-    this is the one reader that never touches what it read.
-    """
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo), *args],
-            capture_output=True,
-            timeout=GIT_TIMEOUT,
-            check=False,
-        )
-    except (subprocess.TimeoutExpired, OSError):
-        return None
-    return out.stdout if out.returncode == 0 else None
-
-
-def _git_raw(repo, args, stdin=None):
+def _git_raw(repo, args, stdin=None, env=None):
     """(code, stdout bytes, why) for a git command in `repo`: `git_call` without the
-    decoding, for the two readers below that answer for a whole ledger at once."""
+    decoding, for the two readers below that answer for a whole ledger at once. `env` as
+    `git_call` has it — `git_env()` unless the caller is reading the index."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), *args],
             input=stdin,
+            env=git_env() if env is None else env,
             capture_output=True,
             timeout=GIT_TIMEOUT,
             check=False,
@@ -1257,7 +1290,7 @@ def git_history(repo, pathspec):
     return GitHistory(revisions, parents), ""
 
 
-def git_blobs(repo, specs):
+def git_blobs(repo, specs, env=None):
     """(blobs, failures) for the object names in `specs` — `<commit>:<path>`, or `:<path>`
     for the index — read through one `git cat-file --batch`: `{spec: bytes}` for each that
     git produced, and `{spec: why}` for each it did not, so that a blob that could not be
@@ -1272,7 +1305,10 @@ def git_blobs(repo, specs):
     if not specs:
         return {}, {}
     code, data, why = _git_raw(
-        repo, ["cat-file", "--batch"], stdin=b"".join(os.fsencode(s) + b"\n" for s in specs)
+        repo,
+        ["cat-file", "--batch"],
+        stdin=b"".join(os.fsencode(s) + b"\n" for s in specs),
+        env=env,
     )
     blobs, failures = {}, {}
     pos = 0
@@ -1346,7 +1382,9 @@ def enclosing_repository(root, entries_dir):
     project that is simply not under version control, and is a strict ancestor by
     construction. A `.git` file counts: that is how a submodule and a linked work tree
     name their repository. **Every** `.git` above the root is asked, not the first: the
-    nearest repository is often not the one that committed the ledger.
+    nearest repository is often not the one that committed the ledger. The two git calls
+    it does make used to pass a scrubbed environment as an argument here, alone in the
+    package; `git_env()` is what every git call gets now, so they simply take the default.
 
     **A git that cannot answer is not a git answering no.** Returning None for a failed
     call put back the exact false pass this function exists to remove: with an enclosing
@@ -1360,7 +1398,6 @@ def enclosing_repository(root, entries_dir):
     package against a different origin.
     """
     root, entries_dir = Path(root).resolve(), Path(entries_dir).resolve()
-    env = git_env_without_location()
     for parent in root.parents:
         # Every `continue` below is a repository that has nothing to say about these
         # entries, and the walk goes on past it. Stopping at the first one instead was a
@@ -1379,13 +1416,13 @@ def enclosing_repository(root, entries_dir):
         # A repository with no commits in it at all fails `git log` the way a repository
         # nobody can read does, and it is the ordinary state of a project being started
         # around a ledger. Separated here rather than collapsed into the reason string.
-        head = git_call(parent, "rev-parse", "--verify", "--quiet", "HEAD", env=env)
+        head = git_call(parent, "rev-parse", "--verify", "--quiet", "HEAD")
         if head.code == 1:
             continue
         if not head.ok:
             return None, f"git cannot read the repository at {parent} ({head.why})"
         rel = os.path.relpath(entries_dir, parent).replace(os.sep, "/")
-        answer = git_call(parent, "log", "-1", "--format=%H", "--", f":(literal){rel}", env=env)
+        answer = git_call(parent, "log", "-1", "--format=%H", "--", f":(literal){rel}")
         if not answer.ok:
             return None, f"git cannot read the repository at {parent} ({answer.why})"
         if answer.out.strip():
@@ -1394,21 +1431,6 @@ def enclosing_repository(root, entries_dir):
         # staged into a scratch directory. Nothing here was committed — but a repository
         # further up may still hold them, so this is not the end of the walk.
     return None, None
-
-
-# The variables that tell git where the repository is. Under any of them a `-C <elsewhere>`
-# is not the question it looks like — `rev-parse --show-toplevel` answers about whatever
-# they name rather than about the directory. Measured on git 2.43.0, no hook exports
-# `GIT_DIR`; a hook does get `GIT_INDEX_FILE`, and `GIT_DIR` reaches one when git itself
-# was invoked with `--git-dir`. An earlier version of this comment said every hook exports
-# it, which is wrong and is corrected here rather than quietly dropped.
-GIT_LOCATION_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE")
-
-
-def git_env_without_location():
-    """The environment with git's location variables removed, for a call that has to ask
-    about the directory it names rather than about whatever set them."""
-    return {k: v for k, v in os.environ.items() if k not in GIT_LOCATION_ENV}
 
 
 def git_problem(repo):
@@ -1440,7 +1462,7 @@ def index_problem(repo):
     index itself, with a pathspec that matches nothing: the index is parsed in full and
     a repository with a hundred thousand files still prints nothing.
     """
-    answer = git_call(repo, "ls-files", "--", ".git")
+    answer = git_call(repo, "ls-files", "--", ".git", env=git_env(index=True))
     return None if answer.ok else answer.why
 
 
@@ -1497,7 +1519,9 @@ def load_entries(ledger, cached=False):
         # pre-commit hook runs this over the whole ledger on every commit. A path that is
         # not in the index gets no blob and is read from the working tree, as before.
         rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-        blobs, _ = git_blobs(ledger.repo, (f":{rel}" for rel in rels.values()))
+        blobs, _ = git_blobs(
+            ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
+        )
         staged = {path: blobs.get(f":{rel}") for path, rel in rels.items()}
     for path in paths:
         data = staged.get(path)

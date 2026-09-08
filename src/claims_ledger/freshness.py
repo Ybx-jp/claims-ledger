@@ -47,6 +47,7 @@ from .schema import (
     Report,
     git,
     git_call,
+    git_env,
     git_problem,
     load_entries,
     read_artifact,
@@ -215,7 +216,9 @@ def seen_at(repo, pointer, path, cached, withdrawn):
     if withdrawn:
         return ABSENT, None
     if cached:
-        answer = git_call(repo, "rev-parse", "--verify", "--quiet", f":{pointer.target}")
+        answer = git_call(
+            repo, "rev-parse", "--verify", "--quiet", f":{pointer.target}", env=git_env(index=True)
+        )
     else:
         answer = git_call(repo, "hash-object", "--path", pointer.target, "--", str(path))
     if answer.ok and OBJECT_ID_RE.match(answer.out.strip()):
@@ -234,7 +237,7 @@ def now_text(repo, pointer, path, cached):
     confident `has moved` at exit 0. (ARCH-AUDIT.md, finding 2.)
     """
     if cached:
-        answer = git_call(repo, "show", f":{pointer.target}")
+        answer = git_call(repo, "show", f":{pointer.target}", env=git_env(index=True))
         if answer.ok:
             return answer.out, None
         return None, f"git could not read `{pointer.target}` from the index: {answer.why}"
@@ -254,7 +257,14 @@ def in_this_run(repo, pointer, path, cached):
     (ARCH-AUDIT.md finding 2, QE11-4.)
     """
     if cached:
-        answer = git_call(repo, "ls-files", "--error-unmatch", "--", literal(pointer.target))
+        answer = git_call(
+            repo,
+            "ls-files",
+            "--error-unmatch",
+            "--",
+            literal(pointer.target),
+            env=git_env(index=True),
+        )
         return answer.ok, None
     try:
         info = os.stat(path)
@@ -361,7 +371,15 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     # both sides. Empty output means the path is unchanged there, and no section inside it
     # can have moved either, so the text is never read.
     diff = ["diff", "--cached"] if cached else ["diff"]
-    changed = git_call(repo, *diff, "--name-only", pointer.pin, "--", literal(pointer.target))
+    changed = git_call(
+        repo,
+        *diff,
+        "--name-only",
+        pointer.pin,
+        "--",
+        literal(pointer.target),
+        env=git_env(index=cached),
+    )
     if not changed.ok:
         return "unknown", f"git could not compare `{pointer.target}` against the pin: {changed.why}"
     if not changed.out.strip():
