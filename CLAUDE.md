@@ -1,8 +1,8 @@
 # Working in this repository
 
-This package holds a ledger of the claims about *itself*. Eleven entries under `ledger/`
-— eight live and three superseded — pinned to the code that keeps them true and cited from the
-README sentence and the docstring that state the same commitment in prose.
+This package holds a ledger of the claims about *itself*: entries under `ledger/`
+pinned to the code that keeps them true and cited from the README sentence and the
+docstring that state the same commitment in prose.
 `claims-ledger check` runs in the pre-commit hook and again in CI.
 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
@@ -19,10 +19,10 @@ Enforced in two places, neither of which is this file: `allow_squash_merge` and
 for that guard are committed beside it in `merge-guard.cases`; run
 `bash examples/agent-harness/merge-guard-test.sh` after touching either.
 
-The reason is in `docs/OPERATING.md`. The short of it: the entries pin commit
-`4023af40` eleven times over, with three more pins on later commits — L0009 on
-`7b1f3414`, L0010 on `d2789a9` and L0011 twice on `d1474db` — and a rewrite that drops
-any of them costs a supersession per ground pinned into it.
+The reason is in `docs/OPERATING.md`. The short of it: the entries pin commits, many
+of them, and a rewrite that drops one costs a supersession per ground pinned into it.
+`claims-ledger status` is the count; it is not repeated here, because a tally in prose
+is one more thing that goes stale every time an entry lands.
 
 ## What the checkers read here
 
@@ -32,16 +32,22 @@ that live in other ledgers, and a glob that reached them would turn fixtures int
 failures. Widening one is a change to run before it is committed.
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
-does, so a citation written here is checked. `.claude/` is not, which is why the skill
-there can show citation syntax literally.
+does, so a citation written here is checked. Neither `.claude/` nor `examples/` is, which
+is why the skills can show citation syntax literally; a skill moved inside the document
+globs would have its examples checked as real citations and fail.
 
-## The agent hooks live in `examples/`
+## The agent hooks and skills live in `examples/`
 
-`.claude/settings.json` points at `examples/agent-harness/`, not at a private copy. The
-hooks are an example that ships to readers and the thing this repository actually runs;
-keeping one copy is what stops the example rotting. Nothing in them is
-repository-specific — the interpreter is discovered and the document list is asked of the
-package — so keep it that way when editing.
+`.claude/settings.json` points at `examples/agent-harness/`, and `.claude/skills/` holds
+symlinks into `examples/agent-skills/` — neither is a private copy. Both are examples that
+ship to readers and the thing this repository actually runs; keeping one copy is what
+stops the example rotting. Nothing in either is repository-specific — the interpreter is
+discovered, the document list is asked of the package, act legality is read from what
+`references` said, and counts are asked of `claims-ledger status` rather than written
+down — so keep it that way when editing.
+
+The hooks name the skills and the skills name each other. `merge-guard.sh` has committed
+expected verdicts; the others do not, so a change to one is checked by running it.
 
 ## The pre-commit hook is not tracked
 

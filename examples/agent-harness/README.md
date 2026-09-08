@@ -1,7 +1,7 @@
 # Agent-harness hooks
 
-Two hooks for a coding-agent harness, for projects whose ledger pins claims to code. They
-are **examples, not part of the package**: nothing installs them, nothing supports them,
+Four hooks for a coding-agent harness, for projects whose ledger pins claims to code.
+They are **examples, not part of the package**: nothing installs them, nothing supports them,
 and they are not in the wheel or the sdist. Copy them into your project and adapt.
 
 They are here rather than in `src/` for two reasons. The hook-configuration format below
@@ -29,10 +29,24 @@ check. No checker can close this — telling a promise from a description is a j
 so `pin-guard.sh` raises it once a session, on the first edit to a configured document,
 and leaves the judgement where it belongs.
 
-**A squash or rebase merge silently destroys every commit pin.** `resolve` reports it
-afterwards, at which point the repair is a supersession per entry. `merge-guard.sh`
-refuses the commands that do it. See `docs/OPERATING.md`, which is the authority; this
-hook is one enforcement of what that document argues.
+**A squash or rebase merge silently destroys every commit pin.** A pin names a revision,
+so rewriting history removes the evidence for every ground pinned into the vanished commits
+at once, and each one then costs a supersession. `merge-guard.sh` refuses the commands that
+do it.
+
+**A citation's act can stop matching its target's status.** `references` says exactly
+what is wrong and nothing about which of four repairs is right, and they differ in cost
+and in what they assert. `status-guard.sh` fires on that finding alone and lays the four
+out. It is a different failure from a drifted pin and does not share its repair, which is
+why it is a separate hook.
+
+**A session starts without the map.** Which command answers which question, what the
+statuses and acts are, and which skill takes over for which finding are all knowable up
+front, and knowing them is what lets a finding be read rather than deciphered.
+`ledger-orientation.sh` hands that over once at session start and carries nothing else. It
+asks the installed package for the counts and for the evidence types the project
+configures, rather than carrying either. It stays silent in a checkout with no
+`ledger/entries`, since the directory it ships in is meant to be copied.
 
 ## Installing them (Claude Code)
 
@@ -41,6 +55,10 @@ Copy this directory into your project and add to `.claude/settings.json`:
 ```json
 {
   "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command",
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/ledger-orientation.sh" }] }
+    ],
     "PreToolUse": [
       { "matcher": "Bash",
         "hooks": [{ "type": "command",
@@ -49,14 +67,20 @@ Copy this directory into your project and add to `.claude/settings.json`:
     "PostToolUse": [
       { "matcher": "Edit|Write|MultiEdit",
         "hooks": [{ "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh" }] }
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh" },
+                  { "type": "command",
+                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/status-guard.sh" }] }
     ]
   }
 }
 ```
 
-Both scripts derive the project root from their own location, two directories up. Move
+Every script derives the project root from its own location, two directories up. Move
 them and adjust the `..` count.
+
+The hooks name the skills in `../agent-skills/`, which carry the procedures the hooks only
+point at. Installing one without the other leaves an agent told what is wrong and not what
+the choices are.
 
 For another harness, the parts to replace are the input parsing (a JSON payload on stdin
 carrying an event name, a session id and either a file path or a command) and the output
@@ -74,7 +98,17 @@ Nothing, by construction, and it is worth keeping it that way:
 - Which files are documents is asked of the package. `pin-guard.sh` calls the same
   `tree_documents` the checkers call, so excludes, glob semantics and the rule that the
   ledger does not cite itself come along for free. A hook that restated any of that would
-  drift from the checker it serves.
+  drift from the checker it serves. `status-guard.sh` does the same with act legality: it
+  reads what `references` said rather than restating `ACT_ALLOWS`.
+- No counts, anywhere. `ledger-orientation.sh` asks `claims-ledger status` for the tally
+  rather than carrying one, because a number written into prose is false the next time an
+  entry lands and nothing checks it.
+- Nothing points at a path the reader may not have. `docs/` is not installed with the
+  wheel, and the package's own source is not an interface, so the hooks name only
+  `claims-ledger` commands, importable names, and the skills in `../agent-skills/`.
+- Nothing assumes what an artifact is. A ground may name a module, a settings table, a
+  design document or a run, and which types this project accepts is asked of its
+  configuration.
 
 ## Design notes worth keeping if you adapt them
 
@@ -83,9 +117,16 @@ keyed on a digest of the finding, so unchanged drift is reported once and *new* 
 still speaks, and it goes quiet by itself once a verdict discharges the flag. The
 new-claim reminder is keyed once per session.
 
-**Never write.** `pin-guard.sh` runs `freshness` without `--write`. Appending a verdict is
-a judgement about the ledger; a hook firing behind the author's back is not the place for
-one, and the verdict it wrote would be indistinguishable from one a person meant.
+**Never write.** `pin-guard.sh` runs `freshness` without `--write`, and `status-guard.sh`
+runs `references`, which cannot write at all. Appending a verdict is a judgement about the
+ledger; a hook firing behind the author's back is not the place for one, and the verdict it
+wrote would be indistinguishable from one a person meant.
+
+**Say what the choices are, never which to take.** `status-guard.sh` lists four outcomes
+and ranks none of them. It does say what each asserts, which is the part that decides:
+a `corroborated` verdict written without re-reading the artifact takes all five checkers
+to clean over an Assertion that is false, because sincerity is the one thing no checker
+can check.
 
 **Never block on failure.** Every error path in `pin-guard.sh` exits 0 silently — no `jq`,
 no interpreter, an unreadable config. A guard that can break the session is worse than no

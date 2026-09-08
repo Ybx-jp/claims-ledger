@@ -184,7 +184,7 @@ This section argues *why* the discharge is shaped as it is. `docs/OPERATING.md` 
 same ground as a sequence to follow, along with the two findings here that are not drift
 and must never be given a verdict.
 
-A `moved` flag is discharged in one of three ways, and the machinery for all three
+A `moved` flag is discharged in one of four ways, and the machinery for all four
 already exists.
 
 **Re-establish the claim on the new artifact.** Note what this costs: Grounds sit above
@@ -202,9 +202,37 @@ pointer, exactly as `propagate` writes one naming a fallen entry:
       evidence: code: src/serializers/v2.py @ed46323
       note: propagated from a moved ground
 
+**Acknowledge that the claim is untouched.** Where the artifact moved and the Assertion
+did not — a renumbering, a reformat, a section moved within a file or to another path, a
+rename — append a `corroborated` verdict naming the artifact as it now stands, with a note
+recording what moved:
+
+    - 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main
+      evidence: code: src/serializers/v2.py § "encode" @a91f0c2
+      note: the section moved with the module split; the assertion is unaffected
+
+`contested` is not terminal, so the status walks past it to the corroborated verdict and
+citations reading `cites-as-live` stay legal. The entry keeps its id, its Grounds and its
+citations, and no successor is written.
+
+What makes this a record rather than a restatement is a rule `validate` already enforces:
+a corroborating verdict may not point at a ground the entry already cites. Its evidence
+has to name the artifact as it is now, which is exactly the reading that was done. An
+entry discharged this way carries, in order, what the machinery saw and what a person
+found when they went and looked.
+
+Note what it costs, because it is the same cost the section below describes and it is
+easy to take twice. A discharge is against the drift in front of it, and once the
+contested verdict is in history that ground reports no further drift. An entry returned
+to a live status therefore carries a ground that will not speak again, where superseding
+or letting the claim fall retires the entry instead. Acknowledge when the reading
+actually happened; a corroborating verdict is the one place the ledger's accuracy rests
+on a person having looked, and no checker can check that.
+
 **Let it fall.** A `refuted` or `retracted` verdict written by a person.
 
-The second is the one the checker can help with, so `freshness --write` appends it, and —
+The contested verdict is the one the checker can help with, so `freshness --write` appends
+it, and —
 following `propagate` — the run still exits non-zero afterwards so the appended text is
 looked at before it is committed. A pointer whose entry already carries such a verdict
 naming it, **including its `§ "<section>"`**, and whose verdict **describes the drift in

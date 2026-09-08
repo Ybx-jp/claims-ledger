@@ -1,0 +1,39 @@
+---
+id: L0017-a-fallen-ground-demands-a-verdict-on-its-dependent
+kind: claim
+stated: 2026-09-07T23:17:46-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: 67b7cdd1eae6d9f164bb5e51eb2e115b2230db9229d502f646738e3c12871cb5
+---
+
+## Assertion
+
+An entry citing a ground `cites-as-live` must carry a contested verdict by the propagation author naming that ground once the ground has fallen, and propagate reports the entry by name while it does not.
+
+## Scope
+
+metric: the reports propagate returns for a dependent whose live-cited ground has fallen
+cohort: entries carrying an `entry:` ground with the cites-as-live act
+condition: the ground's derived status is refuted, superseded or retracted, and the dependent's own is not
+
+## Grounds
+
+- code: src/claims_ledger/propagate.py § "run" @0af113005f955a4e120d71338993a94cc6efeb7b
+
+## Warrant
+
+run's first pass walks each entry's `entry:` grounds and, for a cites-as-live act whose target's derived status is in FALLEN, asks has_propagated for a matching verdict; when there is none it reports the dependent, names the target and the status it fell to, and queues the verdict the entry is owed.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/propagate.py · standing · cites-as-live
