@@ -6,6 +6,7 @@ the fingerprint, the status derivation and the citation acts are not.
 
 import dataclasses
 import os
+import subprocess
 from datetime import timedelta
 
 import pytest
@@ -14,6 +15,7 @@ from claims_ledger.config import from_table
 from claims_ledger.schema import (
     Verdict,
     derive_status,
+    enclosing_repository,
     fingerprint,
     open_ledger,
     parse_pointer,
@@ -292,6 +294,60 @@ def test_an_exclude_matches_segment_by_segment_the_way_documents_does(tmp_path):
     assert documents_of(tmp_path, ["docs/**/draft-*.md"], *TREE) == sorted(
         ["README.md", "docs/spec.md"]
     )
+
+
+def git(where, *args):
+    subprocess.run(
+        ["git", "-C", str(where), "-c", "user.name=t", "-c", "user.email=t@e", *args],
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_every_repository_above_the_ledger_is_asked_not_only_the_nearest(tmp_path):
+    """The walk asks every `.git` above the root. Stopping at the first was a false
+    negative of exactly the shape this check exists to catch: one `git init` in a
+    directory between the ledger and the repository that committed it took `validate`
+    from exit 1 to exit 0 and let `sha --write` rewrite a committed frozen region — a
+    check somebody else's `git init` turned off. (ARCH-AUDIT.md finding 3, QE12-1.)
+    """
+    entries = tmp_path / "outer" / "mid" / "proj" / "ledger" / "entries"
+    entries.mkdir(parents=True)
+    (entries / "A0001-x.md").write_text("# an entry\n", encoding="utf-8")
+    outer = tmp_path / "outer"
+    git(outer, "init", "-q")
+    git(outer, "add", "-A")
+    git(outer, "commit", "-qm", "the ledger, committed by the outer repository")
+    proj = outer / "mid" / "proj"
+    assert enclosing_repository(proj, entries) == (outer, None)
+
+    # An empty repository between the two says nothing about these entries, and the walk
+    # goes on past it rather than reading its silence as an answer.
+    git(outer / "mid", "init", "-q")
+    assert enclosing_repository(proj, entries) == (outer, None)
+
+
+def test_a_repository_that_does_not_contain_the_entries_is_not_the_one_holding_them(tmp_path):
+    """A ledger can be configured with its entries outside its own root — the corpus
+    runner stages seeds into a scratch directory and points a `Config` at them — and a
+    repository above the *root* then has nothing to say about the entries. Asking it
+    anyway means `git log` on a path outside the repository, which fails, which the
+    reason-reporting path correctly turns into a finding: 61 corpus seeds, failing for a
+    question nobody asked. (ARCH-AUDIT.md finding 3, QE12-3.)
+    """
+    repo = tmp_path / "repo"
+    (repo / "project").mkdir(parents=True)
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    (repo / "tracked.txt").write_text("x\n", encoding="utf-8")
+    for args in (
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "x"],
+    ):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+    outside = tmp_path / "staged" / "entries"
+    outside.mkdir(parents=True)
+
+    assert enclosing_repository(repo / "project", outside) == (None, None)
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the permission bits under test")

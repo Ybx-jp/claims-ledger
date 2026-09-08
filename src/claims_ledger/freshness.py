@@ -33,6 +33,8 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
 
 from __future__ import annotations
 
+import os
+import stat
 from datetime import datetime
 
 from .propagate import append_verdict, grouped
@@ -47,8 +49,9 @@ from .schema import (
     git_call,
     git_problem,
     load_entries,
-    read_document,
+    read_artifact,
     section_text,
+    unreachable_artifact,
 )
 
 
@@ -221,51 +224,90 @@ def seen_at(repo, pointer, path, cached, withdrawn):
 
 
 def now_text(repo, pointer, path, cached):
-    """The artifact as this run reads it: the working tree, or the index blob under
-    `--cached`, matching whatever the rest of the run is reading."""
+    """(text, unreachable) — the artifact as this run reads it: the working tree, or the
+    index blob under `--cached`, matching whatever the rest of the run is reading.
+
+    `unreachable` is why the bytes could not be had at all, and is `None` for an artifact
+    that is there and is not UTF-8 text: that one really did change and simply cannot be
+    narrowed to a section, which is what `moved` already says. This returned the text
+    alone and threw the reason away, so `chmod 000` on an evidence file came back as a
+    confident `has moved` at exit 0. (ARCH-AUDIT.md, finding 2.)
+    """
     if cached:
-        return git(repo, "show", f":{pointer.target}")
-    return read_document(path)[0]
+        answer = git_call(repo, "show", f":{pointer.target}")
+        if answer.ok:
+            return answer.out, None
+        return None, f"git could not read `{pointer.target}` from the index: {answer.why}"
+    return read_artifact(path)
 
 
 def in_this_run(repo, pointer, path, cached):
-    """Whether the artifact is still there to be read — in the index under `--cached`,
-    and in the working tree otherwise."""
+    """(whether the artifact is still there to be read, why that could not be
+    established) — in the index under `--cached`, and in the working tree otherwise.
+
+    `path.is_file()` was the whole of it, and it does not have two answers where three are
+    needed. With the artifact's *directory* unsearchable it raises PermissionError out of
+    pathlib on 3.12 — `freshness` exited 2 having printed nothing, and `check` printed
+    four checkers and silently omitted the fifth — while 3.13 swallows the EACCES and
+    answers False, which is a confident `withdrawn` for a file nobody could look at.
+    `os.stat` is asked directly, the way `file_problem` asks it and for the same reason.
+    (ARCH-AUDIT.md finding 2, QE11-4.)
+    """
     if cached:
-        return git_call(repo, "ls-files", "--error-unmatch", "--", literal(pointer.target)).ok
-    return path.is_file()
+        answer = git_call(repo, "ls-files", "--error-unmatch", "--", literal(pointer.target))
+        return answer.ok, None
+    try:
+        info = os.stat(path)
+    except FileNotFoundError:
+        return False, None  # gone, or a symlink to nothing: withdrawn, and that is true
+    except (OSError, ValueError) as exc:
+        return False, f"cannot be reached ({getattr(exc, 'strerror', None) or exc})"
+    # A directory or a FIFO where the artifact was is not an artifact to read either, and
+    # unlike the case above this one is established rather than guessed at.
+    return stat.S_ISREG(info.st_mode), None
 
 
 def scoped(repo, pointer, path, config, cached=False):
-    """Whether the pointer's own section moved, for a pointer that names one.
+    """(finding, why) for a pointer that names a section — `None`, `moved`, `withdrawn`
+    or `unknown`.
 
     The artifact changed; the question this answers is whether the change was inside the
     section the claim actually rests on. `None` means the section is untouched and the
     edit was somewhere else in the file — the whole reason for naming a section.
     `withdrawn` means the file is still there and the section is not.
 
-    A side that cannot be read as text is not a finding of its own: the artifact did
+    A side that is there and is not text is not a finding of its own: the artifact did
     change, and `moved` is what the comparison already said before sections narrowed it.
+    A side that could not be read *at all* is the other thing, and it is `unknown`: the
+    docstring here anticipated only the first, and a permission error landed in the same
+    branch and produced a confident, false, soft finding. (ARCH-AUDIT.md, finding 2.)
 
-    Ledger: (L0008-a-section-pin-compares-only-its-section, cites-as-live).
+    Ledger: (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live).
     """
-    was = git(repo, "show", f"{pointer.pin}:{pointer.target}")
-    now = now_text(repo, pointer, path, cached)
-    if was is None or now is None:
-        return "moved"
+    at_pin = git_call(repo, "show", f"{pointer.pin}:{pointer.target}")
+    if not at_pin.ok:
+        # `drift` has already had `rev-parse --verify` say the blob is there, so this is
+        # git failing to hand it over rather than a pin that names nothing.
+        return "unknown", f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
+    now, unreachable = now_text(repo, pointer, path, cached)
+    if unreachable:
+        return "unknown", f"`{pointer.target}` {unreachable}, so its section was not compared"
+    was = at_pin.out
+    if now is None:
+        return "moved", None
     before = section_text(was, config, pointer.type, pointer.section)
     after = section_text(now, config, pointer.type, pointer.section)
     if before is None:
         # The section was never there at the pin. `resolve` fails on that; saying it
         # again here would make one defect look like two.
-        return None
+        return None, None
     if after is None:
-        return "withdrawn"
+        return "withdrawn", None
     # Trailing whitespace is the gap between one section and the next, not part of
     # either. The last section of an artifact runs to the end of it, so appending a new
     # section to the file would otherwise lengthen the one before it by the blank lines
     # separating them, and report a section nobody touched as moved.
-    return None if before.rstrip() == after.rstrip() else "moved"
+    return (None, None) if before.rstrip() == after.rstrip() else ("moved", None)
 
 
 def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working tree
@@ -306,7 +348,10 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
         )
         return (out or "").strip()
 
-    if not in_this_run(repo, pointer, path, cached):
+    present, unreachable = in_this_run(repo, pointer, path, cached)
+    if unreachable:
+        return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
+    if not present:
         # Deleted, or replaced by something that is not a file to read. Either way there
         # is nothing left for a person to look at and judge.
         return "withdrawn", since()
@@ -322,8 +367,17 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     if not changed.out.strip():
         return None, None
     if pointer.sectioned:
-        finding = scoped(repo, pointer, path, config, cached=cached)
+        finding, why = scoped(repo, pointer, path, config, cached=cached)
+        if finding == "unknown":
+            return finding, why
         return (finding, since()) if finding else (None, None)
+    # A plain pin has nothing inside it to narrow to, so git's comparison above is the
+    # answer — unless the reason git called it changed is that nothing can read it. git
+    # reports a file it cannot open as modified, which is the same false confidence one
+    # surface out.
+    unreachable = None if cached else unreachable_artifact(path)
+    if unreachable:
+        return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
     return "moved", since()
 
 
@@ -436,7 +490,7 @@ def run(ledger, write=False, cached=False):
             where_it_was = "the index" if cached else "the working tree"
             gone = (
                 f"section {p.section!r} is no longer in `{p.target}`"
-                if p.sectioned and in_this_run(repo, p, repo / p.target, cached)
+                if p.sectioned and in_this_run(repo, p, repo / p.target, cached)[0]
                 else f"`{raw}` is not in {where_it_was}"
             )
             reports.append(

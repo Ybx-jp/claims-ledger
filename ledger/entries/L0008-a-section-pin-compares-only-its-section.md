@@ -32,7 +32,14 @@ scoped extracts the named section from both texts through the project's section 
 
 ## Verdicts
 
+- 2026-09-07T19:07:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "scoped" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: 1e704d90edfafe963b29207f148e31869d60917e
+  note: propagated from a moved ground
+
+- 2026-09-07T19:10:51-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0009-a-section-pin-compares-its-section-or-says-it-could-not · supersedes
+  note: the pinned section gained an unknown finding for a side it cannot read; Assertion, Scope and Backing otherwise unchanged
+
 ## References
 
-- docs/FRESHNESS.md · standing · cites-as-live
-- src/claims_ledger/freshness.py · standing · cites-as-live

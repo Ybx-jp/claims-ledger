@@ -555,6 +555,70 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   produce — `SIGKILL`, `RLIMIT_FSIZE` — was already handled; this is the case a test cannot
   reach.
 
+### The self-hosted ledger
+
+- **L0008 is superseded by L0009.** Its pinned section, `freshness.py § "scoped"`, is the
+  one the finding-2 fix rewrites, so the ground moved and the claim had to be
+  re-established rather than re-pinned — `docs/OPERATING.md` says why a pin cannot be
+  edited. The successor states the same rule and the case the fix added: a side that could
+  not be read at all is a comparison that did not happen, not drift. Its `verbatim_change`
+  says what moved in the verbatim record. The two citations, in `docs/FRESHNESS.md` and in
+  the docstring the claim is about, moved with it. This is the first supersession in this
+  package's own ledger, and it cost what the manual says it costs: one entry, one verdict,
+  two moved citations, and two commits.
+
+### Fixed by the architecture audit
+
+- **An artifact nobody can read is a comparison that did not happen, not a ground that
+  moved** — `ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
+  file came back as `has moved`, at exit 0, naming a section the checker had never read:
+  git lists a file it cannot open as changed, and the section comparison mapped a text it
+  could not get to onto the finding for a text that differs. `freshness` already has the
+  `unknown` class for a comparison it could not make, and this was that, misfiled. The
+  distinction the fix rests on is narrow and is stated where it is made: bytes that are
+  there and are not UTF-8 keep reporting `moved`, because that artifact really did change
+  and simply cannot be narrowed to a section; bytes that cannot be reached at all are
+  `unknown`. `os.stat` succeeds on a mode-000 file, so the existing file guard could not
+  draw that line. The plain-pin branch had the same false confidence and is fixed too.
+- **A ledger inside somebody else's repository says its history was not read** — finding
+  3, and the defect under the one that was reported. A project is treated as a repository
+  when `<root>/.git` is there, so a ledger one directory inside one — `--root <subdir>`,
+  or a ledger vendored in a larger project — read as a ledger with no history at all, and
+  "no history" is indexed to "nothing to check" everywhere it matters. Measured on such a
+  ledger: `sha --write` rewrote the frozen region of an entry that repository had already
+  committed and exited 0, and `validate` then reported `0 failure(s)` over it — which is
+  the whole of what L0007 says must not happen. Both commands now ask whether there is a
+  history nobody looked at, and refuse rather than guess. Nothing adopts the enclosing
+  repository: every evidence path in the package is written relative to the ledger root,
+  and `git show <pin>:<path>` reads its path from the repository's top.
+
+  With no repository anywhere the exit code stays 0, deliberately: no entry has a creating
+  commit, so nothing was skipped. `resolve` and `freshness` exit 1 in the same place
+  because they have real pinned pointers they cannot resolve, which is a different
+  question — the finding read that difference as a disagreement.
+
+  The predicate is *history*, not *location*, which took a fix-review gate to establish:
+  a first version asked whether a work tree existed above the ledger, and since the corpus
+  stages its seeds through `tempfile`, a `TMPDIR` inside any repository took the corpus
+  from 79/79 to 18/79. A directory that merely sits under a work tree, untracked, has no
+  history and nothing was skipped. The walk is the filesystem's rather than
+  `git rev-parse --show-toplevel`, because that answers with the directory it was run in
+  when `GIT_DIR` is set — which every git hook exports — and because a project that is
+  not under version control should cost no git process at all. And a git that cannot
+  answer is reported rather than read as "there is no repository", which is the same rule
+  as everywhere else in this checker and was the first version's own worst defect. And
+  every repository above the ledger is asked rather than only the nearest: stopping at the
+  first was a false negative of the same shape, where one `git init` in a directory
+  between the ledger and the repository that committed it turned the frozen-region check
+  off without a word.
+- **An artifact whose directory cannot be searched is not a withdrawn ground.** The
+  presence check was `Path.is_file()`, which raises PermissionError out of pathlib on 3.12
+  — `freshness` exited 2 having printed nothing, and `check` printed four checkers and
+  silently omitted the fifth — while on 3.13 it swallows the EACCES and answers False,
+  which is a confident `withdrawn` for a file nobody could look at. `os.stat` is asked
+  directly, and gone, not-a-regular-file and could-not-be-reached are three answers rather
+  than two.
+
 ### Changed by the architecture audit
 
 One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and

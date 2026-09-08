@@ -43,11 +43,158 @@ def test_an_empty_ledger_warns_but_is_not_an_error(project, capsys, command):
 
 def test_outside_git_the_skipped_history_checks_are_named(project, capsys):
     """validate's frozen-region and append-only checks read git history. Without a
-    repository they silently do nothing, so the command has to say so."""
+    repository they silently do nothing, so the command has to say so.
+
+    Exit 0 is correct *here* and only here: there is no repository anywhere under or over
+    this ledger, so no entry has a creating commit and nothing was skipped. The case
+    below is the one where that reasoning is false.
+    """
     assert project.cl("validate") == 0
     err = capsys.readouterr().err
-    assert "not a git repository" in err
+    assert "no git repository of its own" in err
     assert "frozen-region and append-only checks did not run" in err
+
+
+def nested_in_a_repository(project):
+    """`project`, committed in a repository one directory above it — the ordinary shape
+    of `--root <subdir>`, or of a ledger vendored inside a larger project."""
+    outer = project.root.parent
+    # The entry is written before the repository exists, because `sha --write` is one of
+    # the commands this case changes and it would refuse afterwards — which is the point.
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    subprocess.run(["git", "-C", str(outer), "init", "-q"], check=True)
+    for args in (
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "in"],
+    ):
+        subprocess.run(["git", "-C", str(outer), *args], check=True, capture_output=True)
+    assert not (project.root / ".git").exists(), "the ledger has no repository of its own"
+    return path
+
+
+def test_a_ledger_inside_someone_elses_repository_says_its_history_was_not_read(project, capsys):
+    """`open_ledger` calls a project a repository when `<root>/.git` is there, so a ledger
+    one directory inside one read as a ledger with no history at all — and "no history"
+    is indexed to "nothing to check" everywhere it matters. `validate` answered
+    `0 failure(s)` over a frozen region a commit was holding. (ARCH-AUDIT.md, finding 3.)
+    """
+    nested_in_a_repository(project)
+    assert project.cl("validate") == 1
+    out = capsys.readouterr().out
+    assert "which this ledger is not reading" in out
+    assert "unknown, not settled" in out
+
+
+def test_sha_write_refuses_an_entry_someone_elses_repository_has_committed(project, capsys):
+    """The same premise, one command over, and the reason it matters: `is_committed`
+    read "no repository" as "nothing is committed", so `sha --write` rewrote the frozen
+    region of an entry that repository had already committed and exited 0. That is the
+    whole of what L0007 says must not happen.
+
+    Answered rather than refused: an entry path is a path in the tree, so the enclosing
+    repository can say whether it holds this file, and `sha --write` reports the thing
+    that is true — the entry is committed — instead of reporting that it could not find
+    out. Refusing over the whole layout would have left it unusable for a reason that
+    does not apply to it.
+    """
+    path = nested_in_a_repository(project)
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace("condition: ", "condition: silently substituted, "), "utf-8")
+    capsys.readouterr()
+    assert project.cl("sha", "--write", str(path)) == 2
+    err = capsys.readouterr().err
+    assert "is committed" in err
+    assert "immutable" in err
+    assert "silently substituted" in path.read_text(encoding="utf-8")
+
+
+def test_a_ledger_merely_sitting_under_a_work_tree_is_not_a_history_nobody_read(project, capsys):
+    """The negative case, and the one whose absence let the first version of this ship:
+    the question is not "is there a work tree above me" but "is there a *history* nobody
+    read". A ledger materialized under a repository that has never committed it — a
+    scratch directory under a `TMPDIR` inside a checkout, a gitignored vendor tree, the
+    corpus staging its seeds — has no history, and reporting one took the corpus from
+    79/79 to 18/79 and the suite to 146 failures. (ARCH-AUDIT.md finding 3, QE11-1.)
+    """
+    outer = project.root.parent
+    subprocess.run(["git", "-C", str(outer), "init", "-q"], check=True)
+    (outer / "seed.txt").write_text("something else entirely\n", encoding="utf-8")
+    for args in (
+        ["add", "seed.txt"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "unrelated"],
+    ):
+        subprocess.run(["git", "-C", str(outer), *args], check=True, capture_output=True)
+    assert project.cl("new", "fraction-law") == 0
+    project.write_full_entry(next(project.entries.glob("A0001-*.md")))
+    capsys.readouterr()
+    assert project.cl("validate") == 0
+    assert "not reading" not in capsys.readouterr().out
+
+
+def test_the_walk_asks_the_directory_it_names_and_not_what_git_dir_names(
+    project, capsys, monkeypatch
+):
+    """`GIT_DIR` redirects every git call in the process, including the one that asks
+    whether the enclosing repository has ever committed these entries — under a `GIT_DIR`
+    naming some other repository it answers about *that* one, finds no history for the
+    path, and the report disappears. The environment is scrubbed for this call, and this
+    is the test of it: the sibling above proves the report appears, and nothing proved it
+    still appeared with the variable set. (QE12-3.)
+    """
+    nested_in_a_repository(project)
+    elsewhere = project.root.parent.parent / "elsewhere"
+    elsewhere.mkdir()
+    subprocess.run(["git", "-C", str(elsewhere), "init", "-q"], check=True)
+    (elsewhere / "x.txt").write_text("x\n", encoding="utf-8")
+    for args in (
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", "x"],
+    ):
+        subprocess.run(["git", "-C", str(elsewhere), *args], check=True, capture_output=True)
+    monkeypatch.setenv("GIT_DIR", str(elsewhere / ".git"))
+    capsys.readouterr()
+    assert project.cl("validate") == 1
+    assert "which this ledger is not reading" in capsys.readouterr().out
+
+
+def test_git_dir_in_the_environment_does_not_invent_a_repository(project, capsys, monkeypatch):
+    """`git rev-parse --show-toplevel` with `GIT_DIR` set and no `GIT_WORK_TREE` answers
+    with the directory it was run in, so a ledger with no repository anywhere reported
+    *itself* as the repository holding it — and every git hook exports `GIT_DIR`, which is
+    the one context this package is most often run from. The walk is the filesystem's now,
+    and asks nothing of the environment. (ARCH-AUDIT.md finding 3, QE11-3.)
+    """
+    elsewhere = project.root.parent / "elsewhere"
+    elsewhere.mkdir()
+    subprocess.run(["git", "-C", str(elsewhere), "init", "-q"], check=True)
+    monkeypatch.setenv("GIT_DIR", str(elsewhere / ".git"))
+    capsys.readouterr()
+    assert project.cl("validate") == 0
+    assert "not reading" not in capsys.readouterr().out
+
+
+def test_an_enclosing_repository_git_cannot_open_is_not_a_ledger_with_no_history(project, capsys):
+    """The false pass this whole branch exists to remove, put back by the first version of
+    its own fix: a failed `rev-parse` was read as "there is no repository", so with an
+    enclosing repository git refuses to open — `detected dubious ownership` is the
+    everyday one — `sha --write` rewrote a committed entry's frozen region and exited 0
+    again. A git that cannot answer is not a git answering no. (QE11-2.)
+    """
+    path = nested_in_a_repository(project)
+    subprocess.run(
+        ["git", "-C", str(project.root.parent), "config", "core.repositoryformatversion", "99"],
+        check=True,
+    )
+    capsys.readouterr()
+    assert project.cl("validate") == 1
+    assert "git cannot read the repository at" in capsys.readouterr().out
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace("condition: ", "condition: substituted, "), "utf-8")
+    capsys.readouterr()
+    assert project.cl("sha", "--write", str(path)) == 2
+    assert "could not be established" in capsys.readouterr().err
 
 
 def test_inside_git_nothing_is_said_about_skipped_history_checks(project, capsys):

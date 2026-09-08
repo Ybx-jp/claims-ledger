@@ -28,6 +28,138 @@ The findings are ranked by consequence, not by effort to fix.
 > sha256-repository test and a walk-timeout test; and the legal two-branch union merge
 > false-fails on the ordering of appended verdicts, which predates this work.
 
+> **Disposition — 2026-09-07, findings 2, 3 and 6.** Fixed on branch
+> `arch/checks-that-did-not-happen`, which is the three of them because they are one
+> property: a check that did not happen must not report as if it did.
+>
+> **Finding 2, and 6 with it.** `now_text` returned the text and threw away the reason,
+> so `scoped()` mapped an artifact it could not read onto `moved`. It returns
+> `(text, unreachable)` now and `scoped` returns `(finding, why)`, so `drift` answers
+> `unknown` — the class it already had. The distinction finding 6 asks for is a new
+> `schema.unreadable_artifact()`: bytes that are there and are not UTF-8 stay `moved`,
+> because that artifact really did change and simply cannot be narrowed to a section,
+> and bytes that cannot be reached at all are a comparison that did not happen.
+> `file_problem` cannot draw that line — `os.stat` succeeds on a mode-000 file — which
+> is why finding 6's two guards stay two. The plain-pin branch had the same false
+> confidence one surface out, since git reports a file it cannot open as modified, and
+> it is fixed too; the audit's remedy named only the sectioned one.
+>
+> **Finding 3 — and the finding under it, which is worse than the one reported.** The
+> stated repro is a ledger with `.git` removed, where `validate` exits 0 and `resolve`
+> and `freshness` exit 1. Measured while fixing it: with no repository *anywhere*,
+> exit 0 is right — no entry has a creating commit, so nothing was skipped, and
+> `resolve` and `freshness` exit 1 over real pinned pointers they cannot resolve, which
+> is a different question. The real defect is next door. `open_ledger` calls a project a
+> repository when `<root>/.git` is there, so a ledger one directory inside one —
+> `--root <subdir>`, or a ledger vendored in a larger project — reads as having no
+> history at all. Measured on such a ledger: `sha --write` rewrote the frozen region of
+> an entry that repository had already committed and exited 0, and `validate` then
+> reported `0 failure(s)` over it. That is L0007 not holding, silently, on an ordinary
+> layout. `schema.enclosing_repository()` answers the narrow question — is there a
+> history nobody looked at? — and `check_history` and `is_committed` both report it.
+> Nothing *adopts* the repository: every evidence path in the package is written
+> relative to the ledger root and `git show <pin>:<path>` reads its path from the
+> repository's top, so adopting one means rebasing every git path in the package. That
+> is its own branch, and until it exists this refuses rather than guesses.
+>
+> Regressions: three in `tests/test_freshness.py` (mode-000 under a sectioned pin, the
+> same under a plain pin, and the not-text case that must keep saying `moved`), two in
+> `tests/test_failure_paths.py`. The report-site inventory in
+> `tests/test_corpus_integrity.py` moves 75 to 76 for the one new site. Gates: 850
+> passed, 2 xfailed, 79/79 seeds, ruff and ty clean. Superseding L0008 is part of this
+> branch: its pinned section is `freshness.py § "scoped"`, which the fix rewrites.
+
+> **The fix-review gate on findings 2, 3 and 6** (`qe`, ticket `88bb70784a8746da`)
+> returned **do not merge**, with three HIGHs, all against the finding-3 half. Fixed on
+> the branch before merge, each re-measured:
+>
+> - **QE11-1.** `enclosing_repository` asked "is there a work tree above me", not "is
+>   there a history nobody read". The corpus stages seeds through `tempfile`, so a
+>   `TMPDIR` inside any repository took it from 79/79 to **18/79** and the suite to 146
+>   failures — and `claims-ledger init` in any repository subdirectory, with zero entries,
+>   exited 1. The predicate is now `git log -1 -- <entries>` in the nearest `.git`-bearing
+>   ancestor: a directory that merely sits under a work tree, untracked, has no history.
+>   Re-measured: 79/79 both ways, and the negative case has a test.
+> - **QE11-2.** A failed `rev-parse` was read as "there is no repository", which put back
+>   the exact false pass this branch removes: with an enclosing repository git refuses to
+>   open — `detected dubious ownership` is the everyday one — `sha --write` rewrote a
+>   committed entry's frozen region and exited 0 again. It returns `(holder, why)` now and
+>   both callers report the `why`.
+> - **QE11-3.** `git rev-parse --show-toplevel` with `GIT_DIR` set answers with the
+>   directory it was run in, so a ledger with no repository anywhere reported *itself* as
+>   the repository holding it. (This first said "every git hook exports `GIT_DIR`", which
+>   round 2 measured as false on git 2.43.0: a hook gets `GIT_INDEX_FILE`, and `GIT_DIR`
+>   reaches one when git itself was invoked with `--git-dir`.) The walk is the
+>   filesystem's now: `.git` above the root, no git process for a project that is not
+>   under version control, a strict ancestor by construction.
+> - **QE11-4, MED-HIGH.** `in_this_run` was `path.is_file()`, which raises PermissionError
+>   out of pathlib on 3.12 when the artifact's *directory* is unsearchable — `freshness`
+>   exit 2 printing nothing, `check` silently omitting it — and on 3.13 swallows the EACCES
+>   for a confident false `withdrawn`. `os.stat` is asked directly and the three states are
+>   three answers.
+> - **QE11-5, MED.** The classification read the file twice, at +319 MB peak RSS on a
+>   300 MB artifact and with a race between the reads. `read_artifact` does it in one; the
+>   plain-pin branch, which never wants the text, probes one byte.
+> - **QE11-6, MED.** `docs/FRESHNESS.md` step 5 still said any diff output means `moved`.
+>   Corrected for both halves. **Open:** the plain-pin half is claimed by no entry — L0009's
+>   cohort is sectioned grounds — so that behaviour is documented and unledgered.
+> - **QE11-7, LOW, open.** Both mode-000 guards skip under root, so a contributor in a
+>   default container gets a green suite with this branch's headline guards unrun.
+> - **QE11-9, LOW, standing.** The supersession record survives attack — `contested` was
+>   right, `refuted` would have been wrong — with two nits now uncorrectable because they
+>   are in append-only regions: L0009's `verbatim_change` says "Backing is unchanged",
+>   true of the fingerprint and false of the section bytes (`'\n\n\n'` → `'\nnone\n\n\n\n'`),
+>   and the Warrant changed without being named. `validate.py` checks that
+>   `verbatim_change` is present, never what it says.
+>
+> **Environment-dependent tests, pre-existing, and one of them fixed here because it
+> blocked two merges in a day.** `test_e` and `test_e2` in `tests/test_git_degradation.py`
+> degrade git by deleting one loose object, which degrades nothing once the object is in a
+> pack. On the runners this failed twice in one day on different legs and never locally:
+> `test_e` raised FileNotFoundError unlinking a path for a blob `rev-parse` had just
+> resolved, and `test_e2` unlinked HEAD's commit object and watched `git log` go on
+> answering. Both say the object was packed. Auto-packing is now off for those fixtures
+> and each unlink is preceded by a precondition that names the cause, so a future git that
+> packs anyway fails with a sentence rather than a `FileNotFoundError`.
+> `test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit` is the same class and is
+> **not** fixed: it builds a directory it calls `not-a-repository` and asserts git fails
+> there, which is false when `TMPDIR` is inside a checkout. Finding 7's subject — a test
+> whose verdict depends on where and on what it was launched — is wider than either.
+
+> **Round 2 of the gate** (`qe`, ticket `39e244285f044346`) returned **safe to merge**,
+> and recommended taking two of its own findings first because the fix was in hand. Both
+> taken:
+>
+> - **QE12-1, MED-HIGH — the false negative, and the worse direction of QE11-1.** The walk
+>   stopped at the *first* `.git` above the root, so a repository between the ledger and
+>   the one that actually committed it read as "no history". Measured: one `git init` in an
+>   intervening directory took `validate` from exit 1 to exit 0 and `sha --write` from
+>   refusing to rewriting a committed frozen region — a check somebody else's `git init`
+>   turns off, silently, on a branch whose whole subject is that this must not happen.
+>   Every `.git` above the root is asked now.
+> - **QE12-3, MEDIUM — two of the seven new rules were held by nothing.** The `env=` scrub
+>   and the containment guard each survived deletion at 857 passed. Both have tests now,
+>   each reddened by deleting its own rule; the walk has one too, and the first version of
+>   *that* test was wrong — `git init` on the directory the fixture had already committed
+>   in is a no-op, so it never built the intervening repository it claimed to. Replaced
+>   with one that builds the three-level layout.
+>
+> **Two findings left open, both wider than this branch and both pre-existing.**
+>
+> - **QE12-2, MED-HIGH — the scrub stops at discovery.** `enclosing_repository` scrubs and
+>   finds the right repository; `git_problem` and the `cat-file` that follow ask *that*
+>   repository through the ambient environment. Under `GIT_DIR`/`GIT_WORK_TREE`,
+>   `is_committed` flips to "not committed" and `sha --write` rewrites a committed frozen
+>   region at exit 0 — measured identically on `main` at `b142311`, on the ordinary layout
+>   with the ledger's own repository, so it is not this branch's. It is a question about
+>   every `git_call` in the package: which of them are asking about the directory they
+>   name, and which about whatever the environment names. Its own branch.
+> - **QE12-4, MEDIUM — finding 2's class is still live in `resolve.py`.**
+>   `text = read_document(path)[0] if path.is_file() else None`, under a comment reading
+>   "never a crash". With the artifact's directory at mode 000 and an `@working` ground:
+>   `check` exit 2, `unexpected PermissionError … this is a bug. Please report it`, four of
+>   five checkers unrun. The same `is_file()` that QE11-4 replaced in `freshness`.
+
 ---
 
 ## Verdict

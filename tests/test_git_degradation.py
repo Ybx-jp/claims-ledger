@@ -102,6 +102,15 @@ class Pinned:
 
 def make_pinned(project, pin_text=None):
     project.git("init", "-q")
+    # Two cases below degrade git by deleting one loose object, which only degrades
+    # anything while the object *is* loose. On the CI runners this failed twice in one
+    # day, on different legs each time and never locally: `test_e` raised FileNotFoundError
+    # unlinking a path for a blob `rev-parse` had just resolved, and `test_e2` unlinked
+    # HEAD's commit object and watched `git log` go on answering — both of which say the
+    # object was in a pack. Auto-packing is off for these repositories, so the precondition
+    # holds rather than depending on which git the runner shipped.
+    project.git("config", "gc.auto", "0")
+    project.git("config", "maintenance.auto", "false")
     project.git("add", "-A")
     project.git("commit", "-qm", "the artifact, before any claim rests on it")
     pin = pin_text or _head(project)
@@ -233,7 +242,13 @@ def test_e_append_only_is_not_waived_by_a_blob_git_cannot_read(pinned):
 
     rel = os.path.relpath(path, pinned.root)
     blob = _git(pinned.root, "rev-parse", f"{tampered_from}:{rel}")[1].strip()
-    (pinned.root / ".git" / "objects" / blob[:2] / blob[2:]).unlink()
+    loose = pinned.root / ".git" / "objects" / blob[:2] / blob[2:]
+    assert loose.is_file(), (
+        f"precondition: {blob} is a loose object. It is not, so something packed it and "
+        "deleting this file would degrade nothing — see the auto-packing config in "
+        "make_pinned()"
+    )
+    loose.unlink()
     assert _git(pinned.root, "rev-parse", "--git-dir")[0] == 0, "git_problem() must still pass"
     assert _git(pinned.root, "show", f"{tampered_from}:{rel}")[0] != 0
 
@@ -259,7 +274,13 @@ def test_e2_an_entry_whose_history_git_cannot_read_is_not_read_as_uncommitted(pi
         "precondition: the history reads"
     )
 
-    (pinned.root / ".git" / "objects" / head[:2] / head[2:]).unlink()
+    loose = pinned.root / ".git" / "objects" / head[:2] / head[2:]
+    assert loose.is_file(), (
+        f"precondition: {head} is a loose object. It is not, so something packed it and "
+        "deleting this file would degrade nothing — see the auto-packing config in "
+        "make_pinned()"
+    )
+    loose.unlink()
     assert _git(pinned.root, "rev-parse", "--git-dir")[0] == 0, "git_problem() must still pass"
     assert _git(pinned.root, "rev-parse", "--verify", "--quiet", "HEAD")[0] == 0
     assert _git(pinned.root, "log", "--format=%H", "--", rel)[0] != 0

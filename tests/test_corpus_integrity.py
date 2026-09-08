@@ -570,7 +570,10 @@ def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
 
 
 REPORT_SITE_COUNTS = {
-    "validate.py": 75,
+    # 75 + 1: the history a ledger inside somebody else's repository never read
+    # (ARCH-AUDIT.md finding 3). Swept — deleting it reddens
+    # test_a_ledger_inside_someone_elses_repository_says_its_history_was_not_read.
+    "validate.py": 76,
     "resolve.py": 16,
     "references.py": 15,
     "propagate.py": 5,

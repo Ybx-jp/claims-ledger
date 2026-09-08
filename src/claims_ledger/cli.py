@@ -243,8 +243,12 @@ def skipped_checks(ledger, cached=False):
     notes = []
     problem = git_problem(ledger.repo) if ledger.repo else None
     if not ledger.repo:
+        # Not "not a git repository": a ledger can have no repository of its own and
+        # still sit inside one, and `validate` reports that case by name. Saying the
+        # stronger thing here contradicted the report a line below it.
         notes.append(
-            "not a git repository, so the frozen-region and append-only checks did not run"
+            "this ledger has no git repository of its own, so the frozen-region and "
+            "append-only checks did not run"
         )
     elif problem:
         # Not only `git is not on PATH`: a git that runs and fails answers None to every
