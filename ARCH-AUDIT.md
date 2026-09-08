@@ -217,6 +217,48 @@ The findings are ranked by consequence, not by effort to fix.
 > entry point, which is a change to what is installed in every generated repository and to
 > `HOOK_TEMPLATE`, which L0001 pins. Its own branch.
 
+> **The fix-review gate on finding 4** (`qe`, ticket `b9a823b8df524a62`) returned safe to
+> merge and found what the branch was actually short of: **three new hand-maintained rules
+> and no tests**. Two of the three survived their own inversion with 857 passing and 79/79
+> seeds. Both are now held, each reddened by its own mutant:
+>
+> - **QE13-1.** Swapping `cmd_check`'s two entry lists, and collapsing them to one, each
+>   passed the whole suite. The mapping is observable — an entry whose `id` differs between
+>   the index and the working tree gives `validate` a `filename and id` failure under one
+>   assignment and not the other — and before the entries were hoisted out of the checkers
+>   it could not be stated wrongly at all, because each checker asked for its own.
+> - **QE13-2.** A memo keyed on `pointer.target` instead of `pointer.raw` also passed
+>   everything, and silently loses a real finding on this repository's own ledger: L0010
+>   carries two grounds on one file naming two sections, so the second one's drift is
+>   answered with the first one's verdict.
+> - **QE13-5.** `orphans()` kept both a `tree` argument and a `drifted` memo, and `tree`
+>   was discarded whenever the memo was passed. One path now, and `freshness` is
+>   re-exported from `__init__`, so the dead parameter was reachable.
+>
+> **The memo is sound under `--write`, for a reason worth writing down**: every caller runs
+> above the `if write:` branch, so no answer is given after the first append. The gate also
+> found it *removes* a hazard — the old code's two calls were separated by dozens of
+> subprocesses, so an edit landing between them produced two answers to one question inside
+> one report.
+>
+> **Two bad cases in the `toml-key` pattern, documented rather than engineered around**,
+> because the README now recommends it to every reader. Over a value written across
+> several lines the span is the key's own first line and nothing else — `authors = [` is
+> byte-identical whoever is in the list — which is a ground that can never go stale, worse
+> than one that goes stale too often. And a key name matches wherever it first appears, in
+> whichever table, so a Scope that says "the project table" asserts something its ground
+> cannot check. Neither is reachable for L0011's two keys; both are reachable by anyone
+> following the documentation. `config.py` was right not to refuse the pattern: the
+> property depends on the artifact's grammar and is not decidable from the pattern.
+>
+> **L0010 is left as it is, deliberately, and recorded as known-fragile.** One comment
+> added inside `cmd_validate` flags it — measured. Dropping the caller ground is the right
+> repair and is not free: nothing else connects `guard` to the six commands its Scope names,
+> and five sixths of that cohort were already prose. The repair that loses nothing is to
+> ground the successor on the test that establishes the cohort rather than on prose, and
+> that test does not exist — coverage in `tests/` is per-command. Writing it is the work,
+> and it is not this branch's.
+
 ---
 
 ## Verdict

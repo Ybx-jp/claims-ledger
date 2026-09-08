@@ -631,7 +631,11 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   The checkers now take the entries the caller already has. Under `--cached` there are two
   lists and not one, because `validate` and `freshness` read what is staged while the
   other three read the working tree, and that difference is what `--cached` is for.
-  `load_entries` calls per `check`: 5 to 1.
+  `load_entries` calls per `check`: 5 to 1. The memo is keyed on the whole pointer and not
+  on its target, and `check`'s two lists are held by tests rather than by care: a
+  target-keyed memo and a swapped or collapsed `--cached` split each passed the whole
+  suite and the whole corpus, and the first silently loses a finding on this package's own
+  ledger.
 - **L0005 is superseded by L0010**, at an unchanged verbatim record: `cmd_validate` is one
   of its two grounds and the change edits it, so the ground moved while the claim did not.
   Both supersessions this package has now cost were forced by a pinned section changing

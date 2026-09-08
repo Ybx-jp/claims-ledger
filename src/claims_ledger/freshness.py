@@ -435,6 +435,18 @@ def run(ledger, write=False, cached=False, entries=None):
         same answer for 4 to 6 more git processes. `orphans()` below asked again for every
         ground this loop had already evaluated, and two entries resting on one artifact
         asked twice over. (ARCH-AUDIT.md, finding 4.)
+
+        **Keyed on the whole pointer, not on its target.** A target-keyed memo passes the
+        suite and the corpus and silently loses a finding: this repository's own L0010
+        carries two grounds on one file naming two sections, and under the wrong key the
+        second one's drift is answered with the first one's verdict. `raw` is the identity
+        the rest of this checker already uses — `orphans()` looks a ground up by it.
+
+        Every caller runs before the first write, which is what makes the memo safe: a
+        verdict appended mid-run cannot change an answer already given, because no answer
+        is given after one. It also removes a hazard the old code had — an edit landing
+        during the dozens of subprocesses between the two calls produced two answers to
+        one question inside one report.
         """
         if pointer.raw not in asked:
             asked[pointer.raw] = drift(repo, pointer, repo, config, cached=cached)
@@ -543,7 +555,7 @@ def run(ledger, write=False, cached=False, entries=None):
             continue
         pending.append((e, verdict_block(e.grade, p, note, author, seen)))
 
-    reports += orphans(entries, config, repo, repo, author, cached=cached, drifted=drifted)
+    reports += orphans(entries, config, repo, author, drifted)
 
     if write:
         for e, block in grouped(pending):
@@ -687,7 +699,7 @@ def naming(verdicts):
     return "verdicts " + ", ".join(str(v.index) for v in verdicts)
 
 
-def orphans(entries, config, repo, tree, author, cached=False, drifted=None):
+def orphans(entries, config, repo, author, drifted):
     """A ground whose acknowledgement states a cause that did not happen. Without this the
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
@@ -728,9 +740,7 @@ def orphans(entries, config, repo, tree, author, cached=False, drifted=None):
                     )
                 )
                 continue
-            finding = (
-                drifted(ground) if drifted else drift(repo, ground, tree, config, cached=cached)
-            )[0]
+            finding = drifted(ground)[0]
             if finding == "unknown":
                 # An orphan is a verdict whose stated cause did not happen. Whether it
                 # happened is exactly what git declined to say, and `run()` reports that;

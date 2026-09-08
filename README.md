@@ -281,7 +281,13 @@ code = '^(?:def|class)[ \t]+{name}\b'
 # going stale for a reason it does not care about. A claim about one setting should not
 # rest on the table holding it:
 #   toml     = '^\[{name}\]'    # the whole table
-#   toml-key = '^{name} = '      # one key of it
+#   toml-key = '^{name} = '      # one key of it, single-line values only
+#
+# One pattern decides both ends of a section, so a key's section runs to the next line
+# the same pattern matches. Over a value written across several lines that is the key's
+# own first line and nothing else — a ground that can never go stale, which is worse than
+# one that goes stale too often. And a key name that is not unique in the file matches
+# the first one, whichever table it is in.
 
 verdict-authors = ["main", "propagation"]
 propagation-author = "propagation"   # the name machinery writes under

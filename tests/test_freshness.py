@@ -126,6 +126,56 @@ def test_a_deleted_ground_is_withdrawn_and_fails(pinned):
 ROOT_USER = os.geteuid() == 0
 
 
+TWO_SECTION_NOTE = """# note 001
+
+## Observation
+
+At a stale fraction of 0.1 the measured error was 0.04.
+
+## Method
+
+One layer, mean aggregation, sixteen dimensions.
+"""
+
+
+def test_two_grounds_on_one_artifact_are_two_questions(project):
+    """`freshness` asks git about a pointer once per run and remembers the answer. The
+    key is the whole pointer and not its target, and this is the difference: an entry may
+    rest on two sections of one file, and a target-keyed memo answers the second with the
+    first one's verdict — silently, with the suite and the corpus green. This
+    repository's own L0010 is that shape. (ARCH-AUDIT.md finding 4, QE13-2.)
+    """
+    (project.root / "docs" / "note-001.md").write_text(TWO_SECTION_NOTE, encoding="utf-8")
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the artifact")
+    pin = _head(project)
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            'lab: docs/note-001.md § "Observation" @working',
+            f'lab: docs/note-001.md § "Observation" @{pin}\n'
+            f'- lab: docs/note-001.md § "Method" @{pin}',
+        ),
+        encoding="utf-8",
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+    p = Pinned(project, pin)
+    assert p.outcomes() == [], "precondition: both grounds are fresh"
+
+    (project.root / "docs" / "note-001.md").write_text(
+        TWO_SECTION_NOTE.replace("sixteen", "thirty-two"), encoding="utf-8"
+    )
+    ((outcome, part, message),) = p.outcomes()
+    assert outcome == "flag", message
+    assert part == "Grounds 2", "the second ground moved; the first names a section nobody edited"
+    assert "'Method'" in message
+
+
 @pytest.mark.skipif(ROOT_USER, reason="root ignores the permission bits under test")
 def test_an_artifact_nobody_can_read_is_not_a_ground_that_moved(pinned):
     """`chmod 000` on the artifact came back as `has moved`, at exit 0, with a message

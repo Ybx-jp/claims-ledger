@@ -20,8 +20,9 @@ for that guard are committed beside it in `merge-guard.cases`; run
 `bash examples/agent-harness/merge-guard-test.sh` after touching either.
 
 The reason is in `docs/OPERATING.md`. The short of it: the entries pin commit
-`4023af40` — L0009 and L0010 pin later commits — and a rewrite that drops one costs a
-supersession per entry pinned into it.
+`4023af40` eleven times over, with three more pins on later commits — L0009 on
+`7b1f3414`, L0010 on `d2789a9` and L0011 twice on `d1474db` — and a rewrite that drops
+any of them costs a supersession per ground pinned into it.
 
 ## What the checkers read here
 
