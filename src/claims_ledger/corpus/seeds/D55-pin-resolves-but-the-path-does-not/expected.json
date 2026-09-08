@@ -1,0 +1,14 @@
+{
+  "class": "a pin whose commit is there and whose path is not",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Grounds",
+      "why": "the ground pins a path at a commit made before that path existed — a file added later, or renamed since. The pointer fails exactly as it does when the commit itself is gone, and the near-negative of D54: the repair here is one pin on one entry, where a missing commit is a supersession per entry, so a checker that reported the two the same way would send a person the wrong distance",
+      "message": "the commit is there and"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

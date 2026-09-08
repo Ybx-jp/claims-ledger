@@ -1,0 +1,14 @@
+{
+  "class": "an unpinned ground whose file is not there",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Grounds",
+      "why": "`@working` names no revision, so the artifact is read from the tree and git is never asked about it. The failure must say that. The diagnosis added for pinned pointers reached this branch too, and answered a question nobody put to git — in a repository holding a branch called `working` it read the pin as that branch and reported which commit the file was missing from",
+      "message": "the pin names no revision"
+    }
+  ],
+  "note": "a flat seed, deliberately: it is staged into a directory that is not a git repository at all, so a diagnosis that reaches for git here reaches out of the seed and into whatever repository encloses it. The seed holds the boundary as much as the message"
+}

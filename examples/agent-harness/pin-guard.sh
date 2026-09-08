@@ -1,0 +1,115 @@
+#!/bin/bash
+# claims-ledger pin guard — an agent-harness hook. PostToolUse, matcher Edit|Write|MultiEdit.
+#
+# A ledger that pins prose to code has two failures that no checker catches in time:
+#
+#   1. An edit lands inside a pinned section and nothing says so until `git commit`, by
+#      which point the edit is finished and its author has moved on. `freshness` answers
+#      in well under a second, so the answer can be had at edit time instead.
+#   2. A commitment gets written into prose with no entry behind it. `references` only
+#      checks citations that were actually written, so a sentence that asserts something
+#      and cites nothing passes every check — which is the drift a ledger exists to
+#      prevent, arriving through the one door the checkers do not watch.
+#
+# Both classes are throttled, because an always-on reminder is wallpaper. (1) is keyed on
+# the digest of the finding, so unchanged drift is reported once and NEW drift still
+# speaks; (2) is keyed once per session, on the first edit to a configured document.
+#
+# Nothing here is repository-specific: the interpreter is discovered, and which files
+# count as documents is asked of the ledger's own configuration rather than restated.
+#
+# The hook never blocks: every failure path exits 0 silently. A guard that can break the
+# session is worse than no guard.
+
+set -uo pipefail
+
+command -v jq >/dev/null 2>&1 || exit 0
+input=$(cat) || exit 0
+
+event=$(printf '%s' "$input" | jq -r '.hook_event_name // empty' 2>/dev/null) || exit 0
+[ "$event" = "PostToolUse" ] || exit 0
+
+session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+[ -n "$session" ] || exit 0
+
+path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+[ -n "$path" ] || exit 0
+
+# The project root is derived from this script's own location rather than from `cwd`,
+# which is wherever the session happens to be, so that a copy of this hook living in a
+# scratch worktree guards that worktree. Adjust the number of `..` if you move it.
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 0
+root=$(cd -- "$here/../.." && pwd) || exit 0
+
+case "$path" in
+  "$root"/*) rel=${path#"$root"/} ;;
+  *) exit 0 ;;
+esac
+
+# A virtualenv in the project, then whatever python3 can import the package. Named as an
+# interpreter plus `-m`, never as the `claims-ledger` console script, for the reason the
+# installed pre-commit hook gives: a console script in a virtualenv that is not active is
+# not on PATH, and the hook would fail on every firing.
+python=""
+for candidate in "$root/.venv/bin/python" "$root/venv/bin/python" "$(command -v python3 2>/dev/null)"; do
+  [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+  if "$candidate" -c 'import claims_ledger' >/dev/null 2>&1; then python="$candidate"; break; fi
+done
+[ -n "$python" ] || exit 0
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/claims-ledger/pin-guard"
+state_file="$state_dir/$session"
+
+fired() { [ -f "$state_file" ] && grep -qxF "$1" "$state_file" 2>/dev/null; }
+remember() { mkdir -p "$state_dir" 2>/dev/null && printf '%s\n' "$1" >> "$state_file" 2>/dev/null || true; }
+emit() { jq -cn --arg ctx "$1" \
+  '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'; }
+
+# --- class drift: measured, re-fires when the finding changes -------------------------
+# Read-only, and not gated on the document list: a `code:` ground can pin a file that is
+# not a document at all, since documents are the prose scanned for citations and grounds
+# are the evidence. `--write` is a judgement about the ledger and belongs to the session,
+# never to a hook firing behind the author's back.
+finding=$(cd "$root" && timeout 20 "$python" -m claims_ledger freshness 2>&1) || true
+if [ -n "$finding" ] && ! printf '%s' "$finding" | grep -q '0 failure(s), 0 flag(s)'; then
+  key="drift:$(printf '%s' "$finding" | cksum | tr -d ' ')"
+  if ! fired "$key"; then
+    remember "$key"
+    emit "claims-ledger pin guard: an edit in this repository has drifted a pinned ground.
+
+$finding
+
+The pins are what hold the prose to the code. Repair them in this session rather than at \`git commit\`, where the pre-commit hook will refuse the commit anyway. The procedure is in docs/OPERATING.md. Do not delete a verdict or edit a ground to make the checker pass."
+    exit 0
+  fi
+fi
+
+# --- class newclaim: once per session, on a document the checkers read ----------------
+# Which files are documents is asked of the package, not restated here. `tree_documents`
+# is the same function the checkers use, so the excludes, the single-level glob semantics
+# and the rule that the ledger does not cite itself all come along; a hook that
+# reimplemented any of that would drift from the checker it is meant to serve. Anything
+# unreadable means silence, not a guess.
+is_document=$(cd "$root" && timeout 20 "$python" - "$rel" <<'PY' 2>/dev/null
+import sys
+try:
+    from claims_ledger import open_ledger
+    from claims_ledger.schema import tree_documents
+    docs, _ = tree_documents(open_ledger(root=".").config)
+    print("yes" if sys.argv[1] in {rel for rel, _ in docs} else "no")
+except Exception:
+    pass
+PY
+) || true
+[ "$is_document" = "yes" ] || exit 0
+
+if ! fired newclaim; then
+  remember newclaim
+  emit "claims-ledger pin guard (once per session): you just edited $rel, one of the documents this ledger reads.
+
+If this edit states a NEW commitment — a sentence a reader would take as a promise about what the code does — it needs an entry, pinned to the code that keeps it true and cited from the sentence. No checker can find this for you: \`references\` only checks citations that were actually written, so prose that asserts something and cites nothing passes every check.
+
+Adding an entry takes two commits and the pre-commit hook will refuse the first; docs/OPERATING.md says why and what to do. If the edit states no new commitment, ignore this."
+fi
+
+exit 0
