@@ -143,8 +143,8 @@ def append_verdict(entry, block, *, root):
     point by that heading alone put the verdict inside the frozen region of a committed
     entry.
 
-    Ledger: (L0015-an-append-cannot-reach-above-the-marker, cites-as-live) and
-    (L0016-an-append-keeps-the-line-endings-it-found, cites-as-live).
+    Ledger: (L0028-an-append-cannot-reach-above-the-marker, cites-as-live) and
+    (L0029-an-append-keeps-the-line-endings-it-found, cites-as-live).
     """
     if (outside := leaves_root(root, entry.path)) is not None:
         raise LedgerError(
