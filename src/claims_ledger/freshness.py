@@ -10,19 +10,35 @@ This checker asks the other question. For each evidence ground of an entry that 
 fallen: the pin is a commit and not a name that moves (`unstable pin`, flag); the path is
 still in the tree (`withdrawn`, fail); and the artifact there is byte-identical to the
 artifact at the pin (`moved`, flag). It never judges whether a difference matters — that
-is the warrant's job, and the warrant is prose a person reads.
+is the warrant's job, and the warrant is prose a person reads
+(L0109-a-question-git-declined-is-unknown-and-never-a-fresh-ground, cites-as-live).
 
 A finding is discharged by a `contested` verdict by the propagation author naming the
 pointer, which `--write` appends; a verdict naming a ground that has not drifted is an
 orphan and fails, as in `propagate`. Nothing more is needed, because a contested entry
 cannot be cited `cites-as-live` and `references` fails every document that still does.
 
+Four things the run itself settles, before any of that. Grounds pinned to commits with no
+repository to ask about them is a failure and not a silence: a check that did not run,
+reported as one that passed, is the failure mode this package exists to refuse
+(L0114-pinned-grounds-without-a-repository-are-a-failure-and-not-silence, cites-as-live).
+A fallen entry's grounds are history — what it was established on, not what anyone should
+now believe — and are left alone
+(L0117-a-fallen-entrys-grounds-are-exempt-from-freshness, cites-as-live). Each pointer is
+evaluated once, keyed on the whole pointer rather than on the path it names, because two
+grounds on one file naming two sections are two questions
+(L0118-each-pointer-is-evaluated-once-per-run, cites-as-live). And a drift this run cannot
+say the artifact of is reported rather than discharged, because a verdict recording
+nothing is one nothing could ever check
+(L0116-a-drift-whose-artifact-cannot-be-stated-is-not-discharged, cites-as-live).
+
 Run:  claims-ledger freshness [--write] [--cached]
       Without --write nothing is modified. With it the missing verdicts are appended,
       each attributed to the propagation author, and the run still exits non-zero so the
-      change is looked at before it is committed. With --cached the artifact is compared
-      as the index has it rather than as the working tree does, matching what the rest of
-      a `check --cached` is reading.
+      change is looked at before it is committed
+      (L0115-a-write-that-appended-still-exits-non-zero, cites-as-live). With --cached the
+      artifact is compared as the index has it rather than as the working tree does,
+      matching what the rest of a `check --cached` is reading.
 Exit 1 on a withdrawn ground, a ground that could not be checked, an orphan verdict, or a
 --write that appended something; flags print and exit 0.
 Proven against the red-team corpus by `claims-ledger corpus`.
@@ -67,7 +83,8 @@ def is_object_name(repo, pin):
     uppercase object id is an object id, and `v9.9` in a repository that has no such tag
     is neither. The answer is None when git could not classify the pin at all, which is
     not the same as `it is not a ref` and must not be read as one: a broken repository
-    would otherwise retire every unstable-pin flag in the ledger without saying a word.
+    would otherwise retire every unstable-pin flag in the ledger without saying a word
+    (L0099-git-is-the-arbiter-of-whether-a-pin-is-an-object-name, cites-as-live).
     """
     # `--symbolic-full-name` prints a refname for anything that is one and nothing for an
     # object id, so a hex-looking branch is caught here rather than trusted.
@@ -101,7 +118,8 @@ def names_a_ref(out):
 
     So the answer is read as what it is documented to be. Anything else git prints is git
     talking about its own command line, and a pin that is not a ref is passed on as an
-    object name for `resolve` to find nothing at.
+    object name for `resolve` to find nothing at
+    (L0100-an-option-shaped-pin-is-not-read-as-a-refname, cites-as-live).
     """
     answer = out.strip()
     return answer == "HEAD" or answer.startswith("refs/")
@@ -112,7 +130,8 @@ def literal(path):
 
     `git diff … -- docs/note[1].md` reads the brackets as a wildcard, so an edit to an
     unrelated `docs/note1.md` — which no entry pins — was reported as this ground's
-    drift. `:(literal)` is git's own way of saying that the text is a filename.
+    drift. `:(literal)` is git's own way of saying that the text is a filename
+    (L0101-a-path-is-put-to-git-as-a-literal-pathspec, cites-as-live).
     """
     return f":(literal){path}"
 
@@ -138,7 +157,8 @@ def acknowledgements(entry, pointer, author):
     by its raw text, the message names the section — and a comparison that dropped it let
     one verdict discharge every ground on the same file and pin. Verdicts do not expire,
     so the second drifted ground would have been reported fresh for the life of the
-    entry.
+    entry (L0102-a-verdict-discharges-only-the-ground-whose-section-it-names,
+    cites-as-live).
     """
     return [
         v
@@ -170,11 +190,13 @@ def discharges(repo, pointer, verdict, seen):
     it was, between the pin and here** — the case after the drift is committed, which is
     also the one that survives the artifact changing again afterwards.
 
-    A verdict that is neither is not suppressed, and the drift is reported. That is not an
-    accusation: `orphans()` is where a verdict is called a forgery, and this only declines
-    to let one silence a finding it does not describe. Under `--write` the run then
-    appends a verdict that does describe it, which is what keeps the pre-commit path from
-    wedging when the staged bytes are edited again before the commit is made.
+    A verdict that is neither is not suppressed, and the drift is reported
+    (L0103-a-discharge-records-what-this-run-sees-or-what-the-path-held, cites-as-live).
+    That is not an accusation: `orphans()` is where a verdict is called a forgery, and
+    this only declines to let one silence a finding it does not describe. Under `--write`
+    the run then appends a verdict that does describe it, which is what keeps the
+    pre-commit path from wedging when the staged bytes are edited again before the commit
+    is made.
     """
     recorded = (verdict.artifact or "").strip()
     if recorded and recorded != NULL_OBJECT_ID and seen is not None and recorded == seen:
@@ -207,11 +229,13 @@ def seen_at(repo, pointer, path, cached, withdrawn):
     that is in the working tree and not yet committed at all — that is what a pre-commit
     hook is for. `hash-object --path` rather than a hash of the bytes, so that whatever
     the repository does to a file on its way in, line endings and clean filters included,
-    is done here too and the id matches the one a commit would record.
+    is done here too and the id matches the one a commit would record
+    (L0104-the-artifact-is-recorded-as-the-id-a-commit-would-store, cites-as-live).
 
     A withdrawn ground has no artifact to hash, and its absence is the thing that
     happened; `ABSENT` records that, and `caused()` looks for the deletion in history the
-    way it looks for a blob.
+    way it looks for a blob
+    (L0105-a-withdrawn-ground-records-absent-and-the-deletion-is-sought, cites-as-live).
     """
     if withdrawn:
         return ABSENT, None
@@ -234,7 +258,9 @@ def now_text(repo, pointer, path, cached):
     that is there and is not UTF-8 text: that one really did change and simply cannot be
     narrowed to a section, which is what `moved` already says. This returned the text
     alone and threw the reason away, so `chmod 000` on an evidence file came back as a
-    confident `has moved` at exit 0. (ARCH-AUDIT.md, finding 2.)
+    confident `has moved` at exit 0
+    (L0106-an-artifact-that-cannot-be-read-is-unknown-and-not-moved, cites-as-live).
+    (ARCH-AUDIT.md, finding 2.)
     """
     if cached:
         answer = git_call(repo, "show", f":{pointer.target}", env=git_env(index=True))
@@ -253,7 +279,8 @@ def in_this_run(repo, pointer, path, cached):
     pathlib on 3.12 — `freshness` exited 2 having printed nothing, and `check` printed
     four checkers and silently omitted the fifth — while 3.13 swallows the EACCES and
     answers False, which is a confident `withdrawn` for a file nobody could look at.
-    `os.stat` is asked directly, the way `file_problem` asks it and for the same reason.
+    `os.stat` is asked directly, the way `file_problem` asks it and for the same reason
+    (L0107-presence-is-asked-of-stat-rather-than-of-is-file, cites-as-live).
     (ARCH-AUDIT.md finding 2, QE11-4.)
     """
     if cached:
@@ -333,7 +360,8 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     on succeeding through them — a required clean filter that exits non-zero, a pack the
     reader can no longer open, an object removed from under a revision that names it. The
     comparison did not happen, and a comparison that did not happen is never a fresh
-    ground.
+    ground (L0109-a-question-git-declined-is-unknown-and-never-a-fresh-ground,
+    cites-as-live).
     """
     named, why = is_object_name(repo, pointer.pin)
     if named is None:
@@ -370,6 +398,7 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     # to a file on its way in and out, line endings and clean filters included, is done to
     # both sides. Empty output means the path is unchanged there, and no section inside it
     # can have moved either, so the text is never read.
+    # (L0108-the-comparison-against-the-pin-is-gits-own, cites-as-live)
     diff = ["diff", "--cached"] if cached else ["diff"]
     changed = git_call(
         repo,
@@ -404,8 +433,8 @@ def since_phrase(count, where):
 
     A count of zero is the ordinary pre-commit case — the edit is in the working tree and
     no commit has been made yet — and saying `0 commits have touched it` of a file the
-    author is editing right now reads as a checker that has lost track of its own
-    subject."""
+    author is editing right now reads as a checker that has lost track of its own subject
+    (L0113-a-count-of-zero-commits-is-said-as-uncommitted, cites-as-live)."""
     if count and count.isdigit() and int(count) == 0:
         return f"{where} differs from the pin in the working tree, uncommitted"
     if not count or not count.isdigit():
@@ -600,7 +629,8 @@ def blobs_since(repo, pointer):
     `git log --raw` prints the before and after object id of the path at each commit that
     changed it, so one call answers what a walk of the history would. `--full-history`
     because the omission this is guarding against is the loud one: a version git declined
-    to list is a discharge called an orphan, which is MEDIUM-34's wedge again.
+    to list is a discharge called an orphan, which is MEDIUM-34's wedge again
+    (L0112-the-blob-history-is-read-with-full-history, cites-as-live).
     """
     answer = git_call(
         repo,
@@ -722,9 +752,11 @@ def orphans(entries, config, repo, author, drifted):
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
 
-    **Asked of the ground rather than of each verdict**, because what the rule protects is
-    a ground — that a drifted one is never silently fresh — and an entry may legitimately
-    carry more than one propagated verdict against the same ground. The pre-commit path
+    **Asked of the ground rather than of each verdict**
+    (L0110-an-orphan-is-asked-of-the-ground-and-not-of-each-verdict, cites-as-live),
+    because what the rule protects is a ground — that a drifted one is never silently
+    fresh — and an entry may legitimately carry more than one propagated verdict against
+    the same ground. The pre-commit path
     produces exactly that: the hook records the staged blob, the author stages one more
     edit before committing, and the next run appends a verdict naming what was finally
     committed. It costs the rule its accusation against a verdict that is refutable while
@@ -737,9 +769,11 @@ def orphans(entries, config, repo, author, drifted):
     blob, the ledger is committed, the author abandons the edit, and no later run will
     ever append a second verdict because the ground is fresh. Failing that left a
     permanent red no legal edit could clear on the documented workflow and an author who
-    changed their mind, so it flags. The flag is not a softening of the forgery rule: a
-    verdict nothing can confirm cannot silence a drift either, because `discharges()`
-    requires the same `caused` that this does.
+    changed their mind, so it flags
+    (L0111-a-refutable-record-fails-and-an-unconfirmable-one-flags, cites-as-live). The
+    flag is not a softening of the forgery rule: a verdict nothing can confirm cannot
+    silence a drift either, because `discharges()` requires the same `caused` that this
+    does.
     """
     reports = []
     for e in entries:
