@@ -27,7 +27,7 @@ from .schema import (
     PREFIX_RE,
     enclosing_repository,
     fingerprint,
-    git,
+    git_call,
     git_problem,
     load_entries,
     load_registry,
@@ -239,6 +239,18 @@ def is_committed(repo, path):
     a `sha --write` with no git on PATH rewrote the frozen region of a committed entry,
     exited 0 and said nothing. The answer is None when git could not be asked, which is
     not a `no`.
+
+    `git_problem()` cleared a git that cannot open the repository at all, and the last
+    question was still asked with `git()`, which has one answer for two things. It is
+    `rev-parse --verify --quiet HEAD:<rel>` now, because `cat-file -e` cannot tell them
+    apart and this can: measured on git 2.43.0, `cat-file -e HEAD:<path>` exits 128 both
+    for a path no commit holds and for a git that could not look, while `rev-parse
+    --verify --quiet` exits 1 for the first and 128 for the second. That distinction is
+    the one `resolve` is written around, and it is what turned `GIT_OBJECT_DIRECTORY` in
+    the environment — an object store git could not read the entry out of — into a
+    `sha --write` that rewrote a committed frozen region at exit 0. The scrub in
+    `git_env()` is what stops that variable arriving; this is what stops the next reason
+    git cannot read an object from being taken for `not committed yet`.
     """
     if not repo:
         # "No repository" is only "nothing was skipped" when there is no repository
@@ -264,7 +276,12 @@ def is_committed(repo, path):
         return False, None  # outside the repository: git has nothing to say about it
     if (problem := git_problem(repo)) is not None:
         return None, problem
-    return git(repo, "cat-file", "-e", f"HEAD:{rel}") is not None, None
+    answer = git_call(repo, "rev-parse", "--verify", "--quiet", f"HEAD:{rel}")
+    if answer.code == 1:
+        return False, None  # HEAD has no such path: not committed, which is an answer
+    if not answer.ok:
+        return None, f"git could not read {rel} at HEAD ({answer.why})"
+    return True, None
 
 
 def restamp(ledger, path, write=False, force=False):

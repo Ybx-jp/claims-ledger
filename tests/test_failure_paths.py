@@ -139,9 +139,13 @@ def test_the_walk_asks_the_directory_it_names_and_not_what_git_dir_names(
     """`GIT_DIR` redirects every git call in the process, including the one that asks
     whether the enclosing repository has ever committed these entries — under a `GIT_DIR`
     naming some other repository it answers about *that* one, finds no history for the
-    path, and the report disappears. The environment is scrubbed for this call, and this
-    is the test of it: the sibling above proves the report appears, and nothing proved it
-    still appeared with the variable set. (QE12-3.)
+    path, and the report disappears. The sibling above proves the report appears, and
+    nothing proved it still appeared with the variable set. (QE12-3.)
+
+    The scrub this held used to be an argument at that one call site. It is `git_env()`,
+    the default under every git call in the package, since QE12-2; the family of tests for
+    what the environment may not answer for is `tests/test_git_environment.py`, and this
+    one stays here because its subject is the discovery walk.
     """
     nested_in_a_repository(project)
     elsewhere = project.root.parent.parent / "elsewhere"
@@ -162,9 +166,14 @@ def test_the_walk_asks_the_directory_it_names_and_not_what_git_dir_names(
 def test_git_dir_in_the_environment_does_not_invent_a_repository(project, capsys, monkeypatch):
     """`git rev-parse --show-toplevel` with `GIT_DIR` set and no `GIT_WORK_TREE` answers
     with the directory it was run in, so a ledger with no repository anywhere reported
-    *itself* as the repository holding it — and every git hook exports `GIT_DIR`, which is
-    the one context this package is most often run from. The walk is the filesystem's now,
-    and asks nothing of the environment. (ARCH-AUDIT.md finding 3, QE11-3.)
+    *itself* as the repository holding it. The walk is the filesystem's now, and asks
+    nothing of the environment. (ARCH-AUDIT.md finding 3, QE11-3.)
+
+    This first said that every git hook exports `GIT_DIR` — the reason the case was
+    thought to matter — and that is false: measured on git 2.43.0, a hook gets
+    `GIT_INDEX_FILE`, and `GIT_DIR` reaches one when git itself was invoked with
+    `--git-dir`. Corrected here rather than dropped, since the correction is what the
+    comment in `schema.py` already carries.
     """
     elsewhere = project.root.parent / "elsewhere"
     elsewhere.mkdir()
