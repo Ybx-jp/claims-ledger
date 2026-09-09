@@ -1,6 +1,7 @@
 """A throwaway project with a ledger in it, for the tests that write."""
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -142,3 +143,9 @@ def project(tmp_path):
         == 0
     )
     return p
+
+
+@pytest.fixture
+def repository():
+    """This checkout, for the tests that are about how it is packaged and wired."""
+    return Path(__file__).resolve().parent.parent

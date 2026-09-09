@@ -26,22 +26,57 @@ set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat) || exit 0
 
-event=$(printf '%s' "$input" | jq -r '.hook_event_name // empty' 2>/dev/null) || exit 0
-[ "$event" = "PostToolUse" ] || exit 0
 
-session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+# Which harness is calling, read off the payload rather than passed in at install time:
+# Claude Code and codex send `hook_event_name` and take an answer under
+# `hookSpecificOutput`; Cursor sends neither, names its events its own way, and reads
+# `additional_context` and `permission` at the top level. One script serves all three, so
+# there is no flag here to be wired wrong.
+dialect=claude
+printf '%s' "$input" | jq -e 'has("hook_event_name")' >/dev/null 2>&1 || dialect=cursor
+
+event=$(printf '%s' "$input" | jq -r '.hook_event_name // "postToolUse"' 2>/dev/null) || exit 0
+case "$event" in PostToolUse|postToolUse) ;; *) exit 0 ;; esac
+
+# Cursor calls it a conversation; the throttle only needs something stable per session.
+session=$(printf '%s' "$input" | jq -r '.session_id // .conversation_id // empty' 2>/dev/null)
 [ -n "$session" ] || exit 0
 
-path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
-[ -n "$path" ] || exit 0
+# Absent on codex, whose editor is `apply_patch` and whose payload carries the patch on
+# `tool_input.command` instead. That costs the new-claim reminder below, which has to know
+# WHICH file was edited; the drift class asks the whole tree and needs no path at all, so
+# it still runs. A hook that returned early here would be silent on the harness that edits
+# files that way.
+path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .file_path // empty' 2>/dev/null)
 
-# The project root is derived from this script's own location rather than from `cwd`,
-# which is wherever the session happens to be, so that a copy of this hook living in a
-# scratch worktree guards that worktree. Adjust the number of `..` if you move it.
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 0
-root=$(cd -- "$here/../.." && pwd) || exit 0
 
+# The project root, asked rather than counted. `claims-ledger harness install` writes this
+# script into a project's own hook directory, while the copy inside the installed package
+# sits several directories deeper, so a fixed number of `..` guards the wrong tree from
+# one of those two places. Three tries, narrowest first: what the harness says the project
+# is, then the nearest ancestor of this script that looks like a project, then two
+# directories up, which is where an installed copy sits. The root is never taken from
+# `cwd`, which is wherever the session happens to be.
+project_root() {
+  local dir=$1
+  for named in "${CLAIMS_LEDGER_PROJECT_DIR:-}" "${CLAUDE_PROJECT_DIR:-}"; do
+    if [ -n "$named" ] && [ -d "$named" ]; then (cd -- "$named" && pwd) && return 0; fi
+  done
+  while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+    for marker in claims-ledger.toml pyproject.toml .git; do
+      [ -e "$dir/$marker" ] && { printf '%s\n' "$dir"; return 0; }
+    done
+    dir=$(dirname -- "$dir")
+  done
+  (cd -- "$1/../.." && pwd)
+}
+
+root=$(project_root "$here") || exit 0
+
+rel=""
 case "$path" in
+  "") ;;
   "$root"/*) rel=${path#"$root"/} ;;
   *) exit 0 ;;
 esac
@@ -62,8 +97,14 @@ state_file="$state_dir/$session"
 
 fired() { [ -f "$state_file" ] && grep -qxF "$1" "$state_file" 2>/dev/null; }
 remember() { mkdir -p "$state_dir" 2>/dev/null && printf '%s\n' "$1" >> "$state_file" 2>/dev/null || true; }
-emit() { jq -cn --arg ctx "$1" \
-  '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'; }
+emit() {
+  if [ "$dialect" = cursor ]; then
+    jq -cn --arg ctx "$1" '{additional_context: $ctx}'
+  else
+    jq -cn --arg ctx "$1" \
+      '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$ctx}}'
+  fi
+}
 
 # --- class drift: measured, re-fires when the finding changes -------------------------
 # Read-only, and not gated on the document list: a `code:` ground can pin a file that is
@@ -92,6 +133,7 @@ fi
 # and the rule that the ledger does not cite itself all come along; a hook that
 # reimplemented any of that would drift from the checker it is meant to serve. Anything
 # unreadable means silence, not a guess.
+[ -n "$rel" ] || exit 0
 is_document=$(cd "$root" && timeout 20 "$python" - "$rel" <<'PY' 2>/dev/null
 import sys
 try:

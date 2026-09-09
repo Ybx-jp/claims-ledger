@@ -36,8 +36,9 @@ merge button as well as the command line:
     gh api -X PATCH repos/<owner>/<repo> \
       -F allow_squash_merge=false -F allow_rebase_merge=false
 
-`examples/agent-harness/merge-guard.sh` refuses the local commands for a coding agent, and
-is one enforcement of this section rather than a substitute for it.
+The merge guard `claims-ledger harness install` writes into a project refuses the local
+commands for a coding agent, and is one enforcement of this section rather than a
+substitute for it.
 
 **If it has already happened**, do not paper over it. `resolve` naming a commit that is
 not in the repository is a true report of a real loss, and an entry whose evidence is gone

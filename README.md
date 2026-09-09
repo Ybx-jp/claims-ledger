@@ -415,6 +415,36 @@ deleting the citation. CI reads the full history and is what catches a promise n
 `docs/OPERATING.md` covers this, what a rewritten history costs a pinned ledger, and the
 order in which a drifted claim is repaired.
 
+## In a coding agent
+
+A ledger that pins claims to code has two failures no checker can catch in time: an edit
+lands inside a pinned span and nothing says so until `git commit`, and prose promises
+something and cites nothing, which passes every check there is. The package ships four
+hooks and three skills for that, and installs them:
+
+```console
+$ claims-ledger harness install --agent claude
+wrote      .claude/skills/repair-a-drifted-pin/SKILL.md
+…
+wrote      .claude/hooks/pin-guard.sh
+wrote      .claude/settings.json
+```
+
+`--agent` is `claude`, `codex`, `cursor` or `agent`. Each gets the same skills and the
+same scripts under its own directory, wired in the file that agent really reads —
+`.claude/settings.json`, `.cursor/hooks.json`, and for codex `$CODEX_HOME/hooks.json`,
+which is the only file it loads hooks from; `claims-ledger harness list` prints the table.
+The scripts read both payload dialects and answer in the one they were called in. The
+hooks report drift at edit time, refuse the squash and
+rebase merges that would destroy every commit pin, and lay out the four repairs when a
+citation's act stops matching its target's status; the skills carry the procedures behind
+them. Nothing already in the project is written over — a file that differs is left alone
+and named, and `--force` is what changes that — and a settings file that already exists
+is never edited, only printed to.
+
+They need `jq` when they run. The package still declares no runtime dependencies of its
+own.
+
 ## As a library
 
 ```python

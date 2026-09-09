@@ -32,7 +32,11 @@ dependencies = []
 # to whatever key precedes it.
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.14", "ty>=0.0.78"]
+dev = ["pytest>=8.0", "ruff>=0.14", "ty>=0.0.78", "hatchling"]
+# `hatchling` is the build backend, and a dev dependency as well so that the test that
+# builds a wheel and counts what it carries runs rather than skipping: the shipped agent
+# harness was once dropped from both distributions with no error, and a backstop that
+# quietly does not run is the shape of that defect over again.
 
 [project.scripts]
 claims-ledger = "claims_ledger.cli:main"
@@ -123,8 +127,10 @@ allow-multiline = true
 # that keeps it true, so `claims-ledger check` fails the citing sentence when the pinned
 # code moves. A citation in a document or a comment reads `(L0001-<slug>, cites-as-live)`.
 # The documents are named one by one rather than as `*.md`: the corpus seeds and the
-# example templates carry citations of ids that live in other ledgers, and an audit report
-# at the root that shows the syntax is not citing anything.
+# example templates carry citations of ids that live in other ledgers, the shipped agent
+# skills under `src/claims_ledger/resources/` show the syntax to a reader, and an audit
+# report at the root that shows the syntax is not citing anything. `src/claims_ledger/*.py`
+# is single-level for the same reason — `**` would reach both of the directories inside it.
 [tool.claims-ledger]
 documents = [
     "README.md",

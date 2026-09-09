@@ -19,6 +19,7 @@ from . import (
     __version__,
     authoring,
     freshness,
+    harness,
     neighbours,
     propagate,
     references,
@@ -246,6 +247,27 @@ def build_parser():
 
     h = sub.add_parser("hook", help="the pre-commit hook that runs the checkers")
     h.add_argument("--install", action="store_true", help="write it to .git/hooks/pre-commit")
+
+    hs = sub.add_parser("harness", help="the coding-agent hooks and skills this package ships")
+    hs_sub = hs.add_subparsers(dest="harness_command", required=True)
+    hs_sub.add_parser("list", help="the agents it can write for, and where each keeps its files")
+    hi = hs_sub.add_parser("install", help="write the hooks and skills into this project")
+    hi.add_argument(
+        "--agent",
+        default="claude",
+        choices=sorted(harness.TARGETS),
+        help="the coding agent to write for; default `claude`",
+    )
+    hi.add_argument(
+        "--hooks",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="`--no-hooks` writes the skills only, for a project running the hooks from "
+        "somewhere else; the default installs both",
+    )
+    hi.add_argument(
+        "--force", action="store_true", help="write over files that are there and differ"
+    )
 
     co = sub.add_parser("corpus", help="hold the checkers to the red-team corpus")
     co.add_argument("seeds", nargs="*", help="seed name prefixes; default every seed")
@@ -765,6 +787,86 @@ def cmd_hook(args, ledger):
     return 0
 
 
+def cmd_harness(args, _ledger):
+    """Print where each agent's files would go, or write them there.
+
+    No ledger is opened. Installing the harness is a thing to do in a project that has
+    not got one yet — the hooks are what tells a session the ledger exists, and an
+    installer that failed on a missing configuration would be asking for the thing it is
+    there to help set up (L0185-the-harness-installs-without-a-ledger, cites-as-live).
+    """
+    if args.harness_command == "list":
+        for name, target in sorted(harness.TARGETS.items()):
+            print(f"{name}  ({target.label})")
+            print(f"  skills   {target.skills}/<skill>/SKILL.md")
+            print(f"  hooks    {target.hooks}/")
+            note = " (the only file it reads hooks from)" if target.user_home else ""
+            print(f"  wiring   {target.wiring}{note}")
+        return 0
+
+    root = Path(args.root or Path.cwd()).resolve()
+    target = harness.TARGETS[args.agent]
+    try:
+        written = harness.install(target, root, hooks=args.hooks, force=args.force)
+        wiring = harness.install_wiring(target, root)
+    except harness.MissingResources as exc:
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        # A read-only checkout, a full disk: ordinary failures of a write, and none of
+        # them a bug in this package to be reported as one.
+        print(
+            f"claims-ledger: cannot install the harness under {root} ({exc.strerror or exc}: "
+            f"{exc.filename or root})",
+            file=sys.stderr,
+        )
+        return 2
+    return report_install(target, root, written, wiring)
+
+
+def report_install(target, root, written, wiring):
+    """Say of every file what happened to it, and exit on the worst of it.
+
+    Three states and three meanings: `wrote` did something, `present` found the same
+    bytes already there and did nothing, and `differs` found something else and left it
+    alone. An install that changed nothing because everything was already in place exits
+    0 — running it twice is not an error — and one that left a file alone exits 1, because
+    the project does not have what it was asked for and saying otherwise would be the one
+    report this package must never print
+    (L0186-an-install-that-changed-nothing-exits-zero-and-one-that-skipped-does-not,
+    cites-as-live).
+    """
+    worst = 0
+    for item in written + ([wiring] if wiring else []):
+        # Relative where that reads better, absolute where the file is not in the project
+        # at all — which is codex's wiring, and the one path a reader must not misread.
+        where = os.path.relpath(item.path, root) if item.path.is_relative_to(root) else item.path
+        if item.state == "wrote":
+            print(f"wrote      {where}")
+        elif item.state == "present":
+            print(f"present    {where}")
+        elif item.state == "differs":
+            print(
+                f"left alone {where} (it differs; pass --force to write over it)", file=sys.stderr
+            )
+            worst = max(worst, 1)
+        else:
+            print(f"left alone {where} ({item.state})", file=sys.stderr)
+            worst = max(worst, 1 if item.state == "exists" else 2)
+    if target.user_home and wiring is not None and wiring.state != "differs":
+        print(
+            f"\n{target.label} reads hooks from {wiring.path} and from nowhere else, and "
+            "asks you to review them before it runs any: they are inert until you do."
+        )
+    if wiring is not None and wiring.state == "exists":
+        print(
+            f"\n{wiring.path} is already there and is not edited by this command. It needs:\n",
+            file=sys.stderr,
+        )
+        print(harness.wiring_json(target, root))
+    return worst
+
+
 def cmd_corpus(args, _ledger):
     """The red-team corpus, which needs version control and says so rather than passing.
 
@@ -794,7 +896,7 @@ def cmd_corpus(args, _ledger):
 
 # `init` has no ledger to open yet, and `corpus` brings its own; neither may fail on a
 # configuration that is not there.
-NO_LEDGER = {"init", "corpus"}
+NO_LEDGER = {"init", "corpus", "harness"}
 
 COMMANDS = {
     "validate": cmd_validate,
@@ -810,6 +912,7 @@ COMMANDS = {
     "source": cmd_source,
     "init": cmd_init,
     "hook": cmd_hook,
+    "harness": cmd_harness,
     "corpus": cmd_corpus,
 }
 
@@ -845,9 +948,9 @@ def main(argv=None):
     returned is the one a shell reports for the same signal
     (L0134-a-closed-reader-exits-as-the-shell-would-report-it, cites-as-live).
 
-    `init` and `corpus` are dispatched without opening a ledger, because neither may fail
-    on a configuration that is not there yet or that belongs to someone else
-    (L0135-init-and-corpus-open-no-ledger, cites-as-live).
+    `init`, `corpus` and `harness` are dispatched without opening a ledger, because none
+    of them may fail on a configuration that is not there yet or that belongs to someone
+    else (L0135-init-and-corpus-open-no-ledger, cites-as-live).
     """
     soften_output_encoding()
     args = build_parser().parse_args(argv)

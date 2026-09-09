@@ -15,9 +15,9 @@ repository.
 
 Enforced in two places, neither of which is this file: `allow_squash_merge` and
 `allow_rebase_merge` are false on the GitHub repository, and
-`examples/agent-harness/merge-guard.sh` refuses the local commands. The expected verdicts
-for that guard are committed beside it in `merge-guard.cases`; run
-`bash examples/agent-harness/merge-guard-test.sh` after touching either.
+`src/claims_ledger/resources/agent-harness/merge-guard.sh` refuses the local commands. The
+expected verdicts for that guard are committed beside it in `merge-guard.cases`; run
+`bash src/claims_ledger/resources/agent-harness/merge-guard-test.sh` after touching either.
 
 The reason is in `docs/OPERATING.md`. The short of it: the entries pin commits, many
 of them, and a rewrite that drops one costs a supersession per ground pinned into it.
@@ -27,33 +27,59 @@ is one more thing that goes stale every time an entry lands.
 ## What the checkers read here
 
 `documents` in `[tool.claims-ledger]` is a list of single-level globs. It deliberately
-does not reach `src/claims_ledger/corpus/` or `examples/`: both carry citations of ids
-that live in other ledgers, and a glob that reached them would turn fixtures into
-failures. Widening one is a change to run before it is committed.
+does not reach `src/claims_ledger/corpus/`, `src/claims_ledger/resources/` or `examples/`:
+they carry citations of ids that live in other ledgers, or show the syntax to a reader,
+and a glob that reached them would turn fixtures and examples into failures. Widening
+one is a change to run before it is committed.
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
-does, so a citation written here is checked. Neither `.claude/` nor `examples/` is, which
-is why the skills can show citation syntax literally; a skill moved inside the document
-globs would have its examples checked as real citations and fail.
+does, so a citation written here is checked. Neither `.claude/` nor `examples/` is, and
+`src/claims_ledger/*.py` is single-level so it does not reach the shipped skills either —
+which is why they can show citation syntax literally. A skill moved inside the document
+globs, or a glob widened to `src/claims_ledger/**`, would have those examples checked as
+real citations and fail.
 
-## The agent hooks and skills live in `examples/`
+## The agent hooks and skills ship in the package
 
-`.claude/settings.json` points at `examples/agent-harness/`, and `.claude/skills/` holds
-symlinks into `examples/agent-skills/` — neither is a private copy. Both are examples that
-ship to readers and the thing this repository actually runs; keeping one copy is what
-stops the example rotting. Nothing in either is repository-specific — the interpreter is
-discovered, the document list is asked of the package, act legality is read from what
-`references` said, and counts are asked of `claims-ledger status` rather than written
-down — so keep it that way when editing.
+They live in `src/claims_ledger/resources/`, which is inside the wheel, and
+`claims-ledger harness install` writes them into a project that has never seen this
+repository — `.claude/`, `.codex/`, `.cursor/` or `.agent/`, one row of `TARGETS` each.
+The skills and the scripts do not vary; the file that arms them does, and the three
+differences are measured against the shipped CLIs rather than assumed: Cursor and codex
+declare hooks in `hooks.json`, only codex's is Claude Code's schema, and codex reads it at
+`$CODEX_HOME` and nowhere in the project.
+
+`.claude/settings.json` here points straight at
+`src/claims_ledger/resources/agent-harness/`, so the hooks this repository runs are the
+shipped files themselves and there is no second copy of them to rot.
+
+`.claude/skills/` cannot be that, and the reason is worth knowing before someone
+reinstates the shortcut it replaced. It held symlinks into the package. hatchling follows
+a symlink out of `.claude/` into `src/`, counts each file as seen at a path no
+distribution includes, and drops the real one — all three skills were missing from the
+wheel and the sdist, with no error anywhere, so `harness install` from a released copy
+wrote no skills and reported success. So `.claude/skills/` is a local install now,
+`.gitignore`d like the pre-commit hook and written the same way:
+
+    claims-ledger harness install --agent claude --no-hooks
+
+after a fresh clone, and again after editing a shipped skill. No symlink here reaches into
+the package and a test walks the tree to say so
+(L0188-no-symlink-in-the-repository-reaches-into-the-package, cites-as-live); what a built
+wheel carries of the harness is counted against the tree rather than assumed
+(L0190-a-built-distribution-carries-every-shipped-resource, cites-as-live).
+
+Nothing in the hooks or the skills is repository-specific — the interpreter is discovered,
+the project root is discovered, the document list is asked of the package, act legality is
+read from what `references` said, and counts are asked of `claims-ledger status` rather
+than written down — so keep it that way when editing. A path counted in `..` is the one
+that would break: the same script runs from `src/claims_ledger/resources/agent-harness/`
+here and from `.claude/hooks/` where it is installed, so every script discovers its root
+instead (L0189-a-hook-script-discovers-the-project-root, cites-as-live).
 
 The hooks name the skills and the skills name each other. `merge-guard.sh` has committed
-expected verdicts; the others do not, so a change to one is checked by running it.
-
-## The pre-commit hook is not tracked
-
-It lives in `.git/hooks/pre-commit`, written by `claims-ledger hook --install`, naming the
-installing interpreter absolutely. A fresh clone has no hook until someone runs that
-command; CI is the only backstop until they do.
+expected verdicts; the others do not, so a change to one is checked by running it, and
+`tests/test_harness.py` holds what the installer promises.
 
 ## Adding a corpus seed
 
