@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-08T22:03:21-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0191-a-skill-installs-as-the-same-file-under-every-agent · supersedes
+  note: the per-agent frontmatter reframing was removed; every agent reads a skill in the same shape, so the installer writes the same file and the section this entry pinned no longer exists. What the successor asserts is what is left of the claim.
 
-- src/claims_ledger/harness.py · standing · cites-as-live
+## References

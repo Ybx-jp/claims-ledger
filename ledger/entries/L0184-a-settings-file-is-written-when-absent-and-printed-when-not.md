@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T22:03:38-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/harness.py § "install_wiring" @52859264d2caa6d447021f4cda3c8b26e7d72c1f
+  artifact: 4d3633e3f1e5dcb5b1a3cc27880ee7e3d699a61e
+  note: propagated from a moved ground
+
+- 2026-09-08T22:03:53-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/harness.py § "install_wiring" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
+  note: re-read after every agent came to have a settings file, which removed the branch that returned nothing for one that had none. What happens to a file already there — read for the hooks it names, never rewritten — is unchanged.
+
 ## References
 
 - src/claims_ledger/harness.py · standing · cites-as-live

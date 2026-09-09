@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T22:03:38-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "report_install" @52859264d2caa6d447021f4cda3c8b26e7d72c1f
+  artifact: 3d06cb1db9f9245227e94c5218c9dd714608ab73
+  note: propagated from a moved ground
+
+- 2026-09-08T22:03:53-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "report_install" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
+  note: re-read after the wiring branch for an agent with nothing to wire was removed. The three states and the exit code each carries are unchanged.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

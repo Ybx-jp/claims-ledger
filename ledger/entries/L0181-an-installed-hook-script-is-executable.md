@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T22:03:38-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/harness.py § "plan" @52859264d2caa6d447021f4cda3c8b26e7d72c1f
+  artifact: 4d3633e3f1e5dcb5b1a3cc27880ee7e3d699a61e
+  note: propagated from a moved ground
+
+- 2026-09-08T22:03:53-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/harness.py § "plan" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
+  note: re-read after the plan stopped reframing a skill's frontmatter per agent. The mode the scripts are written with is unchanged and still named in the plan rather than taken off the packaged file.
+
 ## References
 
 - src/claims_ledger/harness.py · standing · cites-as-live
