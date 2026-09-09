@@ -136,14 +136,17 @@ def readings(entry, pointer, config, repo=None, placed=None):
     ground's type, path and section at a commit. A corroboration at an unpinned reference
     is a reading nothing here can hold to a commit, and is passed over.
 
-    With a repository to ask, a reading also has to sit in this history between the pin
-    and here: a commit on no branch — `commit-tree` makes one in a moment — would
-    otherwise be the baseline every checker compares from until a prune turned it into a
-    rewritten history, and a reading older than the pin would report an untouched ground
-    as moved. Both are passed over, so the ground is compared from its pin, or from the
-    last reading that is in the history. `placed` memoises that question for a run: the
-    same reading is asked about by `run` and again by `orphans`, and a ledger's readings
-    cluster on a few commits.
+    With a repository to ask, a reading also has to sit in this history strictly between
+    the pin and here, and be pinned to a commit rather than a name. A commit on no branch
+    — `commit-tree` makes one in a moment — would otherwise be the baseline every checker
+    compares from until a prune turned it into a rewritten history; a reading older than
+    the pin would report an untouched ground as moved; one at the pin's own commit in a
+    longer spelling would carry the comparison away from the discharge recorded at the
+    pin; and a name follows the work, which `drift` reports as an unstable pin. All are
+    passed over, so the ground is compared from its pin, or from the last reading that is
+    in the history. `placed` memoises that question for a run: the same reading is asked
+    about by `run` and again by `orphans`, and a ledger's readings cluster on a few
+    commits.
     """
     out = []
     placed = {} if placed is None else placed
@@ -163,7 +166,9 @@ def readings(entry, pointer, config, repo=None, placed=None):
             key = (pointer.pin, q.pin)
             if key not in placed:
                 placed[key] = (
-                    git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
+                    is_object_name(repo, q.pin)[0] is True
+                    and git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
+                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, pointer.pin).code != 0
                     and git_call(repo, "merge-base", "--is-ancestor", q.pin, "HEAD").code == 0
                 )
             if not placed[key]:
@@ -874,7 +879,10 @@ def orphans(entries, config, repo, author, drifted, placed=None):
                 pointers.setdefault(v.pointer.raw, v.pointer)
             if found:
                 moved_past.add(p.raw)
-                moved_past.update(v.pointer.raw for v in found[:-1])
+                moved_past.update(v.pointer.raw for v in found)
+                # By pointer and not by position: two readings at one commit are one
+                # pointer, and the last of them is where the comparison is, not past it.
+                moved_past.discard(found[-1].pointer.raw)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:
