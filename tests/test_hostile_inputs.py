@@ -1490,12 +1490,18 @@ def test_a_citation_shaped_parenthetical_with_no_entry_behind_it_is_left_alone(p
     capsys.readouterr()
     assert project.cl("references") == 0, capsys.readouterr().out
 
-    doc.write_text(f"# Notes\n\nThis inherits the law ({bare}, cites-as-liv).\n", encoding="utf-8")
-    capsys.readouterr()
-    assert project.cl("references") == 1
-    out = capsys.readouterr().out
-    assert "is not a citation act" in out, out
-    assert bare in out, out
+    # Both forms of the id, because the guard matches on series and number with the slug
+    # set aside: the slugged one is what a document really writes, and the bare one is
+    # what a lookup keyed on the whole id would silently stop reporting.
+    for written in (f"{ident}", bare):
+        doc.write_text(
+            f"# Notes\n\nThis inherits the law ({written}, cites-as-liv).\n", encoding="utf-8"
+        )
+        capsys.readouterr()
+        assert project.cl("references") == 1, written
+        out = capsys.readouterr().out
+        assert "is not a citation act" in out, out
+        assert written in out, out
 
 
 def _scaffold(project):

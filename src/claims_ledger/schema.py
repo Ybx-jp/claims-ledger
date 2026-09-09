@@ -105,7 +105,7 @@ MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]
 # read as prose: a mistyped `cites-as-liv`, and `distinguishes`, which is an act between
 # entries and not a citation. Both used to be a citation nobody checked, because the only
 # regex reading documents did not match them and nothing else looked
-# (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
+# (L0176-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
 
 UNPINNED = ("working", "corpus")
 # Pins that name no revision: the artifact is read from the working tree as it stands.

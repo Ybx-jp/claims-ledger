@@ -278,7 +278,7 @@ def run(ledger, entries=None):
             # `CITATION_RE` does not match it and no other rule reads documents, so a
             # mistyped act — and `distinguishes`, which an entry may perform and a
             # document may not — used to sit in a checked document as unchecked prose
-            # (L0159-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
+            # (L0176-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
             reports.append(
                 Report(
                     "fail",
