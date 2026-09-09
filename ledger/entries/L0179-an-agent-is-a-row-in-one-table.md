@@ -1,0 +1,39 @@
+---
+id: L0179-an-agent-is-a-row-in-one-table
+kind: claim
+stated: 2026-09-08T21:44:39-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: b58aa2e3254fac0275240412bf1917b201e3b91e10e5b334b8e4c8118d41783c
+---
+
+## Assertion
+
+Every difference between the coding agents the installer writes for is one row of a single table.
+
+## Scope
+
+metric: where an agent's install layout is decided
+cohort: every agent the installer supports
+condition: agents differ in their skill directory, their entry file name, their hook directory and what wires the hooks
+
+## Grounds
+
+- code: src/claims_ledger/harness.py § "TARGETS" @52859264d2caa6d447021f4cda3c8b26e7d72c1f
+
+## Warrant
+
+TARGETS names, per agent, the skill directory, the name the entry file takes there, the hook directory and the file that has to name the hooks. Nothing in the hooks or the skills is agent-specific, so a second place deciding any of that would be a branch that could disagree with the row beside it. An agent whose hook protocol this package cannot write says so in its row rather than being left out, because the scripts are still worth installing for somebody adapting them.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/harness.py · standing · cites-as-live

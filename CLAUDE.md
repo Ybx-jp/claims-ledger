@@ -59,16 +59,19 @@ wrote no skills and reported success. So `.claude/skills/` is a local install no
 
     claims-ledger harness install --agent claude --no-hooks
 
-after a fresh clone, and again after editing a shipped skill. `tests/test_harness.py`
-holds the rule that no symlink in this repository reaches into the package, and builds a
-wheel to count what it carries.
+after a fresh clone, and again after editing a shipped skill. No symlink here reaches into
+the package and a test walks the tree to say so
+(L0188-no-symlink-in-the-repository-reaches-into-the-package, cites-as-live); what a built
+wheel carries of the harness is counted against the tree rather than assumed
+(L0190-a-built-distribution-carries-every-shipped-resource, cites-as-live).
 
 Nothing in the hooks or the skills is repository-specific — the interpreter is discovered,
 the project root is discovered, the document list is asked of the package, act legality is
 read from what `references` said, and counts are asked of `claims-ledger status` rather
 than written down — so keep it that way when editing. A path counted in `..` is the one
 that would break: the same script runs from `src/claims_ledger/resources/agent-harness/`
-here and from `.claude/hooks/` where it is installed.
+here and from `.claude/hooks/` where it is installed, so every script discovers its root
+instead (L0189-a-hook-script-discovers-the-project-root, cites-as-live).
 
 The hooks name the skills and the skills name each other. `merge-guard.sh` has committed
 expected verdicts; the others do not, so a change to one is checked by running it, and
