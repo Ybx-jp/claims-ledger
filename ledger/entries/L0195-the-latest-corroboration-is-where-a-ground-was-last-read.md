@@ -41,6 +41,13 @@ none
 - 2026-09-09T13:28:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "effective_pointer" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
   note: read against commit 825902d, which takes the last of the readings `readings` lists rather than walking the verdicts itself; which verdict counts as a reading, and that the Ground is compared from its pin until one exists, are unchanged; the assertion holds as written.
+- 2026-09-09T14:03:34-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "effective_pointer" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
+  artifact: f66a2097acc62a3f20e2c68d4e597975ee945f95
+  note: propagated from a moved ground
+- 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "effective_pointer" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
+  note: read against commit 54aa2e4, which passes the ancestry memo through to readings and still takes the last reading; the Ground is still compared from its pin until one exists; the assertion holds as written.
 
 ## References
 - src/claims_ledger/freshness.py · standing · cites-as-live

@@ -49,6 +49,13 @@ none
 - 2026-09-09T13:28:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "run" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
   note: read against commit 825902d, which compares each ground from the pointer effective_pointer returns and names that reading in the flag; how a verdict is appended, what a missing repository or an unstatable artifact or a terminal entry gets, and the once-per-run memo are unchanged; the assertion holds as written.
+- 2026-09-09T14:03:34-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "run" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
+  artifact: f66a2097acc62a3f20e2c68d4e597975ee945f95
+  note: propagated from a moved ground
+- 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "run" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
+  note: read against commit 54aa2e4, which passes the run's ancestry memo to effective_pointer and orphans; nothing else in the loop changed, and the appends, the failure without a repository, the exit after a write, the unstatable artifact, the terminal exemption and the once-per-run memo hold; the assertion holds as written.
 
 ## References
 
