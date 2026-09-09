@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-09T10:18:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "git_env" @4af0acd253eeef1571cd7615ea3a041eda9e945e
+  artifact: c3a8a655fe9eae2546c56e64a2cf63e8493e27c6
+  note: propagated from a moved ground
+
+- 2026-09-09T10:18:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" @b73beb89121b47f1e945220810dfaae2c9ac4844
+  note: read against this commit, which adds the tracing variables to what is dropped and pins the language. Neither touches this claim: the repository-location list is unchanged and still dropped on every call, and the index variable is still kept only where the index is the subject.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

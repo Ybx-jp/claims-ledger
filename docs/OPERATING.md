@@ -46,6 +46,40 @@ is not an entry whose evidence is fine. Supersede them, and say in the new entri
 what happened; a ledger that quietly re-pins is worth less than one that records that its
 history was rewritten.
 
+## One branch at a time appends to an entry
+
+Verdicts are lines in one file, so two branches that each append to the same entry conflict
+when they meet. Git will offer to keep both, and a resolution that interleaves them is the
+one thing this ledger cannot check: the append-only comparison asks that each parent's
+verdicts be a prefix of its child's
+(L0082-verdicts-append-and-only-append-across-every-edge, cites-as-live), and a weave that
+is a prefix of both parents exists only where one parent's list is already a prefix of the
+other's — which is to say, only where the branches did not both append. Weakening that comparison so a weave passes has been tried and is not
+cheap — every weakening that admits a legal weave also admits a merge that rewrote the
+list, because the two are the same shape seen from different sides.
+
+So the rule is upstream of the merge rather than inside the checker: **only one branch at a
+time appends to a given entry.** In practice that means a pass that runs
+`claims-ledger freshness --write` finishes and merges before the next branch starts, and
+two branches do not both pin the same section. It is a scheduling constraint on the ledger
+and not on the code, and it is cheap, because a ledger is written in passes anyway.
+
+**So append a verdict on a branch that is up to date.** Merge `main` into the branch
+first, then append; the verdict then sits on top of main's line, main's list is a prefix
+of the branch's, and the merge back is a prefix extension of both parents. That is the
+whole discipline, and it is the same shape as "rebase before you push" everywhere else —
+except done with a merge, because this repository does not rewrite history.
+
+**If both sides have already committed a verdict, there is no resolution that clears it.**
+Measured, rather than argued: keeping one side reports the dropped verdict at the merge,
+and re-appending the same reading afterwards does not clear that report, because the
+comparison is against every revision's own parents and the merge is now one of them.
+Keeping both in either order fails against the other parent. What is left is to rebuild
+the branch that has not merged yet, off current `main`, and append there — which is a
+history rewrite, and permitted here only because those commits are unmerged and nothing
+pins them. Check that before doing it: an entry created on that same branch may pin them,
+and then the rewrite costs what the section above says it costs.
+
 ## Adding an entry takes two commits
 
 This bites the first time and then never again, so it is worth stating plainly.

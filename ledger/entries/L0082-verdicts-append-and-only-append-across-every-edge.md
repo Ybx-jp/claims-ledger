@@ -46,3 +46,4 @@ none
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live
+- docs/OPERATING.md · standing · cites-as-live

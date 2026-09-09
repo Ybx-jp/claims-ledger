@@ -366,6 +366,7 @@ the record of what else there is still to check.
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
 | a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
+| a verdict block inserted above one an earlier commit held | D61 | fail — the verdicts of a commit's parent are a prefix of its own, so a block slipped in above one of them reads as that verdict changed; the seed is linear, which is the only history a seed can build, so the merge side of that rule is held from `tests/test_history_batch.py` and not from here |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
