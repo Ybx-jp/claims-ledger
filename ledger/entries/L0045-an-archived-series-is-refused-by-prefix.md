@@ -43,6 +43,14 @@ none
 - 2026-09-08T09:50:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "run" @5ee55ae6992f10c834510759f026644f42614025
   note: read against the change in commit 5ee55ae, which narrowed the dependent exemption from FALLEN to TERMINAL in that one branch; this claim names a different part of the same section and is unaffected
+- 2026-09-08T18:55:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "archived_id_re" @c4bcb3db71dbd2bd1c588791a741ecf2fd360487
+  artifact: 76bdfa94a51461a3105e33f6b8a3ed6026f1bc8f
+  note: propagated from a moved ground
+
+- 2026-09-08T18:58:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "archived_id_re" @34e1bf7da1ee0807955e3508ed131518672ac517
+  note: read against commit 34e1bf7 by diffing the section at the pin and at that commit; it differs in exactly two places — a docstring paragraph carrying the citation for L0177, and the digit class narrowed from `\\d` to `[0-9]`. Neither is what this claim says: the pattern still fires on the prefix alone without regard to whether the id resolves, and it still admits three digits or more. ID_RE mints no id whose digits are outside ASCII, so the population the condition names is the same one
 
 ## References
 
