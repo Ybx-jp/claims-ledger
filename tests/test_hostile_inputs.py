@@ -482,6 +482,35 @@ def test_an_id_written_in_non_ascii_digits_is_refused(project, capsys):
     assert not any(project.entries.glob("A*homoglyph-id.md"))
 
 
+def test_the_quarantine_pattern_does_not_read_non_ascii_digits(project, capsys):
+    """The id patterns are ASCII-only, and `archived_id_re` was the one that was not.
+
+    `\\d` matches every Unicode decimal digit, so a quarantined prefix followed by
+    fullwidth or Arabic-Indic ones was a breach of an archive that can hold no such id —
+    `ID_RE` mints ASCII. Raised by the quality-engineering review of PR #26 alongside the
+    miscitation false positive; the real archived id in the same document still fails, so
+    the narrowing did not buy silence.
+    """
+    config = project.root / "claims-ledger.toml"
+    text = config.read_text(encoding="utf-8")
+    assert "archived-prefixes = []" in text
+    config.write_text(text.replace("archived-prefixes = []", 'archived-prefixes = ["P"]'), "utf-8")
+    doc = project.root / "quarantine.md"
+    fullwidth = "P\uff10\uff10\uff10\uff11"  # looks like "P0001", and is not
+    arabic_indic = "P\u0661\u0662\u0663\u0664"
+    doc.write_text(
+        f"# Notes\n\nNeither {fullwidth} nor {arabic_indic} is an id.\n", encoding="utf-8"
+    )
+    capsys.readouterr()
+    assert project.cl("references") == 0, capsys.readouterr().out
+
+    doc.write_text("# Notes\n\nThis names P0001, which is quarantined.\n", encoding="utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1
+    out = capsys.readouterr().out
+    assert "P0001" in out, out
+
+
 # === B. the config layer ==============================================================
 
 

@@ -138,10 +138,16 @@ def archived_id_re(config):
     the widths that fire. `\d{3}` alone — what this was — put a word boundary where no
     four-digit id has one, so the quarantine could not match a single id the schema
     permits. (docs/audits/0.1.0.md, QE9-105.)
+
+    Wide on the width and narrow on the alphabet: the digits are ASCII, because `\d`
+    matches every Unicode decimal digit and `ID_RE` mints none of them: a quarantined
+    prefix followed by fullwidth or Arabic-Indic digits is a token no ledger can hold,
+    and it was a quarantine breach anyway
+    (L0177-the-quarantine-pattern-reads-ascii-digits, cites-as-live).
     """
     if not config.archived_prefixes:
         return None
-    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"]\d{3,}\b")
+    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"][0-9]{3,}\b")
 
 
 # --- reports -------------------------------------------------------------------------
