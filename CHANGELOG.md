@@ -1033,8 +1033,33 @@ they are *near* each other, and near is not inconsistent.
   `D55-pin-resolves-but-the-path-does-not` (its near-negative — the repair is one pin, not a
   supersession per entry) and `D56-unpinned-ground-with-no-file`, which is staged outside a
   repository so that a diagnosis reaching for git reaches out of the seed and is caught.
-- `examples/agent-harness/` — two coding-agent hooks this repository runs on itself, with
-  the thirteen expected verdicts that hold the merge guard to its matching. Examples, not
-  package: not in the wheel or the sdist, and they need `jq`, which the package does not.
+- A coding-agent harness in the wheel: four hooks and three skills under
+  `src/claims_ledger/resources/`, with the thirteen expected verdicts that hold the merge
+  guard to its matching, and `claims-ledger harness install` to write them into a project.
+  `--agent` names the agent — `claude`, `codex`, `cursor` or `agents` — and every
+  difference between them is one row of a table: the skill directory, the name the entry
+  file takes there (a Cursor rule is the same body under `.mdc` frontmatter), where the
+  scripts go, and the file that has to name them. `claims-ledger harness list` prints it.
+
+  Nothing already in the project is written over: a file whose bytes match is `present`,
+  one that differs is left alone and named, and re-running the command is not an error.
+  A settings file is written when the project has none and never edited when it has one —
+  the block it needs is printed instead. Hook scripts are written mode 755, because a
+  wheel is a zip and an installer need not carry an executable bit out of one.
+
+  They were `examples/agent-harness/` and `examples/agent-skills/`, installed by hand.
+  This repository still runs the hooks out of the package rather than out of a copy:
+  `.claude/settings.json` points at the shipped scripts. `.claude/skills/` is a local
+  install, untracked like the pre-commit hook — it held symlinks into the package, and
+  hatchling follows one out of `.claude/` into `src/`, counts each file as seen at a path
+  no distribution includes, and drops the real one, so all three skills were missing from
+  the wheel and the sdist with no error anywhere. A test now holds that no symlink in the
+  repository reaches into the package, and another builds a wheel and counts what it
+  carries; `harness install` refuses outright when the package it is installing from
+  carries no skills, rather than reporting a clean plan with nothing in it. Each
+  script now discovers the project root (`CLAIMS_LEDGER_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`,
+  then the nearest ancestor that looks like a project) rather than counting `..` to it,
+  which is what lets the same file run from inside the package and from `.claude/hooks/`.
+  They still need `jq` when they run, which the package does not.
 
 [0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0

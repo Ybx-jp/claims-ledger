@@ -1,9 +1,10 @@
 # Agent skills
 
 Three skills for a coding-agent harness working in a project that keeps a claims ledger.
-Like the hooks in `../agent-harness/`, they are **examples, not part of the package**:
-nothing installs them, nothing supports them, and the package has no dependency on any
-agent harness. Copy them into your project and adapt.
+Like the hooks in `../agent-harness/`, they ship inside the package, and the same command
+writes both:
+
+    claims-ledger harness install --agent claude    # or codex, cursor, agents
 
 They ship as defaults, so they carry no citations and name no entry ids — your ledger has
 its own — and they describe the ledger through the two interfaces you actually have: the
@@ -44,18 +45,25 @@ Each skill says at the top when it is the wrong one and which takes over, and ca
 `reference/` directory with the longer material — so the skill itself stays short and the
 detail is fetched when it is wanted.
 
-## Installing them (Claude Code)
+## Installing them
 
-Copy this directory into your project, then either point `.claude/skills/` at it —
+    claims-ledger harness install --agent claude
 
-    mkdir -p .claude/skills
-    ln -s ../../examples/agent-skills/choosing-a-citation-act .claude/skills/
-    ln -s ../../examples/agent-skills/tagging-prose-with-claims .claude/skills/
-    ln -s ../../examples/agent-skills/repair-a-drifted-pin .claude/skills/
+writes each skill into the directory that agent reads — `.claude/skills/<name>/SKILL.md`,
+`.cursor/rules/<name>/<name>.mdc`, `.codex/skills/`, `.agents/skills/` —  with its
+`reference/` directory beside it, and `claims-ledger harness list` prints the whole table.
+Nothing already in the project is written over.
 
-— or copy the directories in, if your harness does not follow symlinks. Symlinks are what
-this repository uses, so that editing the shipped example and editing the skill an agent
-loads are the same act.
+The body is the same text everywhere. Only the frontmatter is reframed, and only where an
+agent's own format differs: a Cursor rule takes `description` and `alwaysApply` where a
+skill takes `name` and `description`. A skill rewritten per agent would be three skills to
+keep true instead of one.
+
+Install rather than symlink, even from a checkout of this package. A symlink out of an
+agent's directory into a Python package makes the build follow it, count the file as seen
+at a path no distribution includes, and drop the real one from the wheel and the sdist
+without an error — which is how these three skills once shipped as nothing at all. Run the
+command again after editing one.
 
 `../agent-harness/ledger-orientation.sh` hands over the same routing at session start; the
 other hooks name the relevant skill when a finding appears.

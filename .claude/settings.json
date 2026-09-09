@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/ledger-orientation.sh"
+            "command": "$CLAUDE_PROJECT_DIR/src/claims_ledger/resources/agent-harness/ledger-orientation.sh"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/merge-guard.sh"
+            "command": "$CLAUDE_PROJECT_DIR/src/claims_ledger/resources/agent-harness/merge-guard.sh"
           }
         ]
       }
@@ -27,11 +27,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh"
+            "command": "$CLAUDE_PROJECT_DIR/src/claims_ledger/resources/agent-harness/pin-guard.sh"
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/status-guard.sh"
+            "command": "$CLAUDE_PROJECT_DIR/src/claims_ledger/resources/agent-harness/status-guard.sh"
           }
         ]
       }

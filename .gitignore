@@ -12,3 +12,11 @@ build/
 
 # Local design notes for unreleased work. Never part of the package.
 docs/design/
+
+# Written by `claims-ledger harness install`, from the copy in the package. Not tracked,
+# for the reason the pre-commit hook is not: it is generated from something that is, and
+# a symlink or a copy here that git carried would be a second source of truth. A symlink
+# in particular would be worse than that — hatchling follows one out of `.claude/` into
+# `src/`, counts the file as seen at a path no distribution includes, and drops it from
+# the wheel and the sdist without saying so.
+.claude/skills/

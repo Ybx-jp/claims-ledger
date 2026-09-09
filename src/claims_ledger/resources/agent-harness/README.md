@@ -1,17 +1,23 @@
 # Agent-harness hooks
 
 Four hooks for a coding-agent harness, for projects whose ledger pins claims to code.
-They are **examples, not part of the package**: nothing installs them, nothing supports them,
-and they are not in the wheel or the sdist. Copy them into your project and adapt.
+They ship inside the package, so an installed copy carries them:
 
-They are here rather than in `src/` for two reasons. The hook-configuration format below
-is one vendor's, and a checker that works from a plain interpreter should not grow a
-dependency on anyone's agent harness. And these need `jq`, where the package needs
-nothing at all — `claims-ledger` declares no runtime dependencies and the installed
-pre-commit hook runs from a bare `python3`, which is a property worth keeping.
+    claims-ledger harness install --agent claude
 
-This repository uses them on itself; `.claude/settings.json` points at these files, so
-what is documented here is what is actually run.
+writes them into `.claude/hooks/` beside the skills in `../agent-skills/`, and prints or
+writes the wiring below. `claims-ledger harness list` says what each agent it knows gets
+and where.
+
+They still depend on nothing the package depends on. `jq` is needed when a hook *runs*,
+which is a property of a shell script somebody chose to install; `claims-ledger` declares
+no runtime dependencies, and the installed pre-commit hook runs from a bare `python3`.
+That is worth keeping — a checker that works from a plain interpreter should not grow a
+dependency on anyone's agent harness.
+
+This repository uses them on itself, out of this directory rather than out of a copy:
+`.claude/settings.json` points at these files and `.claude/skills/` symlinks the skills
+beside them, so what is documented here is what is actually run.
 
 ## What they are for
 
@@ -62,39 +68,57 @@ asks the installed package for the counts and for the evidence types the project
 configures, rather than carrying either. It stays silent in a checkout with no
 `ledger/entries`, since the directory it ships in is meant to be copied.
 
-## Installing them (Claude Code)
+## Installing them
 
-Copy this directory into your project and add to `.claude/settings.json`:
+    claims-ledger harness install --agent claude    # or codex, cursor, agents
+
+Every file it would write is listed first and nothing already in the project is written
+over: a file whose bytes already match is reported `present`, one that differs is left
+exactly as it was and named, and `--force` is what changes that. Re-running it is not an
+error.
+
+The hooks are installed for an agent whose hook protocol this package can write, which
+today is Claude Code; `--hooks` asks for the scripts anyway, for somebody adapting them
+to a harness the table does not know.
+
+`.claude/settings.json` is written when the project has none. When there is one it is
+never edited — it is a file people keep their own hooks and permissions in — and the
+block it needs is printed instead:
 
 ```json
 {
   "hooks": {
     "SessionStart": [
       { "hooks": [{ "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/ledger-orientation.sh" }] }
+                    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/ledger-orientation.sh" }] }
     ],
     "PreToolUse": [
       { "matcher": "Bash",
         "hooks": [{ "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/merge-guard.sh" }] }
+                    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/merge-guard.sh" }] }
     ],
     "PostToolUse": [
       { "matcher": "Edit|Write|MultiEdit",
         "hooks": [{ "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/pin-guard.sh" },
+                    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pin-guard.sh" },
                   { "type": "command",
-                    "command": "$CLAUDE_PROJECT_DIR/examples/agent-harness/status-guard.sh" }] }
+                    "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/status-guard.sh" }] }
     ]
   }
 }
 ```
 
-Every script derives the project root from its own location, two directories up. Move
-them and adjust the `..` count.
+Every script finds the project root rather than counting `..` to it: the harness's own
+project directory if it says what it is (`CLAIMS_LEDGER_PROJECT_DIR`, then
+`CLAUDE_PROJECT_DIR`), then the nearest ancestor of the script that looks like a project,
+then two directories up. So a script runs correctly from a project's `.claude/hooks/` and
+from inside the installed package, which is what lets this repository run the shipped copy
+and a reader run their own. The root is never taken from `cwd`, which is wherever the
+session happens to be.
 
 The hooks name the skills in `../agent-skills/`, which carry the procedures the hooks only
-point at. Installing one without the other leaves an agent told what is wrong and not what
-the choices are.
+point at; the same `harness install` writes both. Installing one without the other leaves
+an agent told what is wrong and not what the choices are.
 
 For another harness, the parts to replace are the input parsing (a JSON payload on stdin
 carrying an event name, a session id and either a file path or a command) and the output
@@ -120,7 +144,7 @@ Nothing, by construction, and it is worth keeping it that way:
   entry lands and nothing checks it.
 - Nothing points at a path the reader may not have. `docs/` is not installed with the
   wheel, and the package's own source is not an interface, so the hooks name only
-  `claims-ledger` commands, importable names, and the skills in `../agent-skills/`.
+  `claims-ledger` commands, importable names, and the skills installed beside them.
 - Nothing assumes what an artifact is. A ground may name a module, a settings table, a
   design document or a run, and which types this project accepts is asked of its
   configuration.

@@ -35,11 +35,30 @@ session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -n "$path" ] || exit 0
 
-# The project root is derived from this script's own location rather than from `cwd`,
-# which is wherever the session happens to be, so that a copy of this hook living in a
-# scratch worktree guards that worktree. Adjust the number of `..` if you move it.
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 0
-root=$(cd -- "$here/../.." && pwd) || exit 0
+
+# The project root, asked rather than counted. `claims-ledger harness install` writes this
+# script into a project's own hook directory, while the copy inside the installed package
+# sits several directories deeper, so a fixed number of `..` guards the wrong tree from
+# one of those two places. Three tries, narrowest first: what the harness says the project
+# is, then the nearest ancestor of this script that looks like a project, then two
+# directories up, which is where an installed copy sits. The root is never taken from
+# `cwd`, which is wherever the session happens to be.
+project_root() {
+  local dir=$1
+  for named in "${CLAIMS_LEDGER_PROJECT_DIR:-}" "${CLAUDE_PROJECT_DIR:-}"; do
+    if [ -n "$named" ] && [ -d "$named" ]; then (cd -- "$named" && pwd) && return 0; fi
+  done
+  while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+    for marker in claims-ledger.toml pyproject.toml .git; do
+      [ -e "$dir/$marker" ] && { printf '%s\n' "$dir"; return 0; }
+    done
+    dir=$(dirname -- "$dir")
+  done
+  (cd -- "$1/../.." && pwd)
+}
+
+root=$(project_root "$here") || exit 0
 
 case "$path" in
   "$root"/*) rel=${path#"$root"/} ;;
