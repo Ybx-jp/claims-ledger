@@ -131,6 +131,29 @@ def checked_pointers(entry, config):
     return out
 
 
+def readings(entry, pointer, config):
+    """The corroborating verdicts that re-read this ground, in file order: each names the
+    ground's type, path and section at a commit, under a type this checker compares. A
+    corroboration at an unpinned reference, or under a type this checker does not
+    compare, is a reading nothing here can hold to a commit, and is passed over."""
+    out = []
+    for v in entry.verdicts:
+        if v.malformed or v.status != "corroborated":
+            continue
+        q = v.pointer
+        if (
+            q is None
+            or q.type != pointer.type
+            or q.target != pointer.target
+            or q.section != pointer.section
+            or q.type not in config.evidence_types
+            or q.pin in UNPINNED
+        ):
+            continue
+        out.append(v)
+    return out
+
+
 def effective_pointer(entry, pointer, config):
     """(the pointer this checker compares against, the corroborating verdict that set it).
 
@@ -148,26 +171,12 @@ def effective_pointer(entry, pointer, config):
     cites-as-live).
 
     The Ground itself when no verdict re-reads it, so an entry that was never acknowledged
-    is compared exactly as before. A corroboration naming the section at an unpinned
-    reference, or under a type this checker does not compare, is a reading nothing here
-    can hold to a commit, and is passed over.
+    is compared exactly as before.
     """
-    latest, by = pointer, None
-    for v in entry.verdicts:
-        if v.malformed or v.status != "corroborated":
-            continue
-        q = v.pointer
-        if (
-            q is None
-            or q.type != pointer.type
-            or q.target != pointer.target
-            or q.section != pointer.section
-            or q.type not in config.evidence_types
-            or q.pin in UNPINNED
-        ):
-            continue
-        latest, by = q, v
-    return latest, by
+    found = readings(entry, pointer, config)
+    if not found:
+        return pointer, None
+    return found[-1].pointer, found[-1]
 
 
 def acknowledgements(entry, pointer, author):
@@ -835,11 +844,13 @@ def orphans(entries, config, repo, author, drifted):
     for e in entries:
         pointers = {}
         for _, _, p in checked_pointers(e, config):
-            # Both where the ground was pinned and where it was last read: a propagated
-            # verdict names whichever the run that wrote it compared against.
+            # Where the ground was pinned and every reading since: a propagated verdict
+            # names whichever of them the run that wrote it compared against, and a
+            # reading that a later reading has replaced is still the cause of the drift
+            # recorded against it.
             pointers[p.raw] = p
-            q, _ = effective_pointer(e, p, config)
-            pointers.setdefault(q.raw, q)
+            for v in readings(e, p, config):
+                pointers.setdefault(v.pointer.raw, v.pointer)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:

@@ -391,6 +391,17 @@ def test_a_reading_at_an_unpinned_reference_does_not_move_the_baseline(pinned):
     assert pinned.outcomes() == []
 
 
+def test_a_drift_recorded_against_an_earlier_reading_is_not_orphaned_by_a_later_one(pinned):
+    """Two acknowledgements in a row. The second drift's propagated verdict names the
+    first reading, which the second reading then replaces as the baseline; the verdict
+    still names a cause that happened, and the orphan rule has to find it there."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    _acknowledge(pinned)
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    _acknowledge(pinned, note="a second reformat")
+    assert pinned.outcomes() == []
+
+
 def test_a_forged_discharge_against_a_reading_is_still_an_orphan(pinned):
     """The orphan rule follows the baseline: a propagated verdict naming the reading's
     pointer but recording the artifact as that reading has it states no drift since it."""
