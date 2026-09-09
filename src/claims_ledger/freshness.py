@@ -449,20 +449,21 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     return "moved", since()
 
 
-def since_phrase(count, where):
-    """How the artifact got from the pin to here, for the message.
+def since_phrase(count, where, origin="the pin"):
+    """How the artifact got from the pin — or from the reading it is compared from — to
+    here, for the message.
 
     A count of zero is the ordinary pre-commit case — the edit is in the working tree and
     no commit has been made yet — and saying `0 commits have touched it` of a file the
     author is editing right now reads as a checker that has lost track of its own subject
     (L0113-a-count-of-zero-commits-is-said-as-uncommitted, cites-as-live)."""
     if count and count.isdigit() and int(count) == 0:
-        return f"{where} differs from the pin in the working tree, uncommitted"
+        return f"{where} differs from {origin} in the working tree, uncommitted"
     if not count or not count.isdigit():
-        return f"an unknown number of commits have touched {where} since the pin"
+        return f"an unknown number of commits have touched {where} since {origin}"
     n = int(count)
     verb = "1 commit has" if n == 1 else f"{n} commits have"
-    return f"{verb} touched {where} since the pin"
+    return f"{verb} touched {where} since {origin}"
 
 
 def run(ledger, write=False, cached=False, entries=None):
@@ -606,8 +607,9 @@ def run(ledger, write=False, cached=False, entries=None):
         if acknowledged:
             continue
         where = f"section {p.section!r}" if p.sectioned else "it"
+        origin = "the pin"
         if reading is not None:
-            where += f", read last by verdict {reading.index} at {p.pin[:12]}"
+            origin = f"the reading verdict {reading.index} recorded at {p.pin[:12]}"
         if finding == "withdrawn":
             where_it_was = "the index" if cached else "the working tree"
             gone = (
@@ -620,13 +622,19 @@ def run(ledger, write=False, cached=False, entries=None):
                     "fail",
                     e.prefix,
                     part,
-                    f"{gone}; the ground it names is gone ({since_phrase(detail, 'the artifact')})",
+                    f"{gone}; the ground it names is gone "
+                    f"({since_phrase(detail, 'the artifact', origin)})",
                 )
             )
             note = "propagated from a withdrawn ground"
         else:
             reports.append(
-                Report("flag", e.prefix, part, f"`{raw}` has moved: {since_phrase(detail, where)}")
+                Report(
+                    "flag",
+                    e.prefix,
+                    part,
+                    f"`{raw}` has moved: {since_phrase(detail, where, origin)}",
+                )
             )
             note = "propagated from a moved ground"
         if not write:

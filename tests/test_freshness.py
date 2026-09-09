@@ -355,7 +355,7 @@ def test_a_ground_is_compared_from_where_it_was_last_read(pinned):
     ((outcome, part, message),) = pinned.outcomes()
     assert (outcome, part) == ("flag", "Grounds 1")
     assert "has moved" in message
-    assert f"read last by verdict 2 at {read_at[:12]}" in message
+    assert f"the reading verdict 2 recorded at {read_at[:12]}" in message
 
 
 def test_a_drift_after_a_reading_is_discharged_against_that_reading(pinned):
