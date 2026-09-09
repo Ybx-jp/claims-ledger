@@ -13,7 +13,7 @@ for the walk: it lists what the walk listed, and its process count does not grow
 import os
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from claims_ledger import validate
 from claims_ledger.schema import git_history, open_ledger
@@ -155,8 +155,21 @@ def test_the_history_checks_spawn_the_same_number_of_git_processes_for_five_entr
     counts = _count_git(monkeypatch)
     assert validate.run(open_ledger(root=project.root)) == []
     with_one = len(counts)
+    # Flat is half of what L0084 claims; the other half is the number itself, and the
+    # shapes say which three. A check that only compares one size against another stays
+    # green while a fourth process is added — measured on an abandoned branch that added
+    # one, where the entry saying three went on citing itself as live and nothing flagged.
+    assert [a[3] for a in counts] == ["rev-parse", "log", "cat-file"], counts
     assert validate.run(open_ledger(root=project.root), cached=True) == []
     with_one_cached = len(counts) - with_one
+    # One more under --cached: `load_entries` reads the staged blobs through a
+    # `cat-file --batch` of its own, which is not check_history's.
+    assert [a[3] for a in counts[with_one:]] == [
+        "cat-file",
+        "rev-parse",
+        "log",
+        "cat-file",
+    ], counts[with_one:]
 
     for i, slug in enumerate(("second", "third", "fourth", "fifth"), start=2):
         project.cl("new", slug)
@@ -307,3 +320,79 @@ def test_an_entry_created_on_a_branch_and_merged_has_no_edge_to_fail_on(project)
     project.git("commit", "-qm", "main1")
     assert _git(project.root, "merge", "--no-edit", "side")[0] == 0
     assert validate.run(open_ledger(root=project.root)) == []
+
+
+def _stamped(note, seconds):
+    """A verdict at a distinct second, so a list of them is not order-blind."""
+    stamp = (datetime.now().astimezone() + timedelta(seconds=seconds)).isoformat(timespec="seconds")
+    return (
+        f"- {stamp} \u00b7 corroborated \u00b7 grade: measured \u00b7 author: main\n"
+        '  evidence: lab: docs/note-001.md \u00a7 "Observation" @working\n'
+        f"  note: {note}\n"
+    )
+
+
+def _append_block(path, block):
+    text = path.read_text(encoding="utf-8")
+    head, sep, tail = text.partition("\n## References")
+    assert sep, "precondition: the entry has a References section to append above"
+    path.write_text(head.rstrip("\n") + "\n\n" + block + sep + tail, encoding="utf-8")
+
+
+def test_a_verdict_appended_on_a_branch_that_took_main_in_first_merges_clean(project):
+    """The procedure `docs/OPERATING.md` prescribes, held here so the document is not
+    telling a reader something nobody checks. A branch that merges main before it appends
+    puts its verdict on top of main's, so main's list is a prefix of the branch's and the
+    merge back is a prefix extension of both parents. Nothing is reported.
+
+    The alternative — both sides appending independently — has no resolution at all: no
+    weave of two branches' appends is a prefix of both, and dropping one is reported at
+    the merge forever, which re-appending the same reading afterwards does not clear."""
+    main_block, side_block = _stamped("main's verdict", 1), _stamped("the branch's", 2)
+    project.cl("new", "first")
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("init", "-q", "-b", "main")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "entries")
+    project.git("checkout", "-qb", "side")
+    (project.root / "README.md").write_text("the branch does its other work\n", encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "side does other work")
+    project.git("checkout", "-q", "main")
+    _append_block(path, main_block)
+    project.git("commit", "-qam", "main appends")
+    project.git("checkout", "-q", "side")
+    assert _git(project.root, "merge", "--no-edit", "main")[0] == 0, (
+        "precondition: main comes into the branch before the branch appends"
+    )
+    _append_block(path, side_block)
+    project.git("commit", "-qam", "the branch appends, on top of main's")
+    project.git("checkout", "-q", "main")
+    assert _git(project.root, "merge", "--no-edit", "side")[0] == 0, "precondition: it merges"
+
+    # The append-only reports alone: these fixtures append a verdict whose evidence is the
+    # entry's own ground, which a different rule reports and which has nothing to do with
+    # merges.
+    reports = [
+        r
+        for r in validate.run(open_ledger(root=project.root))
+        if "append and only append" in r.message
+    ]
+    assert reports == [], [r.message for r in reports]
+
+
+def test_git_is_asked_in_one_language_and_told_not_to_trace(monkeypatch):
+    """The other half of reading git's own words. The checks match sentences git writes,
+    so the language is pinned rather than taken from the operator's environment; and the
+    variables that make a successful command talk are dropped like the ones that would
+    send it at the wrong repository."""
+    from claims_ledger.schema import GIT_NOISE_ENV, git_env
+
+    monkeypatch.setenv("LC_ALL", "fr_FR.UTF-8")
+    monkeypatch.setenv("LANG", "fr_FR.UTF-8")
+    for variable in GIT_NOISE_ENV:
+        monkeypatch.setenv(variable, "1")
+
+    env = git_env()
+    assert env["LC_ALL"] == "C"
+    assert [v for v in GIT_NOISE_ENV if v in env] == []

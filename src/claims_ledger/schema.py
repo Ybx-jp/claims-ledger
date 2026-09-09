@@ -1200,6 +1200,21 @@ GIT_REPOSITORY_ENV = (
 # never wants
 # (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
 
+GIT_NOISE_ENV = (
+    "GIT_TRACE",
+    "GIT_TRACE2",
+    "GIT_TRACE2_EVENT",
+    "GIT_TRACE2_PERF",
+    "GIT_TRACE_PACKET",
+    "GIT_TRACE_PACK_ACCESS",
+    "GIT_TRACE_PERFORMANCE",
+    "GIT_TRACE_SETUP",
+    "GIT_TRACE_CURL",
+)
+# Dropped for the same reason and not for tidiness: each of these makes a command write
+# diagnostics onto the streams this package reads, and an operator who exported one while
+# debugging something else would have it arrive as though the command had said it.
+
 
 def git_env(index=False):
     """The environment for a git call about the repository that call names.
@@ -1215,10 +1230,15 @@ def git_env(index=False):
     asked — by the callers whose subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """
-    drop = set(GIT_REPOSITORY_ENV)
+    drop = set(GIT_REPOSITORY_ENV) | set(GIT_NOISE_ENV)
     if index:
         drop.discard("GIT_INDEX_FILE")
-    return {k: v for k, v in os.environ.items() if k not in drop}
+    # `LC_ALL=C` last, over whatever the caller had. Everything this package learns from
+    # version control it learns by parsing what a command printed, and a locale decides
+    # what that print looks like; pinning it is what makes the same repository answer the
+    # same way on two machines
+    # (L0194-git-is-asked-in-one-language-and-told-not-to-trace, cites-as-live).
+    return {k: v for k, v in os.environ.items() if k not in drop} | {"LC_ALL": "C"}
 
 
 def git_call(repo, *args, env=None):
