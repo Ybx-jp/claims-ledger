@@ -49,6 +49,13 @@ none
 - 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "orphans" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
   note: read against commit 54aa2e4, which takes the ancestry memo, registers only readings that sit between the pin and HEAD, and asks the refutable half of a pointer the comparison has moved past; the rule is still asked of the ground, a refutable record still fails and an unconfirmable one still flags; the assertion holds as written.
+- 2026-09-09T14:35:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "orphans" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
+  artifact: 3a3a6a071a3744964776700d32117b8d23aad21d
+  note: propagated from a moved ground
+- 2026-09-09T14:35:57-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "orphans" @9d2289e8eaefecc7f3ac1132c9fa6934aae60e28
+  note: read against commit 9d2289e, which collects moved_past by pointer rather than by position, so two readings at one commit are one baseline; the rule is still asked of the ground, a refutable record still fails and an unconfirmable one still flags; the assertion holds as written.
 
 ## References
 
