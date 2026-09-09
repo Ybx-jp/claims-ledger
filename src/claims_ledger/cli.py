@@ -800,7 +800,8 @@ def cmd_harness(args, _ledger):
             print(f"{name}  ({target.label})")
             print(f"  skills   {target.skills}/<skill>/SKILL.md")
             print(f"  hooks    {target.hooks}/")
-            print(f"  wiring   {target.wiring}")
+            note = " (the only file it reads hooks from)" if target.user_home else ""
+            print(f"  wiring   {target.wiring}{note}")
         return 0
 
     root = Path(args.root or Path.cwd()).resolve()
@@ -837,7 +838,9 @@ def report_install(target, root, written, wiring):
     """
     worst = 0
     for item in written + ([wiring] if wiring else []):
-        where = os.path.relpath(item.path, root)
+        # Relative where that reads better, absolute where the file is not in the project
+        # at all — which is codex's wiring, and the one path a reader must not misread.
+        where = os.path.relpath(item.path, root) if item.path.is_relative_to(root) else item.path
         if item.state == "wrote":
             print(f"wrote      {where}")
         elif item.state == "present":
@@ -850,13 +853,17 @@ def report_install(target, root, written, wiring):
         else:
             print(f"left alone {where} ({item.state})", file=sys.stderr)
             worst = max(worst, 1 if item.state == "exists" else 2)
+    if target.user_home and wiring is not None and wiring.state != "differs":
+        print(
+            f"\n{target.label} reads hooks from {wiring.path} and from nowhere else, and "
+            "asks you to review them before it runs any: they are inert until you do."
+        )
     if wiring is not None and wiring.state == "exists":
         print(
-            f"\n{root / target.wiring} is already there and is not edited by this command. "
-            "It needs:\n",
+            f"\n{wiring.path} is already there and is not edited by this command. It needs:\n",
             file=sys.stderr,
         )
-        print(harness.settings_json(target))
+        print(harness.wiring_json(target, root))
     return worst
 
 

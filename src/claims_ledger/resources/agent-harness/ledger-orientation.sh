@@ -16,6 +16,14 @@ set -uo pipefail
 
 command -v jq >/dev/null 2>&1 || exit 0
 
+# The payload is read for one thing only: which harness is calling. Claude Code and codex
+# send `hook_event_name` and take an answer under `hookSpecificOutput`; Cursor sends
+# neither and reads `additional_context` at the top level. Guarded on a terminal so that
+# running this by hand to see what it says does not wait forever for a payload.
+if [ -t 0 ]; then input=""; else input=$(cat 2>/dev/null || true); fi
+dialect=claude
+printf '%s' "$input" | jq -e 'has("hook_event_name")' >/dev/null 2>&1 || dialect=cursor
+
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 0
 
 # The project root, asked rather than counted. `claims-ledger harness install` writes this
@@ -63,7 +71,7 @@ kinds=$(cd "$root" && timeout 20 "$python" -c \
   'from claims_ledger import open_ledger; print(", ".join(open_ledger().config.evidence_types))' 2>/dev/null) || true
 [ -n "$kinds" ] || kinds="see the project configuration"
 
-jq -cn --arg counts "$counts" --arg kinds "$kinds" --arg ctx "This project keeps a claims ledger: __COUNTS__. An entry states one thing the project is answerable for, grounded in the artifact that makes it true and cited from the prose that says the same thing in words. This project's grounds may name: __KINDS__. \`claims-ledger check\` runs in the pre-commit hook and again in CI.
+ctx="This project keeps a claims ledger: __COUNTS__. An entry states one thing the project is answerable for, grounded in the artifact that makes it true and cited from the prose that says the same thing in words. This project's grounds may name: __KINDS__. \`claims-ledger check\` runs in the pre-commit hook and again in CI.
 
 EACH COMMAND ANSWERS A DIFFERENT QUESTION, and the wording of a finding says which one you are holding — that is what decides the repair.
 
@@ -88,7 +96,14 @@ A CITATION GOES INSIDE THE SECTION ITS ENTRY PINS. The sentence that makes the p
 AN ENTRY THAT IS OWED IS WRITTEN IN THE PASS THAT OWES IT. Prose that promises something and cites nothing passes every check, so nothing comes back for a deferred entry; and the citation sits inside the span the entry pins, so a later pass pays the same two commits again plus the drift its own citation causes. The same goes for a repair a checker has already named. A supporting change made so that other work can rely on it — something exported, configured or guaranteed — is a commitment like any other, and is not smaller for having been in service of something else.
 
 WHERE TO GO. \`tagging-prose-with-claims\` to turn prose into entries, and for the questions to ask before choosing a ground. \`choosing-a-citation-act\` for a finding naming an act and a status, for a parenthesis whose act is not a citation act, and for deciding what to do with a pair \`neighbours\` surfaced. \`repair-a-drifted-pin\` for a moved, withdrawn, unstable or unknown ground — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Each skill carries a reference/ directory with the detail." \
-  '{hookSpecificOutput:{hookEventName:"SessionStart",
-    additionalContext:($ctx | sub("__COUNTS__"; $counts) | sub("__KINDS__"; $kinds))}}'
+
+if [ "$dialect" = cursor ]; then
+  jq -cn --arg counts "$counts" --arg kinds "$kinds" --arg ctx "$ctx" \
+    '{additional_context:($ctx | sub("__COUNTS__"; $counts) | sub("__KINDS__"; $kinds))}'
+else
+  jq -cn --arg counts "$counts" --arg kinds "$kinds" --arg ctx "$ctx" \
+    '{hookSpecificOutput:{hookEventName:"SessionStart",
+      additionalContext:($ctx | sub("__COUNTS__"; $counts) | sub("__KINDS__"; $kinds))}}'
+fi
 
 exit 0

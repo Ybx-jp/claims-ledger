@@ -72,16 +72,48 @@ configures, rather than carrying either. It stays silent in a checkout with no
 
     claims-ledger harness install --agent claude    # or codex, cursor, agent
 
-Each agent gets the same thing under its own directory: the scripts in `<dir>/hooks/`, the
-skills in `<dir>/skills/`, and a `<dir>/settings.json` naming the scripts. `--no-hooks`
-writes the skills only, for a project running the hooks from somewhere else.
+Each agent gets the scripts in `<dir>/hooks/` and the skills in `<dir>/skills/`, and the
+file that arms them is the one that agent actually reads:
+
+| agent | wiring | schema |
+| --- | --- | --- |
+| Claude Code | `.claude/settings.json` | event keys, matcher groups |
+| codex | `$CODEX_HOME/hooks.json` (default `~/.codex`) | the same |
+| Cursor | `.cursor/hooks.json` | `version`, its own event names, a flat list per event |
+
+Three things in that table are measured rather than assumed, and each is a way an install
+can be reported as done and arm nothing:
+
+**codex has no project scope.** `$CODEX_HOME/hooks.json` is the only file it loads hooks
+from — a `./.codex/hooks.json` is not discovered, and hooks in `config.toml` do not fire.
+So that is where the install writes, and the commands in it are absolute: one file serves
+every project on the machine, and codex resolves a relative command against the session's
+own working directory. codex also asks you to review hooks before it runs any; until you
+do, they are inert.
+
+**Cursor's schema is its own**, and so are its event names: `sessionStart`,
+`beforeShellExecution`, `postToolUse`. The edit-time guards take `postToolUse` rather than
+`afterFileEdit`, which is the event that describes what happened — measured in
+cursor-agent 2026.08.11, the return value of an `afterFileEdit` hook is read only for file
+contents, and the events whose `additional_context` reaches the agent are exactly
+`sessionStart`, `beforeSubmitPrompt`, `preToolUse` and `postToolUse`.
+
+**The scripts read both payload dialects and answer in the one they were called in.**
+Claude Code and codex send `hook_event_name` and take a decision under
+`hookSpecificOutput`; Cursor sends `conversation_id`, puts a shell command at the top
+level, and reads `permission` and `additional_context` there. The discriminator is the
+payload, so there is no flag to wire wrong. codex's editor is `apply_patch`, whose payload
+carries a patch rather than a file path, so the drift class — which asks the whole tree —
+runs without one, and only the new-claim reminder needs to know which file was edited.
+
+`--no-hooks` writes the skills only, for a project running the hooks from somewhere else.
 
 Every file it would write is listed first and nothing already in the project is written
 over: a file whose bytes already match is reported `present`, one that differs is left
 exactly as it was and named, and `--force` is what changes that. Re-running it is not an
 error.
 
-The settings file is written when the project has none. When there is one it is never
+The wiring file is written when the agent has none. When there is one it is never
 edited — it is a file people keep their own hooks and permissions in — and the block it
 needs is printed instead:
 
@@ -98,7 +130,7 @@ needs is printed instead:
                     "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/merge-guard.sh" }] }
     ],
     "PostToolUse": [
-      { "matcher": "Edit|Write|MultiEdit",
+      { "matcher": "Edit|Write|MultiEdit|apply_patch",
         "hooks": [{ "type": "command",
                     "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pin-guard.sh" },
                   { "type": "command",
@@ -108,12 +140,10 @@ needs is printed instead:
 }
 ```
 
-The commands are written through `$CLAUDE_PROJECT_DIR` for the agent that expands it and
-as project-relative paths for the rest, which is enough either way: every script finds the
-project root rather than counting `..` to it — the harness's own
+Every script finds the project root rather than counting `..` to it: the harness's own
 project directory if it says what it is (`CLAIMS_LEDGER_PROJECT_DIR`, then
 `CLAUDE_PROJECT_DIR`), then the nearest ancestor of the script that looks like a project,
-then two directories up. So a script runs correctly from a project's `.claude/hooks/` and
+then two directories up. So a script runs correctly from a project's hook directory and
 from inside the installed package, which is what lets this repository run the shipped copy
 and a reader run their own. The root is never taken from `cwd`, which is wherever the
 session happens to be.

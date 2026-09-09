@@ -8,13 +8,22 @@ something a person put there.
 
 import json
 import os
+import pathlib
+import shutil
 import stat
+import subprocess
 
 import pytest
 
 from claims_ledger import cli, harness
 
 AGENTS = sorted(harness.TARGETS)
+
+
+@pytest.fixture(autouse=True)
+def throwaway_codex_home(tmp_path, monkeypatch):
+    """codex's wiring is not in the project, so the suite must never reach the real one."""
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
 
 
 def install(root, *args):
@@ -48,14 +57,56 @@ def test_a_skill_installs_as_the_same_file_under_every_agent(tmp_path):
         assert (root / target.skills / "repair-a-drifted-pin" / "SKILL.md").read_bytes() == shipped
 
 
-def test_every_agent_gets_the_hooks_and_a_settings_file_naming_them(tmp_path):
+def test_every_agent_gets_the_hooks_and_a_wiring_file_naming_them(tmp_path):
     for agent in AGENTS:
         root = tmp_path / agent
         root.mkdir()
         assert install(root, "--agent", agent) == 0
         target = harness.TARGETS[agent]
         assert (root / target.hooks / "merge-guard.sh").is_file()
-        assert "pin-guard.sh" in (root / target.wiring).read_text(encoding="utf-8")
+        wiring = harness.wiring_path(target, root)
+        assert "pin-guard.sh" in wiring.read_text(encoding="utf-8")
+
+
+def test_each_agent_is_wired_in_the_file_and_the_schema_it_reads(tmp_path):
+    """Cursor and codex declare hooks in `hooks.json`, and only one of the two shares
+    Claude Code's schema. Measured against the shipped CLIs rather than assumed."""
+    for agent in ("claude", "codex"):
+        root = tmp_path / agent
+        root.mkdir()
+        assert install(root, "--agent", agent) == 0
+        wiring = json.loads(harness.wiring_path(harness.TARGETS[agent], root).read_text("utf-8"))
+        assert sorted(wiring["hooks"]) == ["PostToolUse", "PreToolUse", "SessionStart"]
+        # matcher groups, and the edit matcher names codex's editor as well
+        assert wiring["hooks"]["PostToolUse"][0]["matcher"] == "Edit|Write|MultiEdit|apply_patch"
+        assert len(wiring["hooks"]["PostToolUse"][0]["hooks"]) == 2
+
+    root = tmp_path / "cursor"
+    root.mkdir()
+    assert install(root, "--agent", "cursor") == 0
+    wiring = json.loads((root / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
+    assert wiring["version"] == 1
+    # Cursor's own event names, and a flat list per event rather than matcher groups.
+    assert sorted(wiring["hooks"]) == ["beforeShellExecution", "postToolUse", "sessionStart"]
+    assert [h["command"] for h in wiring["hooks"]["postToolUse"]] == [
+        "./.cursor/hooks/pin-guard.sh",
+        "./.cursor/hooks/status-guard.sh",
+    ]
+
+
+def test_codex_is_wired_where_codex_reads_and_nowhere_in_the_project(tmp_path):
+    """`$CODEX_HOME/hooks.json` is the only file codex loads hooks from: a project-level
+    `.codex/hooks.json` is not discovered, so writing one would arm nothing."""
+    root = tmp_path / "project"
+    root.mkdir()
+    assert install(root, "--agent", "codex") == 0
+    assert not (root / ".codex" / "hooks.json").exists()
+    wiring = harness.wiring_path(harness.TARGETS["codex"], root)
+    assert wiring == pathlib.Path(os.environ["CODEX_HOME"]) / "hooks.json"
+    # One file for every project on the machine, and codex resolves a relative command
+    # against the session's cwd, so the commands in it are absolute.
+    text = wiring.read_text(encoding="utf-8")
+    assert str(root / ".codex" / "hooks" / "pin-guard.sh") in text
 
 
 def test_no_hooks_writes_the_skills_only(tmp_path):
@@ -73,7 +124,7 @@ def test_the_hooks_are_installed_executable_where_the_agent_runs_them(tmp_path):
         assert stat.S_IMODE(script.stat().st_mode) & 0o111 == 0o111, script
 
 
-def test_the_settings_file_is_written_when_the_project_has_none(tmp_path, capsys):
+def test_the_wiring_file_is_written_when_the_project_has_none(tmp_path, capsys):
     assert install(tmp_path, "--agent", "claude") == 0
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
     commands = [
@@ -88,13 +139,6 @@ def test_the_settings_file_is_written_when_the_project_has_none(tmp_path, capsys
         "$CLAUDE_PROJECT_DIR/.claude/hooks/pin-guard.sh",
         "$CLAUDE_PROJECT_DIR/.claude/hooks/status-guard.sh",
     ]
-
-    # An agent with no project-directory variable of its own gets the same file with
-    # project-relative commands; the scripts find the root themselves either way.
-    other = tmp_path / "codex-project"
-    other.mkdir()
-    assert install(other, "--agent", "codex") == 0
-    assert '".codex/hooks/pin-guard.sh"' in (other / ".codex" / "settings.json").read_text("utf-8")
 
 
 def test_a_settings_file_that_is_already_there_is_printed_to_and_never_edited(tmp_path, capsys):
@@ -234,3 +278,32 @@ def test_a_built_distribution_carries_every_shipped_resource(tmp_path, repositor
     with zipfile.ZipFile(tmp_path / name) as wheel:
         carried = {n for n in wheel.namelist() if "/resources/" in n}
     assert {n for n in shipped} == carried
+
+
+def test_a_guard_answers_in_the_dialect_it_was_called_in():
+    """One script, three harnesses: the payload says which, and the answer matches it.
+
+    Claude Code and codex send `hook_event_name` and read a decision under
+    `hookSpecificOutput`; Cursor sends a top-level `command` and reads a top-level
+    `permission`. A refusal in the wrong shape is not a refusal.
+    """
+    if shutil.which("jq") is None:
+        pytest.skip("the hooks parse their payload with jq")
+    guard = str(harness.HOOKS / "merge-guard.sh")
+
+    def answer(payload):
+        done = subprocess.run(
+            ["bash", guard], input=json.dumps(payload), text=True, capture_output=True, check=False
+        )
+        return json.loads(done.stdout) if done.stdout.strip() else {}
+
+    claude = answer(
+        {"hook_event_name": "PreToolUse", "tool_input": {"command": "git merge --squash x"}}
+    )
+    assert claude["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    cursor = answer({"conversation_id": "c1", "command": "git merge --squash x"})
+    assert cursor["permission"] == "deny"
+    assert cursor["user_message"] == cursor["agent_message"]
+
+    assert answer({"conversation_id": "c1", "command": "git merge --no-ff x"}) == {}

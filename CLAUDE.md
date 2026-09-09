@@ -43,8 +43,11 @@ real citations and fail.
 
 They live in `src/claims_ledger/resources/`, which is inside the wheel, and
 `claims-ledger harness install` writes them into a project that has never seen this
-repository — `.claude/`, `.codex/`, `.cursor/` or `.agent/`, one row of `TARGETS` each,
-each holding `skills/`, `hooks/` and a `settings.json` in the same shape.
+repository — `.claude/`, `.codex/`, `.cursor/` or `.agent/`, one row of `TARGETS` each.
+The skills and the scripts do not vary; the file that arms them does, and the three
+differences are measured against the shipped CLIs rather than assumed: Cursor and codex
+declare hooks in `hooks.json`, only codex's is Claude Code's schema, and codex reads it at
+`$CODEX_HOME` and nowhere in the project.
 
 `.claude/settings.json` here points straight at
 `src/claims_ledger/resources/agent-harness/`, so the hooks this repository runs are the

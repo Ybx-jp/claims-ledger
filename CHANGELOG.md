@@ -1036,12 +1036,23 @@ they are *near* each other, and near is not inconsistent.
 - A coding-agent harness in the wheel: four hooks and three skills under
   `src/claims_ledger/resources/`, with the thirteen expected verdicts that hold the merge
   guard to its matching, and `claims-ledger harness install` to write them into a project.
-  `--agent` names the agent — `claude`, `codex`, `cursor` or `agent` — and the only
-  difference between them is the directory: `<dir>/skills/<name>/SKILL.md` with its
-  `reference/` beside it, `<dir>/hooks/` for the scripts, and a `<dir>/settings.json`
-  naming them, written through `$CLAUDE_PROJECT_DIR` where the agent expands it and as
-  project-relative paths where it does not. `claims-ledger harness list` prints the table,
-  and `--no-hooks` writes the skills alone.
+  `--agent` names the agent — `claude`, `codex`, `cursor` or `agent`. The skills and the
+  scripts are the same files under `<dir>/skills/` and `<dir>/hooks/` for all of them;
+  what differs is the file that arms the hooks, and it is measured against the shipped
+  CLIs. Cursor and codex declare hooks in `hooks.json` rather than `settings.json`; codex's
+  is Claude Code's schema and Cursor's is its own — a `version`, its own event names, a
+  flat list per event; and codex reads `$CODEX_HOME/hooks.json` and nothing in the
+  project, so that is where the install writes, with absolute commands, and it says that
+  codex holds hooks inert until they are reviewed.
+
+  The edit-time guards take Cursor's `postToolUse`, not `afterFileEdit`: in cursor-agent
+  2026.08.11 an `afterFileEdit` hook's return value is read only for file contents, and
+  `additional_context` reaches the agent from exactly `sessionStart`,
+  `beforeSubmitPrompt`, `preToolUse` and `postToolUse`. The scripts read both payload
+  dialects and answer in the one they were called in, so one copy serves three harnesses;
+  codex's `apply_patch` carries a patch rather than a file path, and the drift class runs
+  without one. `claims-ledger harness list` prints the table, and `--no-hooks` writes the
+  skills alone.
 
   Nothing already in the project is written over: a file whose bytes match is `present`,
   one that differs is left alone and named, and re-running the command is not an error.

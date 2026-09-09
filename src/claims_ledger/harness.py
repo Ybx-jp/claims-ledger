@@ -39,11 +39,31 @@ SKILLS = RESOURCES / "agent-skills"
 
 @dataclass(frozen=True)
 class Target:
-    """One agent: its directory, and the variable it expands in a hook command if it has one."""
+    """One agent: its directory, the file that arms its hooks, and the shape that file takes.
+
+    The three fields after the directory are measured rather than assumed, and each one
+    is a place a harness differs from Claude Code:
+
+    `wiring` — Cursor and codex declare hooks in `hooks.json`, not `settings.json`.
+
+    `schema` — codex's `hooks.json` *is* Claude Code's block: event keys, matcher groups,
+    `{"type": "command", …}` entries. Cursor's is its own: a `version`, its own event
+    names, and a flat list per event with no matchers.
+
+    `user_home` — codex reads hooks only from `$CODEX_HOME/hooks.json`. A project-level
+    `.codex/hooks.json` is not discovered, so writing one would arm nothing and say it
+    had. The row carries the variable and the default rather than a resolved path,
+    because the variable is read when the install runs: it is the seam a throwaway home
+    reaches through, which is what lets this be tested without writing into the home
+    directory of whoever runs the suite.
+    """
 
     label: str
     directory: str
+    wiring_file: str = "settings.json"
+    schema: str = "claude"
     project_dir: str | None = None
+    user_home: tuple[str, str] | None = None
 
     @property
     def skills(self):
@@ -55,20 +75,43 @@ class Target:
 
     @property
     def wiring(self):
-        return f"{self.directory}/settings.json"
+        """Where the wiring goes, as a label: a project-relative path, or the home it lives in."""
+        if self.user_home:
+            return f"${self.user_home[0]}/{self.wiring_file} (default {self.user_home[1]})"
+        return f"{self.directory}/{self.wiring_file}"
 
 
 TARGETS = {
-    "claude": Target("Claude Code", ".claude", "$CLAUDE_PROJECT_DIR"),
-    "codex": Target("Codex", ".codex"),
-    "cursor": Target("Cursor", ".cursor"),
+    "claude": Target("Claude Code", ".claude", project_dir="$CLAUDE_PROJECT_DIR"),
+    "codex": Target(
+        "Codex", ".codex", wiring_file="hooks.json", user_home=("CODEX_HOME", "~/.codex")
+    ),
+    "cursor": Target("Cursor", ".cursor", wiring_file="hooks.json", schema="cursor"),
     "agent": Target("any other agent", ".agent"),
 }
-# One row per agent, and the only thing in it is the directory that agent reads: the
-# skills go to `<dir>/skills/<name>/SKILL.md` with their `reference/` beside them, the
-# scripts to `<dir>/hooks/`, and the wiring to `<dir>/settings.json`, the same way for
-# every one of them. A second shape per agent would be a second copy of the harness to
-# keep true (L0179-an-agent-is-a-row-in-one-table, cites-as-live).
+# One row per agent: its directory, the file that arms its hooks, and which of the two
+# schemas that file takes. The scripts and the skills do not vary — they go to
+# `<dir>/hooks/` and `<dir>/skills/<name>/SKILL.md` for every agent, and the scripts read
+# both payload dialects themselves — so an agent is a row rather than a fork
+# (L0179-an-agent-is-a-row-in-one-table, cites-as-live).
+
+WIRING = [
+    ("SessionStart", None, "sessionStart", "ledger-orientation.sh"),
+    ("PreToolUse", "Bash", "beforeShellExecution", "merge-guard.sh"),
+    ("PostToolUse", EDITS := "Edit|Write|MultiEdit|apply_patch", "postToolUse", "pin-guard.sh"),
+    ("PostToolUse", EDITS, "postToolUse", "status-guard.sh"),
+]
+# What runs when, in both vocabularies at once, so that the two schemas below are two
+# renderings of one table rather than two tables that can disagree.
+#
+# `apply_patch` rides in the edit matcher because it is how codex edits a file; the name
+# is harmless on a harness that has no such tool. The edit guards take Cursor's
+# `postToolUse` rather than its `afterFileEdit`, which is the event that describes what
+# happened: measured in cursor-agent 2026.08.11, `afterFileEdit`'s return value is read
+# only for file contents, and the events whose `additional_context` reaches the agent are
+# exactly sessionStart, beforeSubmitPrompt, preToolUse and postToolUse. A guard wired
+# where nothing can hear it is a guard that does not exist
+# (L0192-the-cursor-events-are-the-ones-that-can-carry-a-word, cites-as-live).
 
 
 def skill_names():
@@ -103,37 +146,57 @@ def resources_or_refuse():
     return skills, scripts
 
 
-def settings_json(target):
-    """The hook wiring, against the agent's own hook directory.
+def wiring_json(target, root=None):
+    """The hook wiring for `target`, in the schema that agent reads.
 
-    Written through the variable the agent expands where it has one, and as a path
-    relative to the project where it has not: the scripts find the project root
-    themselves, so what this has to get right is only which files run when.
+    The command path follows the same measurement: `$CLAUDE_PROJECT_DIR` where the agent
+    expands it, an absolute path for codex, whose wiring is not in the project at all,
+    and a project-relative path for Cursor, which runs a project hook from the project
+    root.
     """
+    if target.schema == "cursor":
+        block = {}
+        for _event, _matcher, cursor_event, script in WIRING:
+            entry = {"type": "command", "command": f"./{target.hooks}/{script}"}
+            block.setdefault(cursor_event, []).append(entry)
+        return json.dumps({"version": 1, "hooks": block}, indent=2) + "\n"
 
-    prefix = f"{target.project_dir}/" if target.project_dir else ""
+    block = {}
+    for event, matcher, _cursor_event, script in WIRING:
+        entry = {"type": "command", "command": f"{hook_command_prefix(target, root)}{script}"}
+        for group in block.setdefault(event, []):
+            if group.get("matcher") == matcher:
+                group["hooks"].append(entry)
+                break
+        else:
+            group = {"hooks": [entry]}
+            if matcher is not None:
+                group["matcher"] = matcher
+            block[event].append(group)
+    return json.dumps({"hooks": block}, indent=2) + "\n"
 
-    def command(script):
-        return {"type": "command", "command": f"{prefix}{target.hooks}/{script}"}
 
-    return (
-        json.dumps(
-            {
-                "hooks": {
-                    "SessionStart": [{"hooks": [command("ledger-orientation.sh")]}],
-                    "PreToolUse": [{"matcher": "Bash", "hooks": [command("merge-guard.sh")]}],
-                    "PostToolUse": [
-                        {
-                            "matcher": "Edit|Write|MultiEdit",
-                            "hooks": [command("pin-guard.sh"), command("status-guard.sh")],
-                        }
-                    ],
-                }
-            },
-            indent=2,
-        )
-        + "\n"
-    )
+def wiring_path(target, root):
+    """The file that arms `target`'s hooks, resolved now rather than at import.
+
+    codex's is not under the project: the variable is read here so that a session, a test
+    or a throwaway home points the write where it belongs.
+    """
+    if target.user_home:
+        env, default = target.user_home
+        return Path(os.environ.get(env) or Path(default).expanduser()) / target.wiring_file
+    return root / target.directory / target.wiring_file
+
+
+def hook_command_prefix(target, root=None):
+    if target.project_dir:
+        return f"{target.project_dir}/{target.hooks}/"
+    if target.user_home:
+        # codex resolves a relative command against the session's own working directory,
+        # and its wiring is one file for every project on the machine, so the only path
+        # that names this project's scripts is an absolute one.
+        return f"{Path(root or Path.cwd()).resolve() / target.hooks}/"
+    return f"{target.hooks}/"
 
 
 @dataclass
@@ -195,7 +258,7 @@ def install(target, root, hooks=None, force=False):
             # Every name is asked where it really leads before the write, the question
             # `init` and `hook --install` ask of theirs: a symlink planted at any of these
             # paths is a write outside the project reported as a write inside it
-            # (L0183-the-harness-is-not-installed-through-an-escaping-link, cites-as-live)
+            # (L0193-a-write-is-confined-to-the-directory-it-belongs-to, cites-as-live).
             written.append(Written(path, f"outside the project, at {outside}"))
             continue
         if os.path.lexists(path):
@@ -228,19 +291,23 @@ def wiring_marker(target):
 
 
 def install_wiring(target, root):
-    """Write the file that names the hooks, or report that the project already has one.
+    """Write the file that arms the hooks, or report that the agent already has one.
 
-    A settings file is written when the project has none and is never edited when it has
-    one: it is a file people put their own hooks and permissions in, and a merge this
-    package performed behind them would be a change to their harness they did not make.
-    An existing file that already names these hooks is `present` and the install is
-    idempotent; one that does not is `exists`, and the text it needs is printed for a
-    person to place (L0184-a-settings-file-is-written-when-absent-and-printed-when-not,
+    A wiring file is written when the agent has none and is never edited when it has one:
+    it is where people keep their own hooks and permissions, and a merge performed behind
+    them would be a change to their harness they did not make. The text it needs is
+    printed instead (L0184-a-settings-file-is-written-when-absent-and-printed-when-not,
     cites-as-live).
+
+    codex's file is not in the project — it reads hooks from `$CODEX_HOME/hooks.json` and
+    nowhere else — so containment is asked against the directory the file belongs to
+    rather than against the project root, which is the question `hook --install` asks of
+    the hooks directory version control names
+    (L0193-a-write-is-confined-to-the-directory-it-belongs-to, cites-as-live).
     """
-    text = settings_json(target)
-    path = root / target.wiring
-    outside = leaves_root(root, path)
+    text = wiring_json(target, root)
+    path = wiring_path(target, root)
+    outside = leaves_root(path.parent if target.user_home else root, path)
     if outside is not None:
         return Written(path, f"outside the project, at {outside}")
     if os.path.lexists(path):

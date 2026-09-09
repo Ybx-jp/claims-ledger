@@ -27,14 +27,24 @@ set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat) || exit 0
 
-cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
+# `tool_input.command` is Claude Code's shape and codex's; Cursor's
+# `beforeShellExecution` puts the command at the top level. One read covers all three.
+cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // .command // empty' 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
 
+# And one refusal, in the shape the caller understands. Cursor answers with a top-level
+# permission and carries the reason on both message fields: measured elsewhere, a denial's
+# tool result shows `user_message` and not `agent_message`, and a block with no reason
+# reaching the agent is a stall rather than a redirection.
 deny() {
-  jq -cn --arg r "$1" \
-    '{hookSpecificOutput:{hookEventName:"PreToolUse",
-                          permissionDecision:"deny",
-                          permissionDecisionReason:$r}}'
+  if printf '%s' "$input" | jq -e 'has("hook_event_name")' >/dev/null 2>&1; then
+    jq -cn --arg r "$1" \
+      '{hookSpecificOutput:{hookEventName:"PreToolUse",
+                            permissionDecision:"deny",
+                            permissionDecisionReason:$r}}'
+  else
+    jq -cn --arg r "$1" '{permission:"deny", agent_message:$r, user_message:$r}'
+  fi
   exit 0
 }
 

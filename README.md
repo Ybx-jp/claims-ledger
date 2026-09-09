@@ -430,9 +430,11 @@ wrote      .claude/hooks/pin-guard.sh
 wrote      .claude/settings.json
 ```
 
-`--agent` is `claude`, `codex`, `cursor` or `agent`, and each writes the same thing under
-that agent's own directory — `<dir>/skills/<name>/SKILL.md`, `<dir>/hooks/`, and a
-`<dir>/settings.json` naming them; `claims-ledger harness list` prints the table. The
+`--agent` is `claude`, `codex`, `cursor` or `agent`. Each gets the same skills and the
+same scripts under its own directory, wired in the file that agent really reads —
+`.claude/settings.json`, `.cursor/hooks.json`, and for codex `$CODEX_HOME/hooks.json`,
+which is the only file it loads hooks from; `claims-ledger harness list` prints the table.
+The scripts read both payload dialects and answer in the one they were called in. The
 hooks report drift at edit time, refuse the squash and
 rebase merges that would destroy every commit pin, and lay out the four repairs when a
 citation's act stops matching its target's status; the skills carry the procedures behind
