@@ -570,7 +570,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
 ### Fixed by the architecture audit
 
 - **An artifact nobody can read is a comparison that did not happen, not a ground that
-  moved** — `ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
+  moved** — `docs/audits/ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
   file came back as `has moved`, at exit 0, naming a section the checker had never read:
   git lists a file it cannot open as changed, and the section comparison mapped a text it
   could not get to onto the finding for a text that differs. `freshness` already has the
@@ -640,7 +640,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   of its two grounds and the change edits it, so the ground moved while the claim did not.
   Both supersessions this package has now cost were forced by a pinned section changing
   for a reason the claim did not care about, and both pinned a *caller* — the code that
-  follows the rule — rather than the code carrying it. Recorded in `ARCH-AUDIT.md` as
+  follows the rule — rather than the code carrying it. Recorded in `docs/audits/ARCH-AUDIT.md` as
   something to weigh, not as a defect in the tool.
 - **A section pattern can name one key of a TOML table, and L0002 is superseded by L0011
   on that ground.** `toml` names a table, which was the finest ground available for a
@@ -657,7 +657,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
 
 ### Changed by the architecture audit
 
-One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and
+One structural and performance pass, recorded in `docs/audits/ARCH-AUDIT.md` with its numbers and
 with what it found and left open.
 
 - **`validate` reads a ledger's history in three git processes**, not two plus one per
@@ -675,7 +675,7 @@ with what it found and left open.
   the append-only check compares each revision with its own parents, not with whatever
   the walk listed next to it, which under full history can be a sibling that never held
   the verdict. The frozen-region check is unchanged. Measured
-  and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
+  and recorded in `docs/audits/ARCH-AUDIT.md`, which also records what the same pass found and left
   open. The rewrite first landed without the text-level comparison of the frozen
   region — a preamble edit was reported with the line-endings message, and under
   `--cached` passed outright when the index held no blob for the entry — which the

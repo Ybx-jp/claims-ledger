@@ -275,7 +275,7 @@ def is_committed(repo, path):
     names it, not whether this checkout can still read the bytes, so `committed` is the
     honest answer and `sha --write` refuses
     (L0070-committed-means-a-commit-names-it-not-that-the-bytes-are-here,
-    cites-as-live). (ARCH-AUDIT.md, QE14-4.)
+    cites-as-live). (docs/audits/ARCH-AUDIT.md, QE14-4.)
     """
     if not repo:
         # "No repository" is only "nothing was skipped" when there is no repository
@@ -283,7 +283,7 @@ def is_committed(repo, path):
         # returning `not committed` is what let `sha --write` rewrite the frozen region of
         # an entry that repository had already committed
         # (L0071-a-ledger-inside-another-repository-still-has-a-history, cites-as-live).
-        # (ARCH-AUDIT.md, finding 3.)
+        # (docs/audits/ARCH-AUDIT.md, finding 3.)
         #
         # Answered against that repository rather than refused over it: an entry path is a
         # path in the tree, not an evidence pointer read out of a pin, so nothing here

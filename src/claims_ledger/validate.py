@@ -684,7 +684,7 @@ def check_history(ledger, entries, cached=False):
         # so `validate` alone answered `0 failure(s)` over a frozen region a commit was
         # holding.
         # (L0085-a-ledger-inside-another-repository-is-unchecked-and-not-clean, cites-as-live)
-        # (ARCH-AUDIT.md, finding 3.)
+        # (docs/audits/ARCH-AUDIT.md, finding 3.)
         holder, why = enclosing_repository(ledger.config.root, ledger.entries_dir)
         problem = why or (
             f"the entries are inside the git repository at {holder}, which this ledger is "

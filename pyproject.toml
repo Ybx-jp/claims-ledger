@@ -73,6 +73,12 @@ include = [
     "/CHANGELOG.md",
     "/LICENSE",
 ]
+exclude = ["/docs/videos"]
+# The film's Remotion project moved under `docs/` to sit beside `docs/figures/`, and `/docs`
+# ships whole — so without this line the sdist grew by 11 MB of GIFs, fonts and a
+# package-lock nothing in the distribution reads. Excluded rather than left in: the tarball
+# is what `pip install` downloads, and the two rendered GIFs are served from the repository
+# to the README. Anchored like every `include` entry, for the same reason.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

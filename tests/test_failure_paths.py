@@ -78,7 +78,8 @@ def test_a_ledger_inside_someone_elses_repository_says_its_history_was_not_read(
     """`open_ledger` calls a project a repository when `<root>/.git` is there, so a ledger
     one directory inside one read as a ledger with no history at all — and "no history"
     is indexed to "nothing to check" everywhere it matters. `validate` answered
-    `0 failure(s)` over a frozen region a commit was holding. (ARCH-AUDIT.md, finding 3.)
+    `0 failure(s)` over a frozen region a commit was holding.
+    (docs/audits/ARCH-AUDIT.md, finding 3.)
     """
     nested_in_a_repository(project)
     assert project.cl("validate") == 1
@@ -116,7 +117,7 @@ def test_a_ledger_merely_sitting_under_a_work_tree_is_not_a_history_nobody_read(
     read". A ledger materialized under a repository that has never committed it — a
     scratch directory under a `TMPDIR` inside a checkout, a gitignored vendor tree, the
     corpus staging its seeds — has no history, and reporting one took the corpus from
-    79/79 to 18/79 and the suite to 146 failures. (ARCH-AUDIT.md finding 3, QE11-1.)
+    79/79 to 18/79 and the suite to 146 failures. (docs/audits/ARCH-AUDIT.md finding 3, QE11-1.)
     """
     outer = project.root.parent
     subprocess.run(["git", "-C", str(outer), "init", "-q"], check=True)
@@ -167,7 +168,7 @@ def test_git_dir_in_the_environment_does_not_invent_a_repository(project, capsys
     """`git rev-parse --show-toplevel` with `GIT_DIR` set and no `GIT_WORK_TREE` answers
     with the directory it was run in, so a ledger with no repository anywhere reported
     *itself* as the repository holding it. The walk is the filesystem's now, and asks
-    nothing of the environment. (ARCH-AUDIT.md finding 3, QE11-3.)
+    nothing of the environment. (docs/audits/ARCH-AUDIT.md finding 3, QE11-3.)
 
     This first said that every git hook exports `GIT_DIR` — the reason the case was
     thought to matter — and that is false: measured on git 2.43.0, a hook gets

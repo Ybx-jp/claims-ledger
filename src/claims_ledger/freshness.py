@@ -242,7 +242,7 @@ def now_text(repo, pointer, path, cached):
     alone and threw the reason away, so `chmod 000` on an evidence file came back as a
     confident `has moved` at exit 0
     (L0106-an-artifact-that-cannot-be-read-is-unknown-and-not-moved, cites-as-live).
-    (ARCH-AUDIT.md, finding 2.)
+    (docs/audits/ARCH-AUDIT.md, finding 2.)
     """
     if cached:
         answer = git_call(repo, "show", f":{pointer.target}", env=git_env(index=True))
@@ -263,7 +263,7 @@ def in_this_run(repo, pointer, path, cached):
     answers False, which is a confident `withdrawn` for a file nobody could look at.
     `os.stat` is asked directly, the way `file_problem` asks it and for the same reason
     (L0107-presence-is-asked-of-stat-rather-than-of-is-file, cites-as-live).
-    (ARCH-AUDIT.md finding 2, QE11-4.)
+    (docs/audits/ARCH-AUDIT.md finding 2, QE11-4.)
     """
     if cached:
         answer = git_call(
@@ -299,7 +299,7 @@ def scoped(repo, pointer, path, config, cached=False):
     change, and `moved` is what the comparison already said before sections narrowed it.
     A side that could not be read *at all* is the other thing, and it is `unknown`: the
     docstring here anticipated only the first, and a permission error landed in the same
-    branch and produced a confident, false, soft finding. (ARCH-AUDIT.md, finding 2.)
+    branch and produced a confident, false, soft finding. (docs/audits/ARCH-AUDIT.md, finding 2.)
 
     Ledger: (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live).
     """
@@ -485,7 +485,7 @@ def run(ledger, write=False, cached=False, entries=None):
         which are fixed here, so a second caller asking about the same pointer gets the
         same answer for 4 to 6 more git processes. `orphans()` below asked again for every
         ground this loop had already evaluated, and two entries resting on one artifact
-        asked twice over. (ARCH-AUDIT.md, finding 4.)
+        asked twice over. (docs/audits/ARCH-AUDIT.md, finding 4.)
 
         **Keyed on the whole pointer, not on its target.** A target-keyed memo passes the
         suite and the corpus and silently loses a finding: this repository's own L0010

@@ -3,7 +3,7 @@
 A checked ledger of claims, in plain Markdown files, for a project that wants its
 written record to be verifiable rather than merely earnest.
 
-<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
+<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="docs/videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
 
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the

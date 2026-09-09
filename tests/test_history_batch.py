@@ -6,7 +6,7 @@ revision. Each of those logs walks every commit in the repository, so a ledger o
 thousand entries with a thousand commits behind it cost git a million tree diffs and
 `check` took five minutes; one walk of the entries directory and one `cat-file --batch`
 answer the same questions in under three seconds. Measured, and recorded in
-ARCH-AUDIT.md. What these tests hold is the two properties that let the batch stand in
+docs/audits/ARCH-AUDIT.md. What these tests hold is the two properties that let the batch stand in
 for the walk: it lists what the walk listed, and its process count does not grow.
 """
 

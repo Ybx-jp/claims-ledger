@@ -416,7 +416,7 @@ def cmd_check(args, ledger):
     # The entries are parsed once for the five checkers rather than once each. Two lists
     # and not one: under `--cached` `validate` and `freshness` read what is staged and the
     # other three read the working tree, which is the difference `--cached` exists to
-    # make. (ARCH-AUDIT.md, finding 4.)
+    # make. (docs/audits/ARCH-AUDIT.md, finding 4.)
     # (L0123-check-parses-the-entries-once-into-two-lists, cites-as-live)
     working = load_entries(ledger)
     staged = load_entries(ledger, cached=True) if args.cached else working

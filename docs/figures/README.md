@@ -48,7 +48,7 @@ because an `<img>` does not expose the SVG's own text to a screen reader.
 
 One family, so the figures read as one document rather than twelve. The hero carries a title and a handful of
 labels and nothing else: it is meant to be read at a glance, and the prose after it does
-the explaining. The README's top slot is a film, not a figure: `videos/` holds its Remotion
+the explaining. The README's top slot is a film, not a figure: `docs/videos/` holds its Remotion
 source, and the GIF beside it is the render the README embeds.
 
 | token | light | dark | used for |

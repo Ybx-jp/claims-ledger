@@ -1179,7 +1179,7 @@ class GitAnswer:
 # `GIT_DIR` `validate` dropped both immutability failures with nothing said about a check
 # it had not made. The scrub used to be one call's argument — the discovery walk's — and
 # so it held for finding the repository and for nothing asked of it afterwards.
-# (ARCH-AUDIT.md, QE12-2.)
+# (docs/audits/ARCH-AUDIT.md, QE12-2.)
 GIT_REPOSITORY_ENV = (
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -1428,7 +1428,7 @@ def enclosing_repository(root, entries_dir):
     "nothing to check" everywhere it matters. Measured on such a ledger: `sha --write`
     rewrote the frozen region of an entry that repository had already committed and exited
     0, and `validate` then reported `0 failure(s)` over it — which is the whole of what
-    L0007 says must not happen. (ARCH-AUDIT.md, finding 3.)
+    L0007 says must not happen. (docs/audits/ARCH-AUDIT.md, finding 3.)
 
     Three things this asks that the first version of it did not, each measured as a defect
     of that version rather than imagined:
@@ -1469,7 +1469,7 @@ def enclosing_repository(root, entries_dir):
         # false negative of exactly the shape this function exists to catch: one
         # `git init` in a directory between the ledger and the repository that committed
         # it took `validate` from exit 1 to exit 0 and let `sha --write` rewrite a
-        # committed frozen region. (ARCH-AUDIT.md, finding 3, QE12-1.)
+        # committed frozen region. (docs/audits/ARCH-AUDIT.md, finding 3, QE12-1.)
         if not (parent / ".git").exists():
             continue
         if not entries_dir.is_relative_to(parent):
@@ -1663,7 +1663,7 @@ def read_artifact(path):
     the failure cost a second full pass over every drifted artifact — measured at +319 MB
     of peak resident memory on a 300 MB one — and left a race in between where the first
     read failed, the second succeeded, and the caller fell through to the answer this
-    exists to replace. (ARCH-AUDIT.md finding 2, and finding 6, which is this one.)
+    exists to replace. (docs/audits/ARCH-AUDIT.md finding 2, and finding 6, which is this one.)
     """
     try:
         return Path(path).read_text(encoding="utf-8"), None

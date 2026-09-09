@@ -240,7 +240,7 @@ def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
     the working tree. Getting that mapping backwards, or collapsing it to one list, is
     invisible to every other test in this suite: both mutants pass 857 tests and 79 seeds.
     Before the entries were hoisted out of the checkers the mapping could not be stated
-    wrongly, because each checker asked for its own. (ARCH-AUDIT.md finding 4, QE13-1.)
+    wrongly, because each checker asked for its own. (docs/audits/ARCH-AUDIT.md finding 4, QE13-1.)
     """
     project.git("init", "-q")
     assert project.cl("new", "fraction-law") == 0
