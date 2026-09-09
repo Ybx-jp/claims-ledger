@@ -442,9 +442,10 @@ def test_a_reading_of_another_section_does_not_move_the_baseline(pinned):
 
 
 def test_a_reading_of_the_same_section_at_working_does_not_move_the_baseline(pinned):
-    """`@working` on the very section: still not a reading anything can hold to a commit,
-    so the baseline stays at the pin and the drift still flags. Without the guard one
-    such verdict, which `validate` accepts, would be the baseline until the next reading."""
+    """`@working` on the very section: not a reading anything can hold to a commit, so
+    the baseline stays at the pin and the drift still flags. With a repository to ask,
+    the ancestry rule passes it over as well; the guard itself is held by the
+    no-repository test below."""
     _drifted_and_committed(pinned)
     pinned.append(
         "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
@@ -636,6 +637,49 @@ def test_a_reading_on_a_branch_that_forked_before_the_pin_is_passed_over(project
         "  note: read it on the side branch\n"
     )
     assert _flags(pinned) == ["flag"]
+
+
+def test_two_readings_at_different_commits_then_a_staged_deletion(pinned):
+    """Two readings at different commits, then the note deleted and staged. The first
+    hook run records `absent` against the second reading; the second run is clean, and
+    not an accusation against the machinery's own record — which is what holds the last
+    reading out of `moved_past` when the two readings are not the same pointer."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    r1 = _acknowledge(pinned)
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    r2 = _acknowledge(pinned, note="a second reformat")
+    assert r1 != r2
+    assert pinned.outcomes() == []
+    (pinned.root / "docs" / "note-001.md").unlink()
+    assert [o for o, _, _ in pinned.outcomes(write=True)] == ["fail", "fail"]
+    assert pinned.outcomes() == []
+
+
+def test_a_forged_discharge_against_an_earlier_reading_after_a_later_one(pinned):
+    """Forged against the first reading, recording that reading's own blob; a real drift;
+    then a second reading. The forgery is refutable against a pointer the comparison has
+    moved past, so it fails — and it is the first reading, not the pin, that has to be in
+    `moved_past` for that."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    r1 = _acknowledge(pinned)
+    pinned.append(
+        "- 2026-11-22T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{r1}\n'
+        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        "  note: propagated from a moved ground\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "a real drift after the forgery")
+    r2 = _head(pinned.p)
+    pinned.append(
+        "- 2026-11-23T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{r2}\n'
+        "  note: re-read after the remeasure\n"
+    )
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("fail", "Verdicts")
+    assert "verdict 3" in message and "states no drift" in message
 
 
 def test_a_forged_verdict_is_not_laundered_by_a_drift_and_a_reading(pinned):
