@@ -201,6 +201,7 @@ def run(ledger, entries=None):
     entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
+    minted = {e.id.split("-", 1)[0] for e in entries}
     config = ledger.config
     archived = archived_id_re(config)
     reports = []
@@ -264,6 +265,15 @@ def run(ledger, entries=None):
         for m in MISCITATION_RE.finditer(body):
             if m.group(2) in ACTS or m.group(1)[0] in config.archived_prefixes:
                 continue  # a citation, or already reported by prefix
+            if m.group(1).split("-", 1)[0] not in minted:
+                # The id has to be one this ledger actually minted, matched on the series
+                # and number with any slug set aside. `MISCITATION_RE` is a shape, and the
+                # shape alone is common in ordinary prose — `(E501, unresolved)` in a
+                # source comment is a lint code and a word, and reporting it would fail a
+                # commit over a sentence that cites nothing. Only the ledger knows which
+                # ids are its own, so the rule asks it
+                # (L0175-an-unminted-id-is-not-a-citation-shape, cites-as-live).
+                continue
             # A parenthetical shaped like a citation whose act is not a citation act.
             # `CITATION_RE` does not match it and no other rule reads documents, so a
             # mistyped act — and `distinguishes`, which an entry may perform and a

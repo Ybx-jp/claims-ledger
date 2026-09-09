@@ -83,7 +83,9 @@ not a citation act:
 The two ways in: a mistyped act, and `distinguishes` written in a document, which is not a
 thing a document can do. The rule is narrow — an id in a parenthesis of its own, or named
 in running prose, is a document mentioning an entry rather than citing it, and is left
-alone.
+alone. So is a parenthesis whose id the ledger never minted: `(E501, unresolved)` in a
+source comment has the shape and names nothing, and a rule that read the shape alone would
+refuse a commit over a lint waiver.
 
 ## Grades
 

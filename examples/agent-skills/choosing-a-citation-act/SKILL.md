@@ -45,8 +45,8 @@ remembering which is which:
     python -c "from claims_ledger import ACTS, ENTRY_ACTS; print(ACTS); print(ENTRY_ACTS)"
 
 Writing `distinguishes` in a document is reported, not ignored — `references` names an id
-followed by a comma and an act-shaped word that is not a citation act, which is also what
-catches a mistyped act. The repair is the act, not the sentence.
+this ledger minted, followed by a comma and an act-shaped word that is not a citation act,
+which is also what catches a mistyped act. The repair is the act, not the sentence.
 
 ## When a status moves
 

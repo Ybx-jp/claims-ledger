@@ -850,9 +850,14 @@ they are *near* each other, and near is not inconsistent.
   `CITATION_RE` is built from the four citation acts, so a mistyped `cites-as-liv` — and
   `distinguishes`, written in a document where it does not belong — matched nothing, and no
   other rule reads documents: the sentence sat in a checked document as text nothing looked
-  at. The rule is narrow. An id in a parenthesis of its own, or named in running prose, is a
-  document mentioning an entry rather than citing it, and is left alone. Seeds `D59` and
-  `K27`. It fires on nothing in this repository's own documents or in the corpus.
+  at. The rule is narrow, and the narrowness is what keeps it usable. An id in a parenthesis
+  of its own, or named in running prose, is a document mentioning an entry rather than citing
+  it. So is a parenthesis whose id this ledger never minted: the shape alone is ordinary
+  prose — `(E501, unresolved)` in a source comment is a lint code and a word — and a rule
+  that read the shape alone refused a commit over a sentence citing nothing, which in a
+  project whose source files are documents is the common case. The id is matched against the
+  ledger's own, on series and number with any slug set aside. Seeds `D59`, `K27` and `K29`.
+  It fires on nothing in this repository's own documents or in the corpus.
 
 - **`ENTRY_ACTS` is a declared export**, beside `ACTS`. The two lists differ by exactly the
   new act, and the difference is the one a writer has to get right — what a document may

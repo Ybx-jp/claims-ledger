@@ -1463,3 +1463,43 @@ def test_a_registry_that_is_not_a_regular_file_is_a_clean_error_on_read(project,
     out = capsys.readouterr()
     assert rc == 2, out.out + out.err
     assert "not a regular file" in out.err, out.err
+
+
+def test_a_citation_shaped_parenthetical_with_no_entry_behind_it_is_left_alone(project, capsys):
+    """Ordinary prose is not a miscitation. `(E501, unresolved)` in a source comment is a
+    lint code and a word: it has the shape `MISCITATION_RE` matches, and nothing else.
+
+    The rule that catches a citation carrying an illegal act read the shape alone, so it
+    failed a commit over any parenthesis holding a capital, three digits, a comma and a
+    lowercase word — E501, W605, B008 and every other lint code among them, in a project
+    whose source files are configured documents. Found by the quality-engineering review
+    of PR #26. The half of the rule that does the work is unaffected: a wrong act against
+    an id this ledger really minted is still a failure.
+    """
+    entry = project.write_full_entry(project.entries / next(iter(_scaffold(project))))
+    ident = entry.stem
+    bare = ident.split("-", 1)[0]
+
+    doc = project.root / "prose.md"
+    doc.write_text(
+        "# Notes\n\n"
+        "A lint waiver tracked upstream (E501, unresolved), and a version note\n"
+        "(P100, draft) beside it. Neither is a citation.\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    assert project.cl("references") == 0, capsys.readouterr().out
+
+    doc.write_text(f"# Notes\n\nThis inherits the law ({bare}, cites-as-liv).\n", encoding="utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1
+    out = capsys.readouterr().out
+    assert "is not a citation act" in out, out
+    assert bare in out, out
+
+
+def _scaffold(project):
+    """The filename `claims-ledger new` allocated, whatever id the ledger is up to."""
+    before = {p.name for p in project.entries.glob("*.md")}
+    assert project.cl("new", "a-law-these-tests-state") == 0
+    return {p.name for p in project.entries.glob("*.md")} - before

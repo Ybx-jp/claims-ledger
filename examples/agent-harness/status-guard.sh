@@ -14,8 +14,8 @@
 # lays the four out and leaves the choice where it belongs. It never chooses, and it never
 # writes.
 #
-# It reports a second shape for the same reason, and separately: an id, a comma and an
-# act-shaped word that is not a citation act. That is a citation with the wrong act rather
+# It reports a second shape for the same reason, and separately: an id the ledger minted, a
+# comma, and an act-shaped word that is not a citation act. That is a citation with the wrong act rather
 # than the wrong target, its repair is the act and not the sentence, and the two ways in —
 # a mistyped act, and an act only an entry may perform written into a document — are both
 # things an editing session produces and can fix on the spot.
