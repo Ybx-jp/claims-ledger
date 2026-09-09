@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-08T22:33:12-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0193-a-write-is-confined-to-the-directory-it-belongs-to · supersedes
+  note: the installer came to write one file that is not in the project — codex reads hooks only from its own configuration home — so a claim whose cohort is every file an install writes cannot answer confinement against the project root alone. The successor asks it against the directory each name belongs to; nothing about the writes into the project changed.
 
-- src/claims_ledger/harness.py · standing · cites-as-live
+## References

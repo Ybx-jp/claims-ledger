@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T22:33:29-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/harness.py § "install" @52859264d2caa6d447021f4cda3c8b26e7d72c1f
+  artifact: 0acc80e7ea07eb201484a98474918acc7e948dd3
+  note: propagated from a moved ground
+
+- 2026-09-08T22:33:30-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/harness.py § "install" @922d6cec6ce535b84b13f651c01225b8242d5ca8
+  note: re-read after the citation inside this section moved to L0193, the successor of the entry it named. The three states this section decides between — written, already there with the same bytes, left alone because it differs — are unchanged, and so is the flag that is the only way to write over one.
+
 ## References
 
 - src/claims_ledger/harness.py · standing · cites-as-live
