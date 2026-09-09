@@ -77,7 +77,9 @@ points at what settles it, and rewrite the prose. Citations move with the senten
 
 **The question is open and should stay visible.** Leave the entry `contested` and change
 the citing prose to `cites-as-contested`. `choosing-a-citation-act` covers writing that on
-both sides.
+both sides. Visible in the prose, that is: the ground itself is compared from its last
+reading and its recorded drift discharges it there, so `freshness` says nothing more about
+it until a corroboration is appended.
 
 ## Before writing a successor, ask what moved
 

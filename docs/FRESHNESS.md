@@ -221,13 +221,23 @@ has to name the artifact as it is now, which is exactly the reading that was don
 entry discharged this way carries, in order, what the machinery saw and what a person
 found when they went and looked.
 
-Note what it costs, because it is the same cost the section below describes and it is
-easy to take twice. A discharge is against the drift in front of it, and once the
-contested verdict is in history that ground reports no further drift. An entry returned
-to a live status therefore carries a ground that will not speak again, where superseding
-or letting the claim fall retires the entry instead. Acknowledge when the reading
-actually happened; a corroborating verdict is the one place the ledger's accuracy rests
-on a person having looked, and no checker can check that.
+Note what the reading then becomes. A discharge is against the drift in front of it, and
+once the contested verdict is in history that drift is recorded for good — the pin is
+frozen, and the range between it and here only grows. So the corroborating verdict is
+where the ground is compared from afterwards: its evidence names the section at a commit,
+and `freshness` treats the latest such verdict as the point the ground was last read
+from, silent while nothing has changed since and reporting the next change as news since
+that reading. Before this, an entry returned to a live status carried a ground that
+would never speak again; measured on this package's own ledger, 93 of 270 live grounds
+were in that state and 49 of them had moved again unnoticed. Acknowledge when the
+reading actually happened; a corroborating verdict is the one place the ledger's accuracy
+rests on a person having looked, and no checker can check that — and now it is also the
+place the next check starts from. Only a corroboration moves it. An entry left `contested`
+after `--write`, with no reading appended, is compared from wherever it was last read and
+its recorded drift discharges it there as before; that is the shape the third outcome
+below produces, and a ground in it is silent until someone reads it. A reading also has to
+sit in this history, between the pin and here — a corroboration at a commit on no branch,
+or older than the pin, is passed over.
 
 **Let it fall.** A `refuted` or `retracted` verdict written by a person.
 
@@ -355,7 +365,10 @@ same reason: no verdict may follow a terminal status, and the Grounds are frozen
 there is nothing a report against one could ask anybody to repair.
 
 **Verdict evidence.** A verdict is a dated act — *on this evidence, on this day, I judged
-it so*. Its evidence pointer is frozen by construction. Only Grounds are checked.
+it so*. Its evidence pointer is frozen by construction, and it is not checked for drift
+as a ground would be. One kind is read for another purpose: a `corroborated` verdict
+naming the same section as a Ground, at a commit, is where that Ground was last read, and
+the Ground is compared from there rather than from its pin.
 
 **`entry:`, `source:`, `search:`, `defect:` pointers.** An `entry:` ground going stale is
 `propagate`'s subject. A `source:` ground is registered bytes with a sha, and `resolve`

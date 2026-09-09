@@ -66,9 +66,15 @@ than by hand. A verdict under the propagation author asserts that a check ran.
 ## Once a drift is recorded
 
 A discharge is against the drift in front of it. Once the verdict recording it is in
-history, that ground reports no further drift — the name is the reading: `freshness` is
-about what has changed *since the pin*, and a change already recorded is not new.
+history, that drift is recorded for good: `freshness` is about what has changed *since
+the ground was last read*, and a change already recorded is not new.
 
-The consequence worth knowing when choosing an outcome: an entry returned to a live status
-carries a ground that will not report again. Superseding or letting the claim fall retires
-the entry instead, and a retired entry is not walked.
+Where it is read from next is the corroborating verdict you append when acknowledging. Its
+evidence names the section at a commit, and the latest such verdict is the point the
+ground is compared from afterwards — silent while nothing changes after it, and the next
+change is reported as news since that reading, naming the verdict. So the acknowledgement
+is not the end of the ground's life as evidence; it is a re-read, and the checker holds
+the ground to it. Only a corroboration moves the baseline: an entry left `contested` with
+no reading after the recorded drift is compared from its last reading, and the ground is
+silent there until someone reads it. Superseding or letting the claim fall retires the
+entry instead, and a retired entry is not walked.

@@ -131,6 +131,77 @@ def checked_pointers(entry, config):
     return out
 
 
+def readings(entry, pointer, config, repo=None, placed=None):
+    """The corroborating verdicts that re-read this ground, in file order: each names the
+    ground's type, path and section at a commit. A corroboration at an unpinned reference
+    is a reading nothing here can hold to a commit, and is passed over.
+
+    With a repository to ask, a reading also has to sit in this history strictly between
+    the pin and here, and be pinned to a commit rather than a name. A commit on no branch
+    — `commit-tree` makes one in a moment — would otherwise be the baseline every checker
+    compares from until a prune turned it into a rewritten history; a reading older than
+    the pin would report an untouched ground as moved; one at the pin's own commit in a
+    longer spelling would carry the comparison away from the discharge recorded at the
+    pin; and a name follows the work, which `drift` reports as an unstable pin. All are
+    passed over, so the ground is compared from its pin, or from the last reading that is
+    in the history. `placed` memoises that question for a run: the same reading is asked
+    about by `run` and again by `orphans`, and a ledger's readings cluster on a few
+    commits.
+    """
+    out = []
+    placed = {} if placed is None else placed
+    for v in entry.verdicts:
+        if v.malformed or v.status != "corroborated":
+            continue
+        q = v.pointer
+        if (
+            q is None
+            or q.type != pointer.type
+            or q.target != pointer.target
+            or q.section != pointer.section
+            or q.pin in UNPINNED
+        ):
+            continue
+        if repo is not None:
+            key = (pointer.pin, q.pin)
+            if key not in placed:
+                placed[key] = (
+                    is_object_name(repo, q.pin)[0] is True
+                    and git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
+                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, pointer.pin).code != 0
+                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, "HEAD").code == 0
+                )
+            if not placed[key]:
+                continue
+        out.append(v)
+    return out
+
+
+def effective_pointer(entry, pointer, config, repo=None, placed=None):
+    """(the pointer this checker compares against, the corroborating verdict that set it).
+
+    A ground's pin is frozen, and a drift against it, once recorded, is recorded for good:
+    `discharges()` asks whether the acknowledged artifact really was what the path held
+    between the pin and here, and that range only grows. So the reference point has to be
+    something that can advance, and the ledger already writes one. The acknowledgement
+    `docs/FRESHNESS.md` prescribes for an artifact that moved while the claim did not is a
+    `corroborated` verdict naming the artifact as it now stands, and `validate` refuses one
+    that restates a ground, so its evidence is a fresh reading of the same section at a
+    later commit. The latest such verdict is where the ground was last read, and a change
+    after it is news. Measured before this existed: 93 of 270 live grounds were silent for
+    the life of their entries, and 49 of them had moved again since the reading that
+    silenced them (L0195-the-latest-corroboration-is-where-a-ground-was-last-read,
+    cites-as-live).
+
+    The Ground itself when no verdict re-reads it, so an entry that was never acknowledged
+    is compared exactly as before.
+    """
+    found = readings(entry, pointer, config, repo, placed)
+    if not found:
+        return pointer, None
+    return found[-1].pointer, found[-1]
+
+
 def acknowledgements(entry, pointer, author):
     """The propagated verdicts this entry carries against this pointer, in file order.
 
@@ -410,20 +481,21 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     return "moved", since()
 
 
-def since_phrase(count, where):
-    """How the artifact got from the pin to here, for the message.
+def since_phrase(count, where, origin="the pin"):
+    """How the artifact got from the pin — or from the reading it is compared from — to
+    here, for the message.
 
     A count of zero is the ordinary pre-commit case — the edit is in the working tree and
     no commit has been made yet — and saying `0 commits have touched it` of a file the
     author is editing right now reads as a checker that has lost track of its own subject
     (L0113-a-count-of-zero-commits-is-said-as-uncommitted, cites-as-live)."""
     if count and count.isdigit() and int(count) == 0:
-        return f"{where} differs from the pin in the working tree, uncommitted"
+        return f"{where} differs from {origin} in the working tree, uncommitted"
     if not count or not count.isdigit():
-        return f"an unknown number of commits have touched {where} since the pin"
+        return f"an unknown number of commits have touched {where} since {origin}"
     n = int(count)
     verb = "1 commit has" if n == 1 else f"{n} commits have"
-    return f"{verb} touched {where} since the pin"
+    return f"{verb} touched {where} since {origin}"
 
 
 def run(ledger, write=False, cached=False, entries=None):
@@ -477,6 +549,7 @@ def run(ledger, write=False, cached=False, entries=None):
         return [Report("fail", None, "freshness", f"{problem}; freshness did not run")]
 
     asked = {}
+    placed = {}  # (pin, reading) -> whether the reading sits between the pin and HEAD
 
     def drifted(pointer):
         """`drift()` for one pointer, computed once for the whole run.
@@ -503,13 +576,16 @@ def run(ledger, write=False, cached=False, entries=None):
             asked[pointer.raw] = drift(repo, pointer, repo, config, cached=cached)
         return asked[pointer.raw]
 
-    for e, (i, raw, p) in pinned:
+    for e, (i, raw, ground) in pinned:
         if e.status() in TERMINAL:
             # A fallen entry's Grounds are history: they record what it was established
             # on, not what anyone should now believe. `references` exempts them for the
             # same reason.
             continue
         part = f"Grounds {i}"
+        # Compared from where the ground was last read, which is the Ground itself until
+        # a corroborating verdict re-reads it.
+        p, reading = effective_pointer(e, ground, config, repo, placed)
         finding, detail = drifted(p)
         if finding is None:
             continue
@@ -564,6 +640,9 @@ def run(ledger, write=False, cached=False, entries=None):
         if acknowledged:
             continue
         where = f"section {p.section!r}" if p.sectioned else "it"
+        origin = "the pin"
+        if reading is not None:
+            origin = f"the reading verdict {reading.index} recorded at {p.pin[:12]}"
         if finding == "withdrawn":
             where_it_was = "the index" if cached else "the working tree"
             gone = (
@@ -576,13 +655,19 @@ def run(ledger, write=False, cached=False, entries=None):
                     "fail",
                     e.prefix,
                     part,
-                    f"{gone}; the ground it names is gone ({since_phrase(detail, 'the artifact')})",
+                    f"{gone}; the ground it names is gone "
+                    f"({since_phrase(detail, 'the artifact', origin)})",
                 )
             )
             note = "propagated from a withdrawn ground"
         else:
             reports.append(
-                Report("flag", e.prefix, part, f"`{raw}` has moved: {since_phrase(detail, where)}")
+                Report(
+                    "flag",
+                    e.prefix,
+                    part,
+                    f"`{raw}` has moved: {since_phrase(detail, where, origin)}",
+                )
             )
             note = "propagated from a moved ground"
         if not write:
@@ -606,7 +691,7 @@ def run(ledger, write=False, cached=False, entries=None):
             continue
         pending.append((e, verdict_block(e.grade, p, note, author, seen)))
 
-    reports += orphans(entries, config, repo, author, drifted)
+    reports += orphans(entries, config, repo, author, drifted, placed)
 
     if write:
         for e, block in grouped(pending):
@@ -751,7 +836,7 @@ def naming(verdicts):
     return "verdicts " + ", ".join(str(v.index) for v in verdicts)
 
 
-def orphans(entries, config, repo, author, drifted):
+def orphans(entries, config, repo, author, drifted, placed=None):
     """A ground whose acknowledgement states a cause that did not happen. Without this the
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
@@ -781,7 +866,23 @@ def orphans(entries, config, repo, author, drifted):
     """
     reports = []
     for e in entries:
-        pointers = {p.raw: p for _, _, p in checked_pointers(e, config)}
+        pointers, moved_past = {}, set()
+        for _, _, p in checked_pointers(e, config):
+            # Where the ground was pinned and every reading since: a propagated verdict
+            # names whichever of them the run that wrote it compared against, and a
+            # reading that a later reading has replaced is still the cause of the drift
+            # recorded against it. `moved_past` is the pin and the readings the
+            # comparison has since moved on from.
+            pointers[p.raw] = p
+            found = readings(e, p, config, repo, placed)
+            for v in found:
+                pointers.setdefault(v.pointer.raw, v.pointer)
+            if found:
+                moved_past.add(p.raw)
+                moved_past.update(v.pointer.raw for v in found)
+                # By pointer and not by position: two readings at one commit are one
+                # pointer, and the last of them is where the comparison is, not past it.
+                moved_past.discard(found[-1].pointer.raw)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:
@@ -803,7 +904,13 @@ def orphans(entries, config, repo, author, drifted):
                 # forging the accusation out of the silence would make a correctly
                 # discharged verdict fail.
                 continue
-            if finding not in (None, "unstable-pin"):
+            fresh = finding in (None, "unstable-pin")
+            if not fresh and raw not in moved_past:
+                # Moved, or withdrawn, and still where the ground is compared from: the
+                # drift is reported beside whatever these verdicts say, and a record git
+                # can only fail to confirm is not called an orphan against it. The
+                # pre-commit flow lives here — a verdict recording a staged blob, or
+                # `absent` for a deletion not yet committed, before the commit is made.
                 continue
             states = [(v, *caused(repo, ground, v)) for v in all_verdicts]
             could_not = next((why for _, st, why in states if st is None), None)
@@ -815,6 +922,10 @@ def orphans(entries, config, repo, author, drifted):
             # checker names, the second of them describing the wrong defect.
             unconfirmed = [v for v, st, _ in states if st == UNCONFIRMED]
 
+            # The refutable half is also asked of a pointer the comparison has moved past.
+            # A verdict recording the blob its pointer already has stated no drift when
+            # it was written; a real drift afterwards, and then a reading that moves the
+            # comparison on, would otherwise take the flag that exposed it with them.
             if refuted:
                 # Kept even when a truthful sibling stands: no run of this checker writes
                 # a verdict recording the blob the pin already has, so there is no honest
@@ -831,7 +942,7 @@ def orphans(entries, config, repo, author, drifted):
                     )
                 )
                 continue
-            if established:
+            if not fresh or established:
                 continue
             if could_not is not None:
                 # A git that cannot answer is not a git answering no — the class the
