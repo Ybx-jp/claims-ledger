@@ -35,6 +35,24 @@ none
 
 ## Verdicts
 
+- 2026-09-08T19:39:25-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" @c9f052af09e01b65a2adde51e941ebf24671dcaa
+  artifact: 49b0d15829c079f80cbe0d7f5887d37f54e8bed2
+  note: propagated from a moved ground
+
+- 2026-09-08T19:39:25-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" @c9f052af09e01b65a2adde51e941ebf24671dcaa
+  artifact: 7f8be52d4717c0dd5907f094259f3cedaca20cb7
+  note: propagated from a moved ground
+
+- 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+
+- 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/authoring.py · standing · cites-as-live

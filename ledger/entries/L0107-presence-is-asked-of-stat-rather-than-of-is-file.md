@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T19:39:25-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "in_this_run" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+  artifact: e2386c2564c931207a03de464b78a3bae971afac
+  note: propagated from a moved ground
+
+- 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "in_this_run" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

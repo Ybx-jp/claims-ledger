@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-08T19:39:25-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_check" @a3df5b5b0d1ea7ec0d3cd95ba40a2aaa3d716395
+  artifact: 676dcd35eb188588bb7ee218eeba3438f3c789d6
+  note: propagated from a moved ground
+
+- 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_check" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live
