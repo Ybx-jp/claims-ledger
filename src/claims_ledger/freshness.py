@@ -131,6 +131,45 @@ def checked_pointers(entry, config):
     return out
 
 
+def effective_pointer(entry, pointer, config):
+    """(the pointer this checker compares against, the corroborating verdict that set it).
+
+    A ground's pin is frozen, and a drift against it, once recorded, is recorded for good:
+    `discharges()` asks whether the acknowledged artifact really was what the path held
+    between the pin and here, and that range only grows. So the reference point has to be
+    something that can advance, and the ledger already writes one. The acknowledgement
+    `docs/FRESHNESS.md` prescribes for an artifact that moved while the claim did not is a
+    `corroborated` verdict naming the artifact as it now stands, and `validate` refuses one
+    that restates a ground, so its evidence is a fresh reading of the same section at a
+    later commit. The latest such verdict is where the ground was last read, and a change
+    after it is news. Measured before this existed: 93 of 270 live grounds were silent for
+    the life of their entries, and 49 of them had moved again since the reading that
+    silenced them (L0195-the-latest-corroboration-is-where-a-ground-was-last-read,
+    cites-as-live).
+
+    The Ground itself when no verdict re-reads it, so an entry that was never acknowledged
+    is compared exactly as before. A corroboration naming the section at an unpinned
+    reference, or under a type this checker does not compare, is a reading nothing here
+    can hold to a commit, and is passed over.
+    """
+    latest, by = pointer, None
+    for v in entry.verdicts:
+        if v.malformed or v.status != "corroborated":
+            continue
+        q = v.pointer
+        if (
+            q is None
+            or q.type != pointer.type
+            or q.target != pointer.target
+            or q.section != pointer.section
+            or q.type not in config.evidence_types
+            or q.pin in UNPINNED
+        ):
+            continue
+        latest, by = q, v
+    return latest, by
+
+
 def acknowledgements(entry, pointer, author):
     """The propagated verdicts this entry carries against this pointer, in file order.
 
@@ -503,13 +542,16 @@ def run(ledger, write=False, cached=False, entries=None):
             asked[pointer.raw] = drift(repo, pointer, repo, config, cached=cached)
         return asked[pointer.raw]
 
-    for e, (i, raw, p) in pinned:
+    for e, (i, raw, ground) in pinned:
         if e.status() in TERMINAL:
             # A fallen entry's Grounds are history: they record what it was established
             # on, not what anyone should now believe. `references` exempts them for the
             # same reason.
             continue
         part = f"Grounds {i}"
+        # Compared from where the ground was last read, which is the Ground itself until
+        # a corroborating verdict re-reads it.
+        p, reading = effective_pointer(e, ground, config)
         finding, detail = drifted(p)
         if finding is None:
             continue
@@ -564,6 +606,8 @@ def run(ledger, write=False, cached=False, entries=None):
         if acknowledged:
             continue
         where = f"section {p.section!r}" if p.sectioned else "it"
+        if reading is not None:
+            where += f", read last by verdict {reading.index} at {p.pin[:12]}"
         if finding == "withdrawn":
             where_it_was = "the index" if cached else "the working tree"
             gone = (
@@ -781,7 +825,13 @@ def orphans(entries, config, repo, author, drifted):
     """
     reports = []
     for e in entries:
-        pointers = {p.raw: p for _, _, p in checked_pointers(e, config)}
+        pointers = {}
+        for _, _, p in checked_pointers(e, config):
+            # Both where the ground was pinned and where it was last read: a propagated
+            # verdict names whichever the run that wrote it compared against.
+            pointers[p.raw] = p
+            q, _ = effective_pointer(e, p, config)
+            pointers.setdefault(q.raw, q)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:

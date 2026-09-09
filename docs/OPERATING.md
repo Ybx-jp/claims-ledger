@@ -160,8 +160,9 @@ it now stands:
   recording what moved. The entry keeps its id, its Grounds and its citations. Its
   evidence must name the artifact as it is now rather than restate the ground —
   `validate` refuses a corroborating verdict pointing at a ground the entry already
-  cites, which is what makes it a record of a reading. `docs/FRESHNESS.md` §"How a
-  finding is discharged" has the shape and the one thing it costs.
+  cites, which is what makes it a record of a reading — and `freshness` compares the
+  ground from that reading afterwards, so a later change is reported again.
+  `docs/FRESHNESS.md` §"How a finding is discharged" has the shape.
 
 **Before writing the successor, ask what actually moved.** If the pinned section changed
 for a reason the claim does not name, the *ground* is wrong, and carrying the same ground

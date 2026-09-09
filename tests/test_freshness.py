@@ -325,6 +325,88 @@ def test_an_acknowledged_ground_is_silent(pinned):
     assert pinned.outcomes() == []
 
 
+def _acknowledge(pinned, note="a reformat; the assertion is unaffected"):
+    """The repair `docs/OPERATING.md` prescribes for an artifact that moved while the claim
+    did not: the drift recorded by the machinery, committed, then a corroborating verdict
+    naming the section as it now stands, committed. Returns the commit the reading names."""
+    pinned.run(write=True)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "the drift, recorded")
+    read_at = _head(pinned.p)
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{read_at}\n'
+        f"  note: {note}\n"
+    )
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "read again, and acknowledged")
+    return read_at
+
+
+def test_a_ground_is_compared_from_where_it_was_last_read(pinned):
+    """A pin is frozen and a recorded drift is recorded for good, so the reference point
+    has to be the thing that can advance: the corroborating verdict that re-read the
+    section. Silent while nothing has changed since that reading; a change after it is
+    news, and the flag says which reading it is news since."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    read_at = _acknowledge(pinned)
+    assert pinned.outcomes() == []
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("flag", "Grounds 1")
+    assert "has moved" in message
+    assert f"read last by verdict 2 at {read_at[:12]}" in message
+
+
+def test_a_drift_after_a_reading_is_discharged_against_that_reading(pinned):
+    """`--write` records the drift against the pointer it compared, so the next run finds
+    the acknowledgement where it looks, and the orphan rule holds that verdict to the
+    history since the reading rather than since the pin."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    read_at = _acknowledge(pinned)
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    pinned.run(write=True)
+    verdicts = pinned.entry_path().read_text(encoding="utf-8").split("## Verdicts")[1]
+    assert f'evidence: lab: docs/note-001.md § "Observation" @{read_at}' in verdicts
+    assert pinned.outcomes() == []
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "the second drift, recorded")
+    assert pinned.outcomes() == []
+
+
+def test_a_reading_at_an_unpinned_reference_does_not_move_the_baseline(pinned):
+    """A corroboration naming the section `@working` is a reading nothing can hold to a
+    commit, so the ground is compared from its pin as before — and the drift recorded
+    against the pin goes on discharging it."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.run(write=True)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "the drift, recorded")
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        '  evidence: lab: docs/note-002.md § "Observation" @working\n'
+        "  note: read elsewhere\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    assert pinned.outcomes() == []
+
+
+def test_a_forged_discharge_against_a_reading_is_still_an_orphan(pinned):
+    """The orphan rule follows the baseline: a propagated verdict naming the reading's
+    pointer but recording the artifact as that reading has it states no drift since it."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    read_at = _acknowledge(pinned)
+    pinned.append(
+        "- 2026-11-22T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{read_at}\n'
+        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        "  note: propagated from a moved ground\n"
+    )
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("fail", "Verdicts")
+    assert "verdict 3" in message and "states no drift" in message
+
+
 def test_a_verdict_naming_a_ground_that_has_not_drifted_is_an_orphan(pinned):
     """Without this the discharge is forgeable: write the verdict first and the ground
     never has to be looked at again.
