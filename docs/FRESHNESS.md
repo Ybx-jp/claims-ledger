@@ -232,7 +232,12 @@ would never speak again; measured on this package's own ledger, 93 of 270 live g
 were in that state and 49 of them had moved again unnoticed. Acknowledge when the
 reading actually happened; a corroborating verdict is the one place the ledger's accuracy
 rests on a person having looked, and no checker can check that — and now it is also the
-place the next check starts from.
+place the next check starts from. Only a corroboration moves it. An entry left `contested`
+after `--write`, with no reading appended, is compared from wherever it was last read and
+its recorded drift discharges it there as before; that is the shape the third outcome
+below produces, and a ground in it is silent until someone reads it. A reading also has to
+sit in this history, between the pin and here — a corroboration at a commit on no branch,
+or older than the pin, is passed over.
 
 **Let it fall.** A `refuted` or `retracted` verdict written by a person.
 

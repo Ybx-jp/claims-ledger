@@ -402,6 +402,147 @@ def test_a_drift_recorded_against_an_earlier_reading_is_not_orphaned_by_a_later_
     assert pinned.outcomes() == []
 
 
+def test_the_latest_reading_is_the_one_the_ground_is_compared_from(pinned):
+    """Two readings; the flag after the second names the second, not the first."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    _acknowledge(pinned)
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    second = _acknowledge(pinned, note="a second reformat")
+    assert pinned.outcomes() == []
+    pinned.note(NOTE.replace("0.04", "0.15"))
+    ((outcome, _, message),) = pinned.outcomes()
+    assert outcome == "flag"
+    assert f"the reading verdict 4 recorded at {second[:12]}" in message
+
+
+def _recorded_and_committed(pinned):
+    """A drift recorded by the machinery and committed, with no reading after it."""
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.run(write=True)
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "the drift, recorded")
+    return _head(pinned.p)
+
+
+def test_a_reading_of_another_section_does_not_move_the_baseline(pinned):
+    """A corroboration naming the same file at a commit, but a different section, read
+    something else. The ground stays compared from its pin, where the recorded drift
+    discharges it, so a later edit is as silent as it was before any of this."""
+    at = _recorded_and_committed(pinned)
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Method" @{at}\n'
+        "  note: read the method\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    assert pinned.outcomes() == []
+
+
+def test_a_reading_of_the_same_section_at_working_does_not_move_the_baseline(pinned):
+    """`@working` on the very section: still not a reading anything can hold to a commit,
+    so the baseline stays at the pin. Without the guard one such verdict, which
+    `validate` accepts, would be the baseline until the next reading."""
+    _recorded_and_committed(pinned)
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        '  evidence: lab: docs/note-001.md § "Observation" @working\n'
+        "  note: read it, sort of\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    assert pinned.outcomes() == []
+
+
+def test_a_reading_at_a_commit_on_no_branch_is_passed_over(pinned):
+    """`commit-tree` makes a commit that resolves and sits on no branch. Taken as the
+    baseline it would be compared from by every checker until a prune turned it into a
+    rewritten history; passed over, the ground is compared from its pin."""
+    _recorded_and_committed(pinned)
+    git = ["git", "-C", str(pinned.root)]
+    tree = subprocess.run(
+        [*git, "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    dangling = subprocess.run(
+        [
+            *git,
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=t@e",
+            "commit-tree",
+            tree,
+            "-m",
+            "on no branch",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{dangling}\n'
+        "  note: read it on a commit nothing reaches\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    assert pinned.outcomes() == []
+
+
+def test_a_reading_older_than_the_pin_is_passed_over(project):
+    """A corroboration at a commit the pin descends from is not a reading since the pin;
+    compared from it, an untouched ground reports as moved."""
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the note, first draft")
+    older = _head(project)
+    (project.root / "docs" / "note-001.md").write_text(
+        NOTE.replace("0.04", "0.05"), encoding="utf-8"
+    )
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the note, as measured")
+    pin = _head(project)
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    text = path.read_text(encoding="utf-8").replace(
+        'lab: docs/note-001.md § "Observation" @working',
+        f'lab: docs/note-001.md § "Observation" @{pin}',
+    )
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the claim")
+    pinned = Pinned(project, pin)
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{older}\n'
+        "  note: read the first draft\n"
+    )
+    assert pinned.outcomes() == []
+
+
+def test_a_forged_verdict_is_not_laundered_by_a_drift_and_a_reading(pinned):
+    """A verdict recording the pin's own blob states no drift. A real drift afterwards
+    exposes it as a flag; a reading then moves the comparison past the pin, and the flag
+    with it — so the refutable half is asked of a pointer the comparison has moved past."""
+    pinned.append(
+        "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
+        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        "  note: propagated from a moved ground\n"
+    )
+    pinned.note(NOTE.replace("0.04", "0.09"))
+    pinned.p.git("add", "-A")
+    pinned.p.git("commit", "-qm", "a real drift")
+    at = _head(pinned.p)
+    pinned.append(
+        "- 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main\n"
+        f'  evidence: lab: docs/note-001.md § "Observation" @{at}\n'
+        "  note: re-read after the remeasure\n"
+    )
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("fail", "Verdicts")
+    assert "verdict 1" in message and "states no drift" in message
+
+
 def test_a_forged_discharge_against_a_reading_is_still_an_orphan(pinned):
     """The orphan rule follows the baseline: a propagated verdict naming the reading's
     pointer but recording the artifact as that reading has it states no drift since it."""

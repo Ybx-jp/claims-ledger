@@ -74,5 +74,7 @@ evidence names the section at a commit, and the latest such verdict is the point
 ground is compared from afterwards — silent while nothing changes after it, and the next
 change is reported as news since that reading, naming the verdict. So the acknowledgement
 is not the end of the ground's life as evidence; it is a re-read, and the checker holds
-the ground to it. Superseding or letting the claim fall retires the entry instead, and a
-retired entry is not walked.
+the ground to it. Only a corroboration moves the baseline: an entry left `contested` with
+no reading after the recorded drift is compared from its last reading, and the ground is
+silent there until someone reads it. Superseding or letting the claim fall retires the
+entry instead, and a retired entry is not walked.
