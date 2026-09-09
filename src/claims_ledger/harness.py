@@ -6,10 +6,10 @@ hand. They are package data now, under `resources/`, so an installed copy carrie
 and `claims-ledger harness install` writes them into a project that has never seen this
 repository.
 
-Nothing in them is agent-specific — the scripts speak one JSON hook protocol and the
-skills are Markdown with frontmatter — so what an agent changes is only *where* the files
-go, what the skill's entry file is called, and how the agent is told the hooks exist. That
-is a table, `TARGETS`, and adding an agent is a row rather than a branch.
+Nothing in them is agent-specific: the skills are `SKILL.md` with a `reference/` beside
+it and the hooks are scripts speaking one JSON protocol, and the agents keep both in the
+same shape under a directory of their own. So an agent is one row of `TARGETS` — its
+name and its directory — and adding one is a row rather than a branch.
 
 The package still declares no runtime dependencies. The hook scripts need `jq` when they
 run, which is a property of a shell script somebody chose to install, not of importing
@@ -39,56 +39,36 @@ SKILLS = RESOURCES / "agent-skills"
 
 @dataclass(frozen=True)
 class Target:
-    """One agent: where its skills and hooks live, and what tells it they are there."""
+    """One agent: its directory, and the variable it expands in a hook command if it has one."""
 
     label: str
-    skills: str
-    entry: str
-    hooks: str
-    wiring: str | None
-    wires_hooks: bool
+    directory: str
+    project_dir: str | None = None
+
+    @property
+    def skills(self):
+        return f"{self.directory}/skills"
+
+    @property
+    def hooks(self):
+        return f"{self.directory}/hooks"
+
+    @property
+    def wiring(self):
+        return f"{self.directory}/settings.json"
 
 
 TARGETS = {
-    "claude": Target(
-        label="Claude Code",
-        skills=".claude/skills",
-        entry="SKILL.md",
-        hooks=".claude/hooks",
-        wiring=".claude/settings.json",
-        wires_hooks=True,
-    ),
-    "codex": Target(
-        label="Codex",
-        skills=".codex/skills",
-        entry="SKILL.md",
-        hooks=".codex/hooks",
-        wiring="AGENTS.md",
-        wires_hooks=False,
-    ),
-    "cursor": Target(
-        label="Cursor",
-        skills=".cursor/rules",
-        entry="{name}.mdc",
-        hooks=".cursor/hooks",
-        wiring=None,
-        wires_hooks=False,
-    ),
-    "agents": Target(
-        label="an AGENTS.md agent",
-        skills=".agents/skills",
-        entry="SKILL.md",
-        hooks=".agents/hooks",
-        wiring="AGENTS.md",
-        wires_hooks=False,
-    ),
+    "claude": Target("Claude Code", ".claude", "$CLAUDE_PROJECT_DIR"),
+    "codex": Target("Codex", ".codex"),
+    "cursor": Target("Cursor", ".cursor"),
+    "agent": Target("any other agent", ".agent"),
 }
-# One row per agent, and every difference between them is in it: the skill directory, the
-# name the entry file takes there, where the scripts go, and the file that has to name
-# them. A target whose hook protocol this package cannot write says so with `wires_hooks`
-# rather than being left out — the scripts are still worth installing for somebody
-# adapting them, which is what `--hooks` asks for
-# (L0179-an-agent-is-a-row-in-one-table, cites-as-live).
+# One row per agent, and the only thing in it is the directory that agent reads: the
+# skills go to `<dir>/skills/<name>/SKILL.md` with their `reference/` beside them, the
+# scripts to `<dir>/hooks/`, and the wiring to `<dir>/settings.json`, the same way for
+# every one of them. A second shape per agent would be a second copy of the harness to
+# keep true (L0179-an-agent-is-a-row-in-one-table, cites-as-live).
 
 
 def skill_names():
@@ -123,46 +103,18 @@ def resources_or_refuse():
     return skills, scripts
 
 
-def frontmatter(text):
-    """(the frontmatter of a skill as a dict, the body after it).
-
-    Two fields and no parser: the skills this ships carry `name` and `description`, both
-    written on one line, and a YAML dependency to read two keys would be a runtime
-    dependency this package does not have.
-    """
-    if not text.startswith("---\n"):
-        return {}, text
-    head, _, body = text[4:].partition("\n---\n")
-    fields = {}
-    for line in head.splitlines():
-        key, sep, value = line.partition(":")
-        if sep and not key.startswith(" "):
-            fields[key.strip()] = value.strip()
-    return fields, body
-
-
-def entry_text(target, name, source_text):
-    """The skill's entry file as `target` wants it written.
-
-    Only Cursor asks for anything: it reads `.cursor/rules/**/*.mdc`, whose frontmatter is
-    `description` and `alwaysApply` rather than a skill's `name` and `description`. The
-    body is untouched in every case — a skill rewritten per agent is three skills to keep
-    true instead of one, and the reference/ links in it are relative, which is why the
-    rule file goes in a directory of its own rather than beside its own reference/
-    (L0180-a-skill-is-installed-once-and-reframed-never, cites-as-live).
-    """
-    if not target.entry.endswith(".mdc"):
-        return source_text
-    fields, body = frontmatter(source_text)
-    description = fields.get("description", name)
-    return f"---\ndescription: {description}\nalwaysApply: false\n---\n{body}"
-
-
 def settings_json(target):
-    """The hook wiring for an agent whose protocol this package can write."""
+    """The hook wiring, against the agent's own hook directory.
+
+    Written through the variable the agent expands where it has one, and as a path
+    relative to the project where it has not: the scripts find the project root
+    themselves, so what this has to get right is only which files run when.
+    """
+
+    prefix = f"{target.project_dir}/" if target.project_dir else ""
 
     def command(script):
-        return {"type": "command", "command": f"$CLAUDE_PROJECT_DIR/{target.hooks}/{script}"}
+        return {"type": "command", "command": f"{prefix}{target.hooks}/{script}"}
 
     return (
         json.dumps(
@@ -181,20 +133,6 @@ def settings_json(target):
             indent=2,
         )
         + "\n"
-    )
-
-
-def agents_paragraph(target):
-    """What to add to an AGENTS.md, for an agent that reads one and runs no hooks."""
-    return (
-        "## The claims ledger\n\n"
-        "This project keeps a claims ledger: entries stating what it is answerable for, "
-        "each grounded in the artifact that makes it true and cited from the prose that "
-        "says the same thing in words. `claims-ledger check` runs the five checkers, and "
-        "`claims-ledger --help` lists every command.\n\n"
-        f"The procedures for the findings they report are in `{target.skills}/`: "
-        + ", ".join(f"`{name}`" for name in skill_names())
-        + ". Read the one the finding routes to before repairing anything.\n"
     )
 
 
@@ -217,13 +155,17 @@ def plan(target, root, hooks=None):
     for name in resources_or_refuse()[0]:
         source = SKILLS / name
         skill_dir = root / target.skills / name
+        # The same bytes under every agent. A skill rewritten per agent is one skill per
+        # agent to keep true, and the `reference/` links in the body are relative, so the
+        # directory it sits in is part of what makes it readable
+        # (L0191-a-skill-installs-as-the-same-file-under-every-agent, cites-as-live).
         text = (source / "SKILL.md").read_text(encoding="utf-8")
-        files.append((skill_dir / target.entry.format(name=name), entry_text(target, name, text)))
+        files.append((skill_dir / "SKILL.md", text))
         for path in sorted((source / "reference").glob("*.md")):
             files.append((skill_dir / "reference" / path.name, path.read_text(encoding="utf-8")))
     planned = [(path, text.encode("utf-8"), None) for path, text in files]
 
-    if target.wires_hooks if hooks is None else hooks:
+    if hooks is None or hooks:
         for path in sorted(HOOKS.iterdir()):
             if not path.is_file():
                 continue
@@ -273,13 +215,6 @@ def install(target, root, hooks=None, force=False):
     return written
 
 
-def wiring_text(target):
-    """What has to name the hooks, for the file `target` keeps it in; None when nothing does."""
-    if target.wiring is None:
-        return None
-    return settings_json(target) if target.wires_hooks else agents_paragraph(target)
-
-
 def wiring_marker(target):
     """The string whose presence in the wiring file means this install is already wired.
 
@@ -289,7 +224,7 @@ def wiring_marker(target):
     the installed package — which is what this repository does — is wired, and telling it
     otherwise on every run would teach it to ignore the answer.
     """
-    return "pin-guard.sh" if target.wires_hooks else f"{target.skills}/"
+    return "pin-guard.sh"
 
 
 def install_wiring(target, root):
@@ -303,9 +238,7 @@ def install_wiring(target, root):
     person to place (L0184-a-settings-file-is-written-when-absent-and-printed-when-not,
     cites-as-live).
     """
-    text = wiring_text(target)
-    if text is None:
-        return None
+    text = settings_json(target)
     path = root / target.wiring
     outside = leaves_root(root, path)
     if outside is not None:

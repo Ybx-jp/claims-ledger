@@ -1036,10 +1036,12 @@ they are *near* each other, and near is not inconsistent.
 - A coding-agent harness in the wheel: four hooks and three skills under
   `src/claims_ledger/resources/`, with the thirteen expected verdicts that hold the merge
   guard to its matching, and `claims-ledger harness install` to write them into a project.
-  `--agent` names the agent — `claude`, `codex`, `cursor` or `agents` — and every
-  difference between them is one row of a table: the skill directory, the name the entry
-  file takes there (a Cursor rule is the same body under `.mdc` frontmatter), where the
-  scripts go, and the file that has to name them. `claims-ledger harness list` prints it.
+  `--agent` names the agent — `claude`, `codex`, `cursor` or `agent` — and the only
+  difference between them is the directory: `<dir>/skills/<name>/SKILL.md` with its
+  `reference/` beside it, `<dir>/hooks/` for the scripts, and a `<dir>/settings.json`
+  naming them, written through `$CLAUDE_PROJECT_DIR` where the agent expands it and as
+  project-relative paths where it does not. `claims-ledger harness list` prints the table,
+  and `--no-hooks` writes the skills alone.
 
   Nothing already in the project is written over: a file whose bytes match is `present`,
   one that differs is left alone and named, and re-running the command is not an error.

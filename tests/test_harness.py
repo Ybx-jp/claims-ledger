@@ -28,7 +28,7 @@ def test_every_agent_gets_every_skill_with_its_reference_directory(tmp_path):
         assert install(root, "--agent", agent) == 0
         target = harness.TARGETS[agent]
         for name in harness.skill_names():
-            entry = root / target.skills / name / target.entry.format(name=name)
+            entry = root / target.skills / name / "SKILL.md"
             assert entry.is_file(), entry
             assert entry.read_text(encoding="utf-8").strip()
             reference = root / target.skills / name / "reference"
@@ -37,32 +37,32 @@ def test_every_agent_gets_every_skill_with_its_reference_directory(tmp_path):
             )
 
 
-def test_the_body_of_a_skill_is_the_same_text_under_every_agent(tmp_path):
-    """Only the frontmatter is reframed. Three skills to keep true is not one skill."""
-    bodies = set()
+def test_a_skill_installs_as_the_same_file_under_every_agent(tmp_path):
+    """One skill, not one per agent: only the directory it lands in differs."""
+    shipped = (harness.SKILLS / "repair-a-drifted-pin" / "SKILL.md").read_bytes()
     for agent in AGENTS:
         root = tmp_path / agent
         root.mkdir()
         assert install(root, "--agent", agent) == 0
         target = harness.TARGETS[agent]
-        name = "repair-a-drifted-pin"
-        text = (root / target.skills / name / target.entry.format(name=name)).read_text("utf-8")
-        _, body = harness.frontmatter(text)
-        bodies.add(body)
-    assert len(bodies) == 1
+        assert (root / target.skills / "repair-a-drifted-pin" / "SKILL.md").read_bytes() == shipped
 
 
-def test_a_cursor_rule_carries_the_frontmatter_cursor_reads(tmp_path):
-    assert install(tmp_path, "--agent", "cursor") == 0
-    name = "choosing-a-citation-act"
-    rule = tmp_path / ".cursor" / "rules" / name / f"{name}.mdc"
-    fields, _ = harness.frontmatter(rule.read_text(encoding="utf-8"))
-    assert fields["alwaysApply"] == "false"
-    assert fields["description"].startswith("Match a citation's act")
-    assert "name" not in fields
-    # The rule sits in a directory of its own so that the `reference/` links in its body,
-    # which are relative, still lead somewhere.
-    assert (rule.parent / "reference").is_dir()
+def test_every_agent_gets_the_hooks_and_a_settings_file_naming_them(tmp_path):
+    for agent in AGENTS:
+        root = tmp_path / agent
+        root.mkdir()
+        assert install(root, "--agent", agent) == 0
+        target = harness.TARGETS[agent]
+        assert (root / target.hooks / "merge-guard.sh").is_file()
+        assert "pin-guard.sh" in (root / target.wiring).read_text(encoding="utf-8")
+
+
+def test_no_hooks_writes_the_skills_only(tmp_path):
+    """For a project running the shipped hooks from where they already are."""
+    assert install(tmp_path, "--agent", "claude", "--no-hooks") == 0
+    assert (tmp_path / ".claude" / "skills").is_dir()
+    assert not (tmp_path / ".claude" / "hooks").exists()
 
 
 def test_the_hooks_are_installed_executable_where_the_agent_runs_them(tmp_path):
@@ -71,13 +71,6 @@ def test_the_hooks_are_installed_executable_where_the_agent_runs_them(tmp_path):
     assert (hooks / "merge-guard.cases").is_file()  # the guard's committed verdicts
     for script in hooks.glob("*.sh"):
         assert stat.S_IMODE(script.stat().st_mode) & 0o111 == 0o111, script
-
-
-def test_an_agent_whose_hooks_this_package_cannot_wire_gets_none_of_them_unasked(tmp_path):
-    assert install(tmp_path, "--agent", "cursor") == 0
-    assert not (tmp_path / ".cursor" / "hooks").exists()
-    assert install(tmp_path, "--agent", "cursor", "--hooks") == 0
-    assert (tmp_path / ".cursor" / "hooks" / "merge-guard.sh").is_file()
 
 
 def test_the_settings_file_is_written_when_the_project_has_none(tmp_path, capsys):
@@ -95,6 +88,13 @@ def test_the_settings_file_is_written_when_the_project_has_none(tmp_path, capsys
         "$CLAUDE_PROJECT_DIR/.claude/hooks/pin-guard.sh",
         "$CLAUDE_PROJECT_DIR/.claude/hooks/status-guard.sh",
     ]
+
+    # An agent with no project-directory variable of its own gets the same file with
+    # project-relative commands; the scripts find the root themselves either way.
+    other = tmp_path / "codex-project"
+    other.mkdir()
+    assert install(other, "--agent", "codex") == 0
+    assert '".codex/hooks/pin-guard.sh"' in (other / ".codex" / "settings.json").read_text("utf-8")
 
 
 def test_a_settings_file_that_is_already_there_is_printed_to_and_never_edited(tmp_path, capsys):

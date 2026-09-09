@@ -262,8 +262,8 @@ def build_parser():
         "--hooks",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="install the hook scripts even where this package cannot wire them, or "
-        "skip them where it can; default is whatever the agent supports",
+        help="`--no-hooks` writes the skills only, for a project running the hooks from "
+        "somewhere else; the default installs both",
     )
     hi.add_argument(
         "--force", action="store_true", help="write over files that are there and differ"
@@ -797,11 +797,10 @@ def cmd_harness(args, _ledger):
     """
     if args.harness_command == "list":
         for name, target in sorted(harness.TARGETS.items()):
-            hooks = target.hooks if target.wires_hooks else f"{target.hooks} (with --hooks)"
             print(f"{name}  ({target.label})")
-            print(f"  skills   {target.skills}/<skill>/{target.entry.format(name='<skill>')}")
-            print(f"  hooks    {hooks}")
-            print(f"  wiring   {target.wiring or 'nothing to wire; the rules are discovered'}")
+            print(f"  skills   {target.skills}/<skill>/SKILL.md")
+            print(f"  hooks    {target.hooks}/")
+            print(f"  wiring   {target.wiring}")
         return 0
 
     root = Path(args.root or Path.cwd()).resolve()
@@ -857,9 +856,7 @@ def report_install(target, root, written, wiring):
             "It needs:\n",
             file=sys.stderr,
         )
-        print(harness.wiring_text(target))
-    elif wiring is None:
-        print(f"\n{target.label} discovers these; there is nothing to wire.")
+        print(harness.settings_json(target))
     return worst
 
 

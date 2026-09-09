@@ -430,8 +430,10 @@ wrote      .claude/hooks/pin-guard.sh
 wrote      .claude/settings.json
 ```
 
-`--agent` is `claude`, `codex`, `cursor` or `agents`; `claims-ledger harness list` prints
-where each one's files go. The hooks report drift at edit time, refuse the squash and
+`--agent` is `claude`, `codex`, `cursor` or `agent`, and each writes the same thing under
+that agent's own directory — `<dir>/skills/<name>/SKILL.md`, `<dir>/hooks/`, and a
+`<dir>/settings.json` naming them; `claims-ledger harness list` prints the table. The
+hooks report drift at edit time, refuse the squash and
 rebase merges that would destroy every commit pin, and lay out the four repairs when a
 citation's act stops matching its target's status; the skills carry the procedures behind
 them. Nothing already in the project is written over — a file that differs is left alone

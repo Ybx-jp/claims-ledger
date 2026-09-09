@@ -70,20 +70,20 @@ configures, rather than carrying either. It stays silent in a checkout with no
 
 ## Installing them
 
-    claims-ledger harness install --agent claude    # or codex, cursor, agents
+    claims-ledger harness install --agent claude    # or codex, cursor, agent
+
+Each agent gets the same thing under its own directory: the scripts in `<dir>/hooks/`, the
+skills in `<dir>/skills/`, and a `<dir>/settings.json` naming the scripts. `--no-hooks`
+writes the skills only, for a project running the hooks from somewhere else.
 
 Every file it would write is listed first and nothing already in the project is written
 over: a file whose bytes already match is reported `present`, one that differs is left
 exactly as it was and named, and `--force` is what changes that. Re-running it is not an
 error.
 
-The hooks are installed for an agent whose hook protocol this package can write, which
-today is Claude Code; `--hooks` asks for the scripts anyway, for somebody adapting them
-to a harness the table does not know.
-
-`.claude/settings.json` is written when the project has none. When there is one it is
-never edited — it is a file people keep their own hooks and permissions in — and the
-block it needs is printed instead:
+The settings file is written when the project has none. When there is one it is never
+edited — it is a file people keep their own hooks and permissions in — and the block it
+needs is printed instead:
 
 ```json
 {
@@ -108,7 +108,9 @@ block it needs is printed instead:
 }
 ```
 
-Every script finds the project root rather than counting `..` to it: the harness's own
+The commands are written through `$CLAUDE_PROJECT_DIR` for the agent that expands it and
+as project-relative paths for the rest, which is enough either way: every script finds the
+project root rather than counting `..` to it — the harness's own
 project directory if it says what it is (`CLAIMS_LEDGER_PROJECT_DIR`, then
 `CLAUDE_PROJECT_DIR`), then the nearest ancestor of the script that looks like a project,
 then two directories up. So a script runs correctly from a project's `.claude/hooks/` and

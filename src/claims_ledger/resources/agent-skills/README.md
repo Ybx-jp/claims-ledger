@@ -4,7 +4,7 @@ Three skills for a coding-agent harness working in a project that keeps a claims
 Like the hooks in `../agent-harness/`, they ship inside the package, and the same command
 writes both:
 
-    claims-ledger harness install --agent claude    # or codex, cursor, agents
+    claims-ledger harness install --agent claude    # or codex, cursor, agent
 
 They ship as defaults, so they carry no citations and name no entry ids — your ledger has
 its own — and they describe the ledger through the two interfaces you actually have: the
@@ -47,17 +47,12 @@ detail is fetched when it is wanted.
 
 ## Installing them
 
-    claims-ledger harness install --agent claude
+    claims-ledger harness install --agent claude    # or codex, cursor, agent
 
-writes each skill into the directory that agent reads — `.claude/skills/<name>/SKILL.md`,
-`.cursor/rules/<name>/<name>.mdc`, `.codex/skills/`, `.agents/skills/` —  with its
-`reference/` directory beside it, and `claims-ledger harness list` prints the whole table.
-Nothing already in the project is written over.
-
-The body is the same text everywhere. Only the frontmatter is reframed, and only where an
-agent's own format differs: a Cursor rule takes `description` and `alwaysApply` where a
-skill takes `name` and `description`. A skill rewritten per agent would be three skills to
-keep true instead of one.
+writes each skill to `<agent directory>/skills/<name>/SKILL.md` with its `reference/`
+directory beside it — `.claude/skills/`, `.codex/skills/`, `.cursor/skills/`,
+`.agent/skills/` — and `claims-ledger harness list` prints the table. The file is the same
+under every agent; nothing already in the project is written over.
 
 Install rather than symlink, even from a checkout of this package. A symlink out of an
 agent's directory into a Python package makes the build follow it, count the file as seen
