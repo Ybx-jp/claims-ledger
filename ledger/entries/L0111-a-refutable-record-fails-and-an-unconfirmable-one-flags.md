@@ -35,6 +35,14 @@ none
 
 ## Verdicts
 
+- 2026-09-09T13:28:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "orphans" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+  artifact: d3839ddf380073c420e1b127e402cf5d058cad26
+  note: propagated from a moved ground
+- 2026-09-09T13:28:16-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "orphans" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
+  note: read against commit 825902d, which registers a propagated verdict's cause under the pin and under every reading since, so a reading a later one replaced still names the drift recorded against it; the rule is still asked of the ground, and its two outcomes are unchanged; the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live
