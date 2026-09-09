@@ -52,7 +52,8 @@ none
   evidence: code: src/claims_ledger/references.py § "run" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
 
-## References
+- 2026-09-08T18:50:00-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0176-a-citation-shaped-parenthetical-names-a-citation-act · supersedes
+  note: the Warrant said run reports every match the citation acts do not cover; it reports the matches it can tell from prose, and the successor states that population — the word is not a citation act, the series is not quarantined, and the id is one the ledger minted
 
-- src/claims_ledger/schema.py · standing · cites-as-live
-- src/claims_ledger/references.py · standing · cites-as-live
+## References
