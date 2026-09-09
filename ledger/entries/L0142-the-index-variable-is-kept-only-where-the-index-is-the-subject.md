@@ -1,0 +1,39 @@
+---
+id: L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject
+kind: claim
+stated: 2026-09-08T02:46:26-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: dd87f32094eb6fd1f4cfbd6e91a435a522f32f3126546a3e4d5465e5b6742952
+---
+
+## Assertion
+
+The variable naming which index to read is kept for exactly the calls whose subject is the index, and removed from every other call.
+
+## Scope
+
+metric: which calls see the index-location variable
+cohort: calls made under the cached mode, and all others
+condition: a commit hook is given the index the commit is being built in
+
+## Grounds
+
+- code: src/claims_ledger/schema.py § "git_env" @4af0acd253eeef1571cd7615ea3a041eda9e945e
+
+## Warrant
+
+git_env drops the whole repository-location group and puts that one variable back only when asked. Under a hook, a partial commit builds a temporary index holding the tip plus the named paths, not the ordinary one; scrubbing the variable there would take the two cached checkers off the content being committed and onto content that is not, which is the same false pass as the rest of the list pointed the other way. So the one question this package asks of the environment is asked by the callers whose subject it is, and by no others.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+## References
+
+- src/claims_ledger/schema.py · standing · cites-as-live

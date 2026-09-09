@@ -11,7 +11,7 @@ most other packages.
 
 ## The four things that hold the checkers
 
-**The red-team corpus** — 79 seeds under `src/claims_ledger/corpus/seeds`, each a small
+**The red-team corpus** — 89 seeds under `src/claims_ledger/corpus/seeds`, each a small
 ledger with its expected outcome committed beside it: one per defect class an audit
 found, one per rule about not silently passing, plus known-good seeds every checker must
 leave alone. It ships inside the wheel, so `claims-ledger corpus` is how an installed

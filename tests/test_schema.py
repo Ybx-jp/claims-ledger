@@ -309,7 +309,7 @@ def test_every_repository_above_the_ledger_is_asked_not_only_the_nearest(tmp_pat
     negative of exactly the shape this check exists to catch: one `git init` in a
     directory between the ledger and the repository that committed it took `validate`
     from exit 1 to exit 0 and let `sha --write` rewrite a committed frozen region — a
-    check somebody else's `git init` turned off. (ARCH-AUDIT.md finding 3, QE12-1.)
+    check somebody else's `git init` turned off. (docs/audits/ARCH-AUDIT.md finding 3, QE12-1.)
     """
     entries = tmp_path / "outer" / "mid" / "proj" / "ledger" / "entries"
     entries.mkdir(parents=True)
@@ -333,7 +333,7 @@ def test_a_repository_that_does_not_contain_the_entries_is_not_the_one_holding_t
     repository above the *root* then has nothing to say about the entries. Asking it
     anyway means `git log` on a path outside the repository, which fails, which the
     reason-reporting path correctly turns into a finding: 61 corpus seeds, failing for a
-    question nobody asked. (ARCH-AUDIT.md finding 3, QE12-3.)
+    question nobody asked. (docs/audits/ARCH-AUDIT.md finding 3, QE12-3.)
     """
     repo = tmp_path / "repo"
     (repo / "project").mkdir(parents=True)

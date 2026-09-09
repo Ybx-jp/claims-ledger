@@ -61,3 +61,21 @@ many real changes of meaning occur.
 
 That is the trade the ledger makes. `repair-a-drifted-pin` covers what to do when a flag
 appears, including the case where the flag is real and the claim is untouched.
+
+## Where the citation lands is part of choosing the ground
+
+The ground names a section; the citation belongs inside that same section, so that the
+sentence making the promise and the code keeping it move together. Two consequences worth
+holding while the ground is still being chosen:
+
+- **A ground so wide that the citation cannot sit in it is the wrong ground.** If the only
+  honest place for the sentence is a file preamble, the claim is probably about the file,
+  and the ground should say so rather than naming one definition inside it.
+- **A section starts at its own line.** A comment above `NAME = ...` belongs to whatever is
+  defined before it, so a citation written there sits outside the span its entry pins while
+  looking adjacent. Put it below the assignment or inside the literal, and check with
+  `section_span` rather than by eye — the difference is invisible in a diff.
+
+Writing the citation flags every entry already pinned to that section. That is the ledger
+noticing a change to something claims rest on, which is the whole point of pinning; each is
+discharged with a re-read. It is not a reason to put the citation somewhere else.

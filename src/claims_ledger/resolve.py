@@ -1,18 +1,11 @@
 """Every pointer in every entry resolves to the artifact that established the fact, and
 every quotation is a contiguous span of the source it names.
 
-Grounds and verdict evidence: an evidence path exists at its pin and names a section
-that is there; an `entry:` id exists; a `source:` id has a registry row; a `search:`
-block is complete. Backing: the source's bytes are present and hash to the registry row;
-each quoted span is found in the source after the same normalization the fingerprint
-uses, spans in source order; a span that starts or ends inside a sentence carries the
-elision mark on that side; a consultation-type source's speaker is its expert, and a
-consultation sentence that names another registered author or `et al.` is flagged as
-relayed third-party material. A retracted entry's quotes are not re-reported; instead
-the defect its verdict states must reproduce.
-
-A cache or registry miss never passes silently: it is a failure that says the check
-could not run.
+Two halves. `resolve_pointer` takes the grounds and the verdict evidence: an evidence
+path at its pin, an `entry:` id, a `source:` row, a `search:` block. `check_quote` takes
+the Backing: the source's bytes, and each quoted span found in them. `Sources` holds the
+registry between them, `check_retraction` reads a retracted entry's defect instead of its
+quotes, and the rule each of those keeps is stated where it is kept.
 
 Run:  claims-ledger resolve
 Exit 1 on any failure; flags print and exit 0.
@@ -44,7 +37,12 @@ SENTENCE_END = ".!?"
 
 
 class Sources:
-    """Registry rows and their bytes, loaded once per run."""
+    """Registry rows and their bytes, loaded once per run.
+
+    A source id the registry does not have is answered with a problem rather than with
+    nothing: the pointer that named it fails, saying the check could not run
+    (L0035-a-registry-miss-fails-rather-than-passing, cites-as-live).
+    """
 
     def __init__(self, ledger):
         self.ledger = ledger
@@ -105,10 +103,13 @@ def why_not(ledger, p):
     a git broken only in `show` passes the `unasked` gate in `run()` — which asks
     `rev-parse --git-dir` and nothing more — and would be told, of a healthy commit and a
     present path, that the path is not in it. So the cases where git failed to answer are
-    named as that, and the rewritten-history reading is reached only after the object is
+    named as that (L0031-a-diagnosis-separates-a-no-from-an-unanswered-question,
+    cites-as-live), and the rewritten-history reading is reached only after the object is
     known to be absent, the pin is known to be an object name, the name is not a prefix of
-    several, and the clone is not shallow. A shallow clone has no object for a commit that
-    is perfectly well upstream, which is the same silence a rewrite leaves behind.
+    several, and the clone is not shallow
+    (L0032-a-rewritten-history-is-the-last-reading, cites-as-live). A shallow clone has no
+    object for a commit that is perfectly well upstream, which is the same silence a
+    rewrite leaves behind.
     """
     if p.pin in UNPINNED:
         return (
@@ -159,7 +160,18 @@ def why_not(ledger, p):
 def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     """Reports for one typed pointer; empty when it resolves. `unasked` is why git could
     not be asked at all, in which case a pinned pointer is left unjudged: `run()` has
-    already said so once, for the ledger."""
+    already said so once, for the ledger
+    (L0030-an-unaskable-git-is-reported-once-for-the-ledger, cites-as-live).
+
+    An unpinned evidence path is read off the disk, and a file that is not readable UTF-8
+    is a pointer that does not resolve rather than a traceback out of the checker
+    (L0033-an-unreadable-evidence-file-is-an-unresolved-pointer, cites-as-live).
+
+    A pointer naming a section resolves only when that section is present in the text
+    read at the pin, so a ground whose section was deleted under it fails here rather
+    than being read as satisfied
+    (L0034-a-sections-presence-is-checked-at-the-pin, cites-as-live).
+    """
     out = []
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     if p.type in ledger.config.evidence_types:
@@ -194,7 +206,11 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
 
 
 def sentence_bounds(text):
-    """Positions where sentences end in `text`, ignoring the period of `et al.`."""
+    """Positions where sentences end in `text`, ignoring the period of `et al.`: the
+    window the relayed-material flag reads would otherwise stop at the abbreviation, and
+    the authority being relayed is what follows it
+    (L0040-et-als-period-does-not-end-a-sentence, cites-as-live).
+    """
     ends = []
     for m in re.finditer(r"[.!?]", text):
         if text[max(0, m.start() - 5) : m.start()].endswith("et al"):
@@ -205,7 +221,25 @@ def sentence_bounds(text):
 
 def check_quote(e, b, sources, quiet=False):
     """Reports for one Backing block. With `quiet` the reports are returned but the
-    relayed-speaker flag is not raised (used when reproducing a retraction's defect)."""
+    relayed-speaker flag is not raised (used when reproducing a retraction's defect).
+
+    A consultation-type source backs only its own expert's judgment: the block's speaker
+    must be the speaker the registry records, and a relayed result resolves to the
+    primary source or not at all
+    (L0038-a-consultation-backs-only-its-experts-own-judgment, cites-as-live).
+
+    Each span is looked for from the end of the one before it, so a quote is a forward
+    walk of its source and cannot be assembled out of order
+    (L0036-quoted-spans-are-found-in-source-order, cites-as-live). A span that begins or
+    ends inside a sentence with no elision mark on that side is a quotation that reads as
+    more complete than it is, and it fails
+    (L0037-a-quote-cut-mid-sentence-carries-an-elision-mark, cites-as-live).
+
+    A consultation quote that verified is then read for who else it names: a sentence
+    holding another registered author's surname, or `et al.`, is flagged as material the
+    expert may be relaying rather than judging
+    (L0039-a-consultation-sentence-naming-another-author-is-flagged, cites-as-live).
+    """
     out = []
     part = b.part
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
@@ -301,7 +335,11 @@ def check_quote(e, b, sources, quiet=False):
 
 
 def check_retraction(e, sources):
-    """On a retracted entry, the defect the verdict states must reproduce."""
+    """On a retracted entry, the defect the verdict states must reproduce: the Backing
+    quote the verdict names is re-checked, and a quote that still verifies is flagged,
+    because a retraction resting on a defect that is not there is one a reader cannot
+    confirm (L0041-a-retraction-must-reproduce-its-defect, cites-as-live).
+    """
     out = []
     for v in e.verdicts:
         if v.status != "retracted" or not v.pointer or v.pointer.type != "defect":

@@ -143,7 +143,7 @@ def test_two_grounds_on_one_artifact_are_two_questions(project):
     key is the whole pointer and not its target, and this is the difference: an entry may
     rest on two sections of one file, and a target-keyed memo answers the second with the
     first one's verdict — silently, with the suite and the corpus green. This
-    repository's own L0010 is that shape. (ARCH-AUDIT.md finding 4, QE13-2.)
+    repository's own L0010 is that shape. (docs/audits/ARCH-AUDIT.md finding 4, QE13-2.)
     """
     (project.root / "docs" / "note-001.md").write_text(TWO_SECTION_NOTE, encoding="utf-8")
     project.git("init", "-q")
@@ -182,7 +182,7 @@ def test_an_artifact_nobody_can_read_is_not_a_ground_that_moved(pinned):
     naming a section it had not read: git lists a file it cannot open as changed, and
     `scoped()` mapped a text it could not get to onto the finding for a text that
     differs. The class this checker already has for a comparison that did not happen is
-    `unknown`, and this was that, misfiled. (ARCH-AUDIT.md, finding 2.)
+    `unknown`, and this was that, misfiled. (docs/audits/ARCH-AUDIT.md, finding 2.)
     """
     note = pinned.root / "docs" / "note-001.md"
     os.chmod(note, 0o000)
@@ -238,7 +238,7 @@ def test_an_artifact_whose_directory_cannot_be_searched_is_not_a_withdrawn_groun
     PermissionError out of pathlib on 3.12 — `freshness` exited 2 having printed nothing
     and `check` printed four checkers and silently omitted the fifth — while 3.13 swallows
     the EACCES and answers False, which is a confident `withdrawn` for a file nobody could
-    look at. Neither is an answer. (ARCH-AUDIT.md finding 2, QE11-4.)
+    look at. Neither is an answer. (docs/audits/ARCH-AUDIT.md finding 2, QE11-4.)
     """
     docs = pinned.root / "docs"
     os.chmod(docs, 0o000)

@@ -4,10 +4,9 @@ Everything here is a convenience for an author: the next free id, a scaffolded e
 file, the recomputation of `verbatim_sha` after Scope or Backing is edited, and the
 registration of a source together with the bytes a quotation is checked against.
 
-Two rules the checkers enforce shape what this module will and will not do. The region
-above the APPEND marker is immutable once committed, so `restamp` refuses to touch an
-entry that git already has; and a registry row without its bytes is a check that cannot
-run, so registering a source stores the bytes in the same call that writes the row.
+Two rules the checkers enforce shape what this module will and will not do — the frozen
+region, which `restamp` refuses to touch, and a registry row that would arrive without
+its bytes, which `register_source` will not write. Each is stated where it is kept.
 """
 
 from __future__ import annotations
@@ -84,14 +83,16 @@ condition: {condition}
 
 PLACEHOLDER_ASSERTION = "TODO: the claim, in this project's words. No quotation marks."
 PLACEHOLDER_WARRANT = "TODO: the rule by which the grounds support the assertion."
-# The scaffold is the one place an author is looking at the moment they choose a
-# ground, and the choice is where the avoidable drift comes from: a ground wider than
-# the claim goes stale for edits the claim does not name, and a ground on a caller goes
-# stale for every edit to that caller, forever. Both cost a supersession each time.
 PLACEHOLDER_GROUNDS = (
     "- TODO: one typed pointer per line — the narrowest section that carries the rule, "
     "never a caller that follows it"
 )
+# The scaffold is the one place an author is looking at the moment they choose a
+# ground, and the choice is where the avoidable drift comes from: a ground wider than
+# the claim goes stale for edits the claim does not name, and a ground on a caller goes
+# stale for every edit to that caller, forever. Both cost a supersession each time, so
+# the rule is written into the placeholder rather than left to the documentation
+# (L0078-the-scaffold-states-the-ground-rule-where-the-author-chooses, cites-as-live).
 TODO_SCOPE = "TODO"
 
 
@@ -101,7 +102,8 @@ class AuthoringError(Exception):
 
 def next_id(entries, archived_prefixes=()):
     """The next free id in the highest series in use, rolling over to the next letter
-    when a series is exhausted and skipping any quarantined prefix."""
+    when a series is exhausted and skipping any quarantined prefix
+    (L0065-the-next-id-rolls-over-and-skips-a-quarantine, cites-as-live)."""
     used = {}
     for e in entries:
         m = PREFIX_RE.match(e.id or e.path.stem)
@@ -175,7 +177,19 @@ def render_entry(
 
 
 def create_entry(ledger, slug, **kwargs):
-    """Write a scaffolded entry and return its path."""
+    """Write a scaffolded entry and return its path.
+
+    A slug this command cannot turn into an entry is refused as a slug: one that is not
+    lowercase-and-hyphens, and one long enough that the filename would overrun what a
+    filename holds. Both used to arrive as an OSError, which is a bug report asked of
+    someone who mistyped a slug
+    (L0066-a-slug-that-cannot-name-a-file-is-refused-as-a-slug, cites-as-live).
+
+    Nothing is written over an entry that is already there, and nothing is written
+    through a dangling symlink at the entry's path: a dangling link is not `exists()`,
+    so the refusal steps aside and the entry lands wherever the link leads
+    (L0067-a-new-entry-lands-on-neither-an-existing-path-nor-a-link, cites-as-live).
+    """
     if not SLUG_RE.match(slug or ""):
         raise AuthoringError(f"`{slug}` is not a lowercase-and-hyphens slug")
     entries = load_entries(ledger)
@@ -216,7 +230,8 @@ def refuse_to_write_outside_the_root(ledger, path):
     readily as it carries a `claims-ledger.toml`, and following one on `sha --write` or
     `propagate --write` rewrites a file the project does not contain. Reads are left
     alone: an entry symlinked in from outside is read normally, and only the write is
-    the thing this package promises not to do.
+    the thing this package promises not to do
+    (L0068-a-write-is-refused-through-an-escaping-link-and-a-read-is-not, cites-as-live).
     """
     outside = leaves_root(ledger.config.root, path)
     if outside is not None:
@@ -238,7 +253,7 @@ def is_committed(repo, path):
     a file git does not have and for a git that could not be run, and read as the first,
     a `sha --write` with no git on PATH rewrote the frozen region of a committed entry,
     exited 0 and said nothing. The answer is None when git could not be asked, which is
-    not a `no`.
+    not a `no` (L0069-an-unaskable-git-is-not-read-as-not-committed, cites-as-live).
 
     `git_problem()` cleared a git that cannot open the repository at all, and the last
     question was still asked with `git()`, which has one answer for two things. It is
@@ -258,13 +273,17 @@ def is_committed(repo, path):
     entry's own loose blob gone from the object store, `cat-file -e` exits 1 — a `no`, to
     `git()` — and `rev-parse` exits 0. What makes the region immutable is that a commit
     names it, not whether this checkout can still read the bytes, so `committed` is the
-    honest answer and `sha --write` refuses. (ARCH-AUDIT.md, QE14-4.)
+    honest answer and `sha --write` refuses
+    (L0070-committed-means-a-commit-names-it-not-that-the-bytes-are-here,
+    cites-as-live). (docs/audits/ARCH-AUDIT.md, QE14-4.)
     """
     if not repo:
         # "No repository" is only "nothing was skipped" when there is no repository
         # anywhere. A ledger inside somebody else's repository has a history, and this
         # returning `not committed` is what let `sha --write` rewrite the frozen region of
-        # an entry that repository had already committed. (ARCH-AUDIT.md, finding 3.)
+        # an entry that repository had already committed
+        # (L0071-a-ledger-inside-another-repository-still-has-a-history, cites-as-live).
+        # (docs/audits/ARCH-AUDIT.md, finding 3.)
         #
         # Answered against that repository rather than refused over it: an entry path is a
         # path in the tree, not an evidence pointer read out of a pin, so nothing here
@@ -352,11 +371,19 @@ def register_source(
     extraction=None,
     keep_path=False,
 ):
-    """Append a registry row and put the bytes where the resolver will look for them.
+    """Append a registry row and put the bytes where the resolver will look for them,
+    in one call: a row whose bytes were never stored is a Backing check that cannot run
+    (L0064-a-registry-row-and-its-bytes-are-written-together, cites-as-live).
 
     With `keep_path` the row names the file (a committed fixture); otherwise the bytes
     are copied into the cache under their sha256, which is what a real source gets:
     the row is committed and the bytes are not.
+
+    The registry has to be a regular file, and that is settled before anything is
+    written (L0074-the-registry-must-be-a-regular-file, cites-as-live). The bytes have to
+    decode as UTF-8, because a quotation resolves in text and a source nothing can read
+    as text is one no Backing block could ever be checked against
+    (L0075-source-bytes-decode-as-text-or-the-registration-is-refused, cites-as-live).
     """
     bytes_path = Path(bytes_path)
     if not bytes_path.is_file():
@@ -414,7 +441,8 @@ def register_source(
             # trusting the name meant the retry exited 0 over bytes it never wrote and
             # wrote a row whose sha256 described nothing on disk. The bytes are checked,
             # and the copy goes through a temporary name so a second interruption cannot
-            # leave a third state.
+            # leave a third state
+            # (L0076-a-cache-slot-is-verified-rather-than-trusted-by-name, cites-as-live).
             if not stored.exists() or hashlib.sha256(stored.read_bytes()).hexdigest() != digest:
                 write_bytes_atomically(stored, data)
         except OSError as exc:
@@ -434,12 +462,15 @@ def append_registry_row(ledger, row):
     one — after an editor, a script, or this command's own interrupted write left the
     file without a final newline — the new row was glued onto the previous one, both were
     destroyed, every later command exited 2 with `not a JSON object`, and the run that
-    did it printed `registered …` and exited 0.
+    did it printed `registered …` and exited 0. So the last byte is looked at, and the
+    separator is supplied when it is missing
+    (L0072-a-registry-row-is-appended-as-a-line, cites-as-live).
 
     A write that fails partway is undone rather than left: the file is put back to the
-    length it had, so a registry this command could not extend is still a registry. A
-    read-only ledger directory is an ordinary condition — a shared checkout, a directory
-    owned by someone else — and not one to ask for a bug report over.
+    length it had, so a registry this command could not extend is still a registry
+    (L0073-a-failed-registry-append-is-undone, cites-as-live). A read-only ledger
+    directory is an ordinary condition — a shared checkout, a directory owned by someone
+    else — and not one to ask for a bug report over.
     """
     addition = json.dumps(row, ensure_ascii=False) + "\n"
     try:
@@ -462,7 +493,8 @@ def append_registry_row(ledger, row):
 
 def _ends_in_a_newline(path):
     """The last byte of a non-empty file, read as one byte rather than as the whole
-    registry: a project with thousands of sources appends to this file every time."""
+    registry: a project with thousands of sources appends to this file every time
+    (L0077-the-registrys-last-byte-is-read-as-one-byte, cites-as-live)."""
     with path.open("rb") as fh:
         fh.seek(-1, os.SEEK_END)
         return fh.read(1) == b"\n"

@@ -469,7 +469,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 79
+    assert len(SEEDS) == 89
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -571,11 +571,22 @@ def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
 
 REPORT_SITE_COUNTS = {
     # 75 + 1: the history a ledger inside somebody else's repository never read
-    # (ARCH-AUDIT.md finding 3). Swept — deleting it reddens
+    # (docs/audits/ARCH-AUDIT.md finding 3). Swept — deleting it reddens
     # test_a_ledger_inside_someone_elses_repository_says_its_history_was_not_read.
-    "validate.py": 76,
+    # 76 + 1: the Scope scoped to the fallen statuses while the Warrant argues from
+    # terminality. Swept — deleting it reddens the corpus at
+    # D57-scope-narrower-than-its-warrant, which is the only thing holding it.
+    # 77 + 1: the entry whose every ground is a `distinguishes` act. Swept — deleting it
+    # reddens the corpus at D58-entry-resting-only-on-a-distinction, and nothing else.
+    "validate.py": 78,
     "resolve.py": 16,
-    "references.py": 15,
+    # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
+    # Swept — deleting it reddens the corpus at
+    # D59-document-cites-with-an-act-that-is-not-one, and nothing else.
+    # 16 + 1: the citation outside the span its entry pins, which only fires where the
+    # project configures it. Swept — deleting it reddens the corpus at
+    # D60-citation-outside-the-span-it-pins, and nothing else.
+    "references.py": 17,
     "propagate.py": 5,
     "freshness.py": 13,
 }

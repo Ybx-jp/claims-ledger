@@ -1,0 +1,10 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "well-formed; non-comparable is legal at measured and nothing follows it"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "A0002 is terminal, so its Grounds are immutable history and exempt from the act check, exactly as a refuted or superseded dependent's are"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "A0002 cites the refuted A0001 as live but is itself non-comparable, which is terminal; a flag would demand a verdict that validate refuses as one following a terminal verdict"}
+  ]
+}

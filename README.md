@@ -3,13 +3,13 @@
 A checked ledger of claims, in plain Markdown files, for a project that wants its
 written record to be verifiable rather than merely earnest.
 
-<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
+<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="docs/videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
 
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 79 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 89 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -67,6 +67,7 @@ $ claims-ledger new stale-fraction-governs-error
 wrote ledger/entries/A0001-stale-fraction-governs-error.md
 Fill in Assertion, Scope, Grounds, Warrant and Backing, then `claims-ledger sha --write`…
 A ground wider than the claim goes stale for edits the claim does not name, and…
+Once the Grounds are filled in, `claims-ledger neighbours A0001-stale-fraction-governs-…
 
 $ cat > ledger/entries/A0001-stale-fraction-governs-error.md <<'EOF'
 ---
@@ -212,7 +213,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 79 seeds, each a small ledger with committed
+the red-team corpus it was built against: 89 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -222,7 +223,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-79/79 seeds pass
+89/89 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
@@ -294,6 +295,16 @@ propagation-author = "propagation"   # the name machinery writes under
 
 roster = "ROSTER.md"                 # the hand-maintained view of open hypotheses
 archived-prefixes = []               # id series a previous ledger quarantined
+
+# Whether a citation has to sit inside the section its entry pins: "off", "flag" or
+# "fail". The sentence that states a commitment and the span that keeps it then move
+# together, and a reader who finds one finds the other. Off by default, because a project
+# adopting it mid-life wants to see where it stands before it gates anything
+# (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live). Asked by
+# `references`, and again by `sha --write` on the entry being written, which is the first
+# moment the entry's grounds and the citation both exist
+# (L0174-the-placement-question-is-asked-when-the-entry-is-written, cites-as-live).
+citation-placement = "off"
 ```
 
 The schema itself is not configurable. Grades, kinds, statuses, citation acts, the
@@ -331,6 +342,7 @@ to somewhere else; reads follow such a link, writes refuse it.
 | `claims-ledger source add <file>` | register a source and store the bytes its quotations are checked against |
 | `claims-ledger source list` | the registered sources, and whether their bytes are present |
 | `claims-ledger status` | every entry with its kind, grade and derived status |
+| `claims-ledger neighbours <id\|path\|ground>` | the entries already about the same span or a nesting cohort; `--count` summarizes the whole ledger |
 | `claims-ledger hook` | print the pre-commit hook; `--install` writes it |
 | `claims-ledger --version` | the installed version |
 
@@ -349,6 +361,37 @@ loudly, per quotation, until they are back: re-run `claims-ledger source add` on
 bytes named by each row's url and extraction, and `claims-ledger source list` will say
 `bytes present`. There is no command that fetches them for you, because how a source's
 bytes were produced from its url is a decision with a record, not a download.
+
+`neighbours` is the one command here that is not a check. Two entries about the same
+function, written months apart by people who never read each other, name nothing of each
+other, so every rule the checkers apply to an `entry:` edge is out of range of them by
+construction. What is mechanically available is that the two are *near* — the same pinned
+span, or a cohort whose words nest inside another cohort's — and near is not inconsistent.
+So it is asked rather than enforced: it reports nothing, appends nothing, exits 0, and
+`check` does not run it
+(L0162-neighbours-reports-nothing-and-exits-zero, cites-as-live). Run as a gate over this
+repository's own ledger, the same heuristic flags a few hundred pairs to surface the two
+worth reading, which is a rate that teaches people to ignore it. Asked one entry at a
+time, it answers with a handful.
+
+The answer ends with the ground line that would record a distinction, written out for
+every pair with no relation recorded
+(L0171-the-lookup-hands-over-the-line-it-would-take, cites-as-live). That is as far as a
+lookup goes: the line is the same text whichever neighbour it names, and whether to write
+it at all is the judgement being handed over.
+
+What to do with an answer is yours. Reconcile the two, supersede one, or record that they
+are different claims with a `distinguishes` ground — an act an entry may perform on
+another entry and a document may not. It is legal against a target of any status, because
+it is a claim about two Scopes rather than about a truth
+(L0158-a-distinction-is-legal-against-any-status, cites-as-live); it propagates nothing
+when its target falls
+(L0161-a-distinguishing-ground-propagates-nothing, cites-as-live); and it is not support,
+so an entry whose every ground is one rests on nothing
+(L0160-a-distinction-is-not-support, cites-as-live). Grounds are frozen once committed, so
+a distinction is written by the newer entry and the older one never points back —
+`neighbours` is what finds it from the other side, and says so, rather than proposing a
+pair somebody has already read.
 
 The hook `--install` writes names the interpreter it was installed by, absolutely, and
 reaches the package with `-m`
@@ -450,7 +493,7 @@ refresh, where the schema, the checkers and the corpus were developed together. 
 extraction changed what was project-specific into configuration — where the ledger sits,
 which documents may cite it, what an evidence pointer is called, who may write a verdict
 — and changed nothing about the schema or the checks. Every one of the sixty-two seeds
-the corpus held at extraction still passes unchanged; it has since grown to 79.
+the corpus held at extraction still passes unchanged; it has since grown to 89.
 
 MIT licensed.
 

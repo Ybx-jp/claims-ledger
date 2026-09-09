@@ -482,6 +482,35 @@ def test_an_id_written_in_non_ascii_digits_is_refused(project, capsys):
     assert not any(project.entries.glob("A*homoglyph-id.md"))
 
 
+def test_the_quarantine_pattern_does_not_read_non_ascii_digits(project, capsys):
+    """The id patterns are ASCII-only, and `archived_id_re` was the one that was not.
+
+    `\\d` matches every Unicode decimal digit, so a quarantined prefix followed by
+    fullwidth or Arabic-Indic ones was a breach of an archive that can hold no such id —
+    `ID_RE` mints ASCII. Raised by the quality-engineering review of PR #26 alongside the
+    miscitation false positive; the real archived id in the same document still fails, so
+    the narrowing did not buy silence.
+    """
+    config = project.root / "claims-ledger.toml"
+    text = config.read_text(encoding="utf-8")
+    assert "archived-prefixes = []" in text
+    config.write_text(text.replace("archived-prefixes = []", 'archived-prefixes = ["P"]'), "utf-8")
+    doc = project.root / "quarantine.md"
+    fullwidth = "P\uff10\uff10\uff10\uff11"  # looks like "P0001", and is not
+    arabic_indic = "P\u0661\u0662\u0663\u0664"
+    doc.write_text(
+        f"# Notes\n\nNeither {fullwidth} nor {arabic_indic} is an id.\n", encoding="utf-8"
+    )
+    capsys.readouterr()
+    assert project.cl("references") == 0, capsys.readouterr().out
+
+    doc.write_text("# Notes\n\nThis names P0001, which is quarantined.\n", encoding="utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1
+    out = capsys.readouterr().out
+    assert "P0001" in out, out
+
+
 # === B. the config layer ==============================================================
 
 
@@ -1463,3 +1492,49 @@ def test_a_registry_that_is_not_a_regular_file_is_a_clean_error_on_read(project,
     out = capsys.readouterr()
     assert rc == 2, out.out + out.err
     assert "not a regular file" in out.err, out.err
+
+
+def test_a_citation_shaped_parenthetical_with_no_entry_behind_it_is_left_alone(project, capsys):
+    """Ordinary prose is not a miscitation. `(E501, unresolved)` in a source comment is a
+    lint code and a word: it has the shape `MISCITATION_RE` matches, and nothing else.
+
+    The rule that catches a citation carrying an illegal act read the shape alone, so it
+    failed a commit over any parenthesis holding a capital, three digits, a comma and a
+    lowercase word — E501, W605, B008 and every other lint code among them, in a project
+    whose source files are configured documents. Found by the quality-engineering review
+    of PR #26. The half of the rule that does the work is unaffected: a wrong act against
+    an id this ledger really minted is still a failure.
+    """
+    entry = project.write_full_entry(project.entries / next(iter(_scaffold(project))))
+    ident = entry.stem
+    bare = ident.split("-", 1)[0]
+
+    doc = project.root / "prose.md"
+    doc.write_text(
+        "# Notes\n\n"
+        "A lint waiver tracked upstream (E501, unresolved), and a version note\n"
+        "(P100, draft) beside it. Neither is a citation.\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    assert project.cl("references") == 0, capsys.readouterr().out
+
+    # Both forms of the id, because the guard matches on series and number with the slug
+    # set aside: the slugged one is what a document really writes, and the bare one is
+    # what a lookup keyed on the whole id would silently stop reporting.
+    for written in (f"{ident}", bare):
+        doc.write_text(
+            f"# Notes\n\nThis inherits the law ({written}, cites-as-liv).\n", encoding="utf-8"
+        )
+        capsys.readouterr()
+        assert project.cl("references") == 1, written
+        out = capsys.readouterr().out
+        assert "is not a citation act" in out, out
+        assert written in out, out
+
+
+def _scaffold(project):
+    """The filename `claims-ledger new` allocated, whatever id the ledger is up to."""
+    before = {p.name for p in project.entries.glob("*.md")}
+    assert project.cl("new", "a-law-these-tests-state") == 0
+    return {p.name for p in project.entries.glob("*.md")} - before

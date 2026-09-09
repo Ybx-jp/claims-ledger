@@ -1,6 +1,6 @@
 ---
 name: choosing-a-citation-act
-description: Match a citation's act to the status of the entry it names, and choose among the repairs available when a status moves. Use when `claims-ledger references` reports "<act> against <id>, whose status is …", when a citing sentence is being written or moved, and when a drift, a challenge or a fallen ground has changed an entry's status.
+description: Match a citation's act to the status of the entry it names, choose among the repairs available when a status moves, and relate two entries that turn out to be about the same artifact. Use when `claims-ledger references` reports "<act> against <id>, whose status is …" or "is shaped like a citation but … is not a citation act", when a citing sentence is being written or moved, when a drift, a challenge or a fallen ground has changed an entry's status, and when `claims-ledger neighbours` surfaces a pair to reconcile or distinguish.
 ---
 
 # Choosing a citation act
@@ -32,10 +32,21 @@ when you last looked is not evidence about now.
 `reference/vocabulary.md` has the full table and how to read it from the package rather
 than from memory. In short: `cites-as-live` speaks of a claim in good standing,
 `cites-as-contested` of one under question, `cites-as-fallen` of one that did not survive,
-and `challenges` is written by an entry that disputes another.
+`challenges` is written by an entry that disputes another, and `distinguishes` by an entry
+saying it is a different claim about the same artifact.
 
 `cites-as-fallen` is legal against every status, which makes it available whenever the
 prose means to discuss a claim as it stands rather than to rely on it.
+
+**Two lists, not one.** A document may write the four citation acts; the last two are
+written only as an `entry:` ground, by one entry about another. Print both rather than
+remembering which is which:
+
+    python -c "from claims_ledger import ACTS, ENTRY_ACTS; print(ACTS); print(ENTRY_ACTS)"
+
+Writing `distinguishes` in a document is reported, not ignored — `references` names an id
+this ledger minted, followed by a comma and an act-shaped word that is not a citation act,
+which is also what catches a mistyped act. The repair is the act, not the sentence.
 
 ## When a status moves
 
@@ -67,6 +78,52 @@ Assertion that is false.
 Where the finding is a drift the claim does not depend on — a section that moved, a
 renumbering, a rename — `repair-a-drifted-pin` covers acknowledging it without touching
 the claim.
+
+## `cites … from outside § "…"`
+
+The entry named rests on a section of this very document, and the citation is somewhere
+else in it. The repair is to move the citing sentence into that section, not to change the
+act or the ground: what the rule is protecting is that a promise and the code keeping it
+sit in one span, so that an edit reaches both.
+
+It arrives only where a project set `citation-placement`, and it is the one `references`
+finding that says nothing about a status. Moving the sentence flags every entry pinned to
+the section it lands in — that is the mechanism, and `repair-a-drifted-pin` covers
+discharging each with a re-read.
+
+## Two entries about the same thing
+
+Not every relation between two entries is agreement or attack. Two claims can be about the
+same function, and be different claims — a pair no checker can see, because neither names
+the other and every rule that reads an `entry:` edge is out of range by construction.
+
+    claims-ledger neighbours <entry id | entry path | ground pointer>
+
+Advisory. It exits 0 whatever it finds, `check` does not run it, and it decides nothing: it
+answers with the entries sharing a ground span, or whose Scope `cohort` nests inside this
+one's, and says which of them the ledger already relates. The ground-pointer form is the
+one to use before the entry exists, while the grounds are being chosen.
+
+Four honest answers to a pair it surfaces, and the command ranks none of them:
+
+- **They are one claim.** Reconcile them — usually by superseding one, with its citations
+  moved.
+- **They are different claims.** Record it once, as a `distinguishes` ground in the newer
+  entry, with the Warrant saying how they differ. It is legal against a target of any
+  status, it propagates nothing, and it is not support — so it goes *beside* the grounds
+  the entry rests on, never instead of them.
+- **One disputes the other.** That is `challenges`, and it demands a verdict on the target.
+- **Leave them.** Near is not inconsistent, and most neighbours are neither.
+
+Only the newer entry can write the relation, because Grounds are frozen once committed. The
+older one never points back; the lookup is what reads it from the other side, which is why
+recording the distinction is what stops the next reader redoing the comparison.
+
+The answer ends with the ground line for each pair it found no relation for, verbatim, so
+that recording one is a paste. Which of them to write — if any — is the judgement the
+command is handing over, and it is a judgement made in the pass that surfaced the pair: a
+distinction noticed and left unrecorded is one the next reader pays for again, which is
+the whole cost the act exists to remove.
 
 ## Writing a citation
 

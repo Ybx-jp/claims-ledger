@@ -34,6 +34,9 @@ none
 
 ## Verdicts
 
+- 2026-09-08T09:45:00-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0155-a-terminal-dependent-is-not-flagged · supersedes
+  note: the cohort was the fallen statuses; the successor states it over the terminal ones, which is the set the checker now tests, and which closes the case where propagate wrote a verdict validate refuses
+
 ## References
 
-- src/claims_ledger/propagate.py · standing · cites-as-live

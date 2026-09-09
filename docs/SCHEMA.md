@@ -38,7 +38,9 @@ report a human judges).
 
 - **validate** — every entry is well-formed: ids, timestamps, the no-quotation-marks
   rule in Assertion, Scope at `measured` and above, grade–grounds consistency, the
-  absence-claim rule, the verbatim fingerprint, verdict legality and authorship,
+  absence-claim rule, a Scope scoped to the fallen statuses while the Warrant argues from
+  terminality (a flag: the two sets are nested, and only the author knows which was
+  meant), the verbatim fingerprint, verdict legality and authorship,
   supersession both ways, and — from git — immutability of the region above the APPEND
   marker and append-only verdicts over the whole history. `--cached` reads staged entries
   from the index, for a pre-commit hook.
@@ -121,9 +123,19 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   refused where the configuration is read rather than at the first entry that uses it. An absence claim
   carries a `search:` ground instead of a positive pointer. The citation acts are
   `cites-as-live` (target open or corroborated), `cites-as-contested` (target
-  contested), `cites-as-fallen` (any status; the only act legal against a fallen
+  contested), `cites-as-fallen` (any status; the only citation act legal against a fallen
   target), and `challenges` (target open, corroborated or contested; the citing entry's
-  Warrant names what it attacks). A ground is a datum the Warrant uses; an artifact the
+  Warrant names what it attacks). One further act, `distinguishes`, an entry may perform
+  on another entry and a document may not: it says the two are about the same artifact and
+  are different claims, and the Warrant says how. It is legal against a target of any
+  status, because it is a claim about two Scopes rather than about a truth
+  (L0158-a-distinction-is-legal-against-any-status, cites-as-live); it propagates nothing
+  when its target falls
+  (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live); and it is not
+  support, so an entry whose every ground is one rests on nothing
+  (L0160-a-distinction-is-not-support, cites-as-live). Grounds are frozen once committed,
+  so a distinction is written by the newer entry and the older one never points back;
+  `claims-ledger neighbours` is what finds it from the other side. A ground is a datum the Warrant uses; an artifact the
   entry mentions without resting on it is named in the Warrant's prose, or cited
   `cites-as-fallen` if it is an entry, and is not a ground. A `measured` or higher grade
   requires an evidence ground, and an `asserted` grade forbids one: the grade is the type
@@ -255,9 +267,9 @@ and the flag is reported until a human re-verdicts. A `challenges` act whose tar
 verdict, or whose target is fallen, is a failure, and so is a propagated verdict whose
 named cause does not exist. A dependent flagged because its live-cited ground fell
 cannot return to `corroborated`: its Grounds are immutable and still cite the fallen
-entry, so the reference check keeps failing until it is superseded; once it has fallen
-itself, its Grounds are history, exempt from the act check, and it needs no further
-flag, since a verdict after a terminal status is illegal.
+entry, so the reference check keeps failing until it is superseded; once its own status is
+terminal — fallen, or `non-comparable` — its Grounds are history, exempt from the act
+check, and it needs no further flag, since a verdict after a terminal status is illegal.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/propagation-dark.svg">

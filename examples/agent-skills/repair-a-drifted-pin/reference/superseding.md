@@ -52,6 +52,21 @@ the predecessor's, nothing about the claim moved — only its ground did. That i
 where acknowledging the change is the honest repair and the successor is unnecessary work;
 the skill's first outcome covers it.
 
+## Supersession without a drift behind it
+
+Not every supersession starts at `freshness`. The Scope sits above the append marker with
+the Grounds, so a Scope that turns out to say the wrong thing cannot be edited either —
+and a claim whose Scope names a narrower population than the one it is really about is
+repaired the same way, with a successor, even though no pin moved and no checker
+complained.
+
+The shape to watch for is a `cohort` that under-covers its own `metric`: the metric counts
+over one population and the cohort names part of it. That is not mechanically decidable,
+but it is findable — `claims-ledger neighbours` proposes entries whose cohort words nest
+inside another's, which is exactly this shape seen from the outside. The successor states
+the claim over the population the metric was always counting, and the `verbatim_change`
+line in its frontmatter says what moved.
+
 ## What supersession costs
 
 An entry file, a verdict, and every citation moved. It is the most expensive of the

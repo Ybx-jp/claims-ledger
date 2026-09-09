@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the entry rests on a lab ground and distinguishes itself from another entry beside it; a distinction is not support, and here it is not asked to be"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "`distinguishes` is legal against a target of any status, and A0001 exists"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "a distinguishing ground propagates nothing; only cites-as-live and challenges walk"}
+  ],
+  "note": "the near-negative of D58. The act is legal and useful — this is the shape it exists for — so the rule fires on an entry with nothing else under it and not on the act."
+}

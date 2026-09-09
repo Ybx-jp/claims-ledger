@@ -1,0 +1,20 @@
+{
+  "class": "scope narrower than the warrant it argues from",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "flag",
+      "where": "A0002 Scope",
+      "why": "the Scope names the three fallen statuses and the Warrant argues from a terminal status; non-comparable is terminal without being a fall, so the two sentences state rules over two different populations and a reader implements whichever one they read",
+      "message": "the Scope names the fallen statuses"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0002 Scope",
+      "why": "the checker cannot say which of the two the author meant; widening the Scope and narrowing the Warrant are both legal repairs, and only the author knows which claim was made"
+    }
+  ],
+  "note": "K25 is the near-negative: the same entry with a Warrant that names the fallen three rather than terminality, which every checker must leave alone. The pair is what keeps the rule from being satisfied by a checker that flags every entry naming a status."
+}

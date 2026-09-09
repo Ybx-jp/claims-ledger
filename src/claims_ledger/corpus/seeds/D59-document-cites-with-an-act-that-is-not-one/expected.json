@@ -1,0 +1,14 @@
+{
+  "class": "document citation whose act is not a citation act",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/prereg-digest.md",
+      "why": "`distinguishes` is an act one entry performs on another and a document may not; written in a document it is not matched by the citation pattern, so before this rule it sat in a checked document as prose nothing read",
+      "message": "is not a citation act"
+    }
+  ],
+  "note": "K27 is the near-negative: a document naming an entry in a parenthesis with no act at all, and again in running prose, neither of which is a citation shape. The rule fires on an id followed by a comma and an act-shaped word, which is a citation missing only a legal act."
+}

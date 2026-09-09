@@ -2,9 +2,9 @@
 
 Everything a project can legitimately name differently lives here: where the entries
 sit, which documents may cite them, what an evidence pointer is called, which id
-prefixes are quarantined, and which authors may write a verdict. The schema itself —
-grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is not
-configurable, because those are the claims model rather than a project's naming.
+prefixes are quarantined, and which authors may write a verdict. What is settable at all
+is the list `KEYS`; what each value has to be, and every consistency rule between them,
+is checked in `from_table` as the configuration is read.
 
 A project declares its configuration in `claims-ledger.toml` at the project root, or in
 a `[tool.claims-ledger]` table in `pyproject.toml`. With neither, the defaults below
@@ -23,9 +23,17 @@ CONFIG_FILENAMES = ("claims-ledger.toml", ".claims-ledger.toml")
 PYPROJECT = "pyproject.toml"
 TABLE = "claims-ledger"
 
-# Pointer type names the schema reserves for itself; a project cannot use one of these
-# as the name of an evidence type.
+PLACEMENT_OUTCOMES = ("off", "flag", "fail")
+DEFAULT_CITATION_PLACEMENT = "off"
+# What `citation-placement` may be set to. Off by default, because the rule is only worth
+# turning on once a project's existing citations satisfy it: a setting that reports fifty
+# sites the day it ships is one its readers learn to scroll past
+# (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
+
 RESERVED_POINTER_TYPES = ("entry", "source", "search", "defect")
+# Pointer type names the schema reserves for itself; a project cannot use one of these as
+# the name of an evidence type
+# (L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live).
 
 DEFAULT_DOCUMENTS = ("*.md", "docs/*.md")
 DEFAULT_DOCUMENT_EXCLUDES = ()
@@ -63,7 +71,8 @@ ANY_NAME = "[^\n]+?"
 
 class ConfigError(Exception):
     """A configuration file that cannot be honoured. Raised rather than defaulted: a
-    checker that silently ran under a configuration nobody wrote proves nothing."""
+    checker that silently ran under a configuration nobody wrote proves nothing
+    (L0063-a-configuration-that-cannot-be-read-stops-the-command, cites-as-live)."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -86,6 +95,7 @@ class Config:
     section_patterns: tuple = ()
     verdict_authors: tuple = DEFAULT_VERDICT_AUTHORS
     propagation_author: str = DEFAULT_PROPAGATION_AUTHOR
+    citation_placement: str = DEFAULT_CITATION_PLACEMENT
     source: Path | None = None  # the file these values were read from, when there was one
 
     @property
@@ -125,7 +135,8 @@ def default_config(root):
 
     The default layout is confined the same way a configured one is: a project with no
     `claims-ledger.toml` at all can still have a `ledger` that is a symlink out of the
-    tree, and the containment is a property of the tool rather than of the file.
+    tree, and the containment is a property of the tool rather than of the file
+    (L0060-the-default-layout-is-confined-too, cites-as-live).
     """
     root = resolved(root)
     ledger = confined(root, "ledger", "ledger")
@@ -139,9 +150,11 @@ def default_config(root):
 
 
 def find_config_file(start):
-    """The nearest configuration file at or above `start`, or None. A `pyproject.toml`
-    counts only when it carries a `[tool.claims-ledger]` table, so a package that merely
-    depends on this one is not mistaken for the project root."""
+    """The nearest configuration file at or above `start`, or None
+    (L0057-the-nearest-configuration-at-or-above-the-start-is-used, cites-as-live). A
+    `pyproject.toml` counts only when it carries a `[tool.claims-ledger]` table, so a
+    package that merely depends on this one is not mistaken for the project root
+    (L0056-a-pyproject-is-a-configuration-only-with-the-table, cites-as-live)."""
     start = resolved(start)
     for directory in (start, *start.parents):
         for name in CONFIG_FILENAMES:
@@ -173,7 +186,8 @@ def _read_table(path):
     except (OSError, tomllib.TOMLDecodeError) as exc:
         raise ConfigError(f"{path}: {exc}") from exc
     # A standalone file may use the bare keys or nest them under [tool.claims-ledger],
-    # so a table lifted out of a pyproject.toml keeps working when it is moved.
+    # so a table lifted out of a pyproject.toml keeps working when it is moved
+    # (L0058-a-table-keeps-working-when-it-leaves-pyproject, cites-as-live).
     return data.get("tool", {}).get(TABLE, data)
 
 
@@ -191,7 +205,15 @@ KEYS = {
     "evidence-plain": list,
     "verdict-authors": list,
     "propagation-author": str,
+    "citation-placement": str,
 }
+# The whole of what a project may set, and the type each value takes. The schema itself —
+# grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is
+# absent from this table on purpose: those are the claims model rather than a project's
+# naming, and a project that could rename them would have a different model
+# (L0050-the-schema-itself-is-not-configurable, cites-as-live). The types are what
+# `from_table` refuses a value by name against
+# (L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live).
 
 
 def _escapes(root, path):
@@ -204,7 +226,8 @@ def resolved(path, what="root"):
 
     A symlink loop reaches pathlib as a RuntimeError on 3.12 and earlier and as the
     unresolved path on 3.14; `--root` pointing at one is a misconfigured root either way,
-    not an internal error to ask for a bug report over.
+    not an internal error to ask for a bug report over
+    (L0061-an-unresolvable-path-is-a-configuration-error, cites-as-live).
     """
     try:
         return Path(path).resolve()
@@ -262,9 +285,12 @@ def leaves_root(root, path):
     """Where `path` really is, when that is outside `root`; None when it is not.
 
     The same question `confined()` asks of a configured path, asked of a file the tool is
-    about to write. A configuration is not the only thing a clone carries: an entry inside
-    `entries/` can be a symlink to anywhere, and following one on a write is a write
-    outside the project root — which is the property this package states it has.
+    about to write, through the same escape test rather than through a second one that
+    could drift from it
+    (L0062-one-test-answers-confinement-for-configured-paths-and-writes, cites-as-live). A
+    configuration is not the only thing a clone carries: an entry inside `entries/` can be
+    a symlink to anywhere, and following one on a write is a write outside the project
+    root — which is the property this package states it has.
     """
     followed = _followed(path)
     return followed if _escapes(_followed(Path(root)), followed) else None
@@ -290,10 +316,17 @@ def confined_pattern(root, key, value):
 
 
 def _section_patterns(table, sectioned):
-    """((type, pattern), …), every one checked here rather than at the first entry that
-    uses it. A pattern that does not compile, or that never mentions the section it is
-    supposed to find, would otherwise become a checker that quietly matched the wrong
-    text or nothing at all."""
+    """((type, pattern), …), every one checked here rather than at the entry that turns
+    out to use it. A pattern that does not compile, or that never mentions the section it
+    is supposed to find, would otherwise become a checker that quietly matched the wrong
+    text or nothing at all
+    (L0059-a-section-pattern-is-checked-when-it-is-read, cites-as-live).
+
+    Both substitutions are compiled, because the pattern is used twice: once with the
+    section's own name to find where it starts, and once with the name slot widened to
+    find where the next one does. A pattern that compiles under one and not the other is
+    a section with an end nothing can locate.
+    """
     out = []
     for name in sorted(table):
         pattern = table[name]
@@ -321,9 +354,29 @@ def _section_patterns(table, sectioned):
 
 
 def from_table(table, root, source=None):
-    """A Config from a parsed table. Unknown keys are an error, not a silent no-op: a
-    misspelled key that changes nothing is how a project ends up unchecked.
-    Ledger: (L0003-unknown-configuration-key-is-an-error, cites-as-live)."""
+    """A Config from a parsed table, with every name checked here rather than at the entry
+    that turns out to need it.
+
+    Unknown keys are an error, not a silent no-op: a misspelled key that changes nothing
+    is how a project ends up unchecked
+    (L0003-unknown-configuration-key-is-an-error, cites-as-live). A value of the wrong
+    type is refused by name
+    (L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live).
+
+    An evidence type may not take a name the schema reserves for a pointer of its own
+    (L0052-an-evidence-type-cannot-take-a-reserved-pointer-name, cites-as-live), nor be
+    both sectioned and plain, and a configuration leaving the project without any evidence
+    type is refused because a measured grade would have nothing it could rest on
+    (L0053-the-evidence-types-are-disjoint-and-there-is-one, cites-as-live). The
+    propagation author has to be one of the verdict authors, or every verdict the
+    machinery writes would carry an author the ledger declines
+    (L0054-the-propagation-author-is-one-of-the-verdict-authors, cites-as-live). A
+    quarantined prefix is a single uppercase letter
+    (L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live). And
+    `citation-placement` is one of the three outcomes the setting has, refused here rather
+    than read as `off` by a checker that then said nothing
+    (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
+    """
     unknown = sorted(set(table) - set(KEYS))
     if unknown:
         raise ConfigError(f"unknown key(s) {', '.join(unknown)}; known keys are {sorted(KEYS)}")
@@ -366,6 +419,11 @@ def from_table(table, root, source=None):
     for prefix in table.get("archived-prefixes", ()):
         if not (isinstance(prefix, str) and len(prefix) == 1 and prefix.isupper()):
             raise ConfigError(f"archived prefix `{prefix}` is not a single uppercase letter")
+    placement = table.get("citation-placement", DEFAULT_CITATION_PLACEMENT)
+    if placement not in PLACEMENT_OUTCOMES:
+        raise ConfigError(
+            f"citation-placement `{placement}` is not one of {list(PLACEMENT_OUTCOMES)}"
+        )
 
     return Config(
         root=root,
@@ -382,6 +440,7 @@ def from_table(table, root, source=None):
         section_patterns=patterns,
         verdict_authors=authors,
         propagation_author=propagation,
+        citation_placement=placement,
         source=Path(source) if source else None,
     )
 

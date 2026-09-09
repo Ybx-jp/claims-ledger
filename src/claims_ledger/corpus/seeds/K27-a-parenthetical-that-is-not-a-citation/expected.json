@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the entry is well-formed"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves and the quotation is a span of its source"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the one citation names a legal act and A0001 lists the document; the bare parenthesis and the id in running prose are not citations and are not read as ones"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "nothing has fallen and nothing is challenged"}
+  ],
+  "note": "the near-negative of D59. A document may name an entry without citing it — in a parenthesis of its own, or in a sentence — and the rule that catches a citation with an illegal act must leave both alone, or every document that discusses its own ledger fails."
+}

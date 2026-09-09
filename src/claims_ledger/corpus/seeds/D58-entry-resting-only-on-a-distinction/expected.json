@@ -1,0 +1,14 @@
+{
+  "class": "entry whose every ground is a distinction",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0002 Grounds",
+      "why": "a `distinguishes` act says what the entry is not; an entry all of whose grounds are distinctions has stated a difference and rested on nothing, and the Warrant has nothing to argue from",
+      "message": "every ground is a `distinguishes` act"
+    }
+  ],
+  "note": "K26 is the near-negative: the same distinction beside a real ground, which every checker must leave alone. The pair is what keeps the rule from being satisfied by a checker that rejects the act itself. `references` says nothing here, and that is deliberate — a distinction is legal against a target of any status, because it is a claim about two Scopes rather than about a truth."
+}

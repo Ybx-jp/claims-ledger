@@ -79,7 +79,9 @@ if [ -n "$finding" ] && ! printf '%s' "$finding" | grep -q '0 failure(s), 0 flag
 
 $finding
 
-A pin is what holds the prose to the artifact under it. Repair it in this session rather than at \`git commit\`, where the pre-commit hook refuses anyway. The \`repair-a-drifted-pin\` skill has the findings and what discharges each — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Verdicts append and only append: a ground edited or a verdict removed is caught against history on the next run."
+A pin is what holds the prose to the artifact under it. Read the finding before deciding anything: \`has moved\` and \`unstable pin\` are FLAGS and exit 0, so the pre-commit hook does not refuse them and this is a report to act on rather than a block to clear; \`withdrawn\` and \`unknown\` are failures and the hook does refuse those. Either way the moment to answer it is now, while the edit is in hand and the artifact is still in front of you.
+
+A flag is not a penalty and not a thing to design around. Drift is this ledger noticing that something a claim rests on has changed, which is what it is for; where the claim is untouched, the answer is a re-read verdict and takes a minute. The \`repair-a-drifted-pin\` skill has each finding and what discharges it. Verdicts append and only append: a ground edited or a verdict removed is caught against history on the next run."
     exit 0
   fi
 fi
@@ -109,7 +111,9 @@ if ! fired newclaim; then
 
 If this edit states a NEW commitment — a sentence a reader would take as a promise the project is answerable for — it needs an entry, grounded in the artifact that keeps it true and cited from the sentence. No checker can find this for you: \`references\` only checks citations that were actually written, so prose that asserts something and cites nothing passes every check.
 
-Adding an entry takes two commits and the pre-commit hook refuses the first; the \`tagging-prose-with-claims\` skill says why and what to do. If the edit states no new commitment, ignore this."
+Adding an entry takes two commits and the pre-commit hook refuses the first; the \`tagging-prose-with-claims\` skill says why and what to do. Once you have chosen the ground, \`claims-ledger neighbours 'code: <path> § \"<section>\" @HEAD'\` says which entries are already about it — the pair that is one claim said twice, or two different claims about one artifact, is out of range of every checker and this is the moment anything asks.
+
+Write it in this pass rather than noting it for a later one. Nothing will come back for it: a sentence that promises something and cites nothing is exactly what passes every check, and the citation goes inside the span the entry pins, so a later pass pays the same two commits over again plus the drift its own citation causes. If the edit states no new commitment, ignore this."
 fi
 
 exit 0

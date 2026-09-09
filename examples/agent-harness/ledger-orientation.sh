@@ -43,22 +43,29 @@ kinds=$(cd "$root" && timeout 20 "$python" -c \
 
 jq -cn --arg counts "$counts" --arg kinds "$kinds" --arg ctx "This project keeps a claims ledger: __COUNTS__. An entry states one thing the project is answerable for, grounded in the artifact that makes it true and cited from the prose that says the same thing in words. This project's grounds may name: __KINDS__. \`claims-ledger check\` runs in the pre-commit hook and again in CI.
 
-SIX COMMANDS ANSWER DIFFERENT QUESTIONS, and the wording of a finding says which one you are holding — that is what decides the repair.
+EACH COMMAND ANSWERS A DIFFERENT QUESTION, and the wording of a finding says which one you are holding — that is what decides the repair.
 
   claims-ledger status       what every entry is, and the status it derives to right now
-  claims-ledger validate     is each entry well formed?           frontmatter, sections, verdicts
+  claims-ledger validate     is each entry well formed?           frontmatter, sections, verdicts, wording
   claims-ledger resolve      does every pointer resolve?          'does not resolve', 'has no section'
   claims-ledger references   does a citation match its target?    '<act> against <id>, whose status is ...'
   claims-ledger propagate    are the entry-to-entry edges sound?
   claims-ledger freshness    has a pinned ground changed?         'has moved', 'withdrawn', 'unstable pin', 'unknown'
+  claims-ledger neighbours   which entries are already about this?  advisory; it decides nothing
+
+The middle five are the checkers \`claims-ledger check\` runs, and each exits non-zero on a failure. \`status\` and \`neighbours\` hold nothing to a rule: \`neighbours\` takes an entry, an entry file, or a ground pointer written as an entry would write it, and answers with the entries sharing that ground span or whose Scope cohort nests inside it, saying which of those the ledger already relates. It exits 0 whatever it finds and \`check\` does not run it. Ask it while the grounds are being chosen — nothing downstream asks it, by design.
 
 \`claims-ledger --help\` lists them all and \`claims-ledger <command> --help\` its options. The package is importable, and exports its own vocabulary rather than asking you to remember it:
 
-  python -c 'from claims_ledger import STATUSES, ACTS, GRADES, KINDS; print(STATUSES, ACTS)'
+  python -c 'from claims_ledger import STATUSES, ACTS, ENTRY_ACTS, GRADES, KINDS; print(STATUSES, ACTS)'
 
-TWO THINGS TO HAVE STRAIGHT. A citation names an entry and an act, and the act has to be true of that entry's status as it stands — matching them is the whole of what a citing sentence promises. And a ground is evidence that can name any path the project holds, while the configured document globs decide only where citations are read.
+THREE THINGS TO HAVE STRAIGHT. A citation names an entry and an act, and the act has to be true of that entry's status as it stands — matching them is the whole of what a citing sentence promises. A ground is evidence that can name any path the project holds, while the configured document globs decide only where citations are read. And there are two act lists: ACTS is what a document may write, ENTRY_ACTS adds the acts only an entry may perform on another entry — \`challenges\`, which demands a verdict on its target, and \`distinguishes\`, which records that two entries are different claims about the same artifact, propagates nothing, and is not support.
 
-WHERE TO GO. \`tagging-prose-with-claims\` to turn prose into entries. \`choosing-a-citation-act\` for a finding naming an act and a status. \`repair-a-drifted-pin\` for a moved, withdrawn, unstable or unknown ground — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Each skill carries a reference/ directory with the detail." \
+A CITATION GOES INSIDE THE SECTION ITS ENTRY PINS. The sentence that makes the promise and the code that keeps it then sit in one span and move together. Writing it there flags the entries already pinned to that section, and that is the mechanism working rather than a cost to route around: \`has moved\` is a FLAG, it exits 0, the pre-commit hook does not refuse it, and a claim the change did not touch is discharged by a re-read verdict. A citation parked in a module docstring to keep the checker quiet passes every check and is invisible to the one reader who needs it, the person editing the code. Watch the boundary on a module-level definition: a section starts at its own line, so a comment ABOVE \`NAME = ...\` belongs to whatever is defined before it — put the citing comment below the assignment, or inside the literal.
+
+AN ENTRY THAT IS OWED IS WRITTEN IN THE PASS THAT OWES IT. Prose that promises something and cites nothing passes every check, so nothing comes back for a deferred entry; and the citation sits inside the span the entry pins, so a later pass pays the same two commits again plus the drift its own citation causes. The same goes for a repair a checker has already named. A supporting change made so that other work can rely on it — something exported, configured or guaranteed — is a commitment like any other, and is not smaller for having been in service of something else.
+
+WHERE TO GO. \`tagging-prose-with-claims\` to turn prose into entries, and for the questions to ask before choosing a ground. \`choosing-a-citation-act\` for a finding naming an act and a status, for a parenthesis whose act is not a citation act, and for deciding what to do with a pair \`neighbours\` surfaced. \`repair-a-drifted-pin\` for a moved, withdrawn, unstable or unknown ground — including the case where the artifact moved and the claim is untouched, which is acknowledged rather than superseded. Each skill carries a reference/ directory with the detail." \
   '{hookSpecificOutput:{hookEventName:"SessionStart",
     additionalContext:($ctx | sub("__COUNTS__"; $counts) | sub("__KINDS__"; $kinds))}}'
 

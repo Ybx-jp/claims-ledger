@@ -1,15 +1,17 @@
-"""The ledger entry as the four checkers read it.
+"""The ledger entry as everything that reads one reads it.
 
-One parser, one normalization, one fingerprint, one status derivation, shared by
-validate, resolve, references and propagate so that no two checkers can disagree about
-what an entry says. The schema itself is stated in full in docs/SCHEMA.md, which an
-installed copy does not carry and the repository has at
+One parser, one normalization, one fingerprint and one status derivation, defined here
+and imported by every module that reads an entry — the rule that keeps them the only
+ones is stated at `parse_entry`, where the parsing starts.
+
+The schema itself is stated in full in docs/SCHEMA.md, which an installed copy does not
+carry and the repository has at
 https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md. It is restated in
 corpus/README.md (the parts the red-team seeds depend on), and proven by corpus/run.py;
 nothing here is trusted beyond what that corpus exercises.
 
 Nothing outside the standard library is imported, so the checkers run from a plain
-`python3` in a pre-commit hook.
+`python3` in a pre-commit hook (L0011-no-runtime-dependencies, cites-as-live).
 """
 
 from __future__ import annotations
@@ -54,12 +56,25 @@ STATUSES = (
 TERMINAL = ("refuted", "superseded", "retracted", "non-comparable")
 FALLEN = ("refuted", "superseded", "retracted")
 ACTS = ("cites-as-live", "cites-as-contested", "cites-as-fallen", "challenges")
-# Which target statuses each citation act is legal against.
+ENTRY_ACTS = (*ACTS, "distinguishes")
+# Written below the assignment, not above it: a section starts at its own line, so a
+# comment above `ENTRY_ACTS` is the tail of `ACTS` and a citation there would sit outside
+# the span its entry pins.
+#
+# `distinguishes` is an act one entry performs on another and a document may not: it says
+# the two are about the same artifact and are different claims, and the Warrant says how.
+# A document has no Scope to hold apart from anything, so there is nothing for it to
+# distinguish (L0157-distinguishes-is-an-act-between-entries, cites-as-live).
 ACT_ALLOWS = {
+    # Which target statuses each act is legal against. `distinguishes` takes any, for the
+    # reason `cites-as-fallen` does and a different one: it is a claim about two Scopes
+    # rather than about a truth, so no verdict on the target can make it wrong
+    # (L0158-a-distinction-is-legal-against-any-status, cites-as-live).
     "cites-as-live": {"open", "corroborated"},
     "cites-as-contested": {"contested"},
     "challenges": {"open", "corroborated", "contested"},
     "cites-as-fallen": set(STATUSES),
+    "distinguishes": set(STATUSES),
 }
 VERDICT_ENTRY_ACTS = ("fallen", "challenges", "supersedes")
 SECTIONS = ("Assertion", "Scope", "Grounds", "Warrant", "Backing")
@@ -73,29 +88,39 @@ TIMESTAMP_RE = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[+-][0-9]{2}:[0-9]{2}|Z)$"
 )
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
-# A plain decimal number, in ASCII digits. `float()` is wider than the schema: it accepts
-# any Unicode decimal digit, so a credence written in Arabic-Indic numerals would pass as
-# an ordinary 0.5, and it accepts `nan` and digit-grouping underscores as well.
 DECIMAL_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
+# A plain decimal number, in ASCII digits
+# (L0149-a-decimal-is-checked-in-ascii-digits, cites-as-live).
+# `float()` is wider than the schema: it accepts any Unicode decimal digit, so a credence
+# written in Arabic-Indic numerals would pass as an ordinary 0.5, and it accepts `nan`
+# and digit-grouping underscores as well.
 HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-<slug>, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
+MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]*)\)")
+# The same shape as CITATION_RE with any act-shaped word, so that one of them does not
+# read as prose: a mistyped `cites-as-liv`, and `distinguishes`, which is an act between
+# entries and not a citation. Both used to be a citation nobody checked, because the only
+# regex reading documents did not match them and nothing else looked
+# (L0176-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
 
+UNPINNED = ("working", "corpus")
 # Pins that name no revision: the artifact is read from the working tree as it stands.
 # A ledger kept outside version control needs one, and the red-team corpus uses
 # `@corpus`. Anywhere else it is an escape hatch, and a pointer that uses it is only as
 # reproducible as the working tree it was read in — and, because there is no revision to
-# compare against, freshness has nothing to say about it.
-UNPINNED = ("working", "corpus")
+# compare against, freshness has nothing to say about it
+# (L0150-an-unpinned-pointer-is-outside-what-freshness-can-say, cites-as-live).
 
+ABSENT = "absent"
 # What a verdict's `artifact:` line may say: the object id git would store the drifted
 # artifact under, or that the ground was gone. Defined here rather than in `freshness`,
 # which writes the line, because `validate` is the checker that holds it to a shape and a
-# rule enforced only by the code that writes the value is a rule a hand-edit walks past.
-ABSENT = "absent"
+# rule enforced only by the code that writes the value is a rule a hand-edit walks past
+# (L0151-the-artifact-shape-is-defined-where-it-is-checked, cites-as-live).
 OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 NULL_OBJECT_ID = "0" * 40
 
@@ -113,10 +138,16 @@ def archived_id_re(config):
     the widths that fire. `\d{3}` alone — what this was — put a word boundary where no
     four-digit id has one, so the quarantine could not match a single id the schema
     permits. (docs/audits/0.1.0.md, QE9-105.)
+
+    Wide on the width and narrow on the alphabet: the digits are ASCII, because `\d`
+    matches every Unicode decimal digit and `ID_RE` mints none of them: a quarantined
+    prefix followed by fullwidth or Arabic-Indic digits is a token no ledger can hold,
+    and it was a quarantine breach anyway
+    (L0177-the-quarantine-pattern-reads-ascii-digits, cites-as-live).
     """
     if not config.archived_prefixes:
         return None
-    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"]\d{3,}\b")
+    return re.compile(r"\b[" + "".join(config.archived_prefixes) + r"][0-9]{3,}\b")
 
 
 # --- reports -------------------------------------------------------------------------
@@ -413,7 +444,15 @@ def normalize_with_map(text):
 
 def fingerprint(scope_text, backing_blocks):
     """sha256 over the normalized Scope lines, a blank line, then one normalized line per
-    Backing block (`source | speaker | quote`), blocks sorted. Grounds are excluded."""
+    Backing block (`source | speaker | quote`), blocks sorted. Grounds are excluded
+    (L0137-the-fingerprint-covers-scope-and-backing-and-excludes-grounds, cites-as-live).
+
+    Grounds are excluded because they are the evidence, and evidence is what a
+    supersession is allowed to replace; Scope and Backing are what the claim was
+    measured over and what it rests its quotations on, and a successor changing either
+    of those is stating something else. The blocks are sorted, so reordering Backing is
+    not a change to the record.
+    """
     scope = [normalize(ln) for ln in scope_text.splitlines() if ln.strip()]
     lines = sorted(
         f"{normalize(s)} | {normalize(sp)} | {normalize(q)}" for s, sp, q in backing_blocks
@@ -500,7 +539,10 @@ def section_span(text, config, type_name, section):
 
     What counts as a header is settled twice: by the pattern, which says which headings
     end a section, and by `fenced_spans`, which says what a heading is at all. A line
-    that only looks like one because it is inside a code block ends nothing.
+    that only looks like one because it is inside a code block ends nothing
+    (L0138-a-heading-inside-a-code-fence-ends-no-section, cites-as-live), and a heading
+    nested under this one is part of it rather than the start of the next
+    (L0139-a-nested-heading-is-part-of-the-section-above-it, cites-as-live).
     """
     fences = fenced_spans(text)
     head = next(
@@ -793,7 +835,8 @@ def file_problem(path, what):
     difference between a message someone can act on and `unexpected PermissionError`. And
     it answers differently on different interpreters — with the execute bit off a
     directory, 3.12 lets the EACCES out of is_file() and 3.13 swallows it — while the
-    syscall underneath says the same thing everywhere.
+    syscall underneath says the same thing everywhere
+    (L0146-why-a-path-is-unreadable-is-said-rather-than-collapsed, cites-as-live).
     """
     try:
         info = os.stat(path)
@@ -813,7 +856,8 @@ def file_problem(path, what):
 def read_text_or_raise(path, what):
     """`path` as UTF-8 text, or a LedgerError naming the file and what is wrong with it.
     Every read of a file the user maintains goes through here: an unreadable entry is a
-    thing to report, not a traceback."""
+    thing to report, not a traceback
+    (L0145-every-read-of-a-maintained-file-goes-through-one-funnel, cites-as-live)."""
     path = Path(path)
     # Checked before opening: a FIFO named like an entry blocks read_text() forever with
     # no writer on the other end, which wedges a pre-commit hook with no output at all.
@@ -872,10 +916,12 @@ def write_bytes_atomically(path, data, mode=None):
     fill it, so a write that failed partway — a full disk, a quota, a resource limit —
     left a committed entry cut off mid-verdict with the rest of it gone. `os.replace` is
     atomic within a filesystem, which is where all of these writes land: the file a
-    reader sees is either the old one entire or the new one entire.
+    reader sees is either the old one entire or the new one entire
+    (L0147-every-write-lands-through-a-temporary-file-and-a-replace, cites-as-live).
 
     A symlink is resolved first: replacing the link itself would turn a ledger that
-    reaches an entry through one into a ledger with two copies of it. Where the link
+    reaches an entry through one into a ledger with two copies of it
+    (L0148-a-write-resolves-a-symlink-before-it-replaces, cites-as-live). Where the link
     leads is the caller's question, and `leaves_root` is where it is asked.
     """
     target = Path(os.path.realpath(path))
@@ -977,6 +1023,13 @@ def split_frontmatter(text):
 
 
 def parse_entry(path, text=None):
+    """The one parser. It, `normalize`, `fingerprint` and `derive_status` are defined once
+    here and imported by every module that reads an entry — the five checkers, the
+    authoring side, the neighbours lookup and the command line — rather than reimplemented
+    in any of them, so no two of them can disagree about what an entry says
+    (L0169-every-reader-of-an-entry-shares-one-parser-and-one-normalization,
+    cites-as-live).
+    """
     path = Path(path)
     if text is None:
         text = read_text_or_raise(path, "entry")
@@ -1103,7 +1156,8 @@ class GitAnswer:
     unchanged — turns a git that could not answer into an answer that a check passed.
     That is the one report this tool must never produce, so the exit status is kept and
     each caller says for itself which non-zero exits are answers (a revision that is
-    simply not there) and which are git failing to answer at all.
+    simply not there) and which are git failing to answer at all
+    (L0140-a-version-control-commands-exit-status-is-kept, cites-as-live).
     """
 
     code: int | None  # None when git never ran or never finished
@@ -1125,12 +1179,7 @@ class GitAnswer:
 # `GIT_DIR` `validate` dropped both immutability failures with nothing said about a check
 # it had not made. The scrub used to be one call's argument — the discovery walk's — and
 # so it held for finding the repository and for nothing asked of it afterwards.
-# (ARCH-AUDIT.md, QE12-2.)
-#
-# Taken as a documented section rather than assembled from the three that were measured
-# to bite: a variable that reroutes the repository is a false pass waiting for a git
-# version that reads it, and there is nothing to weigh against dropping one this package
-# never wants.
+# (docs/audits/ARCH-AUDIT.md, QE12-2.)
 GIT_REPOSITORY_ENV = (
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -1145,6 +1194,11 @@ GIT_REPOSITORY_ENV = (
     "GIT_DEFAULT_HASH",
     "GIT_DEFAULT_REF_FORMAT",
 )
+# Taken as a documented section rather than assembled from the three that were measured
+# to bite: a variable that reroutes the repository is a false pass waiting for a git
+# version that reads it, and there is nothing to weigh against dropping one this package
+# never wants
+# (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
 
 
 def git_env(index=False):
@@ -1158,7 +1212,8 @@ def git_env(index=False):
     there would take `validate --cached` and `freshness --cached` off the content being
     committed and onto content that is not — the same false pass as the rest of this list,
     pointed the other way. So the one question this package does ask of the environment is
-    asked — by the callers whose subject is the index, under `--cached`, and by no others.
+    asked — by the callers whose subject is the index, under `--cached`, and by no others
+    (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """
     drop = set(GIT_REPOSITORY_ENV)
     if index:
@@ -1169,7 +1224,16 @@ def git_env(index=False):
 def git_call(repo, *args, env=None):
     """A git command in `repo`, as a GitAnswer. The environment is `git_env()`, because
     the call is about the directory it names and not about whatever `GIT_DIR` names;
-    `env` replaces it, for the callers that read the index."""
+    `env` replaces it, for the callers that read the index
+    (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
+
+    A command that does not answer within the timeout, and one that could not be run at
+    all, both come back as a question git did not answer rather than as a negative or a
+    hang: a checker wedged behind a subprocess is a pre-commit hook with no output, and a
+    timeout read as `no` is the false pass this whole type exists to prevent
+    (L0144-a-command-that-does-not-answer-in-time-is-an-unanswered-question,
+    cites-as-live).
+    """
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), *args],
@@ -1180,6 +1244,7 @@ def git_call(repo, *args, env=None):
             # Explicit, because `text=True` alone decodes with the locale's codec: under
             # LC_ALL=C an entry carrying the schema's own `·` separator would take the
             # frozen-region and append-only checks down with a UnicodeDecodeError.
+            # (L0143-command-output-is-decoded-as-utf-8-rather-than-by-locale, cites-as-live)
             encoding="utf-8",
             errors="replace",
             check=False,
@@ -1363,7 +1428,7 @@ def enclosing_repository(root, entries_dir):
     "nothing to check" everywhere it matters. Measured on such a ledger: `sha --write`
     rewrote the frozen region of an entry that repository had already committed and exited
     0, and `validate` then reported `0 failure(s)` over it — which is the whole of what
-    L0007 says must not happen. (ARCH-AUDIT.md, finding 3.)
+    L0007 says must not happen. (docs/audits/ARCH-AUDIT.md, finding 3.)
 
     Three things this asks that the first version of it did not, each measured as a defect
     of that version rather than imagined:
@@ -1404,7 +1469,7 @@ def enclosing_repository(root, entries_dir):
         # false negative of exactly the shape this function exists to catch: one
         # `git init` in a directory between the ledger and the repository that committed
         # it took `validate` from exit 1 to exit 0 and let `sha --write` rewrite a
-        # committed frozen region. (ARCH-AUDIT.md, finding 3, QE12-1.)
+        # committed frozen region. (docs/audits/ARCH-AUDIT.md, finding 3, QE12-1.)
         if not (parent / ".git").exists():
             continue
         if not entries_dir.is_relative_to(parent):
@@ -1598,7 +1663,7 @@ def read_artifact(path):
     the failure cost a second full pass over every drifted artifact — measured at +319 MB
     of peak resident memory on a 300 MB one — and left a race in between where the first
     read failed, the second succeeded, and the caller fell through to the answer this
-    exists to replace. (ARCH-AUDIT.md finding 2, and finding 6, which is this one.)
+    exists to replace. (docs/audits/ARCH-AUDIT.md finding 2, and finding 6, which is this one.)
     """
     try:
         return Path(path).read_text(encoding="utf-8"), None

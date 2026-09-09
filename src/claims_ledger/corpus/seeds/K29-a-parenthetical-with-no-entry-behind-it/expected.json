@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the entry is well-formed"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves and the quotation is a span of its source"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the one citation names a legal act and A0001 lists the document; the two other parentheses have the shape of a citation and an id this ledger never minted, so they are prose"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "nothing has fallen and nothing is challenged"}
+  ],
+  "note": "the second near-negative of D59, after K27. K27 holds an id with no act; this holds an act-shaped word with no id — two lint codes, the shape ordinary prose takes most often. The rule matched the shape alone and failed on both, which in a project whose source files are documents refuses a commit over a comment that cites nothing."
+}

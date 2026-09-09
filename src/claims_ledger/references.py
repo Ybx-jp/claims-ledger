@@ -1,24 +1,12 @@
 """Citations, both directions, checked.
 
-Entry to entry: every `entry:` ground names an entry that exists and carries an act
-compatible with the target's current status — `cites-as-live` needs open or
-corroborated, `cites-as-contested` needs contested, `challenges` needs open,
-corroborated or contested, `cites-as-fallen` accepts any status and is the only act
-legal against a fallen one. The filter a reader must apply every time is applied for
-them here. An entry that has itself fallen is exempt: its Grounds are immutable history,
-and a dependent whose live-cited ground fell is superseded rather than repaired.
-
-Document to entry: a document cites an entry inline as `(A0007-<slug>, cites-as-live)`.
-Every cited id exists, the act is compatible with the target's status, and the entry's
-References section lists the citing document; every location an entry lists really
-cites it. No document may cite an id in a quarantined series, by prefix alone. A
-document that carries an entry's Assertion verbatim without citing it is reported too:
-that finds copies, and says nothing about restatements in other words.
-
-The hypothesis roster (a ROSTER.md among the documents, or whatever the project's
-configuration names) is a hand-maintained view of the entries and is checked against
-them: one row per hypothesis whose status is not terminal, the row's first cell citing
-it and its last cell stating its status.
+Entry to entry, at `run`: an `entry:` ground names an entry that exists, under an act
+that entry's current status allows. Document to entry, also at `run`: an inline
+`(A0007-<slug>, cites-as-live)` and the row in the entry's References section have to
+agree with each other and with the status. The hypothesis roster is checked against the
+entries at `check_roster`. Where the project asks for it, `misplaced_citations` holds a
+citation to the span its entry pins; that one is configured rather than always on, and off
+by default. Each rule is stated where it is applied.
 
 Run:  claims-ledger references
 Exit 1 on any failure.
@@ -31,8 +19,9 @@ import os
 
 from .schema import (
     ACT_ALLOWS,
+    ACTS,
     CITATION_RE,
-    FALLEN,
+    MISCITATION_RE,
     TERMINAL,
     Report,
     archived_id_re,
@@ -40,7 +29,68 @@ from .schema import (
     load_entries,
     normalize,
     read_document,
+    section_span,
 )
+
+
+def misplaced_citations(ledger, entries=None, only=None):
+    """Citations that sit outside the section the entry they name is pinned to.
+
+    The rule is narrow, and every part of the narrowness is load-bearing. It asks only
+    about a citation in a document that the cited entry *also* rests on, by a sectioned
+    ground: then there is a span in this very file that the claim is about, and the
+    sentence promising it belongs in that span, so the promise and the code that keeps it
+    move together and a reader who finds one finds the other. A citation of an entry
+    grounded elsewhere is asked nothing, because there is no section here for it to be
+    outside of (L0173-a-citation-belongs-in-the-span-its-entry-pins, cites-as-live).
+
+    An entry may rest on several sections of one file; the citation need only be inside
+    one of them. `only` narrows the question to one entry, which is what the authoring
+    side asks at the moment that entry is written.
+
+    Returned as reports at whatever outcome the project configured, and never called at
+    all when it configured `off` — the caller decides, because this is one rule with two
+    callers and a second copy of the condition is how two of them come to disagree.
+    """
+    entries = load_entries(ledger) if entries is None else entries
+    index = by_id(entries)
+    config = ledger.config
+    outcome = config.citation_placement
+    out = []
+    for name, path in ledger.docs:
+        body, _ = read_document(path)
+        if body is None:
+            continue  # reported by run(), which is where an unreadable document is a failure
+        for m in CITATION_RE.finditer(body):
+            ident = m.group(1)
+            if only is not None and ident != only:
+                continue
+            target = index.get(ident)
+            if target is None:
+                continue  # a dangling citation, reported as that
+            spans = []
+            for pointer in target.ground_pointers:
+                if pointer.type not in config.evidence_sectioned or pointer.target != name:
+                    continue
+                if not pointer.section:
+                    continue
+                span = section_span(body, config, pointer.type, pointer.section)
+                if span is not None:
+                    spans.append((pointer.section, span))
+            if not spans or any(start <= m.start() < end for _, (start, end) in spans):
+                continue
+            where = ", ".join(f'§ "{section}"' for section, _ in spans)
+            out.append(
+                Report(
+                    "fail" if outcome == "fail" else "flag",
+                    None,
+                    name,
+                    f"cites {ident} from outside {where}, the section of this file its "
+                    "ground names; the sentence that states a commitment belongs in the "
+                    "span that keeps it, so the two move together",
+                )
+            )
+    return out
 
 
 def roster_rows(body):
@@ -58,10 +108,17 @@ def roster_rows(body):
 
 def check_roster(entries, index, status, ledger):
     """The hypothesis roster is a hand-maintained view of the entries: one row per
-    hypothesis whose status is not terminal, the row's first cell citing it and its
-    last cell stating its status. A row that says something the entry does not, or a
-    hypothesis with no row, is a failure; the roster is not generated, so it is
-    checked."""
+    hypothesis whose status is not terminal
+    (L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's
+    first cell citing it and its last cell stating its status
+    (L0049-a-roster-row-states-what-the-entry-says, cites-as-live). A row that says
+    something the entry does not, or a hypothesis with no row, is a failure; the roster
+    is not generated, so it is checked.
+
+    Two rows for one hypothesis fail as well as none: a duplicated row is the shape in
+    which a stale status survives an edit to its twin, and the reader has no way to tell
+    which of the two was maintained.
+    """
     out = []
     roster = ledger.config.roster
     if not roster:
@@ -120,18 +177,44 @@ def check_roster(entries, index, status, ledger):
 
 
 def run(ledger, entries=None):
+    """Both directions.
+
+    **Entry to entry.** Every `entry:` ground names an entry that exists and carries an
+    act compatible with the target's current status — `cites-as-live` needs open or
+    corroborated, `cites-as-contested` needs contested, `challenges` needs open,
+    corroborated or contested, `cites-as-fallen` and `distinguishes` accept any status,
+    and `cites-as-fallen` is the only *citation* act legal against a fallen one
+    (L0042-an-act-is-checked-against-the-targets-current-status, cites-as-live). The
+    filter a reader would otherwise apply every time is applied for them here.
+
+    **Document to entry.** A document cites an entry inline as
+    `(A0007-<slug>, cites-as-live)`. Every cited id exists, the act is compatible with the
+    target's status, and the entry's References section lists the citing document; every
+    location an entry lists really cites it
+    (L0044-a-citation-and-its-references-row-must-agree, cites-as-live). No document may
+    cite an id in a quarantined series, by prefix alone
+    (L0045-an-archived-series-is-refused-by-prefix, cites-as-live). A document that
+    carries an entry's Assertion verbatim without citing it is reported too
+    (L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
+    and says nothing about restatements in other words.
+    """
     entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
+    minted = {e.id.split("-", 1)[0] for e in entries}
     config = ledger.config
     archived = archived_id_re(config)
     reports = []
 
     for e in entries:
-        if status[e.id] in FALLEN:
-            # A fallen entry's Grounds are immutable and are history: a dependent whose
+        if status[e.id] in TERMINAL:
+            # A terminal entry's Grounds are immutable and are history: a dependent whose
             # live-cited ground fell is superseded, and the successor's acts are what is
-            # held to the targets' current statuses.
+            # held to the targets' current statuses. The line is terminality and not
+            # `FALLEN`, because what makes the act unrepairable is that no verdict may
+            # follow — true of `non-comparable` as much as of a fall — while the Grounds
+            # sit in the frozen region and cannot be edited either
+            # (L0154-a-terminal-entrys-grounds-are-immutable-history, cites-as-live).
             continue
         for _raw, p in e.grounds:
             if p is None or p.type != "entry" or p.act not in ACT_ALLOWS:
@@ -154,8 +237,10 @@ def run(ledger, entries=None):
 
     # A document that could not be opened at all, and one that fails at the read: either
     # way its citations were not checked, and a checker that cannot read a document may
-    # not report a clean run over it. `fail`, not `flag`, because the exit code is what a
-    # hook acts on and nothing here was verified.
+    # not report a clean run over it
+    # (L0047-an-unreadable-document-is-a-failure-not-a-clean-run, cites-as-live).
+    # `fail`, not `flag`, because the exit code is what a hook acts on and nothing here
+    # was verified.
     for name, problem in ledger.unreadable_docs:
         reports.append(Report("fail", None, name, problem))
 
@@ -175,6 +260,32 @@ def run(ledger, entries=None):
                     name,
                     f"cites archived id(s) {', '.join(seen_archived)}; no document may "
                     "cite the archive",
+                )
+            )
+        for m in MISCITATION_RE.finditer(body):
+            if m.group(2) in ACTS or m.group(1)[0] in config.archived_prefixes:
+                continue  # a citation, or already reported by prefix
+            if m.group(1).split("-", 1)[0] not in minted:
+                # The id has to be one this ledger actually minted, matched on the series
+                # and number with any slug set aside. `MISCITATION_RE` is a shape, and the
+                # shape alone is common in ordinary prose — `(E501, unresolved)` in a
+                # source comment is a lint code and a word, and reporting it would fail a
+                # commit over a sentence that cites nothing. Only the ledger knows which
+                # ids are its own, so the rule asks it
+                # (L0175-an-unminted-id-is-not-a-citation-shape, cites-as-live).
+                continue
+            # A parenthetical shaped like a citation whose act is not a citation act.
+            # `CITATION_RE` does not match it and no other rule reads documents, so a
+            # mistyped act — and `distinguishes`, which an entry may perform and a
+            # document may not — used to sit in a checked document as unchecked prose
+            # (L0176-a-citation-shaped-parenthetical-names-a-citation-act, cites-as-live).
+            reports.append(
+                Report(
+                    "fail",
+                    None,
+                    name,
+                    f"`{m.group(0)}` is shaped like a citation but `{m.group(2)}` is not a "
+                    f"citation act; a document cites an entry with one of {list(ACTS)}",
                 )
             )
         for m in CITATION_RE.finditer(body):
@@ -224,6 +335,8 @@ def run(ledger, entries=None):
                 )
 
     reports += check_roster(entries, index, status, ledger)
+    if config.citation_placement != "off":
+        reports += misplaced_citations(ledger, entries=entries)
 
     for e in entries:
         for _raw, r in e.references:

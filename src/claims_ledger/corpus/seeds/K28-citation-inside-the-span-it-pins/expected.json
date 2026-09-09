@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the entry is well-formed"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "the lab pointer resolves and names a section that is there"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the citation sits inside the Observation section, which is the span the entry's ground names"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "nothing has fallen and nothing is challenged"}
+  ],
+  "note": "the near-negative of D60, and the shape the rule exists to produce: one sentence stating the claim, inside the span the claim rests on, so that an edit to the measurement and an edit to the sentence are edits to the same section."
+}

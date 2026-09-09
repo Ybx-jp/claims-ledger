@@ -6,7 +6,7 @@ question it looks like — which turns a check that did not happen into a check 
 passed. Measured on git 2.43.0 before the scrub reached past discovery: with `GIT_DIR`,
 `GIT_COMMON_DIR` or `GIT_OBJECT_DIRECTORY` naming any other repository, `sha --write`
 rewrote the frozen region of an entry a commit already held and exited 0, and `validate`
-dropped both immutability failures with nothing said. (ARCH-AUDIT.md, QE12-2.)
+dropped both immutability failures with nothing said. (docs/audits/ARCH-AUDIT.md, QE12-2.)
 
 The one question this package really does ask of the environment is which index a commit
 is being built in, and the tests for both directions are here: scrubbing `GIT_INDEX_FILE`

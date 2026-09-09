@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the Scope and the Warrant name the same three statuses, so there is one population and one rule"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "every pointer resolves"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "A0001 is open and is cited cites-as-live"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "nothing has fallen and nothing is challenged"}
+  ],
+  "note": "the near-negative of D57. An entry is expected to name statuses in its Scope and its Warrant — that is what a Scope is for — so the rule fires only on the two nested sets disagreeing, and this seed is what holds it to that."
+}

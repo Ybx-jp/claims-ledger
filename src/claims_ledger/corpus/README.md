@@ -146,9 +146,13 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   `search: corpus=…; query="…"; date=…`. In this corpus the pin is `@corpus`, because
   fixtures are not at a commit. An absence claim carries a `search:` ground instead of a
   positive pointer. The citation acts are `cites-as-live` (target open or corroborated),
-  `cites-as-contested` (target contested), `cites-as-fallen` (any status; the only act
-  legal against a fallen target), and `challenges` (target open, corroborated or
-  contested; the citing entry's Warrant names what it attacks). A ground is a datum the
+  `cites-as-contested` (target contested), `cites-as-fallen` (any status; the only
+  citation act legal against a fallen target), and `challenges` (target open, corroborated
+  or contested; the citing entry's Warrant names what it attacks). One further act,
+  `distinguishes`, an entry may perform on another entry and a document may not: it says
+  the two are about the same artifact and are different claims, it is legal against a
+  target of any status, it propagates nothing, and it is not support — an entry whose every
+  ground is one rests on nothing. A ground is a datum the
   Warrant uses; an artifact the entry mentions without resting on it is named in the
   Warrant's prose, or cited `cites-as-fallen` if it is an entry, and is not a ground.
 - *Warrant* states the rule by which the grounds support the assertion. Conditions on the
@@ -342,6 +346,8 @@ the record of what else there is still to check.
 | open hypothesis without a roster row | D43, K15 | catch |
 | roster status cell stale | D44 | catch |
 | fallen citer held to its immutable acts, or flagged after a terminal status | K16, K17 | pass — a fallen entry's Grounds are history |
+| terminal citer that has not fallen, held to its acts or flagged | K24 | pass — what freezes the Grounds is terminality, and `non-comparable` is terminal without being a fall |
+| a Scope and a Warrant naming two nested sets of statuses | D57, K25 | flag — widening the Scope and narrowing the Warrant are both legal repairs, and only the author knows which claim was made |
 | creating commit misread by rename detection when a successor copies a kept predecessor | K18 | pass — the creating commit is the one that added the file |
 | a pinned ground moved after the claim rested on it | D45, K19, K23 | flag — the claim may or may not survive it, and a human decides |
 | a pinned ground withdrawn from the tree | D46 | catch |
@@ -357,6 +363,9 @@ the record of what else there is still to check.
 | a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
 | an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |
 | a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
+| an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
+| a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
+| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
@@ -370,9 +379,19 @@ fell, with and without the propagated flag), K18 (a successor written as a near-
 a predecessor that stays in the tree, committed together with the predecessor's
 `superseded` verdict), K19 (a commit that touched nothing the claim rests on), K20 (a
 drift the propagation author has acknowledged), K21 (a fallen entry whose ground drifted),
-K22 (an unpinned ground), K23 (an edit outside the section a claim rests on). K01–K03,
-K09, K15–K18 and K19–K23 test the schema's own rules and encode no claim from the canon;
-the others each stand for one.
+K22 (an unpinned ground), K23 (an edit outside the section a claim rests on), K24 (a
+`non-comparable` dependent citing a ground that fell — terminal without having fallen,
+where `references` once held it to an act it could not edit and `propagate` once demanded
+a verdict `validate` refuses), K25 (an entry whose Scope and Warrant name the same three
+statuses, which is what keeps D57's rule from firing on every entry that mentions one),
+K26 (a `distinguishes` act beside a ground the entry actually rests on, which is what
+keeps D58's rule from firing on the act itself), K27 (a document naming an entry in a
+parenthesis with no act and again in running prose, neither of which is a citation
+shape), K28 (a citation inside the section its entry pins, which is the shape the rule
+exists to produce), K29 (two parentheses carrying an act-shaped word after an id this
+ledger never minted — lint codes, which is the shape ordinary prose takes most often).
+K01–K03, K09, K15–K18 and K19–K29 test the schema's own rules and encode no claim from
+the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon
 

@@ -23,11 +23,13 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 
+dependencies = []
 # No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
 # pre-commit hook, on a checkout with nothing installed; tomllib is standard library
 # from 3.11, which is what sets the floor.
-# Ledger: (L0011-no-runtime-dependencies, cites-as-live).
-dependencies = []
+# Ledger: (L0011-no-runtime-dependencies, cites-as-live). Below the key and not above it:
+# a `toml-key` section starts at its own line, so a comment above `dependencies` belongs
+# to whatever key precedes it.
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.14", "ty>=0.0.78"]
@@ -71,6 +73,12 @@ include = [
     "/CHANGELOG.md",
     "/LICENSE",
 ]
+exclude = ["/docs/videos"]
+# The film's Remotion project moved under `docs/` to sit beside `docs/figures/`, and `/docs`
+# ships whole — so without this line the sdist grew by 11 MB of GIFs, fonts and a
+# package-lock nothing in the distribution reads. Excluded rather than left in: the tarball
+# is what `pip install` downloads, and the two rendered GIFs are served from the repository
+# to the README. Anchored like every `include` entry, for the same reason.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -128,6 +136,11 @@ documents = [
     "pyproject.toml",
     "src/claims_ledger/*.py",
 ]
+citation-placement = "fail"
+# On, and failing rather than flagging: every citation in this project sits inside the
+# span its entry pins, so a new one that does not is a mistake with a known repair and
+# no judgement to make. A project adopting the rule mid-life wants `flag` until its
+# existing citations are moved.
 evidence-sectioned = ["code", "toml", "toml-key"]
 evidence-plain = []
 

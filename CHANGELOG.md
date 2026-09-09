@@ -570,7 +570,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
 ### Fixed by the architecture audit
 
 - **An artifact nobody can read is a comparison that did not happen, not a ground that
-  moved** — `ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
+  moved** — `docs/audits/ARCH-AUDIT.md` finding 2, and finding 6 with it. `chmod 000` on an evidence
   file came back as `has moved`, at exit 0, naming a section the checker had never read:
   git lists a file it cannot open as changed, and the section comparison mapped a text it
   could not get to onto the finding for a text that differs. `freshness` already has the
@@ -640,7 +640,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
   of its two grounds and the change edits it, so the ground moved while the claim did not.
   Both supersessions this package has now cost were forced by a pinned section changing
   for a reason the claim did not care about, and both pinned a *caller* — the code that
-  follows the rule — rather than the code carrying it. Recorded in `ARCH-AUDIT.md` as
+  follows the rule — rather than the code carrying it. Recorded in `docs/audits/ARCH-AUDIT.md` as
   something to weigh, not as a defect in the tool.
 - **A section pattern can name one key of a TOML table, and L0002 is superseded by L0011
   on that ground.** `toml` names a table, which was the finest ground available for a
@@ -657,7 +657,7 @@ why the pass ran a revert experiment over that commit rather than a seventh audi
 
 ### Changed by the architecture audit
 
-One structural and performance pass, recorded in `ARCH-AUDIT.md` with its numbers and
+One structural and performance pass, recorded in `docs/audits/ARCH-AUDIT.md` with its numbers and
 with what it found and left open.
 
 - **`validate` reads a ledger's history in three git processes**, not two plus one per
@@ -675,7 +675,7 @@ with what it found and left open.
   the append-only check compares each revision with its own parents, not with whatever
   the walk listed next to it, which under full history can be a sibling that never held
   the verdict. The frozen-region check is unchanged. Measured
-  and recorded in `ARCH-AUDIT.md`, which also records what the same pass found and left
+  and recorded in `docs/audits/ARCH-AUDIT.md`, which also records what the same pass found and left
   open. The rewrite first landed without the text-level comparison of the frozen
   region — a preamble edit was reported with the line-endings message, and under
   `--cached` passed outright when the index held no blob for the entry — which the
@@ -759,6 +759,192 @@ assertion over them was `0 failure(s)`, which an inert rule satisfies.
   schema permits. `Q001` failed the check; `Q0001` passed it. The width is now three or
   more, which is what `CITATION_RE` already tolerated, because the rule reads prose and an
   id written a digit wide of the schema is still a citation of the archive.
+
+- **The quarantine reads ASCII digits**, like every other id pattern. `\d` matches every
+  Unicode decimal digit and `ID_RE` mints none of them, so a quarantined prefix followed by
+  fullwidth or Arabic-Indic digits was reported as a breach of an archive that can hold no
+  such id. Narrow on the alphabet, unchanged on the width: three digits or more still fire.
+  A project quarantining series `E` or `P` still fails on `E501` or `P100` anywhere in a
+  configured document, and that is the rule doing what it says — an archived id is a breach
+  by prefix alone, and a quarantined series has no minted ids to check against.
+
+### Fixed by a consistency review of the ledger's own entries
+
+The review read all 153 entries against each other rather than against the code, looking
+for pairs that disagree. It found one, and the disagreement was a real defect: two entries
+stating the same exemption with two different status sets, neither citing the other, so no
+checker could see the gap between them.
+
+- **A dependent's own terminality, not its fallenness, exempts it.** `references` and
+  `propagate` both tested an entry's own status against `FALLEN` — `refuted`, `superseded`,
+  `retracted` — where the rule they were implementing is about *terminal* status, which also
+  includes `non-comparable`. For an entry that is `non-comparable` and cites a ground that
+  has since fallen, `references` reported an act it is impossible to repair (the Grounds sit
+  in the frozen region) and `propagate` demanded a contested verdict that `validate` refuses
+  as one following a terminal verdict — so `propagate --write` wrote exactly what `validate`
+  rejects, and `check` could not be made to pass in either direction. `check` runs in the
+  pre-commit hook and in CI, so one such entry wedged the repository. Both tests are now
+  `TERMINAL`, matching `freshness`, which already drew the line there. The target side of
+  each rule stays `FALLEN`: what propagates is a ground that fell, and what exempts is the
+  entry's own terminality. New known-good seed `K24-non-comparable-dependent-needs-no-flag`;
+  no existing seed's expected outcome moved. Superseded L0020 and L0043, whose Scope named
+  the narrower set.
+
+### Added by the same review
+
+- **`validate` flags an entry that scopes itself to the fallen statuses and then argues
+  from terminality.** `FALLEN` and `TERMINAL` are nested — the second is the first plus
+  `non-comparable` — and they are one word apart in prose. An entry written that way
+  states a rule over one population in its Scope and a rule over another in its Warrant,
+  and it is the Warrant a person implements, which is exactly how the defect above got
+  written. A flag rather than a failure: the test is on words rather than on sense, and
+  widening the Scope and narrowing the Warrant are both legal repairs. Seeds `D57` and
+  `K25`, the second being the near-negative that keeps the rule from firing on every entry
+  that names a status at all. It flags nothing in this repository's own 155 entries or in
+  the 105 entries the corpus holds, and it flags L0020 as that entry stood before the fix
+  above.
+
+  This is a check *within* one entry. The gap the review was looking for is between
+  entries, and that one is not mechanically decidable here: two entries that name nothing
+  of each other are out of range of all five checks by construction, and a heuristic over
+  their Scopes flags 261 pairs on this ledger to find two worth reading. Where the schema's
+  own controlled vocabulary appears, consistency can be checked; elsewhere it cannot, and
+  saying so is more useful than a checker nobody trusts.
+
+### Added for the between-entries half
+
+The two pieces the entry above says are missing. Neither is a checker, and that is the
+point: what is mechanically available about two entries nobody has read together is that
+they are *near* each other, and near is not inconsistent.
+
+- **`claims-ledger neighbours`** — an authoring-time lookup, asked of one entry, one entry
+  file, or one ground pointer written as an entry would write it. It answers with the
+  entries that share an evidence span — the same type, path and section, with the pin
+  dropped, because two entries about the same function were written at different commits —
+  or whose cohort words nest inside another cohort's, in either direction. Containment
+  rather than a similarity threshold: nested Scopes are the shape that has actually gone
+  wrong in this ledger, and a score tuned until it surfaced that shape would be a number
+  chosen to fit the one example it came from.
+
+  It reports nothing, writes nothing, always exits 0, and `check` does not run it. Asked
+  of the whole ledger at once the same heuristic names **327 pairs over 169 entries**; asked
+  one entry at a time it answers with a **median of 3**, a mean of 3.9, at most 12, and 21
+  entries with none. That distribution is not written down anywhere but here: it is asked
+  of the installed package with `claims-ledger neighbours --count`, which runs the same
+  lookup over every entry. `claims-ledger new` prints the command for the entry it just
+  scaffolded, because nothing downstream asks the question and that is the only moment it
+  has.
+
+  Each answer names the relation the ledger already records between the pair — a ground
+  either way, or a supersession — and orders the pairs with none first. A pair somebody has
+  already read is not the pair the lookup exists to surface.
+
+  The answer then writes out the ground line that would record a distinction, once for
+  every pair it found no relation for, so acting on one is a paste rather than a
+  recollection. That is as far as a lookup goes: the line is the same text whichever
+  neighbour it names, and whether to write it at all is the judgement being handed over.
+
+- **A `distinguishes` act**, so that reading a pair lands in the ledger once instead of
+  being redone by every reader. One entry performs it on another; a document may not,
+  because a document has no Scope to hold apart from anything, and the pattern that reads
+  documents is built from the citation acts alone. It is legal against a target of any
+  status — it is a claim about two Scopes rather than about a truth, and Grounds are frozen,
+  so an act somebody else's verdict could make illegal would be a failure with no repair.
+  It propagates nothing when its target falls. And it is not support: an entry whose every
+  ground is one has stated a difference and rested on nothing, and it is not a motivation a
+  hypothesis can be built on. Seeds `D58` and `K26`.
+
+- **`references` reports a parenthesis shaped like a citation whose act is not one.**
+  `CITATION_RE` is built from the four citation acts, so a mistyped `cites-as-liv` — and
+  `distinguishes`, written in a document where it does not belong — matched nothing, and no
+  other rule reads documents: the sentence sat in a checked document as text nothing looked
+  at. The rule is narrow, and the narrowness is what keeps it usable. An id in a parenthesis
+  of its own, or named in running prose, is a document mentioning an entry rather than citing
+  it. So is a parenthesis whose id this ledger never minted: the shape alone is ordinary
+  prose — `(E501, unresolved)` in a source comment is a lint code and a word — and a rule
+  that read the shape alone refused a commit over a sentence citing nothing, which in a
+  project whose source files are documents is the common case. The id is matched against the
+  ledger's own, on series and number with any slug set aside. Seeds `D59`, `K27` and `K29`.
+  It fires on nothing in this repository's own documents or in the corpus.
+
+- **`ENTRY_ACTS` is a declared export**, beside `ACTS`. The two lists differ by exactly the
+  new act, and the difference is the one a writer has to get right — what a document may
+  write against what a ground may carry — so it is printable rather than memorable:
+  `python -c "from claims_ledger import ACTS, ENTRY_ACTS; print(ACTS, ENTRY_ACTS)"`.
+  L0170 holds it, because the shipped skills tell a reader to print the vocabulary rather
+  than remember it, and that instruction is only true while both lists are exported.
+
+- **The shipped agent skills and hooks cover all of the above.**
+  `choosing-a-citation-act` gains the act, the two lists and the parenthetical finding;
+  `tagging-prose-with-claims` gains the lookup at the point a ground is chosen and the
+  Scope-versus-Warrant flag from the previous release note; `repair-a-drifted-pin` gains
+  the supersession no checker asks for. `ledger-orientation.sh` hands over `neighbours`
+  and says which commands are checkers and which only answer; `status-guard.sh` reports
+  the not-a-citation-act finding on its own throttle and, where a project configured it, the
+  misplaced-citation one on a throttle of its own; `pin-guard.sh` names the lookup at
+  the moment a new claim is being written.
+
+  A third correction went with them. Measured over the package's Python documents, 48 of
+  186 citations sat in a module docstring and 11 in a section other than the one their
+  entry pins — a habit the guidance was teaching: the placement section framed the choice
+  as a cost trade with drift on one side, and drift was the only quantified thing in it.
+  It now says the citation goes inside the section its entry pins, that the flags this
+  causes are the mechanism working, and that a module docstring is for a claim about the
+  file as a whole. Two mechanical traps are named with it: a comment above `NAME = ...`
+  belongs to whatever is defined before it, so a citation there sits outside the span it
+  looks adjacent to; and `pin-guard.sh` was telling sessions the pre-commit hook would
+  refuse a drifted pin, which it does not — `moved` is a flag and exits 0. Saying so
+  taught that drift is a block to clear rather than a report to act on.
+
+  Two rules were added to all of them at once. **An entry that is owed is written in the
+  pass that owes it** — prose that promises something and cites nothing passes every
+  check, so nothing comes back for a deferred entry, and the citation sits inside the span
+  the entry pins, so a later pass pays the two commits again plus the drift its own
+  citation causes. And **hand over the line, not the homework**: where a repair has a fixed
+  shape, write it out. Printing the text is not deciding to write it.
+
+- Superseded **L0136**, whose cohort named four checkers while its metric counted over the
+  package. `freshness`, the authoring side and the command line already read entries through
+  the same parser, normalization, fingerprint and status derivation when it was written; the
+  neighbours lookup is the reader whose arrival made the gap worth repairing rather than
+  restating. The successor states it over every module that reads an entry.
+
+  It was `claims-ledger neighbours` that found it, on its first run over this ledger:
+  L0136's cohort nests inside L0005's and L0010's.
+
+### Added, and off unless a project asks for it
+
+- **`citation-placement`** — a setting, not a sixth checker. `references` gains a rule
+  that a citation sits inside the section its entry pins, at `off`, `flag` or `fail`, and
+  `off` unless the project says otherwise. A rule that reports fifty sites the day it
+  ships is one its readers learn to scroll past, so a project turns it on when its
+  citations are ready for it; this one is on and failing.
+
+  The question is narrow, and every part of the narrowness carries weight. It is asked
+  only of a citation in a document the cited entry *also* rests on, by a sectioned ground
+  — then there is a span in this very file the claim is about, and the sentence promising
+  it belongs there. A citation of an entry grounded elsewhere is asked nothing. An entry
+  resting on several sections of one file satisfies the rule from any of them.
+
+  **Asked at write time too.** `claims-ledger sha --write` reports it for the entry in
+  front of you, which is the earliest point it can be asked at all: the citation is
+  written in the commit before the entry, so until the Grounds exist there is no span to
+  be outside of, and the fingerprint is the step between the two. It prints and does not
+  fail — that command's exit code answers whether the fingerprint was written, and
+  `references` is what refuses the commit. One function answers both callers, so the two
+  cannot come to disagree.
+
+  Seeds `D60` and `K28`, and every other seed is a near-negative by construction — their
+  documents and their grounds name different files, which is the case the rule must never
+  fire on. Making the two expressible needed a change to the corpus runner: evidence paths
+  resolved against the corpus root while documents came from the staged seed, so no seed
+  could name one file as both. The shared `fixtures/` and `sources.jsonl` are now staged
+  into the seed and everything resolves locally.
+
+  It found something on its first run that the sweep's own script had missed:
+  `pyproject.toml` cited L0011 from a comment above `dependencies = []`, and a `toml-key`
+  section starts at its own line — the same trap as in Python, in a file that script never
+  read because it only looked at `.py`.
 
 ### Release
 
