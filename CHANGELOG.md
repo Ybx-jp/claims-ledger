@@ -760,6 +760,14 @@ assertion over them was `0 failure(s)`, which an inert rule satisfies.
   more, which is what `CITATION_RE` already tolerated, because the rule reads prose and an
   id written a digit wide of the schema is still a citation of the archive.
 
+- **The quarantine reads ASCII digits**, like every other id pattern. `\d` matches every
+  Unicode decimal digit and `ID_RE` mints none of them, so a quarantined prefix followed by
+  fullwidth or Arabic-Indic digits was reported as a breach of an archive that can hold no
+  such id. Narrow on the alphabet, unchanged on the width: three digits or more still fire.
+  A project quarantining series `E` or `P` still fails on `E501` or `P100` anywhere in a
+  configured document, and that is the rule doing what it says — an archived id is a breach
+  by prefix alone, and a quarantined series has no minted ids to check against.
+
 ### Fixed by a consistency review of the ledger's own entries
 
 The review read all 153 entries against each other rather than against the code, looking
