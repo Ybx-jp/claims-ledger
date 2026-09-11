@@ -215,7 +215,12 @@ def build_parser():
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
     )
     s.add_argument("path", nargs="+")
-    s.add_argument("--write", action="store_true", help="rewrite the declared value")
+    s.add_argument(
+        "--write",
+        action="store_true",
+        help="rewrite the declared value, and fill each `=?` anchor with the digest of its "
+        "section as the tree has it",
+    )
     s.add_argument(
         "--force", action="store_true", help="rewrite even though git already has the entry"
     )
@@ -526,7 +531,8 @@ def cmd_new(args, ledger):
     print(f"wrote {ledger.config.relative(path)}")
     print(
         "Fill in Assertion, Scope, Grounds, Warrant and Backing, then "
-        "`claims-ledger sha --write` before the first commit."
+        "`claims-ledger sha --write` before the first commit; a ground's anchor may be left "
+        "as `=?`, and the write fills it with the digest of the section as the tree has it."
     )
     # Said here as well as in the scaffold because this is the sentence that carries the
     # cost, and the cost is what makes the rule worth following.
@@ -572,9 +578,11 @@ def sha_one(args, ledger, raw):
                 f"the project root; {ledger.config.root / raw} is the entry there",
                 file=sys.stderr,
             )
-    declared, computed, changed = authoring.restamp(
+    declared, computed, changed, filled = authoring.restamp(
         ledger, path, write=args.write, force=args.force
     )
+    for raw in filled:
+        print(f"{path}: `{raw}` filled with the digest of the section as the tree has it")
     if changed:
         print(f"{path}: {declared[:12]}… → {computed[:12]}…")
         say_where_the_citation_sits(ledger, path)
@@ -593,10 +601,10 @@ def say_where_the_citation_sits(ledger, path):
 
     `references` asks the same question of the whole ledger and is what refuses a commit.
     This asks it of one entry, here, because this is the first moment it can be asked at
-    all: in the two-commit shape the citation is written first and the entry second, so
-    until the Grounds exist there is no section to be outside of, and `sha --write` is the
-    step between the two (L0174-the-placement-question-is-asked-when-the-entry-is-written,
-    cites-as-live).
+    all: until the Grounds exist there is no section to be outside of, and `sha --write`
+    is the step that runs once the Grounds and the citation both do, before the commit
+    that lands them together
+    (L0174-the-placement-question-is-asked-when-the-entry-is-written, cites-as-live).
 
     It prints and does not fail. What this command's exit code answers is whether the
     fingerprint was written, and a second meaning on it would make a script that reads it

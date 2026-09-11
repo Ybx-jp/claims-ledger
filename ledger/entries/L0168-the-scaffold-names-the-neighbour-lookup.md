@@ -34,6 +34,14 @@ none
 
 ## Verdicts
 
+- 2026-09-11T02:58:18-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: sha256:4505141153fe847a2c68432ae71e1cd075e326561bd9a7f35bd71be3d022e563
+  note: propagated from a moved ground
+- 2026-09-11T02:58:18-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:4505141153fe847a2c68432ae71e1cd075e326561bd9a7f35bd71be3d022e563
+  note: read against the working tree after the scaffold's next-step sentence began saying a ground's anchor may be left as `=?` and that sha --write fills it: the neighbours command is still printed for the entry by name, in the same place; the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

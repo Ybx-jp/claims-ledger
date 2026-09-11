@@ -32,6 +32,14 @@ restamp asks is_committed before writing and raises AuthoringError both for a co
 
 ## Verdicts
 
+- 2026-09-11T02:56:08-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "restamp" @4023af4006273319aec9ae2512d197e4a99fce8c
+  artifact: sha256:462643362dd16beb66b7c055e703fda5f8d8a7cf2d2722a33eb4c2f2789f9c23
+  note: propagated from a moved ground
+- 2026-09-11T02:56:26-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:462643362dd16beb66b7c055e703fda5f8d8a7cf2d2722a33eb4c2f2789f9c23
+  note: read against the working tree after sha --write began filling `=?` anchors: the committed and unasked refusals are unchanged in wording and in when they fire for a new fingerprint, and are now also asked before a Grounds anchor is filled, since that is the same frozen region; --force still lifts both; the assertion holds as written.
+
 ## References
 
 - README.md · standing · cites-as-live

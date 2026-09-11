@@ -125,7 +125,7 @@ def test_the_fingerprint_is_not_rewritten_on_a_committed_entry(project):
         restamp(ledger, path, write=True)
     # The frozen region is immutable, so the fix is a successor — or --force, before the
     # commit has left the machine.
-    _, _, changed = restamp(ledger, path, write=True, force=True)
+    _, _, changed, _ = restamp(ledger, path, write=True, force=True)
     assert changed
 
 

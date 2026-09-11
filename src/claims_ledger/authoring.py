@@ -23,7 +23,9 @@ from .config import leaves_root
 from .schema import (
     APPEND,
     ID_RE,
+    PENDING_ANCHOR,
     PREFIX_RE,
+    digest_of,
     enclosing_repository,
     fingerprint,
     git_call,
@@ -31,7 +33,9 @@ from .schema import (
     load_entries,
     load_registry,
     parse_entry,
+    read_artifact,
     read_text_exact,
+    section_digest,
     write_bytes_atomically,
     write_text_atomically,
 )
@@ -311,51 +315,118 @@ def is_committed(repo, path):
     return True, None
 
 
+def anchors_to_fill(ledger, entry):
+    """[(pointer as written, digest)] for every evidence pointer of the entry whose anchor
+    is the `=?` placeholder — in the Grounds and in each verdict's evidence alike — with
+    the digest of its section as the working tree has it, which is the datum the anchor
+    will name.
+
+    Computed from the tree and not from any commit, which is what lets the entry land in
+    the same commit as the code it rests on. A pointer whose text the tree does not hold
+    — a path that is not a file, one that cannot be read, a section that is not in it —
+    is refused by name before anything is written, since an anchor filled from nothing
+    would name nothing and `validate` would have no way to tell it from a real one
+    (L0207-sha-write-fills-a-pending-anchor-from-the-tree, cites-as-live).
+    """
+    out = []
+    pointers = list(entry.grounds) + [(v.pointer.raw, v.pointer) for v in entry.verdicts]
+    for raw, p in pointers:
+        if p is None or p.type not in ledger.config.evidence_types:
+            continue
+        if p.digest != PENDING_ANCHOR:
+            continue
+        path = ledger.tree / p.target
+        if not path.is_file():
+            raise AuthoringError(
+                f"`{raw}`: {p.target} is not a file in the working tree, so the anchor "
+                "cannot be computed; nothing was written"
+            )
+        text, unreachable = read_artifact(path)
+        if text is None:
+            why = unreachable or "it is not UTF-8 text"
+            raise AuthoringError(
+                f"`{raw}`: {p.target} could not be read ({why}), so the anchor cannot be "
+                "computed; nothing was written"
+            )
+        if p.sectioned:
+            digest = section_digest(text, ledger.config, p.type, p.section)
+            if digest is None:
+                raise AuthoringError(
+                    f"`{raw}`: {p.target} has no section {p.section!r} in the working "
+                    "tree, so the anchor cannot be computed; nothing was written"
+                )
+        else:
+            digest = digest_of(text)
+        out.append((raw, digest))
+    return out
+
+
 def restamp(ledger, path, write=False, force=False):
-    """(declared, computed, changed). With `write`, the declared value is replaced by
-    the computed one — refused on an entry git already has, unless `force`.
-    Ledger: (L0007-sha-write-refuses-a-committed-entry, cites-as-live)."""
+    """(declared, computed, changed, filled). With `write`, the declared value is replaced
+    by the computed one, and every `=?` anchor is filled with the digest of its section as
+    the tree has it — `filled` is those pointers as they were written. Both are refused on
+    an entry git already has, unless `force`, when they would touch the frozen region: the
+    fingerprint always does, an anchor in the Grounds does, and an anchor in a verdict's
+    evidence sits below the APPEND marker and is filled on a committed entry as any other
+    append is written there
+    (L0007-sha-write-refuses-a-committed-entry, cites-as-live)
+    (L0207-sha-write-fills-a-pending-anchor-from-the-tree, cites-as-live)."""
     path = Path(path)
     entry = parse_entry(path)
     declared = entry.front.get("verbatim_sha", "")
     computed = entry.computed_sha()
-    if declared == computed or not write:
-        return declared, computed, False
-    committed, unasked = is_committed(ledger.repo, path)
-    if unasked is not None and not force:
-        raise AuthoringError(
-            f"{unasked}, so whether git already has {ledger.config.relative(path)} could not "
-            "be established. The region above the APPEND marker is immutable once the entry "
-            "is committed, and this run has no way to find out whether it is; nothing was "
-            "written. Pass --force to write anyway."
-        )
-    if committed and not force:
-        raise AuthoringError(
-            f"{ledger.config.relative(path)} is committed: the region above the APPEND marker "
-            "is immutable, and a new fingerprint there is a new entry. Supersede it, or pass "
-            "--force if the commit is not yet pushed and you are fixing it in place."
-        )
+    if not write:
+        return declared, computed, False, []
+    pending = anchors_to_fill(ledger, entry)
+    if declared == computed and not pending:
+        return declared, computed, False, []
+    in_grounds = {raw for raw, _ in entry.grounds}
+    frozen = declared != computed or any(raw in in_grounds for raw, _ in pending)
+    if frozen:
+        committed, unasked = is_committed(ledger.repo, path)
+        if unasked is not None and not force:
+            raise AuthoringError(
+                f"{unasked}, so whether git already has {ledger.config.relative(path)} could "
+                "not be established. The region above the APPEND marker is immutable once the "
+                "entry is committed, and this run has no way to find out whether it is; "
+                "nothing was written. Pass --force to write anyway."
+            )
+        if committed and not force:
+            raise AuthoringError(
+                f"{ledger.config.relative(path)} is committed: the region above the APPEND "
+                "marker is immutable, and a new fingerprint or a new anchor there is a new "
+                "entry. Supersede it, or pass --force if the commit is not yet pushed and you "
+                "are fixing it in place."
+            )
     # Read and written with the file's own line endings: `sha --write` replaces one
     # line, and every other byte of the entry — including the ones that say how its lines
     # end — is none of its business. A CRLF entry rewritten as LF is a rewrite of an
     # immutable frozen region that no checker used to be able to see.
     text = read_text_exact(path)
-    new, n = re.subn(
-        # The trailing `\r` of a CRLF line is looked at and left alone.
-        rf"^verbatim_sha: {re.escape(declared)}(?=\r?$)",
-        f"verbatim_sha: {computed}",
-        text,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    if not n:
-        raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
+    new = text
+    if declared != computed:
+        new, n = re.subn(
+            # The trailing `\r` of a CRLF line is looked at and left alone.
+            rf"^verbatim_sha: {re.escape(declared)}(?=\r?$)",
+            f"verbatim_sha: {computed}",
+            new,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if not n:
+            raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
+    for raw, digest in pending:
+        # The placeholder is the pointer's last word; the same pointer written twice —
+        # as a ground and as a reading of it — names the same section and gets the same
+        # digest, so every occurrence is filled.
+        stated = raw[: -len(PENDING_ANCHOR)] + digest
+        new = re.sub(re.escape(raw) + r"(?=\r?$)", lambda _m, s=stated: s, new, flags=re.MULTILINE)
     refuse_to_write_outside_the_root(ledger, path)
     try:
         write_text_atomically(path, new)
     except OSError as exc:
         raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
-    return declared, computed, True
+    return declared, computed, declared != computed, [raw for raw, _ in pending]
 
 
 def register_source(

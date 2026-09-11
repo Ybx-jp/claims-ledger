@@ -35,6 +35,22 @@ none
 
 ## Verdicts
 
+- 2026-09-11T02:56:08-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "say_where_the_citation_sits" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  artifact: sha256:fb6c673eac2cbebb6c51239977be1e9944051673e3411d479ab2292d60f9a01f
+  note: propagated from a moved ground
+
+- 2026-09-11T02:56:08-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "sha_one" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  artifact: sha256:d53d048b381f319f328c862b0a552a67814a6f042230797d7fdf46f009d3c2c6
+  note: propagated from a moved ground
+- 2026-09-11T02:56:26-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "say_where_the_citation_sits" =sha256:fb6c673eac2cbebb6c51239977be1e9944051673e3411d479ab2292d60f9a01f
+  note: read against the working tree after the docstring stopped describing the two-commit shape: the placement question is still asked here, once the Grounds and the citation both exist, and the function still prints and does not fail; the assertion holds as written.
+- 2026-09-11T02:56:26-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "sha_one" =sha256:d53d048b381f319f328c862b0a552a67814a6f042230797d7fdf46f009d3c2c6
+  note: read against the working tree after sha_one began printing each anchor restamp filled: the placement report is still made from sha_one after a write and after a no-op, and the exit code still answers only whether the fingerprint was written; the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live
