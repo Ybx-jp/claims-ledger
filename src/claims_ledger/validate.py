@@ -22,6 +22,7 @@ from .schema import (
     ACTS,
     APPEND,
     DECIMAL_RE,
+    DIGEST_RE,
     ENTRY_ACTS,
     FALLEN,
     GRADES,
@@ -30,6 +31,7 @@ from .schema import (
     MEASURED_AND_ABOVE,
     NULL_OBJECT_ID,
     OBJECT_ID_RE,
+    PENDING_ANCHOR,
     SCOPE_KEYS,
     SECTIONS,
     SHA_RE,
@@ -354,6 +356,35 @@ def check_sections(e, config):
     return out
 
 
+def check_anchors(e, config):
+    """Every by-value anchor on the entry — in its Grounds and in its verdicts' evidence —
+    is a digest and not the placeholder.
+
+    `=?` is what an author writes while choosing the ground, and `claims-ledger sha
+    --write` is what turns it into the digest of the section as the tree has it. Left as
+    written it would be a ground that names no datum at all, which no later checker could
+    compare against anything, so it is refused here, of every pointer in every state,
+    before anything is read out of the tree
+    (L0197-a-pending-anchor-is-refused-until-it-is-computed, cites-as-live).
+    """
+    out = []
+    fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
+    places = [(f"Grounds {i}", raw, p) for i, (raw, p) in enumerate(e.grounds, start=1)]
+    places += [(f"verdict {v.index}", v.evidence, v.pointer) for v in e.verdicts if v.evidence]
+    for part, raw, p in places:
+        if p is None or p.type not in config.evidence_types or not p.by_value:
+            continue
+        if p.digest == PENDING_ANCHOR:
+            fail(
+                part,
+                f"`{raw}` has an anchor still to be computed; `claims-ledger sha --write` "
+                "fills `=?` with the digest of the section as the tree has it",
+            )
+        elif not DIGEST_RE.match(p.digest):
+            fail(part, f"`{raw}`: an anchor stated by value is `=sha256:<64 hex>`, or `=?`")
+    return out
+
+
 def check_verdicts(e, entries, config):
     """Every verdict on one entry: shape, authorship, ordering, and what may follow what.
 
@@ -367,9 +398,12 @@ def check_verdicts(e, entries, config):
     looks fresh again (L0093-a-propagated-verdicts-artifact-is-checked-in-every-state,
     cites-as-live).
 
-    A corroborating verdict has to point somewhere the entry's Grounds do not already,
-    which is what makes it the record of a reading rather than a restatement of what was
-    already cited (L0094-a-corroborating-verdict-points-somewhere-new, cites-as-live).
+    A corroborating verdict stated by reference has to point somewhere the entry's
+    Grounds do not already, which is what makes it the record of a reading rather than a
+    restatement of what was already cited; one stated by value may name the ground's own
+    digest, because that records the section read again and found as the ground states
+    it, which is the reading that moves a record of an undone drift past
+    (L0209-a-corroborating-verdict-by-reference-points-somewhere-new, cites-as-live).
 
     Supersession is a chain and not a tree: one superseded verdict per entry, naming a
     successor whose own `supersedes:` names it back
@@ -457,11 +491,13 @@ def check_verdicts(e, entries, config):
                             "discoverability runs both ways",
                         )
             if v.status == "corroborated" and normalize(v.evidence) in ground_keys:
-                fail(
-                    part,
-                    "a corroborating verdict must point at a ground the entry does not "
-                    "already cite",
-                )
+                q = v.pointer
+                if q is None or not q.by_value:
+                    fail(
+                        part,
+                        "a corroborating verdict must point at a ground the entry does not "
+                        "already cite",
+                    )
         # `artifact:` is machine provenance, and this is the only checker that looks at
         # its shape. `freshness` writes it and `orphans()` holds the verdict to it — but
         # `orphans()` asks only once the ground looks fresh again, so in the state a
@@ -482,19 +518,27 @@ def check_verdicts(e, entries, config):
                 fail(
                     part,
                     "no artifact: line; a propagated verdict over a pinned ground records "
-                    "the object id the drift was seen at, or `absent` for a ground that "
-                    "was gone, and a discharge that states no cause is one nothing can check",
+                    "the digest of the section the drift was seen at, or `absent` for a "
+                    "ground that was gone, and a discharge that states no cause is one "
+                    "nothing can check",
                 )
-            elif v.artifact != ABSENT and not OBJECT_ID_RE.match(v.artifact):
+            elif (
+                v.artifact != ABSENT
+                and not DIGEST_RE.match(v.artifact)
+                and not OBJECT_ID_RE.match(v.artifact)
+            ):
+                # A 40-character object id is the shape verdicts recorded before anchors
+                # could be stated by value; it is still well-formed, and `freshness` holds
+                # it to nothing, since a whole file's id cannot be compared with a section.
                 fail(
                     part,
-                    f"artifact `{v.artifact}` is neither a 40-character object id nor `{ABSENT}`",
+                    f"artifact `{v.artifact}` is neither a section digest `sha256:<64 hex>`, "
+                    f"a 40-character object id nor `{ABSENT}`",
                 )
             elif v.artifact == NULL_OBJECT_ID:
                 # Well-formed and naming nothing. Git's null object id is forty hex
                 # characters no artifact has ever hashed to, so it passes the shape while
-                # recording no artifact at all — and `blobs_since()` drops it from what
-                # the path has held, so the value is one nothing can ever confirm.
+                # recording no artifact at all.
                 fail(part, "artifact is the null object id, which names no artifact")
         elif v.artifact is not None:
             # The other direction, and the one a person reaches for: `artifact:` on a
@@ -877,6 +921,7 @@ def run(ledger, cached=False, entries=None):
     for e in entries:
         reports += check_frontmatter(e, index, config)
         reports += check_sections(e, config)
+        reports += check_anchors(e, config)
         reports += check_verdicts(e, index, config)
         reports += check_supersession(e, index)
     reports += check_history(ledger, entries, cached=cached)

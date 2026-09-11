@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-10T22:05:55-07:00 · refuted · grade: measured · author: main
+  evidence: entry: L0203-a-record-is-refuted-against-its-anchor-and-confirmed-against-the-tree · cites-as-live
+  note: blobs_since was removed with the rule that needed it: no version the path held between the pin and the tip is read any more
 
-- src/claims_ledger/freshness.py · standing · cites-as-live
+## References

@@ -43,8 +43,8 @@ none
 - 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "scoped" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+- 2026-09-10T22:05:55-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides · supersedes
+  note: scoped was folded into drift, which compares the section by digest on both sides and no longer needs the anchor to be a commit; the Scope condition names the anchor rather than the pin
 
 ## References
-
-- docs/FRESHNESS.md · standing · cites-as-live
-- src/claims_ledger/freshness.py · standing · cites-as-live

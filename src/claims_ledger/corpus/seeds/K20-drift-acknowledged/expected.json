@@ -6,8 +6,8 @@
       "checker": "review",
       "outcome": "judge",
       "where": "A0001",
-      "why": "the entry is contested and the digest cites it as contested; the ledger has recorded that its ground moved and says so everywhere the claim is used"
+      "why": "the entry is contested and the digest cites it as contested; the ledger has recorded that its ground moved — the verdict carries the digest of the section as the drifted note has it, which is what silences the flag — and says so everywhere the claim is used"
     }
   ],
-  "history": "apply commits/01, commits/02, \u2026 as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
 }

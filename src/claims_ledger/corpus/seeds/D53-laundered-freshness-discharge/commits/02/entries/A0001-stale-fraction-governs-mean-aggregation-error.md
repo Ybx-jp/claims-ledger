@@ -41,7 +41,7 @@ records the sweep that shows it.
 
 - 2026-09-03T09:00:00-07:00 · contested · grade: measured · author: propagation
   evidence: lab: docs/note-100.md § "Observation" @commit01
-  artifact: @blob01:docs/note-100.md
+  artifact: sha256:529a044ccc4400a463c5a316eb73f88d0d5495f1c399012323b1db526506e10d
   note: propagated from a moved ground
 
 ## References

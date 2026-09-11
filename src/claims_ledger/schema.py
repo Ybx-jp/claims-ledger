@@ -124,6 +124,13 @@ ABSENT = "absent"
 OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 NULL_OBJECT_ID = "0" * 40
 
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+PENDING_ANCHOR = "?"
+# An anchor stated by value: `=sha256:<64 hex>`, the digest of the section as the checkers
+# compare it, so a ground names the datum it rests on without naming a commit — which is
+# what lets an entry land in the same commit as the code and the citation. `=?` is the
+# placeholder `sha --write` fills from the tree, and `validate` refuses it until then.
+
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
 
@@ -577,6 +584,29 @@ def section_text(text, config, type_name, section):
     return None if span is None else text[span[0] : span[1]]
 
 
+def digest_of(text):
+    """`sha256:<hex>` over `text` with its trailing whitespace stripped — the datum a
+    by-value anchor names, for a section or for a whole artifact alike."""
+    return "sha256:" + hashlib.sha256(text.rstrip().encode("utf-8")).hexdigest()
+
+
+def section_digest(text, config, type_name, section):
+    """The by-value anchor of one section of an artifact, or None when the section is not
+    in it.
+
+    sha256 over exactly what the freshness comparison reads and nothing else: the artifact
+    decoded as UTF-8 through universal newlines, the section found through the type's
+    configured pattern, and trailing whitespace stripped, because the gap between one
+    section and the next belongs to neither. No comment, docstring or formatting is set
+    aside — that would be a judgement about which edits matter, and the checkers make
+    none — so a ground anchored this way moves exactly when the section's text does, and
+    it can be computed from the working tree before any commit exists
+    (L0196-a-by-value-anchor-is-the-digest-of-the-compared-section, cites-as-live).
+    """
+    found = section_text(text, config, type_name, section)
+    return None if found is None else digest_of(found)
+
+
 # --- pointers ------------------------------------------------------------------
 
 
@@ -586,17 +616,31 @@ class Pointer:
     raw: str
     target: str = ""  # path, entry id, registry id
     section: str = ""  # evidence pointer § "section"
-    pin: str = ""  # evidence pointer @commit
+    pin: str = ""  # evidence pointer @commit — the anchor stated by reference
+    digest: str = ""  # evidence pointer =sha256:… — the anchor stated by value; `?` pending
     act: str = ""  # entry: · act
     locator: str = ""  # source: · locator
     sectioned: bool = False  # the pointer was written in the § "section" form
     fields: dict = dataclasses.field(default_factory=dict)  # search: key=value
 
+    @property
+    def by_value(self):
+        """Whether the anchor states the datum by value rather than by revision."""
+        return bool(self.digest)
+
+    @property
+    def anchor(self):
+        """The anchor as written: `@<pin>` or `=<digest>`."""
+        return f"={self.digest}" if self.digest else f"@{self.pin}"
+
 
 # Evidence pointers are named by the project (`lab:`, `experiment:`, `run:`), so the
 # grammar is generic and config.py says which names are legal and which take a section.
-SECTIONED_RE = re.compile(r'^([a-z][a-z0-9_-]*): (\S+) § "([^"]+)" @(\S+)$')
-ARTIFACT_RE = re.compile(r"^([a-z][a-z0-9_-]*): (\S+) @(\S+)$")
+# The anchor is the last word of an evidence pointer: `@<revision>` states the datum by
+# reference, as the section stood at that commit; `=<digest>` states it by value.
+ANCHOR_RE = r"(?:@(\S+)|=(\S+))"
+SECTIONED_RE = re.compile(r'^([a-z][a-z0-9_-]*): (\S+) § "([^"]+)" ' + ANCHOR_RE + "$")
+ARTIFACT_RE = re.compile(r"^([a-z][a-z0-9_-]*): (\S+) " + ANCHOR_RE + "$")
 ENTRY_RE = re.compile(r"^entry: (\S+) · (\S+)$")
 SOURCE_RE = re.compile(r"^source: (\S+) · (.+)$")
 SEARCH_RE = re.compile(r'^search: corpus=(.+?); query="(.*)"; date=(\d{4}-\d{2}-\d{2})$')
@@ -625,11 +669,14 @@ def parse_pointer(raw):
             raw,
             target=m.group(2),
             section=m.group(3),
-            pin=m.group(4),
+            pin=m.group(4) or "",
+            digest=m.group(5) or "",
             sectioned=True,
         )
     if (m := ARTIFACT_RE.match(raw)) and m.group(1) not in RESERVED:
-        return Pointer(m.group(1), raw, target=m.group(2), pin=m.group(3))
+        return Pointer(
+            m.group(1), raw, target=m.group(2), pin=m.group(3) or "", digest=m.group(4) or ""
+        )
     return None
 
 
@@ -1224,10 +1271,11 @@ def git_env(index=False):
     for a partial commit that is not `.git/index`: measured on git 2.43.0, a plain
     `git commit` gives the hook `GIT_INDEX_FILE=.git/index` and `git commit -- <path>`
     gives it `.git/next-index-<pid>.lock`, holding HEAD plus the named paths. Scrubbing it
-    there would take `validate --cached` and `freshness --cached` off the content being
-    committed and onto content that is not — the same false pass as the rest of this list,
-    pointed the other way. So the one question this package does ask of the environment is
-    asked — by the callers whose subject is the index, under `--cached`, and by no others
+    there would take the three checkers the hook runs with `--cached` — `validate`,
+    `resolve` and `freshness` — off the content being committed and onto content that is
+    not, the same false pass as the rest of this list, pointed the other way. So the one
+    question this package does ask of the environment is asked — by the callers whose
+    subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """
     drop = set(GIT_REPOSITORY_ENV) | set(GIT_NOISE_ENV)

@@ -56,7 +56,8 @@ none
 - 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "run" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
   note: read against commit 54aa2e4, which passes the run's ancestry memo to effective_pointer and orphans; nothing else in the loop changed, and the appends, the failure without a repository, the exit after a write, the unstatable artifact, the terminal exemption and the once-per-run memo hold; the assertion holds as written.
+- 2026-09-10T22:05:55-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0202-an-unknown-comparison-is-reported-and-never-discharged · supersedes
+  note: the branch that declined to write a verdict for an artifact git could not hash was removed with the hashing; the case is now the unknown finding, reported and never discharged; Scope and Backing are unchanged
 
 ## References
-
-- src/claims_ledger/freshness.py · standing · cites-as-live

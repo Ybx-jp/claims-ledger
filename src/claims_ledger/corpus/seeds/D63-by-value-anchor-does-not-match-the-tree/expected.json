@@ -1,0 +1,21 @@
+{
+  "class": "a by-value anchor that does not digest to the tree",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "A0001 Grounds 1",
+      "why": "the entry is not committed, so the digest it names is a mistyped or stale one and this is the moment it can still be fixed; `sha --write` recomputes it from the section as the tree has it",
+      "message": "names text the working tree does not hold"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "A0001 Grounds 1",
+      "why": "the same fact seen from the other checker: the section as the tree has it does not digest to the anchor",
+      "message": "differs from the anchor"
+    }
+  ],
+  "note": "a flat seed, staged outside any repository like D56, which is what makes the entry uncommitted"
+}

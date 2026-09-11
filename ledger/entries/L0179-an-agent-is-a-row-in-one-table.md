@@ -42,6 +42,13 @@ none
 - 2026-09-08T22:03:53-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/harness.py § "TARGETS" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
   note: re-read after the rows lost the fields that made the agents differ. A row is now the agent's name and its directory, and the layout under it is the same for all of them, which is the assertion holding more plainly rather than less.
+- 2026-09-11T03:10:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/harness.py § "TARGETS" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
+  artifact: sha256:93648bfcb8e144434217a8fd0f08ca1bc371415d307b2e3e5f9f14e6141fc625
+  note: propagated from a moved ground
+- 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/harness.py § "TARGETS" =sha256:93648bfcb8e144434217a8fd0f08ca1bc371415d307b2e3e5f9f14e6141fc625
+  note: read against the working tree after each row gained, since the reading at fcacc40, the file that arms the hooks, which schema it takes and, for codex, the home it is read from: every difference between the agents is still one row of this one table, and the scripts and skills still do not vary; the assertion holds as written.
 
 ## References
 

@@ -205,8 +205,8 @@ take. Printing the text is not deciding to write it.
 reminder says to write the entry in this pass rather than note it for later. That is not
 tidiness: prose that promises something and cites nothing is precisely what passes every
 check, so a deferred entry has nothing that will come back for it, and the citation sits
-inside the span the entry pins, so a later pass pays the two commits again plus the drift
-its own citation causes.
+inside the span the entry pins, so a later pass pays the commit again plus the drift its
+own citation causes.
 
 **Say what the choices are, never which to take.** `status-guard.sh` lists four outcomes
 and ranks none of them. It does say what each asserts, which is the part that decides:

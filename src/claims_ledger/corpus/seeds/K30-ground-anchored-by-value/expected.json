@@ -1,0 +1,10 @@
+{
+  "class": "a ground anchored by value",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the anchor is a digest, and every other part of the entry is well-formed"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "the section is in the note as the tree has it, which is where an anchor naming no revision is read from"},
+    {"checker": "freshness", "outcome": "pass", "where": "all", "why": "the digest names the section exactly as the note holds it, so nothing has moved"}
+  ],
+  "note": "the near-negative of D62, and the first drift seed that can be read without running the runner: the anchor is the digest of the section text itself, so no `@commitNN` substitution stands between what the seed says and what git records"
+}

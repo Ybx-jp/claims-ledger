@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-10T22:05:55-07:00 · refuted · grade: measured · author: main
+  evidence: entry: L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides · cites-as-live
+  note: the comparison is no longer version control's own diff: both sides are read through one decode and compared by digest, so a clean filter that changes text is applied to neither side rather than to both
 
-- src/claims_ledger/freshness.py · standing · cites-as-live
+## References

@@ -303,9 +303,8 @@ def test_f_a_pin_git_could_not_classify_is_not_taken_for_a_commit(tmp_path):
     outside.mkdir()
     assert _git(outside, "rev-parse", "--symbolic-full-name", "beef")[0] != 0
     assert freshness.is_object_name(outside, "beef")[0] is None
-    assert (
-        freshness.drift(outside, _pointer("beef"), outside, default_config(outside))[0] == "unknown"
-    )
+    found = freshness.drift(outside, _pointer("beef"), outside, default_config(outside))
+    assert found.finding == "unknown"
 
 
 def test_f2_a_dangling_symref_pin_is_reported_where_the_pin_is_the_subject(project, capsys):
@@ -410,17 +409,17 @@ if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
 
 
-# --- GITFAIL-8: a git that cannot say whether the drift happened -----------------------
+# --- a git that fails one subcommand ----------------------------------------------------
 
 
 def _shim_git_that_cannot(tmp_path, subcommand):
     """A real `git` on PATH that fails one subcommand and delegates the rest.
 
     Everywhere else in this file the failure is produced by configuring git, which is
-    better evidence. It cannot reach this one: `git log --raw` reads history and runs no
-    clean filter, so there is nothing to configure that stops it and leaves
-    `rev-parse --git-dir` working. The shim is still a real git failing for real — a
-    non-zero exit from the binary the package invokes — and not a patched internal.
+    better evidence. Some subcommands cannot be reached that way — nothing in git's
+    configuration stops a `show` and leaves `rev-parse --git-dir` working. The shim is
+    still a real git failing for real — a non-zero exit from the binary the package
+    invokes — and not a patched internal.
     """
     d = tmp_path / "shim-bin"
     d.mkdir(exist_ok=True)
@@ -433,28 +432,6 @@ def _shim_git_that_cannot(tmp_path, subcommand):
     )
     (d / "git").chmod(0o755)
     return d
-
-
-def test_j_a_git_that_cannot_say_whether_the_drift_happened_says_so(pinned, tmp_path, monkeypatch):
-    """The orphan rule's own git call, brought under this file's discipline. `orphans()`
-    asks history whether the artifact really was what the verdict records; when git cannot
-    answer, the check did not run, and a check that did not run is never a check that
-    passed. The predecessor of this code read a failed `rev-list` as "it drifted" and
-    retired the forged-discharge check in silence.
-    """
-    pinned.note(NOTE.replace("0.04", "0.09"))
-    pinned.run(write=True)  # the discharge, recording the artifact the drift was seen at
-    pinned.p.git("add", "-A")
-    pinned.p.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
-    pinned.note(NOTE)  # undone, so the verdict is the one thing left to judge
-    assert pinned.outcomes() == [], "precondition: the discharge stands"
-
-    monkeypatch.setenv(
-        "PATH", f"{_shim_git_that_cannot(tmp_path, 'log')}{os.pathsep}{os.environ['PATH']}"
-    )
-    got = pinned.outcomes()
-    assert [o for o, _, _ in got] == ["fail"], f"the silence of a git that could not answer: {got}"
-    assert "could not be established" in got[0][2]
 
 
 # ---------------------------------------------------------------------------
@@ -498,85 +475,6 @@ def test_a_broken_git_is_not_a_freshness_check_that_ran(pinned, tmp_path, monkey
     assert [r.outcome for r in reports] == ["fail"]
     assert reports[0].part == "freshness"
     assert "freshness did not run" in reports[0].message
-
-
-# ---------------------------------------------------------------------------
-# The live-drift path's own two "git could not answer" branches.
-# ---------------------------------------------------------------------------
-#
-# `drift()` reports what moved; these two are asked afterwards, about a ground that has
-# already moved, and each is the moment a *different* git call fails. They are the same
-# rule as everything above -- a check that did not run is never a check that passed --
-# at the one surface where failing it costs the ledger its suppression rule rather than
-# a diagnosis.
-#
-# Neither is reachable from a corpus seed: a seed is files on disk and cannot express
-# "the git binary answers badly", so only a shimmed PATH can put the question.
-
-
-def test_a_git_that_cannot_weigh_the_acknowledgement_does_not_silence_the_drift(
-    pinned, tmp_path, monkeypatch
-):
-    """A drifted ground whose acknowledgement does not record what this run reads: the
-    cheap half of `discharges()` cannot settle it, so `caused()` asks history. When git
-    cannot answer, the verdict neither discharges the drift nor fails to.
-
-    Silence retires the suppression rule -- the drift is live and reported as nothing.
-    An accusation forges one against what may be a correct discharge. The branch exists
-    to do neither.
-    """
-    pinned.note(NOTE.replace("0.04", "0.09"))
-    pinned.run(write=True)  # the discharge, recording the artifact at this drift
-    pinned.p.git("add", "-A")
-    pinned.p.git("commit", "-qm", "remeasure, and the discharge the checker wrote")
-    # Moved again, so the acknowledgement records an artifact that is not what this run
-    # reads and the comparison falls through to history.
-    pinned.note(NOTE.replace("0.04", "0.11"))
-    assert pinned.outcomes() == [], (
-        "precondition: with a working git the acknowledgement is weighed against history "
-        "and stands, so the drift is discharged and nothing is reported"
-    )
-
-    monkeypatch.setenv(
-        "PATH", f"{_shim_git_that_cannot(tmp_path, 'log')}{os.pathsep}{os.environ['PATH']}"
-    )
-    got = pinned.outcomes()
-    assert "fail" in [o for o, _, _ in got], (
-        f"the drift is live and whether the verdict discharges it could not be "
-        f"established; the run reported no failure: {got}"
-    )
-    assert [m for _, _, m in got if "could not be established" in m], (
-        f"the run failed without saying that git is what could not answer: {got}"
-    )
-
-
-def test_write_does_not_append_a_verdict_it_cannot_state_and_says_why(
-    pinned, tmp_path, monkeypatch
-):
-    """`--write` records what the artifact was when the drift was seen, and `orphans()`
-    holds the verdict to exactly that afterwards. A verdict this run cannot state is one
-    nothing could ever check, so it is not appended -- and a `--write` that declines to
-    write must not decline in silence, or the drift is left unrecorded and unreported at
-    once.
-    """
-    pinned.note(NOTE.replace("0.04", "0.09"))
-    before = pinned.entry_path().read_text(encoding="utf-8")
-    monkeypatch.setenv(
-        "PATH", f"{_shim_git_that_cannot(tmp_path, 'hash-object')}{os.pathsep}{os.environ['PATH']}"
-    )
-    got = pinned.outcomes(write=True)
-
-    assert pinned.entry_path().read_text(encoding="utf-8") == before, (
-        "precondition for the rule: git could not say what the artifact is, so no verdict "
-        "is appended"
-    )
-    assert "fail" in [o for o, _, _ in got], (
-        f"nothing was written and the run did not fail: the drift is now neither "
-        f"recorded nor reported: {got}"
-    )
-    assert [m for _, _, m in got if "no verdict was appended" in m], (
-        f"the run failed without saying that no verdict was appended, or why: {got}"
-    )
 
 
 # --- GITFAIL-8: a diagnosis of the pin, built on a git that failed to answer -----------

@@ -125,7 +125,7 @@ def test_the_fingerprint_is_not_rewritten_on_a_committed_entry(project):
         restamp(ledger, path, write=True)
     # The frozen region is immutable, so the fix is a successor — or --force, before the
     # commit has left the machine.
-    _, _, changed = restamp(ledger, path, write=True, force=True)
+    _, _, changed, _ = restamp(ledger, path, write=True, force=True)
     assert changed
 
 
@@ -234,10 +234,191 @@ def test_the_installed_hook_asks_freshness_about_the_index():
     assert "--cached" in line, f"the hook runs {line!r}"
 
 
+def test_the_hook_asks_for_the_index_wherever_the_checker_accepts_it(capsys):
+    """L0212. The hook's `--cached` lines are exactly the checkers whose own parser takes
+    the flag — asked of the parser rather than a list written down here, so a checker that
+    gains a cached mode and is not given it in the template fails here instead of quietly
+    reading the working tree at the commit boundary.
+
+    The gate's mutant N8 dropped the cached wiring from `cmd_check` and survived the whole
+    suite: `check` was the only caller that had it, and the installed hook never runs
+    `check`. Nothing asserted what the hook's own lines ask for. (qe ticket 2b90973d753f445c,
+    QE19-1.)
+    """
+    parser = cli.build_parser()
+    accepts = set()
+    for name in cli.CHECKERS:
+        try:
+            parser.parse_args([name, "--cached"])
+        except SystemExit:
+            continue
+        accepts.add(name)
+    capsys.readouterr()
+    assert accepts, "precondition: some checker takes --cached"
+
+    ran = {}
+    for line in hook_text(python="/usr/bin/python3").splitlines():
+        if "-m claims_ledger" not in line or line.lstrip().startswith("#"):
+            continue
+        words = line.split()
+        ran[words[words.index("claims_ledger") + 1]] = set(
+            words[words.index("claims_ledger") + 2 :]
+        )
+    assert set(ran) == set(cli.CHECKERS), ran
+    assert {n for n, flags in ran.items() if "--cached" in flags} == accepts, ran
+
+
+def test_check_cached_holds_the_staged_entry_and_not_the_one_being_edited(project, capsys):
+    """`resolve` under `--cached` reads the entries from the index, as `validate` and
+    `freshness` do. Handed the working list instead it held the tree's anchor against the
+    index's artifact — a pair no commit contains — so an entry staged with an anchor
+    nothing digests to and corrected in the working tree alone passed the hook and landed
+    unresolved. (qe ticket 2b90973d753f445c, QE19-2.)
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    bogus = "sha256:" + "ab" * 32
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            '- lab: docs/note-001.md § "Observation" @working',
+            f'- lab: docs/note-001.md § "Observation" ={bogus}',
+        ),
+        encoding="utf-8",
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")  # the bogus anchor is what the commit would carry
+    good = project.digest("docs/note-001.md", "Observation")
+    path.write_text(path.read_text(encoding="utf-8").replace(bogus, good), encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0  # corrected in the tree only
+    capsys.readouterr()
+
+    assert project.cl("check") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("check", "--cached") == 1, "the staged entry names text nothing holds"
+    out = capsys.readouterr().out
+    assert "resolve: 1 failure(s)" in out, out
+    assert "the index does not hold" in out, out
+
+
+def _entry_anchored_at_the_tree(project):
+    """A scaffolded entry whose one evidence ground names the note's section by value, as
+    the working tree has it."""
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    anchor = project.digest("docs/note-001.md", "Observation")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            '- lab: docs/note-001.md § "Observation" @working',
+            f'- lab: docs/note-001.md § "Observation" ={anchor}',
+        ),
+        encoding="utf-8",
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    return path
+
+
+def test_resolve_cached_holds_the_anchor_to_the_staged_artifact(project, capsys):
+    """`resolve --cached` reads the artifact out of the index, which is what the hook runs
+    and what the commit will carry. Only `check --cached` drove this path before, and the
+    hook does not run `check`, so dropping `cached` from `cmd_resolve`'s `resolve.run` call
+    left the whole suite green. (qe ticket 7d0a64cf95214e40, QE20-2 / mutant M3.)
+    """
+    project.git("init", "-q")
+    _entry_anchored_at_the_tree(project)
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+    note.write_text(kept.replace("0.04", "0.12"), encoding="utf-8")
+    project.git("add", "-A")  # the index holds 0.12; the anchor names 0.04
+    note.write_text(kept, encoding="utf-8")  # and the working tree holds 0.04 again
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the index does not hold the anchor's text"
+    assert "the index does not hold" in capsys.readouterr().out
+
+
+def test_resolve_cached_reads_the_staged_entry(project, capsys):
+    """The entries come out of the index too, so the anchor held is the one being committed.
+    Mutant M2 — `cmd_resolve` loading the working entries — survives every other test.
+    (qe ticket 7d0a64cf95214e40, QE20-2.)
+    """
+    project.git("init", "-q")
+    path = _entry_anchored_at_the_tree(project)
+    good = project.digest("docs/note-001.md", "Observation")
+    bogus = "sha256:" + "cd" * 32
+    path.write_text(path.read_text(encoding="utf-8").replace(good, bogus), encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")  # the bogus anchor is what the commit would carry
+    path.write_text(path.read_text(encoding="utf-8").replace(bogus, good), encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0  # corrected in the tree alone
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged entry names text nothing holds"
+    assert "the index does not hold" in capsys.readouterr().out
+
+
+def test_resolve_cached_says_so_when_the_index_cannot_be_read(project, capsys):
+    """The guard is asked the cached question as well, so a run that fell back to the
+    working tree says so rather than answering as though it had read the index
+    (L0122-a-cached-run-that-fell-back-to-the-working-tree-says-so). Mutant M1 —
+    `guard(ledger)` without the flag — is silent here and nowhere else.
+    (qe ticket 7d0a64cf95214e40, QE20-2.)
+    """
+    project.git("init", "-q")
+    _entry_anchored_at_the_tree(project)
+    project.git("add", "-A")
+    (project.root / ".git" / "index").write_bytes(b"not an index" * 20)
+    capsys.readouterr()
+
+    project.cl("resolve", "--cached")
+    got = capsys.readouterr()
+    said = got.err + got.out
+    assert "fell back to the working tree" in said, said
+    assert "what is staged was not checked" in said, said
+
+    # The other half of the same rule, and the half no test held: a run that did not ask
+    # for the index has not fallen back from it, however broken the index is. Without this
+    # arm, `cmd_resolve` guarding with a hard `True` passes the whole suite.
+    project.cl("resolve")
+    bare = capsys.readouterr()
+    assert "--cached" not in bare.err + bare.out, bare
+
+
+def test_a_healthy_index_is_not_reported_as_a_fallback(project, capsys):
+    """The negative control the fallback note never had. Asserting only that the note can
+    appear leaves two mutants alive through all 1072 tests: one that makes `index_problem`
+    always answer, so every healthy `--cached` run declares that what is staged was not
+    checked; and one that hands `cmd_resolve`'s guard a hard `True`, so a bare `resolve`
+    announces a fallback for a flag nobody passed. Both are measured to survive without
+    this. (qe ticket a55240cd1f6f47e5, QE21-2.)
+    """
+    project.git("init", "-q")
+    _entry_anchored_at_the_tree(project)
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    # A readable index, asked for: nothing fell back, so nothing says it did.
+    assert project.cl("resolve", "--cached") == 0
+    healthy = capsys.readouterr()
+    assert "fell back" not in healthy.err + healthy.out, healthy
+    assert "was not checked" not in healthy.err + healthy.out, healthy
+
+    # And a bare run says nothing about a flag it was not given.
+    assert project.cl("resolve") == 0
+    bare = capsys.readouterr()
+    assert "--cached" not in bare.err + bare.out, bare
+
+
 def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
     """`check` parses the entries once for all five checkers, and under `--cached` it
-    parses twice — `validate` and `freshness` read what is staged, the other three read
-    the working tree. Getting that mapping backwards, or collapsing it to one list, is
+    parses twice — `validate`, `resolve` and `freshness` read what is staged, the other two
+    read the working tree. Getting that mapping backwards, or collapsing it to one list, is
     invisible to every other test in this suite: both mutants pass 857 tests and 79 seeds.
     Before the entries were hoisted out of the checkers the mapping could not be stated
     wrongly, because each checker asked for its own. (docs/audits/ARCH-AUDIT.md finding 4, QE13-1.)

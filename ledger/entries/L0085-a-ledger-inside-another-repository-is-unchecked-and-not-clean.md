@@ -51,6 +51,13 @@ none
 - 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "enclosing_repository" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+- 2026-09-11T03:10:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_history" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  artifact: sha256:a0f5460dc7e6805f42f37f08c07a994eaac5dd9d160914c883daecf28f17db9b
+  note: propagated from a moved ground
+- 2026-09-11T03:10:33-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:a0f5460dc7e6805f42f37f08c07a994eaac5dd9d160914c883daecf28f17db9b
+  note: read against the working tree after the only edit to check_history since the reading at 2a76453, a comment naming the audit file by its path docs/audits/ARCH-AUDIT.md instead of by its bare name, which sits in the very branch this claim rests on: with no repository recorded, enclosing_repository is still asked and a holder is still reported as a failure naming what to point --root at; the assertion holds as written.
 
 ## References
 

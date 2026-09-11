@@ -37,7 +37,7 @@ told:
 
 | skill | what it covers |
 | --- | --- |
-| `tagging-prose-with-claims` | Turning a sentence that promises something into an entry: where the citation sits and what that costs, the two-commit shape, choosing a ground, asking which entries are already about it, and the rules `validate` applies to the wording. |
+| `tagging-prose-with-claims` | Turning a sentence that promises something into an entry: where the citation sits and what that costs, landing it in one commit, choosing a ground, asking which entries are already about it, and the rules `validate` applies to the wording. |
 | `choosing-a-citation-act` | Matching an act to a status, the repairs available when a status moves, and relating two entries that turn out to be about the same artifact. |
 | `repair-a-drifted-pin` | The findings `freshness` reports, which of them are drift, and how each is discharged — including the supersessions no checker asks for. |
 

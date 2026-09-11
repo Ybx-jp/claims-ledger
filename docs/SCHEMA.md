@@ -107,11 +107,15 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
 - *Scope* is three lines, `metric:`, `cohort:`, `condition:`, required at `measured` and
   above. An assertion claims exactly its scope.
 - *Grounds* are typed pointers, one per line:
-  `lab: <path> § "<section>" @<commit>` · `experiment: <path> @<commit>` ·
+  `lab: <path> § "<section>" =sha256:<digest>` · `experiment: <path> =sha256:<digest>` ·
   `entry: <id> · <act>` · `source: <registry id> · <locator>` ·
   `search: corpus=…; query="…"; date=…`. The first two are evidence pointers and their
   names are the project's — `lab` and `experiment` are the defaults, a project may
-  declare `run`, `journal`, `notebook`, `code` instead, sectioned or plain. What `§`
+  declare `run`, `journal`, `notebook`, `code` instead, sectioned or plain. Their last
+  word is the anchor, and it states the datum by value — `=sha256:<64 hex>`, the digest
+  of the section as the checkers compare it, which `claims-ledger sha --write` fills in
+  for a pointer written `=?` — or by reference, `@<commit>`, the section as it stood at
+  that commit. What `§`
   finds is the project's too: `section-patterns` gives a sectioned type a regex carrying
   a `{name}` slot, defaulting to the Markdown heading `§` has always meant, so a claim
   can rest on a named function of a source file as readily as on a heading of a note. The

@@ -34,6 +34,14 @@ none
 
 ## Verdicts
 
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "acknowledgements" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+  artifact: sha256:aa0304e2fe1925b9c30fede8eed1d3de73ed6d82c46f6498ec8547bd0b77139b
+  note: propagated from a moved ground
+- 2026-09-10T22:06:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "acknowledgements" =sha256:aa0304e2fe1925b9c30fede8eed1d3de73ed6d82c46f6498ec8547bd0b77139b
+  note: read against the working tree after freshness began comparing by digest on both sides: a verdict is matched to a ground on type, path, section and anchor, the anchor now in either form; the section still counts, and the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

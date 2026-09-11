@@ -211,7 +211,7 @@ KEYS = {
 # grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is
 # absent from this table on purpose: those are the claims model rather than a project's
 # naming, and a project that could rename them would have a different model
-# (L0050-the-schema-itself-is-not-configurable, cites-as-live). The types are what
+# (L0208-the-schema-itself-is-not-configurable, cites-as-live). The types are what
 # `from_table` refuses a value by name against
 # (L0051-a-configured-value-of-the-wrong-type-is-refused-by-name, cites-as-live).
 

@@ -42,6 +42,13 @@ none
 - 2026-09-08T16:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "sha_one" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
   note: read against commit abb827e, which added the call reporting where a citation of the entry being fingerprinted sits; the message about a path read from the current directory, which is what this claim names, is unchanged and still first in the function
+- 2026-09-11T02:56:08-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "sha_one" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  artifact: sha256:d53d048b381f319f328c862b0a552a67814a6f042230797d7fdf46f009d3c2c6
+  note: propagated from a moved ground
+- 2026-09-11T02:56:26-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "sha_one" =sha256:d53d048b381f319f328c862b0a552a67814a6f042230797d7fdf46f009d3c2c6
+  note: read against the working tree after sha_one began printing each anchor restamp filled: the current-directory read and the sentence about the project root are unchanged; the assertion holds as written.
 
 ## References
 

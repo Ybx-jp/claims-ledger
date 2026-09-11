@@ -319,7 +319,7 @@ def test_an_acknowledged_ground_is_silent(pinned):
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
-        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        f"  artifact: {pinned.p.digest('docs/note-001.md', 'Observation')}\n"
         "  note: propagated from a moved ground\n"
     )
     assert pinned.outcomes() == []
@@ -375,9 +375,10 @@ def test_a_drift_after_a_reading_is_discharged_against_that_reading(pinned):
 
 
 def test_a_reading_at_an_unpinned_reference_does_not_move_the_baseline(pinned):
-    """A corroboration naming the section `@working` is a reading nothing can hold to a
-    commit, so the ground is compared from its pin as before — and the drift recorded
-    against the pin goes on discharging it."""
+    """A corroboration naming the section `@working` is a reading nothing can hold to
+    anything, so the ground is compared from its pin as before: the drift recorded
+    against the pin discharges exactly the section it recorded, and a further change is
+    news since the pin rather than since the reading."""
     pinned.note(NOTE.replace("0.04", "0.09"))
     pinned.run(write=True)
     pinned.p.git("add", "-A")
@@ -387,8 +388,11 @@ def test_a_reading_at_an_unpinned_reference_does_not_move_the_baseline(pinned):
         '  evidence: lab: docs/note-002.md § "Observation" @working\n'
         "  note: read elsewhere\n"
     )
-    pinned.note(NOTE.replace("0.04", "0.12"))
     assert pinned.outcomes() == []
+    pinned.note(NOTE.replace("0.04", "0.12"))
+    ((outcome, part, message),) = pinned.outcomes()
+    assert (outcome, part) == ("flag", "Grounds 1")
+    assert "since the pin" in message
 
 
 def test_a_drift_recorded_against_an_earlier_reading_is_not_orphaned_by_a_later_one(pinned):
@@ -665,7 +669,7 @@ def test_a_forged_discharge_against_an_earlier_reading_after_a_later_one(pinned)
     pinned.append(
         "- 2026-11-22T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{r1}\n'
-        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        f"  artifact: {pinned.p.digest('docs/note-001.md', 'Observation')}\n"
         "  note: propagated from a moved ground\n"
     )
     pinned.note(NOTE.replace("0.04", "0.12"))
@@ -689,7 +693,7 @@ def test_a_forged_verdict_is_not_laundered_by_a_drift_and_a_reading(pinned):
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
-        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        f"  artifact: {pinned.p.digest('docs/note-001.md', 'Observation')}\n"
         "  note: propagated from a moved ground\n"
     )
     pinned.note(NOTE.replace("0.04", "0.09"))
@@ -714,7 +718,7 @@ def test_a_forged_discharge_against_a_reading_is_still_an_orphan(pinned):
     pinned.append(
         "- 2026-11-22T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{read_at}\n'
-        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        f"  artifact: {pinned.p.digest('docs/note-001.md', 'Observation')}\n"
         "  note: propagated from a moved ground\n"
     )
     ((outcome, part, message),) = pinned.outcomes()
@@ -726,14 +730,14 @@ def test_a_verdict_naming_a_ground_that_has_not_drifted_is_an_orphan(pinned):
     """Without this the discharge is forgeable: write the verdict first and the ground
     never has to be looked at again.
 
-    The forger records what the file is, because that is the value they can read off the
-    repository without running anything — and the artifact as the pin has it states no
-    drift, whatever else is true of it. That is the half of "not caused" git can refute,
-    and it is the half that still fails."""
+    The forger records what the section is, because that is the value they can read off
+    the tree without running anything — and the artifact as the anchor names it states no
+    drift, whatever else is true of it. That is the half of "not caused" the checker can
+    refute, and it is the half that still fails."""
     pinned.append(
         "- 2026-11-20T09:00:00-08:00 · contested · grade: measured · author: propagation\n"
         f'  evidence: lab: docs/note-001.md § "Observation" @{pinned.pin}\n'
-        f"  artifact: {pinned.p.blob('docs/note-001.md')}\n"
+        f"  artifact: {pinned.p.digest('docs/note-001.md', 'Observation')}\n"
         "  note: propagated from a moved ground\n"
     )
     ((outcome, part, message),) = pinned.outcomes()

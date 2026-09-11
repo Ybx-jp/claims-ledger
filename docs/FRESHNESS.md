@@ -5,9 +5,11 @@ implementation taught the specification something, the specification has been co
 rather than quietly satisfied, and those corrections are marked **Built:**.
 
 `resolve` asks whether a ground's pointer resolves to the artifact that established the
-fact. It asks that of the past: the pin names a commit, and `git show <pin>:<path>` reads
-the artifact as it stood there. That question keeps its answer forever. Once an entry
-resolves it resolves for good, because the commit it names does not change.
+fact. It asks that of the past: the anchor names a datum — the section as it stood at a
+commit, or the section whose text digests to this — and `resolve` reads that text out of
+the commit, or out of whatever version of the path the repository still holds. That
+question keeps its answer forever. Once an entry resolves it resolves for good, because
+the datum its anchor names does not change.
 
 Which means the ledger cannot notice that the world moved. An entry may rest on a test
 that has since been deleted, on a module whose behaviour has been inverted, and every
@@ -15,8 +17,8 @@ checker stays green — the evidence is still there, at the revision nobody work
 more. The pin does not merely fail to detect drift; it immunizes the claim against it.
 
 `freshness` asks the other question. Not *did this ground exist* but *is the artifact it
-names still the artifact the claim was established on*. It compares the pin to the tree
-this run is reading — the working tree, or the index under `--cached` — and it never
+names still the artifact the claim was established on*. It compares the anchor to the
+tree this run is reading — the working tree, or the index under `--cached` — and it never
 judges whether the difference matters.
 
 ## What it refuses to do
@@ -114,48 +116,59 @@ drift that was established, and nothing here was established.
 
 ## The comparison, exactly
 
-For each ground pointer whose type is one of the project's evidence types, whose pin is
-not in `UNPINNED`, and whose entry's status is not terminal:
+For each ground pointer whose type is one of the project's evidence types, whose anchor
+is not in `UNPINNED` and not the `=?` placeholder, and whose entry's status is not
+terminal — compared from the pointer of its latest reading where one exists, and from
+the Ground itself otherwise:
 
-1. `git rev-parse --symbolic-full-name <pin>` — non-empty output means **unstable pin**;
-   report and stop for this pointer. The question goes to git for *every* pin and not only
-   for the ones that look like a sha: `beef` is a legal branch name, an uppercase object id
-   is an object id, and the shape of the text settles neither. A pin git says nothing about
-   and cannot verify either — `--symbolic-full-name` exits non-zero and `--verify --quiet`
-   exits 1 — is a pointer that does not resolve, which is step 2's case. A pin git *fails*
-   on rather than answering about is **unknown**, below.
-2. `git rev-parse --verify --quiet <pin>:<path>` — the object at the pin. Exit 1 means the
-   pointer never resolved, which is `resolve`'s finding and not repeated here.
-3. The artifact as this run reads it: the working tree, or the index under `--cached`,
-   matching whatever the rest of the run is reading. Absent means **withdrawn**.
-4. `git diff --name-only <pin> -- :(literal)<path>`, with `--cached` when the run is
-   reading the index. Empty output means fresh, and the checker says nothing.
-5. Any output means **moved** — unless the artifact's bytes cannot be reached at all, in
-   which case it is **unknown**: git lists a file it cannot open as modified, and a
-   comparison nobody could make is never a finding about the claim. For a
-   `§ "<section>"` pointer the two texts are read and only the named section is compared,
-   so an edit elsewhere in the artifact is not this ground's drift, and there too a side
-   that could not be read at all is **unknown** rather than moved
-   (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live). Bytes
-   that are *there* and are not UTF-8 stay **moved**: that artifact did change, and it
-   simply cannot be narrowed to a section. Only now, and only for the message, run
-   `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count.
+1. The digest the anchor names. Stated by value, it is the anchor itself, and git is not
+   asked. Stated by reference, `git rev-parse --symbolic-full-name <pin>` first —
+   non-empty output means **unstable pin**; report and stop for this pointer. The question
+   goes to git for *every* pin and not only for the ones that look like a sha: `beef` is
+   a legal branch name, an uppercase object id is an object id, and the shape of the text
+   settles neither. A pin git says nothing about and cannot verify either —
+   `--symbolic-full-name` exits non-zero and `--verify --quiet` exits 1 — is a pointer
+   that does not resolve, which is `resolve`'s finding and not repeated here. A pin git
+   *fails* on rather than answering about is **unknown**, below. Then the section is read
+   out of `<pin>:<path>`, every pinned blob of the run through one `cat-file --batch`,
+   and digested exactly as this run's side is about to be.
+2. The artifact as this run reads it: the working tree, or the index under `--cached`,
+   matching whatever the rest of the run is reading. Absent means **withdrawn**. Bytes
+   that cannot be reached at all mean **unknown**: a comparison nobody could make is never
+   a finding about the claim. Bytes that are *there* and are not UTF-8 stay **moved**:
+   that artifact did change, and it simply cannot be narrowed to a section.
+3. For a `§ "<section>"` pointer the named section is found in that text and the section
+   alone is digested, so an edit elsewhere in the artifact is not this ground's drift; a
+   section no longer in a file that remains is **withdrawn**. A plain pointer digests the
+   whole decoded text.
+4. Equal digests mean fresh, and the checker says nothing. Different means **moved**
+   (L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides, cites-as-live).
+   Only now, only for the message, and only for an anchor stated by reference, run
+   `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count; an anchor
+   stated by value names no commit to count from.
 
-**Built — `git diff`, and not the blob identity this specification first described.** An
-earlier draft of this section compared `git hash-object <path>` against
-`git rev-parse <pin>:<path>`. That is exact about the wrong thing: it compares the bytes on
-disk against the bytes in the object store, while a repository's own line-ending and clean
-filter handling sits between them, so a checkout under `core.autocrlf` reports every
-grounded file as moved. `git diff` applies whatever the repository does to a file on its
-way in and out to *both* sides. The observable difference in the other direction is that a
-path removed from the index with `git rm --cached` reads as moved though its bytes have not
-changed; that is the cost, and it is the smaller one.
+**Built, and rebuilt — the digest of the section on both sides, and neither the blob
+identity this specification first described nor the `git diff` that replaced it.** The
+first draft compared `git hash-object <path>` against `git rev-parse <pin>:<path>`. That is
+exact about the wrong thing: it compares the bytes on disk against the bytes in the object
+store, while a repository's own line-ending handling sits between them, so a checkout
+under `core.autocrlf` reported every grounded file as moved. `git diff --name-only` was
+built in its place, applying whatever the repository does to a file on its way in and out
+to *both* sides, at the cost of a file-grained answer a sectioned pointer then had to
+narrow by reading both texts anyway. What stands now is the narrowing alone: both sides
+are decoded the same way — UTF-8, universal newlines, the section through the type's
+pattern, trailing whitespace stripped — and digested, and the digest is what an anchor
+stated by value names, so one comparison serves both forms and the `git diff` path is
+gone rather than kept beside it. Line endings are handled by the decode. A clean filter
+that rewrites more than line endings — `ident`, a large-file pointer — puts different
+text on the two sides and such an artifact reads as moved; it is outside what a ground
+by value can name, and no ground in this ledger names one.
 
-**Built — `:(literal)`.** A path reaches `git diff` and `git rev-list` as a *pathspec*,
-where `[`, `*` and `?` are wildcards. A ground on `docs/note[1].md` was reported as moved
-when an unrelated `docs/note1.md` was edited. Git's matching tries the literal path too, so
-this was noise and never a miss, but a checker whose flags fire over files nobody pinned is
-the noise floor this document spends a section arguing about.
+**Built — `:(literal)`.** A path reaches `git rev-list` as a *pathspec*, where `[`, `*`
+and `?` are wildcards. Under the `git diff` comparison a ground on `docs/note[1].md` was
+reported as moved when an unrelated `docs/note1.md` was edited. Git's matching tries the
+literal path too, so this was noise and never a miss, but a checker whose flags fire over
+files nobody pinned is the noise floor this document spends a section arguing about.
 
 Comparing against the working tree rather than `HEAD` is deliberate. The intended home
 for this is a pre-commit hook, where `HEAD` is still the commit *before* the change being
@@ -200,6 +213,7 @@ pointer, exactly as `propagate` writes one naming a fallen entry:
 
     - 2026-11-20T09:00:00-08:00 · contested · grade: argued · author: propagation
       evidence: code: src/serializers/v2.py @ed46323
+      artifact: sha256:9c2f…(64 hex)
       note: propagated from a moved ground
 
 **Acknowledge that the claim is untouched.** Where the artifact moved and the Assertion
@@ -208,8 +222,15 @@ rename — append a `corroborated` verdict naming the artifact as it now stands,
 recording what moved:
 
     - 2026-11-21T10:15:00-08:00 · corroborated · grade: measured · author: main
-      evidence: code: src/serializers/v2.py § "encode" @a91f0c2
+      evidence: code: src/serializers/v2.py § "encode" =sha256:3e1c…(64 hex)
       note: the section moved with the module split; the assertion is unaffected
+
+The evidence is written `=?` and `claims-ledger sha --write` fills it with the digest of
+the section as the tree has it; it sits below the marker, so the write touches nothing
+frozen. A reading stated by value needs no commit to be placed at, and so can be
+appended in the same commit as the edit it read
+(L0204-a-reading-anchored-by-value-needs-no-place-in-history, cites-as-live); one stated
+`@<commit>` is still accepted, and has to sit in this history, after the pin.
 
 `contested` is not terminal, so the status walks past it to the corroborated verdict and
 citations reading `cites-as-live` stay legal. The entry keeps its id, its Grounds and its
@@ -224,9 +245,9 @@ found when they went and looked.
 Note what the reading then becomes. A discharge is against the drift in front of it, and
 once the contested verdict is in history that drift is recorded for good — the pin is
 frozen, and the range between it and here only grows. So the corroborating verdict is
-where the ground is compared from afterwards: its evidence names the section at a commit,
-and `freshness` treats the latest such verdict as the point the ground was last read
-from, silent while nothing has changed since and reporting the next change as news since
+where the ground is compared from afterwards: its evidence names the section, by value or
+at a commit, and `freshness` treats the latest such verdict as the point the ground was
+last read from, silent while nothing has changed since and reporting the next change as news since
 that reading. Before this, an entry returned to a live status carried a ground that
 would never speak again; measured on this package's own ledger, 93 of 270 live grounds
 were in that state and 49 of them had moved again unnoticed. Acknowledge when the
@@ -235,9 +256,10 @@ rests on a person having looked, and no checker can check that — and now it is
 place the next check starts from. Only a corroboration moves it. An entry left `contested`
 after `--write`, with no reading appended, is compared from wherever it was last read and
 its recorded drift discharges it there as before; that is the shape the third outcome
-below produces, and a ground in it is silent until someone reads it. A reading also has to
-sit in this history, between the pin and here — a corroboration at a commit on no branch,
-or older than the pin, is passed over.
+below produces, and a ground in it is silent until someone reads it. A reading stated by
+reference also has to sit in this history, between the pin and here — a corroboration at
+a commit on no branch, or older than the pin, is passed over — and one stated by value
+has no such question to answer.
 
 **Let it fall.** A `refuted` or `retracted` verdict written by a person.
 
@@ -256,11 +278,12 @@ discharge normally lives in: with the drift live, the orphan rule does not ask, 
 read the value at all and a propagated verdict carrying forty zeros, a value the artifact
 has never been, or no `artifact:` line at all held a real, committed, ongoing drift at exit
 0 with every checker silent. A verdict discharges the drift in front of it when it
-**records what this run reads the artifact as** — the ordinary pre-commit case, where the
-drift is in the working tree or the index and is in no commit for the history question to
-find — **or** when the artifact really was what it says it was between the pin and here.
-A verdict that is neither does not silence the finding; that is not an accusation, and the
-orphan rule below is where a verdict is called a forgery.
+**records what this run reads the artifact as** — the digest of the section as this run
+sees it, which is the ordinary pre-commit case, where the drift is in the working tree or
+the index. A second clause, that the artifact really was what the verdict says between
+the pin and here, was built and is deleted (below): a comparison by digest asks history
+nothing, and a record that is not what this run sees does not silence the finding. That
+is not an accusation, and the orphan rule below is where a verdict is called a forgery.
 
 **Built — the non-zero exit had to be made true.** `propagate` gets it for free, because
 every block it queues sits beside a failure. Freshness queues the `moved` case beside a
@@ -282,14 +305,13 @@ forgeable by writing the verdict pre-emptively.
 
 **Built — the question is asked of the ground, not of each verdict.** An entry may
 legitimately carry more than one propagated verdict against one ground, and the pre-commit
-path produces exactly that: the hook records the staged blob, the author stages one more
-edit before committing — `git add -p`, an amend, a formatter — and the next run appends a
-second verdict naming what was finally committed. The first records a blob no commit ever
-held, and holding each verdict separately made it an orphan the moment the ground came
-back: a failure no legal edit could clear. So a ground is an orphan when **no** propagated
-verdict against it states a cause that happened. It costs the rule nothing — a forger who
-has genuinely drifted the ground and named the blob has made a record a reader can follow,
-and a second, emptier verdict beside it buys nothing the first did not already buy.
+path produces exactly that: the hook records the staged section's digest, the author
+stages one more edit before committing — `git add -p`, an amend, a formatter — and the
+next run appends a second verdict naming what was finally committed. The first records a
+digest no commit ever held, and holding each verdict separately made it an orphan the
+moment the ground came back: a failure no legal edit could clear. So the question is
+asked of the ground, across every propagated verdict it carries, and not of each verdict
+alone.
 
 **Built — "has not drifted" is not the same question as "was never drifted".** Asked as
 the first, the rule wedged the ledger: undo the edit that caused a discharge and the
@@ -307,22 +329,35 @@ is then accepted permanently. The rule traded a loud false positive for a silent
 negative, which is the trade this package exists to refuse.
 
 So the verdict states its cause, and is held to what it states. `--write` records an
-`artifact:` line — the object id git would store the artifact under at the moment the drift
-was seen, or `absent` for a ground that had been withdrawn — and the orphan test asks
-whether the artifact really was that between the pin and here: a blob the path has actually
-held, or a commit that really deleted it. A blob is the right grain rather than a commit
-because the ordinary case is a drift that is in the working tree and not committed at all,
-which is what a pre-commit hook is for.
+`artifact:` line — the digest of the section as this run read it at the moment the drift
+was seen, or `absent` for a ground that had been withdrawn.
 
-A verdict that records nothing is an orphan, and so is one recording the artifact as the pin
-itself has it, which states no drift. This does not make the discharge unforgeable — the
-ledger is text a person writes, and a forger who genuinely drifts the artifact in a commit
-and names that blob has made a record a reader can follow.
+**Built — and then the history question was deleted.** The test that followed asked
+whether the artifact really was that between the pin and here — a blob the path had
+actually held — and it was the question the forger controlled from the other side: a
+commit that drifts the artifact and one that puts it back launders any record into
+history. Measured on this package's own ledger before the change, of 114 propagated
+verdicts every one was caused and none sat on a fresh current pointer, so the walk was
+deciding nothing. What stands asks history nothing. A record that equals the digest its
+own pointer's anchor names states no drift at all and is **refuted** — a failure — on any
+pointer, whether or not the comparison has since moved past it, so a real drift and a
+later reading cannot carry the accusation away. A record on a ground that is fresh where
+it is compared from, naming something this run does not see, is **unconfirmable** — a
+flag — because that is exactly what an ordinary drift that was never committed or was
+undone looks like, and failing it left a permanent red no legal edit could clear
+(L0210-a-record-before-a-later-reading-is-moved-past, cites-as-live).
+A record that a later reading of the ground sits after in the file is moved past, whatever
+pointer either names: a reading is a person having looked, dated, and the drift the record
+describes was looked at. This is what clears the one flow the flag would otherwise hold
+forever — a drift recorded, committed and reverted, where the only reading a person can
+write names the ground's own digest, which `validate` accepts by value for exactly this.
+A verdict that records nothing does not parse. None of this makes the discharge
+unforgeable — the ledger is text a person writes, and a forger who genuinely drifts the
+artifact and names its digest has made a record a reader can follow.
 
-**Three things it does not yet reach, and the first is the largest.** An adversarial review
-of this rule measured them; they are stated here rather than left for a reader to discover,
-because a specification that overstates its own guarantee is the defect this package exists
-to refuse.
+**What it does not reach.** An adversarial review of this rule measured these; they are
+stated here rather than left for a reader to discover, because a specification that
+overstates its own guarantee is the defect this package exists to refuse.
 
 - ~~**The `artifact:` line is not consulted while the drift is live.**~~ Closed. It is
   consulted twice now: `validate` holds every verdict's `artifact:` to a shape in every
@@ -330,31 +365,34 @@ to refuse.
   to describe the drift in front of the run. A propagated verdict carrying a value the
   artifact has never been no longer silences a live drift, and one carrying no value at all
   no longer parses as legal.
-- **`caused()` has no section awareness.** For a `§ "<section>"` ground it asks whether the
-  *file* ever held the recorded blob, so one ordinary commit editing a different section of
-  the same file supplies a blob a discharge can name, with the pinned section untouched.
-- **`absent` is checked against the file, not against the verdict.** A ground deleted and
-  restored in two commits satisfies it, which is a touch-and-revert.
+- ~~**`caused()` has no section awareness.**~~ Closed by deletion: there is no `caused()`,
+  and the record is a section's digest, so a commit to another section of the file
+  supplies nothing a discharge can name.
+- ~~**`absent` is checked against the file, not against the verdict.**~~ Closed with the
+  history walk: a record of `absent` discharges only a deletion in front of the run, and a
+  ground deleted and restored is a ground whose record nothing sees.
 - **A verdict that records what the run would have recorded is a discharge, whoever wrote
-  it.** `git hash-object --path <file> -- <file>` is one command, and a hand-written
-  verdict carrying its output holds a live drift at exit 0 across all five checkers. This
+  it.** The digest of a section is one function call, and a hand-written verdict carrying
+  it holds a live drift at exit 0 across all five checkers. This
   is inherent rather than a defect: without signing, no rule can separate "the tool wrote
   this" from "a person wrote what the tool would have written", and *describing the drift*
   is exactly what an honest discharge does. It is stated here because the rule above is
   easy to read as an anti-forgery property, and it is not one — it is a rule about whether
   the record is *true*, not about who made it.
 
-So the accidental forgery is narrowed rather than removed: the object-id case needs a
-deliberate `git rev-parse`, and the two above do not. Both remaining residuals require an
-author with commit access deliberately writing a verdict in the machine's name, and both
-are stated here rather than left for a reader to find.
+So the accidental forgery is narrowed rather than removed: a record equal to the anchor
+is refuted outright, and the one above is not. The remaining residual requires an author
+with commit access deliberately writing a verdict in the machine's name, and it is
+stated here rather than left for a reader to find.
 
-**A git that cannot answer is not a git answering no.** The history question can fail — a
-corrupt pack, a clean filter that exits non-zero, the per-call timeout. When it does, the
-run reports that whether the drift happened *could not be established* and exits non-zero.
-It does not decide either way: reading the silence as "it drifted" retires the rule without
-saying so, and reading it as "it did not" forges an accusation against a correctly
-discharged verdict.
+**A git that cannot answer is not a git answering no.** Reading the anchor's section out
+of the commit a by-reference pointer names can fail — a corrupt pack, the per-call
+timeout — and so can reading this run's side of the comparison. When either does, the
+run reports that the ground *was not checked*, names why, and exits non-zero. It does not
+decide either way: reading the silence as "it drifted" retires the rule without saying
+so, and reading it as "it did not" forges an accusation against a correctly discharged
+verdict. A comparison that could not be made is never discharged by a verdict, since
+nothing was established for the verdict to describe.
 
 ## What is exempt, and why
 
@@ -367,15 +405,16 @@ there is nothing a report against one could ask anybody to repair.
 **Verdict evidence.** A verdict is a dated act — *on this evidence, on this day, I judged
 it so*. Its evidence pointer is frozen by construction, and it is not checked for drift
 as a ground would be. One kind is read for another purpose: a `corroborated` verdict
-naming the same section as a Ground, at a commit, is where that Ground was last read, and
-the Ground is compared from there rather than from its pin.
+naming the same section as a Ground, by value or at a commit, is where that Ground was
+last read, and the Ground is compared from there rather than from its anchor.
 
 **`entry:`, `source:`, `search:`, `defect:` pointers.** An `entry:` ground going stale is
 `propagate`'s subject. A `source:` ground is registered bytes with a sha, and `resolve`
 already fails if those bytes stop hashing to the registry row. `search:` and `defect:`
 name no artifact.
 
-**Unpinned pointers.** `@working` and `@corpus`, as above.
+**Unpinned pointers.** `@working` and `@corpus`, as above. And a pointer whose anchor is
+still `=?`: it names no datum yet, `validate` refuses it, and there is nothing to compare.
 
 ## The proof obligation
 
@@ -408,6 +447,11 @@ Defect seeds:
 | `D48-orphan-freshness-verdict` | propagation contested verdict naming a ground that has not moved, recording no artifact it was seen at | `freshness` **fail** at `commit 02, A0001 Verdicts` |
 | `D49-section-withdrawn-from-a-file-that-remains` | `commits/02` removes the pinned section; the file stays | `freshness` **fail** at `commit 02, A0001 Grounds 1` |
 | `D51-pin-git-cannot-classify` | the pin is `@HEAD@{99}` in a repository with one commit, so `rev-parse` fails rather than answering | `freshness` **fail** at `commit 01, A0001 Grounds 1`, and `resolve` **fail** at `commit 01, A0001 Grounds` |
+| `D53-laundered-freshness-discharge` | a propagated verdict recording the digest its own anchor names, on a ground later drifted for real | `freshness` **fail** at `commit 03, A0001 Verdicts` |
+| `D62-anchor-left-pending` | a ground written `=?` and never filled | `validate` **fail** at `A0001 Grounds 1` |
+| `D63-by-value-anchor-does-not-match-the-tree` | an uncommitted entry whose by-value anchor is not the digest of the section as the tree has it | `resolve` **fail** and `freshness` **flag** at `A0001 Grounds 1` |
+| `D64-by-value-anchor-no-version-holds` | a committed entry whose by-value anchor digests to text no version of the path holds — the end state a rewritten history leaves | `resolve` **flag** and `freshness` **flag** at `commit 01, A0001 Grounds 1` |
+| `D65-by-value-ground-moved-unacknowledged` | D45 by value: `commits/02` edits the section a by-value ground names | `freshness` **flag** at `commit 02, A0001 Grounds 1` |
 
 Known-good seeds:
 
@@ -418,12 +462,19 @@ Known-good seeds:
 | `K21-fallen-entry-may-drift` | the entry is refuted; `commits/02` edits its artifact | all checkers pass |
 | `K22-unpinned-is-not-drift` | the pointer is `@working`; `commits/02` edits the artifact | all checkers pass |
 | `K23-edit-outside-the-section-is-not-drift` | `commits/02` edits a section the pointer does not name | all checkers pass |
+| `K30-ground-anchored-by-value` | the anchor is the digest of the section as the note holds it | all checkers pass |
 
 `K19` is the load-bearing known-negative: without it, a checker that reported every entry
 on every commit would pass every defect seed above.
 
 `K22` is the seed that documents why the other 62 stay green, so that a later reader who
 changes `UNPINNED` finds out what it costs.
+
+`K30` is the first drift seed that can be read without running the runner: its anchor is
+the digest of the section text itself, so no `@commitNN` substitution stands between what
+the seed says and what git records. `D64` is written as the end state a rewrite leaves,
+directly, because a seed can only build linear, append-only history and cannot make a
+commit unreachable.
 
 **Built — each seed was falsified rather than assumed.** Every rule was removed from the
 checker in turn and the corpus re-run: dropping the fallen-entry exemption fails `K21`
@@ -434,10 +485,13 @@ that survives its own rule being deleted is not proving anything, and none of th
 
 ## Cost
 
-Two `git rev-parse` calls per checked pointer, both plumbing, both O(1) against the object
-store; one `git diff --name-only` per pointer, limited to one pathspec; one `git show` per
-*sectioned* pointer that has drifted, to read the two texts; and one `git rev-list --count`
-per drifted pointer, for the message only. The existing
+No history walk. For an anchor stated by reference, one `git rev-parse
+--symbolic-full-name` per checked pointer and one `cat-file --batch` for the run, reading
+every pinned blob once; for an anchor stated by value, nothing from git at all — a
+working-tree run over 271 grounds measured at 0.134 s before the by-reference reads were
+counted. Under `--cached` this run's side is read out of the index through git, one
+`show :<path>` per distinct path. One `git rev-list --count` per drifted by-reference
+pointer, for the message only. The existing
 `GIT_TIMEOUT` and the `git_problem()` reporting apply unchanged — a checker that cannot
 run must say it did not run, rather than passing quietly, which is the failure mode
 `git_problem()` was written for.
@@ -545,11 +599,10 @@ rather than something a later reader has to notice.
   entirely, which argues for failing. But it may be the only workable pin for a project
   whose evidence lives on a moving branch, and failing would make that project's ledger
   uncheckable rather than merely weaker.
-- **Whether the discharge should expire.** Nothing here re-flags a claim whose ground
-  moved a *second* time after being contested. The suppression rule does now read the
-  `artifact:` line — but it accepts a verdict whose record the artifact really held
-  between the pin and here, and a first drift that was committed satisfies that forever.
-  So the discharge covers every later version of the ground as well as the one it judged.
-  The question can be asked — is the artifact still the version this discharge judged? —
-  and asking it would mean deciding what a project does about a discharge that has aged
-  out, which is a policy this has no experience to choose from.
+- ~~**Whether the discharge should expire.**~~ Answered, twice over. A ground is compared
+  from its latest reading rather than from its anchor, so a second move after an
+  acknowledgement is news; and a discharge holds only against what this run sees, so a
+  first drift that was committed no longer satisfies it forever. What is not answered is
+  what a project does with a ground nobody has re-read for a long time while it stayed
+  fresh — nothing here ages a reading, and there is no experience yet to say whether
+  anything should.

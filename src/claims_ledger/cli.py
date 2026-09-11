@@ -64,21 +64,28 @@ HOOK_TEMPLATE = """#!/bin/sh
 # `freshness` looked past it at the already-reverted working tree and found nothing
 # wrong. This was the surface MEDIUM-33's own writeup named as the one that matters.
 #
-# `resolve`, `references` and `propagate` have no `--cached` of their own yet, so this
-# hook still reads the working tree for those three; giving all five the flag is a wider
-# fix than this one, and out of this pass's budget to audit.
+# `resolve` asks for it too, because a ground anchored by value is held to the text the
+# tree this run reads: an author who stages an artifact in one state and leaves the working
+# tree in another otherwise commits an entry whose anchor no version of the path holds —
+# the anchor matched the tree, and the commit carried the index.
+#
+# `references` and `propagate` have no `--cached` of their own yet, so this hook still
+# reads the working tree for those two; and `resolve` reads it for a ground pinned at
+# `working`, which names the working tree by its own name and which `freshness` passes
+# over entirely. So this hook narrows what can commit unseen; it does not close it.
 set -e
 {python} -m claims_ledger validate --cached
-{python} -m claims_ledger resolve
+{python} -m claims_ledger resolve --cached
 {python} -m claims_ledger references
 {python} -m claims_ledger propagate
 {python} -m claims_ledger freshness --cached
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
 # console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
-# asks each checker for the index wherever that checker has a `--cached` of its own, so a
-# drift that is staged and then reverted in the working tree cannot commit silently
-# (L0120-the-hook-reads-the-index-wherever-a-checker-can, cites-as-live).
+# asks each checker for the index wherever that checker has a `--cached` of its own. What
+# each of those checkers then does with it is that checker's own claim; the template says
+# only which lines carry the flag, and the lines that do not say so beside them
+# (L0217-the-hook-carries-the-cached-flag-on-every-line-that-takes-one, cites-as-live).
 
 
 def hook_text(python=None):
@@ -146,7 +153,8 @@ def build_parser():
     v = sub.add_parser("validate", help="entries are well-formed, and history is immutable")
     v.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
-    sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
+    r = sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
+    r.add_argument("--cached", action="store_true", help="read staged entries from the git index")
     sub.add_parser("references", help="citation acts agree with statuses, both directions")
 
     pr = sub.add_parser("propagate", help="dependents of fallen entries carry the contested flag")
@@ -215,7 +223,12 @@ def build_parser():
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
     )
     s.add_argument("path", nargs="+")
-    s.add_argument("--write", action="store_true", help="rewrite the declared value")
+    s.add_argument(
+        "--write",
+        action="store_true",
+        help="rewrite the declared value, and fill each `=?` anchor with the digest of its "
+        "section as the tree has it",
+    )
     s.add_argument(
         "--force", action="store_true", help="rewrite even though git already has the entry"
     )
@@ -390,11 +403,18 @@ def cmd_validate(args, ledger):
 
 
 def cmd_resolve(args, ledger):
-    stop = guard(ledger)
+    # All three take the flag, and that is the claim: the guard so a fallback is named, the
+    # load so the entries are the ones being committed, the run so a by-value anchor is held
+    # to the artifact the commit will carry. Leaving one bare is the shape that survives a
+    # suite — two of the three then answer about a state no commit contains and answer it
+    # with a pass, and the third keeps its verdict, losing only the notice that the index
+    # went unread
+    # (L0215-cmd-resolve-puts-the-cached-flag-to-each-of-its-three-calls, cites-as-live).
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = resolve.run(ledger, entries=entries)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = resolve.run(ledger, entries=entries, cached=args.cached)
     return report_command("resolve", reports, entries, ledger)
 
 
@@ -436,17 +456,21 @@ def cmd_check(args, ledger):
         return stop
     worst = 0
     # The entries are parsed once for the five checkers rather than once each. Two lists
-    # and not one: under `--cached` `validate` and `freshness` read what is staged and the
-    # other three read the working tree, which is the difference `--cached` exists to
-    # make. (docs/audits/ARCH-AUDIT.md, finding 4.)
-    # (L0123-check-parses-the-entries-once-into-two-lists, cites-as-live)
+    # and not one: under `--cached` `validate`, `resolve` and `freshness` read what is
+    # staged and the other two read the working tree, which is the difference `--cached`
+    # exists to make. (docs/audits/ARCH-AUDIT.md, finding 4.)
+    # (L0213-a-combined-run-parses-the-entries-once-into-two-lists, cites-as-live)
     working = load_entries(ledger)
     staged = load_entries(ledger, cached=True) if args.cached else working
     for name in CHECKERS:
         if name == "validate":
             reports = validate.run(ledger, cached=args.cached, entries=staged)
         elif name == "resolve":
-            reports = resolve.run(ledger, entries=working)
+            # The staged entries against the index's artifacts, the pair the commit will
+            # carry. Handed the working entries instead, an entry staged with one anchor
+            # and edited to another in the tree had the tree's anchor held to the index's
+            # artifact — a pair no commit contains — and landed unresolved either way.
+            reports = resolve.run(ledger, entries=staged, cached=args.cached)
         elif name == "references":
             reports = references.run(ledger, entries=working)
         elif name == "propagate":
@@ -526,7 +550,8 @@ def cmd_new(args, ledger):
     print(f"wrote {ledger.config.relative(path)}")
     print(
         "Fill in Assertion, Scope, Grounds, Warrant and Backing, then "
-        "`claims-ledger sha --write` before the first commit."
+        "`claims-ledger sha --write` before the first commit; a ground's anchor may be left "
+        "as `=?`, and the write fills it with the digest of the section as the tree has it."
     )
     # Said here as well as in the scaffold because this is the sentence that carries the
     # cost, and the cost is what makes the rule worth following.
@@ -572,9 +597,11 @@ def sha_one(args, ledger, raw):
                 f"the project root; {ledger.config.root / raw} is the entry there",
                 file=sys.stderr,
             )
-    declared, computed, changed = authoring.restamp(
+    declared, computed, changed, filled = authoring.restamp(
         ledger, path, write=args.write, force=args.force
     )
+    for raw in filled:
+        print(f"{path}: `{raw}` filled with the digest of the section as the tree has it")
     if changed:
         print(f"{path}: {declared[:12]}… → {computed[:12]}…")
         say_where_the_citation_sits(ledger, path)
@@ -593,10 +620,10 @@ def say_where_the_citation_sits(ledger, path):
 
     `references` asks the same question of the whole ledger and is what refuses a commit.
     This asks it of one entry, here, because this is the first moment it can be asked at
-    all: in the two-commit shape the citation is written first and the entry second, so
-    until the Grounds exist there is no section to be outside of, and `sha --write` is the
-    step between the two (L0174-the-placement-question-is-asked-when-the-entry-is-written,
-    cites-as-live).
+    all: until the Grounds exist there is no section to be outside of, and `sha --write`
+    is the step that runs once the Grounds and the citation both do, before the commit
+    that lands them together
+    (L0174-the-placement-question-is-asked-when-the-entry-is-written, cites-as-live).
 
     It prints and does not fail. What this command's exit code answers is whether the
     fingerprint was written, and a second meaning on it would make a script that reads it

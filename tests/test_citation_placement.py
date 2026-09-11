@@ -103,8 +103,9 @@ def test_a_citation_of_an_entry_grounded_elsewhere_is_asked_nothing(project):
 
 
 def test_sha_write_says_so_at_the_moment_the_entry_is_written(project, capsys):
-    """The write-time half. In the two-commit shape the citation is written first and the
-    entry second, so `sha --write` is the first moment both exist."""
+    """The write-time half. `sha --write` runs once the Grounds and the citation both
+    exist and before the commit that lands them, so it is the first moment the question
+    can be asked."""
     path = entry_citing_its_own_ground(project, inside=False)
     set_placement(project, "flag")
     capsys.readouterr()

@@ -3,11 +3,13 @@
 This package holds a ledger of the claims about *itself*: entries under `ledger/`
 pinned to the code that keeps them true and cited from the README sentence and the
 docstring that state the same commitment in prose.
-`claims-ledger check` runs in the pre-commit hook and again in CI.
+The pre-commit hook runs the five checkers one line each, asking for the index wherever
+a checker has a `--cached` of its own; `claims-ledger check` runs them again in CI.
 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
-commits — the history-rewrite hazard, the two-commit shape for landing an entry, and the
-order in which a drifted claim is repaired. It ships with the package, so it is written
+claims to code — what a rewritten history costs a ground stated by reference, the
+one-commit shape for landing an entry stated by value, and the order in which a drifted
+claim is repaired. It ships with the package, so it is written
 for any project, not just this one. What follows is only what is specific to this
 repository.
 
@@ -19,10 +21,12 @@ Enforced in two places, neither of which is this file: `allow_squash_merge` and
 expected verdicts for that guard are committed beside it in `merge-guard.cases`; run
 `bash src/claims_ledger/resources/agent-harness/merge-guard-test.sh` after touching either.
 
-The reason is in `docs/OPERATING.md`. The short of it: the entries pin commits, many
-of them, and a rewrite that drops one costs a supersession per ground pinned into it.
-`claims-ledger status` is the count; it is not repeated here, because a tally in prose
-is one more thing that goes stale every time an entry lands.
+The reason is in `docs/OPERATING.md`. The short of it: the older entries state their
+grounds by reference, at commits, many of them, and a rewrite that drops one costs a
+supersession per ground pinned into it. New grounds and readings are stated by value
+and survive a rewrite, so the guard defends the by-reference grounds that remain; how
+many there are is a matter of reading the Grounds, and is not tallied here, because a
+count in prose is one more thing that goes stale every time an entry lands.
 
 ## What the checkers read here
 
@@ -63,7 +67,8 @@ wrote no skills and reported success. So `.claude/skills/` is a local install no
 
     claims-ledger harness install --agent claude --no-hooks
 
-after a fresh clone, and again after editing a shipped skill. No symlink here reaches into
+after a fresh clone, and with `--force` after editing a shipped skill — without it a file
+that is there and differs is left alone, named on stderr, and the command exits 1. No symlink here reaches into
 the package and a test walks the tree to say so
 (L0188-no-symlink-in-the-repository-reaches-into-the-package, cites-as-live); what a built
 wheel carries of the harness is counted against the tree rather than assumed

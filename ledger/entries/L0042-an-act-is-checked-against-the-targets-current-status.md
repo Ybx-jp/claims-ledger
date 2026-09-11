@@ -51,6 +51,21 @@ none
 - 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" @aadceb0aba82a85fe71b15394896c43977751709
   note: read against the change in commit aadceb0, which added the distinguishes act to the table with every status legal against it; this claim is that an act is checked against the map rather than which acts the map holds, and is unaffected
+- 2026-09-11T03:10:05-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  artifact: sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: propagated from a moved ground
+
+- 2026-09-11T03:10:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: sha256:dbedd55b9526800ec0bb9fce6377a79db28cf261fdfe831a5d65c4ceac39523f
+  note: propagated from a moved ground
+- 2026-09-11T03:10:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: read against the working tree after run gained a docstring, a `minted` set and a skip for citation-shaped parentheticals whose id this ledger never minted, the placement check appended after the roster check, and one renumbered citation, since the reading at 5ee55ae: both walks still look each act up in ACT_ALLOWS against the same derived statuses and report the act, the target, its status and the statuses the act needs, untouched by the additions; the assertion holds as written.
+- 2026-09-11T03:10:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" =sha256:dbedd55b9526800ec0bb9fce6377a79db28cf261fdfe831a5d65c4ceac39523f
+  note: read against the working tree after ACT_ALLOWS gained a comment explaining the distinguishes row since the reading at aadceb0: every row of the table, and the statuses it maps each act to, is unchanged; the assertion holds as written.
 
 ## References
 

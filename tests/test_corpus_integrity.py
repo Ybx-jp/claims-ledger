@@ -34,6 +34,7 @@ import unicodedata
 from pathlib import Path
 
 import pytest
+from conftest import redigest
 
 from claims_ledger.corpus import run as corpus_run
 
@@ -195,7 +196,7 @@ RESOLVES_WHEN_RULE = (
 )
 FRESHNESS_NOT_CHECKED_RULE = (
     "freshness.py",
-    """                    f"`{raw}` was not checked: {detail}",
+    """                    f"`{raw}` was not checked: {found.detail}",
 """,
 )
 UNREADABLE_DOCUMENT_RULE = (
@@ -347,13 +348,17 @@ def reverse_backing_blocks(corpus):
 
 def trailing_space_on_body_lines(corpus):
     """Two trailing spaces is Markdown's hard line break. Not the `---` fences: see
-    test_a_frontmatter_fence_with_trailing_whitespace_is_still_frontmatter."""
+    test_a_frontmatter_fence_with_trailing_whitespace_is_still_frontmatter. An anchor
+    stated by value names an artifact's text by digest, and this is a change to that
+    text, so the anchors are recomputed for the transformed seeds (`redigest`)."""
     for path in seed_markdown(corpus):
         text = path.read_text(encoding="utf-8")
         lines = [
             ln if (not ln.strip() or ln.strip() == "---") else ln + "  " for ln in text.split("\n")
         ]
         path.write_text("\n".join(lines), encoding="utf-8")
+    for seed in SEEDS:
+        redigest(seed, corpus / "seeds" / seed.name)
 
 
 INVARIANCES = {
@@ -469,7 +474,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 90
+    assert len(SEEDS) == 95
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -578,8 +583,18 @@ REPORT_SITE_COUNTS = {
     # D57-scope-narrower-than-its-warrant, which is the only thing holding it.
     # 77 + 1: the entry whose every ground is a `distinguishes` act. Swept — deleting it
     # reddens the corpus at D58-entry-resting-only-on-a-distinction, and nothing else.
-    "validate.py": 78,
-    "resolve.py": 16,
+    # 78 + 2: an anchor stated by value that is the `=?` placeholder, and one that is not
+    # a digest. Swept — deleting the first reddens the corpus at D62-anchor-left-pending
+    # and tests/test_anchors.py; deleting the second reddens tests/test_anchors.py alone.
+    "validate.py": 80,
+    # 16 + 4: a ground anchored by value, resolved from the tree or from history. Swept
+    # (2026-09-11) — the uncommitted anchor that does not digest to the tree and the flag
+    # for text no version of the path holds redden the corpus (D63, D64) and
+    # test_resolve_by_value; a search git could not make reddens the shallow-clone test
+    # there; and a git that could not say whether the entry is committed was held by
+    # nothing, so test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure
+    # was written for it.
+    "resolve.py": 20,
     # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
     # Swept — deleting it reddens the corpus at
     # D59-document-cites-with-an-act-that-is-not-one, and nothing else.
@@ -588,7 +603,12 @@ REPORT_SITE_COUNTS = {
     # D60-citation-outside-the-span-it-pins, and nothing else.
     "references.py": 17,
     "propagate.py": 5,
-    "freshness.py": 13,
+    # 13 - 3: the history walk went, and its three sites with it — the discharge git could
+    # not settle, the drift `--write` could not record because git could not say what the
+    # artifact was, and the orphan whose drift could not be established; no site was added,
+    # since a comparison by digest on both sides asks history nothing and has nothing to
+    # report about it.
+    "freshness.py": 10,
 }
 
 

@@ -42,6 +42,13 @@ none
 - 2026-09-08T22:03:53-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "report_install" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
   note: re-read after the wiring branch for an agent with nothing to wire was removed. The three states and the exit code each carries are unchanged.
+- 2026-09-11T03:10:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "report_install" @fcacc40a38daaecba8fc1084b6dfe2dd34d8631e
+  artifact: sha256:64b37a1eb40428e9381becfcda564fad17dc94db0ba2aa936780688de42628ea
+  note: propagated from a moved ground
+- 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "report_install" =sha256:64b37a1eb40428e9381becfcda564fad17dc94db0ba2aa936780688de42628ea
+  note: read against the working tree after report_install began, since the reading at fcacc40, printing an absolute path for a wiring file outside the project and a note that codex reads hooks only there: the three states still map to the same exit codes, zero for wrote and present and non-zero for a file left alone; the assertion holds as written.
 
 ## References
 

@@ -42,6 +42,13 @@ none
 - 2026-09-08T10:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_sections" @f8b21e96f8e17ea36b344e076672f701398b3b95
   note: read against the change in commit f8b21e96, which added a flag block at the end of check_sections and a wording heuristic beside FALSIFIER_RE; this rule is stated elsewhere in the same section and is unaffected
+- 2026-09-11T03:10:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @f8b21e96f8e17ea36b344e076672f701398b3b95
+  artifact: sha256:c0769a66c50f5c4553287e21260b05a456a756669f8783622ff6a5f7b6179afc
+  note: propagated from a moved ground
+- 2026-09-11T03:10:33-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_sections" =sha256:c0769a66c50f5c4553287e21260b05a456a756669f8783622ff6a5f7b6179afc
+  note: read against the working tree after check_sections gained the every-ground-is-a-distinction rule and the ENTRY_ACTS check since the reading at f8b21e9: the test of the Assertion against straight and typographic quotation marks is untouched; the assertion holds as written.
 
 ## References
 

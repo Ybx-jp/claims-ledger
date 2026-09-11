@@ -42,6 +42,13 @@ none
 - 2026-09-08T09:50:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/propagate.py § "run" @5ee55ae6992f10c834510759f026644f42614025
   note: read against the change in commit 5ee55ae, which narrowed the dependent exemption from FALLEN to TERMINAL in that one branch; this claim names a different part of the same section and is unaffected
+- 2026-09-11T03:09:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/propagate.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  artifact: sha256:0ca4d23c82c30d940fab79c0e6c5feb672853f2c9f34db3401c9efbd0d9f8e59
+  note: propagated from a moved ground
+- 2026-09-11T03:09:46-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" =sha256:0ca4d23c82c30d940fab79c0e6c5feb672853f2c9f34db3401c9efbd0d9f8e59
+  note: read against the working tree after run gained a docstring carrying the citations for the rules it holds, moved into the span the grounds pin, since the reading at 5ee55ae: the code of the section is byte-identical once the docstring is set aside, so without --write the queue of missing verdicts is still reported and discarded and no file is written; the assertion holds as written.
 
 ## References
 

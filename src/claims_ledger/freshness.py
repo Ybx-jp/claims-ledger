@@ -7,22 +7,25 @@ and stay green — the evidence is still there, at the revision nobody works on 
 The pin does not merely fail to detect drift; it immunizes the claim against it.
 
 This checker asks the other question. For each evidence ground of an entry that has not
-fallen: the pin is a commit and not a name that moves (`unstable pin`, flag); the path is
-still in the tree (`withdrawn`, fail); and the artifact there is byte-identical to the
-artifact at the pin (`moved`, flag). It never judges whether a difference matters — that
-is the warrant's job, and the warrant is prose a person reads. `drift` decides which of
-those a ground is; `run` settles what the whole pass does, and states the rules it holds.
+fallen: the anchor names a datum — a digest stated by value, or a commit that is not a
+name that moves (`unstable pin`, flag); the path is still in the tree (`withdrawn`,
+fail); and the section there digests to the anchor (`moved`, flag). Every anchor is
+reduced to the same digest, whichever way it was written, so one comparison serves both
+forms. It never judges whether a difference matters — that is the warrant's job, and
+the warrant is prose a person reads. `drift` decides which of those a ground is; `run`
+settles what the whole pass does, and states the rules it holds.
 
 A finding is discharged by a `contested` verdict by the propagation author naming the
-pointer, which `--write` appends; a verdict naming a ground that has not drifted is an
-orphan and fails, as in `propagate`. Nothing more is needed, because a contested entry
-cannot be cited `cites-as-live` and `references` fails every document that still does.
+pointer and recording the digest this run sees, which `--write` appends; a verdict
+recording the anchor itself, or one on a fresh ground that records something this run
+does not see, is an orphan. Nothing more is needed, because a contested entry cannot be
+cited `cites-as-live` and `references` fails every document that still does.
 
 Run:  claims-ledger freshness [--write] [--cached]
       With --cached the artifact is compared as the index has it rather than as the
       working tree does, matching what the rest of a `check --cached` is reading.
-Exit 1 on a withdrawn ground, a ground that could not be checked, an orphan verdict, or a
---write that appended something; flags print and exit 0.
+Exit 1 on a withdrawn ground, a ground that could not be checked, a refutable orphan
+verdict, or a --write that appended something; flags print and exit 0.
 Proven against the red-team corpus by `claims-ledger corpus`.
 
 The specification this implements is docs/FRESHNESS.md, which the repository has at
@@ -31,6 +34,8 @@ https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md.
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
 import os
 import stat
 from datetime import datetime
@@ -38,11 +43,11 @@ from datetime import datetime
 from .propagate import append_verdict, grouped
 from .schema import (
     ABSENT,
-    NULL_OBJECT_ID,
-    OBJECT_ID_RE,
+    PENDING_ANCHOR,
     TERMINAL,
     UNPINNED,
     Report,
+    digest_of,
     git,
     git_call,
     git_env,
@@ -50,7 +55,6 @@ from .schema import (
     load_entries,
     read_artifact,
     section_text,
-    unreachable_artifact,
 )
 
 
@@ -127,26 +131,34 @@ def checked_pointers(entry, config):
     for i, (raw, p) in enumerate(entry.grounds, start=1):
         if p is None or p.type not in config.evidence_types or p.pin in UNPINNED:
             continue
+        if p.digest == PENDING_ANCHOR:
+            continue  # names no datum yet; `validate` refuses it, and there is nothing to compare
         out.append((i, raw, p))
     return out
 
 
 def readings(entry, pointer, config, repo=None, placed=None):
     """The corroborating verdicts that re-read this ground, in file order: each names the
-    ground's type, path and section at a commit. A corroboration at an unpinned reference
-    is a reading nothing here can hold to a commit, and is passed over.
+    ground's type, path and section, anchored by value or at a commit. A corroboration at
+    an unpinned reference is a reading nothing here can hold to anything, and is passed
+    over.
 
-    With a repository to ask, a reading also has to sit in this history strictly between
-    the pin and here, and be pinned to a commit rather than a name. A commit on no branch
-    — `commit-tree` makes one in a moment — would otherwise be the baseline every checker
-    compares from until a prune turned it into a rewritten history; a reading older than
-    the pin would report an untouched ground as moved; one at the pin's own commit in a
-    longer spelling would carry the comparison away from the discharge recorded at the
-    pin; and a name follows the work, which `drift` reports as an unstable pin. All are
-    passed over, so the ground is compared from its pin, or from the last reading that is
-    in the history. `placed` memoises that question for a run: the same reading is asked
-    about by `run` and again by `orphans`, and a ledger's readings cluster on a few
-    commits.
+    A reading anchored by value is the datum it read, stated in full, and needs no place
+    in history to be held to: it is the baseline whether or not any commit carries it,
+    which is what lets a reading be written in the same commit as the edit it read
+    (L0204-a-reading-anchored-by-value-needs-no-place-in-history, cites-as-live). A
+    reading anchored at a commit, with a repository to ask,
+    has to sit in this history — on a branch, and strictly after the ground's own commit
+    where the ground names one — and be pinned to a commit rather than a name. A commit
+    on no branch — `commit-tree` makes one in a moment — would otherwise be the baseline
+    every checker compares from until a prune turned it into a rewritten history; a
+    reading older than the pin would report an untouched ground as moved; one at the
+    pin's own commit in a longer spelling would carry the comparison away from the
+    discharge recorded at the pin; and a name follows the work, which `drift` reports as
+    an unstable pin. All are passed over, so the ground is compared from its own anchor,
+    or from the last reading that is in the history. `placed` memoises that question for
+    a run: the same reading is asked about by `run` and again by `orphans`, and a
+    ledger's readings cluster on a few commits.
     """
     out = []
     placed = {} if placed is None else placed
@@ -162,13 +174,16 @@ def readings(entry, pointer, config, repo=None, placed=None):
             or q.pin in UNPINNED
         ):
             continue
-        if repo is not None:
+        if not q.by_value and repo is not None:
             key = (pointer.pin, q.pin)
             if key not in placed:
+                after_the_pin = pointer.by_value or (
+                    git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
+                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, pointer.pin).code != 0
+                )
                 placed[key] = (
                     is_object_name(repo, q.pin)[0] is True
-                    and git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
-                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, pointer.pin).code != 0
+                    and after_the_pin
                     and git_call(repo, "merge-base", "--is-ancestor", q.pin, "HEAD").code == 0
                 )
             if not placed[key]:
@@ -206,12 +221,13 @@ def acknowledgements(entry, pointer, author):
     """The propagated verdicts this entry carries against this pointer, in file order.
 
     The section counts. `§ "<section>"` is part of a pointer's identity everywhere else
-    in this checker — `scoped()` compares that span alone, `orphans()` looks a ground up
+    in this checker — `drift()` compares that span alone, `orphans()` looks a ground up
     by its raw text, the message names the section — and a comparison that dropped it let
     one verdict discharge every ground on the same file and pin. Verdicts do not expire,
     so the second drifted ground would have been reported fresh for the life of the
     entry (L0102-a-verdict-discharges-only-the-ground-whose-section-it-names,
-    cites-as-live).
+    cites-as-live). The anchor counts the same way, whichever form it takes: a verdict
+    names the pointer the run that wrote it compared against.
     """
     return [
         v
@@ -222,49 +238,45 @@ def acknowledgements(entry, pointer, author):
         and q.type == pointer.type
         and q.target == pointer.target
         and q.pin == pointer.pin
+        and q.digest == pointer.digest
         and q.section == pointer.section
     ]
 
 
-def discharges(repo, pointer, verdict, seen):
-    """(whether this verdict discharges the drift in front of it, why git could not say).
+def discharges(verdict, seen):
+    """Whether this verdict discharges the drift in front of it: it records the artifact
+    as this run reads it.
 
     Matching a verdict to a ground by the pointer alone was the whole of the suppression
     rule, and it made the `artifact:` line unreachable in the state a discharge normally
-    lives in: with the drift live, `orphans()` does not ask, so nothing read the value at
+    lives in: with the drift live, `orphans()` did not ask, so nothing read the value at
     all and a verdict carrying forty zeros, or any plausible id, silenced a real,
     committed, ongoing drift with every checker at exit 0. A pointer is *which* drift a
     verdict is about; it is not evidence that the verdict is about this one.
 
-    Two ways a verdict is about the drift in front of it, and they cover different
-    moments. **It records what this run is looking at** — the ordinary pre-commit case,
-    where the drift is in the working tree or the index and is in no commit yet, so there
-    is no history for `caused()` to find it in. **Or the artifact really was what it says
-    it was, between the pin and here** — the case after the drift is committed, which is
-    also the one that survives the artifact changing again afterwards.
-
-    A verdict that is neither is not suppressed, and the drift is reported
-    (L0103-a-discharge-records-what-this-run-sees-or-what-the-path-held, cites-as-live).
-    That is not an accusation: `orphans()` is where a verdict is called a forgery, and
-    this only declines to let one silence a finding it does not describe. Under `--write`
-    the run then appends a verdict that does describe it, which is what keeps the
-    pre-commit path from wedging when the staged bytes are edited again before the commit
-    is made.
+    So the verdict is held to what it states, and what it states is the digest of the
+    section as the run that wrote it read it — or `absent`, for a ground that was gone.
+    It discharges the drift in front of this run when that is what this run reads too,
+    and nothing else does: not a record of some earlier drift the artifact has since
+    moved on from, which is news since the last reading and is reported as such, and not
+    an object id recorded before anchors could be stated by value, which names a whole
+    file and can be compared with no section
+    (L0198-a-discharge-records-the-digest-this-run-sees, cites-as-live). A drift that is
+    not discharged is reported, and under `--write` the run appends a verdict that does
+    describe it, which is what keeps the pre-commit path from wedging when the staged
+    bytes are edited again before the commit is made. No history is asked: a record is
+    either the artifact in front of the run or it is not.
     """
     recorded = (verdict.artifact or "").strip()
-    if recorded and recorded != NULL_OBJECT_ID and seen is not None and recorded == seen:
-        return True, None
-    state, why = caused(repo, pointer, verdict)
-    if state is None:
-        return None, why
-    return state == CAUSED, None
+    return bool(recorded) and seen is not None and recorded == seen
 
 
 def verdict_block(grade, pointer, note, author, seen):
     """The block `--write` appends, including what the artifact was when the drift was
-    seen — the object id git would store it under, or `absent` for a ground that had been
-    withdrawn. `orphans()` holds the verdict to that later, and it is the whole of what
-    separates a discharge this checker caused from one written pre-emptively."""
+    seen — the digest of the section as this run read it, or `absent` for a ground that
+    had been withdrawn. `discharges()` and `orphans()` hold the verdict to that later,
+    and it is the whole of what separates a discharge this checker caused from one
+    written pre-emptively."""
     stamp = datetime.now().astimezone().isoformat(timespec="seconds")
     return (
         f"- {stamp} · contested · grade: {grade} · author: {author}\n"
@@ -272,35 +284,6 @@ def verdict_block(grade, pointer, note, author, seen):
         f"  artifact: {seen}\n"
         f"  note: {note}\n"
     )
-
-
-def seen_at(repo, pointer, path, cached, withdrawn):
-    """(what the artifact is as this run reads it, why git could not say).
-
-    The object id git would store the artifact under, which is what the comparison later
-    has to be against: a commit id would not do, because the ordinary case is a drift
-    that is in the working tree and not yet committed at all — that is what a pre-commit
-    hook is for. `hash-object --path` rather than a hash of the bytes, so that whatever
-    the repository does to a file on its way in, line endings and clean filters included,
-    is done here too and the id matches the one a commit would record
-    (L0104-the-artifact-is-recorded-as-the-id-a-commit-would-store, cites-as-live).
-
-    A withdrawn ground has no artifact to hash, and its absence is the thing that
-    happened; `ABSENT` records that, and `caused()` looks for the deletion in history the
-    way it looks for a blob
-    (L0105-a-withdrawn-ground-records-absent-and-the-deletion-is-sought, cites-as-live).
-    """
-    if withdrawn:
-        return ABSENT, None
-    if cached:
-        answer = git_call(
-            repo, "rev-parse", "--verify", "--quiet", f":{pointer.target}", env=git_env(index=True)
-        )
-    else:
-        answer = git_call(repo, "hash-object", "--path", pointer.target, "--", str(path))
-    if answer.ok and OBJECT_ID_RE.match(answer.out.strip()):
-        return answer.out.strip(), None
-    return None, answer.why or f"git answered {answer.out.strip()!r}"
 
 
 def now_text(repo, pointer, path, cached):
@@ -357,55 +340,70 @@ def in_this_run(repo, pointer, path, cached):
     return stat.S_ISREG(info.st_mode), None
 
 
-def scoped(repo, pointer, path, config, cached=False):
-    """(finding, why) for a pointer that names a section — `None`, `moved`, `withdrawn`
-    or `unknown`.
+def anchor_digest(repo, pointer, config, memo=None):
+    """(the digest the pointer's anchor names, why git could not say) — `(None, None)`
+    when the anchor names nothing to compare, which is `resolve`'s finding.
 
-    The artifact changed; the question this answers is whether the change was inside the
-    section the claim actually rests on. `None` means the section is untouched and the
-    edit was somewhere else in the file — the whole reason for naming a section.
-    `withdrawn` means the file is still there and the section is not.
-
-    A side that is there and is not text is not a finding of its own: the artifact did
-    change, and `moved` is what the comparison already said before sections narrowed it.
-    A side that could not be read *at all* is the other thing, and it is `unknown`: the
-    docstring here anticipated only the first, and a permission error landed in the same
-    branch and produced a confident, false, soft finding. (docs/audits/ARCH-AUDIT.md, finding 2.)
-
-    Ledger: (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live).
+    Stated by value, the anchor is the digest and nothing is asked of anybody. Stated at a
+    commit, it is the digest of the section as that commit has it, read once per pointer
+    for the run and kept in `memo`: `git show <pin>:<path>` through the configured
+    section pattern and the same `digest_of` a by-value anchor was computed with, so the
+    two forms name the same kind of thing and one comparison serves both
+    (L0199-an-anchor-at-a-commit-is-the-digest-of-the-section-there, cites-as-live).
+    `drift` has already had `rev-parse --verify` say the blob is there, so a `show` that
+    fails here is git failing to hand it over rather than a pin that names nothing.
     """
+    if pointer.by_value:
+        return pointer.digest, None
+    key = (pointer.pin, pointer.target, pointer.section)
+    if memo is not None and key in memo:
+        return memo[key]
     at_pin = git_call(repo, "show", f"{pointer.pin}:{pointer.target}")
     if not at_pin.ok:
-        # `drift` has already had `rev-parse --verify` say the blob is there, so this is
-        # git failing to hand it over rather than a pin that names nothing.
-        return "unknown", f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
-    now, unreachable = now_text(repo, pointer, path, cached)
-    if unreachable:
-        return "unknown", f"`{pointer.target}` {unreachable}, so its section was not compared"
-    was = at_pin.out
-    if now is None:
-        return "moved", None
-    before = section_text(was, config, pointer.type, pointer.section)
-    after = section_text(now, config, pointer.type, pointer.section)
-    if before is None:
+        answer = None, f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
+    elif pointer.sectioned:
+        found = section_text(at_pin.out, config, pointer.type, pointer.section)
         # The section was never there at the pin. `resolve` fails on that; saying it
         # again here would make one defect look like two.
-        return None, None
-    if after is None:
-        return "withdrawn", None
-    # Trailing whitespace is the gap between one section and the next, not part of
-    # either. The last section of an artifact runs to the end of it, so appending a new
-    # section to the file would otherwise lengthen the one before it by the blank lines
-    # separating them, and report a section nobody touched as moved.
-    return (None, None) if before.rstrip() == after.rstrip() else ("moved", None)
+        answer = (None, None) if found is None else (digest_of(found), None)
+    else:
+        answer = digest_of(at_pin.out), None
+    if memo is not None:
+        memo[key] = answer
+    return answer
 
 
-def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working tree
-    """(finding, detail) for one pointer, or (None, None) when the ground is fresh.
+@dataclasses.dataclass
+class Drift:
+    """What `drift` found for one pointer: the finding — `None` for a fresh ground,
+    `unstable-pin`, `withdrawn`, `moved` or `unknown` — its detail, and `seen`, the
+    digest of the artifact as this run read it, `absent` for a ground that is gone, or
+    None where nothing was read."""
 
-    `finding` is `unstable-pin`, `withdrawn`, `moved` or `unknown`. A pin or a path that
-    does not resolve at all is not this checker's finding — `resolve` reports it, and
-    reporting it twice under two names would make one defect look like two.
+    finding: str | None
+    detail: str | None = None
+    seen: str | None = None
+
+
+def drift(repo, pointer, tree, config, cached=False, memo=None):  # `tree` is the working tree
+    """The finding for one pointer, and what this run read the artifact as.
+
+    A pin or a path that does not resolve at all is not this checker's finding — `resolve`
+    reports it, and reporting it twice under two names would make one defect look like
+    two.
+
+    Both sides are read through one decode and compared by digest: the anchor's side is
+    the digest the anchor names, stated in the pointer or read out of the commit it
+    names, and this run's side is the digest of the same section as the working tree, or
+    the index under `--cached`, holds it. An edit elsewhere in the file leaves the
+    section's digest alone and is not this ground's drift; a side that could not be read
+    at all is reported as a comparison that did not happen rather than as drift
+    (L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides,
+    cites-as-live). The digest of what was read is what a discharge is held to, so it is
+    computed here, once, from the same read the comparison used — of the section, of the
+    whole text for a plain anchor, or of the bytes where the artifact is not text — and
+    `absent` where the ground is gone, so a recorded drift always states the artifact it
+    was seen at (L0201-a-recorded-drift-states-the-digest-it-was-seen-at, cites-as-live).
 
     `unknown` is git declining to answer a question this checker asked, and its detail is
     the reason. `git_problem()` is asked once before the run and clears a git that cannot
@@ -416,24 +414,39 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
     ground (L0109-a-question-git-declined-is-unknown-and-never-a-fresh-ground,
     cites-as-live).
     """
-    named, why = is_object_name(repo, pointer.pin)
-    if named is None:
-        return "unknown", f"git could not say whether `{pointer.pin}` is a commit or a name: {why}"
-    if not named:
-        return "unstable-pin", None
-    # `--quiet` is what makes the difference between the two answers legible, and the exit
-    # status is where it is read: exit 1 is `there is nothing at that pin`, which `resolve`
-    # reports, and 128 or no answer at all is git failing to look.
-    at_pin = git_call(repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}")
-    if at_pin.code == 1:
-        return None, None
-    if not at_pin.ok:
-        return "unknown", f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
+    if not pointer.by_value:
+        named, why = is_object_name(repo, pointer.pin)
+        if named is None:
+            return Drift(
+                "unknown", f"git could not say whether `{pointer.pin}` is a commit or a name: {why}"
+            )
+        if not named:
+            return Drift("unstable-pin")
+        # `--quiet` is what makes the difference between the two answers legible, and the
+        # exit status is where it is read: exit 1 is `there is nothing at that pin`, which
+        # `resolve` reports, and 128 or no answer at all is git failing to look.
+        at_pin = git_call(
+            repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}"
+        )
+        if at_pin.code == 1:
+            return Drift(None)
+        if not at_pin.ok:
+            return Drift(
+                "unknown", f"git could not read `{pointer.target}` at the pin: {at_pin.why}"
+            )
+    anchor, why = anchor_digest(repo, pointer, config, memo)
+    if why is not None:
+        return Drift("unknown", why)
+    if anchor is None:
+        return Drift(None)
     path = tree / pointer.target
 
     def since():
-        """Only asked once something has drifted: it walks history, and the answer is for
-        the message rather than for the finding."""
+        """Only asked once something has drifted, and only of an anchor at a commit,
+        which gives the count a lower bound: it walks history, and the answer is for the
+        message rather than for the finding."""
+        if pointer.by_value:
+            return None
         out = git(
             repo, "rev-list", "--count", f"{pointer.pin}..HEAD", "--", literal(pointer.target)
         )
@@ -441,54 +454,46 @@ def drift(repo, pointer, tree, config, cached=False):  # `tree` is the working t
 
     present, unreachable = in_this_run(repo, pointer, path, cached)
     if unreachable:
-        return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
+        return Drift("unknown", f"`{pointer.target}` {unreachable}, so it was not compared")
     if not present:
         # Deleted, or replaced by something that is not a file to read. Either way there
         # is nothing left for a person to look at and judge.
-        return "withdrawn", since()
-    # git's own comparison of the pin's tree against the tree this run is reading — the
-    # working tree, or the index under `--cached` — so that whatever the repository does
-    # to a file on its way in and out, line endings and clean filters included, is done to
-    # both sides. Empty output means the path is unchanged there, and no section inside it
-    # can have moved either, so the text is never read.
-    # (L0108-the-comparison-against-the-pin-is-gits-own, cites-as-live)
-    diff = ["diff", "--cached"] if cached else ["diff"]
-    changed = git_call(
-        repo,
-        *diff,
-        "--name-only",
-        pointer.pin,
-        "--",
-        literal(pointer.target),
-        env=git_env(index=cached),
-    )
-    if not changed.ok:
-        return "unknown", f"git could not compare `{pointer.target}` against the pin: {changed.why}"
-    if not changed.out.strip():
-        return None, None
-    if pointer.sectioned:
-        finding, why = scoped(repo, pointer, path, config, cached=cached)
-        if finding == "unknown":
-            return finding, why
-        return (finding, since()) if finding else (None, None)
-    # A plain pin has nothing inside it to narrow to, so git's comparison above is the
-    # answer — unless the reason git called it changed is that nothing can read it. git
-    # reports a file it cannot open as modified, which is the same false confidence one
-    # surface out.
-    unreachable = None if cached else unreachable_artifact(path)
+        return Drift("withdrawn", since(), ABSENT)
+    now, unreachable = now_text(repo, pointer, path, cached)
     if unreachable:
-        return "unknown", f"`{pointer.target}` {unreachable}, so it was not compared"
-    return "moved", since()
+        return Drift("unknown", f"`{pointer.target}` {unreachable}, so it was not compared")
+    if now is None:
+        # There, and not UTF-8 text: that artifact did change, whatever it holds now, and
+        # it cannot be narrowed to a section. What was seen is the digest of its bytes.
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            return Drift("unknown", f"`{pointer.target}` cannot be read ({exc.strerror or exc})")
+        return Drift("moved", since(), "sha256:" + hashlib.sha256(raw).hexdigest())
+    if pointer.sectioned:
+        after = section_text(now, config, pointer.type, pointer.section)
+        if after is None:
+            return Drift("withdrawn", since(), ABSENT)
+        seen = digest_of(after)
+    else:
+        seen = digest_of(now)
+    if seen == anchor:
+        return Drift(None, None, seen)
+    return Drift("moved", since(), seen)
 
 
 def since_phrase(count, where, origin="the pin"):
-    """How the artifact got from the pin — or from the reading it is compared from — to
+    """How the artifact got from the anchor — or from the reading it is compared from — to
     here, for the message.
 
     A count of zero is the ordinary pre-commit case — the edit is in the working tree and
     no commit has been made yet — and saying `0 commits have touched it` of a file the
     author is editing right now reads as a checker that has lost track of its own subject
-    (L0113-a-count-of-zero-commits-is-said-as-uncommitted, cites-as-live)."""
+    (L0113-a-count-of-zero-commits-is-said-as-uncommitted, cites-as-live). An anchor
+    stated by value names no commit to count from, so the message says only that the
+    section differs."""
+    if count is None:
+        return f"{where} differs from {origin}"
     if count and count.isdigit() and int(count) == 0:
         return f"{where} differs from {origin} in the working tree, uncommitted"
     if not count or not count.isdigit():
@@ -502,19 +507,22 @@ def run(ledger, write=False, cached=False, entries=None):
     """The pass over every ground, and the four things it settles before asking about any
     of them.
 
-    Grounds pinned to commits with no repository to ask about them is a failure and not a
-    silence: a check that did not run, reported as one that passed, is the failure mode
+    Grounds anchored at commits with no repository to ask about them is a failure and not
+    a silence: a check that did not run, reported as one that passed, is the failure mode
     this package exists to refuse
     (L0114-pinned-grounds-without-a-repository-are-a-failure-and-not-silence,
-    cites-as-live). A fallen entry's grounds are history — what it was established on, not
-    what anyone should now believe — and are left alone
+    cites-as-live); a ground anchored by value names its datum in full and is compared
+    against the working tree whether or not there is a repository. A fallen entry's
+    grounds are history — what it was established on, not what anyone should now
+    believe — and are left alone
     (L0117-a-fallen-entrys-grounds-are-exempt-from-freshness, cites-as-live). Each pointer
     is evaluated once, keyed on the whole pointer rather than on the path it names,
     because two grounds on one file naming two sections are two questions
-    (L0118-each-pointer-is-evaluated-once-per-run, cites-as-live). And a drift this run
-    cannot say the artifact of is reported rather than discharged, because a verdict
-    recording nothing is one nothing could ever check
-    (L0116-a-drift-whose-artifact-cannot-be-stated-is-not-discharged, cites-as-live).
+    (L0118-each-pointer-is-evaluated-once-per-run, cites-as-live). And a comparison that
+    read nothing is `unknown`: reported as a failure, never discharged by any verdict, and
+    nothing is appended for it, because a drift is only ever established from the artifact
+    this run read (L0202-an-unknown-comparison-is-reported-and-never-discharged,
+    cites-as-live).
 
     Without `--write` nothing is modified. With it the missing verdicts are appended, each
     attributed to the propagation author, and the run still exits non-zero so the change is
@@ -532,23 +540,26 @@ def run(ledger, write=False, cached=False, entries=None):
         return reports
 
     repo = ledger.repo
-    if repo is None:
-        # Pins that name commits, and no repository to ask about them. Silence here would
-        # be the failure mode this package exists to refuse: a check that did not run,
-        # reported as a check that passed.
+    at_commits = [p for _, (_, _, p) in pinned if not p.by_value]
+    if repo is None and at_commits:
+        # Anchors that name commits, and no repository to ask about them. Silence here
+        # would be the failure mode this package exists to refuse: a check that did not
+        # run, reported as a check that passed.
         return [
             Report(
                 "fail",
                 None,
                 "freshness",
-                f"{len(pinned)} ground(s) are pinned to a commit and there is no git "
+                f"{len(at_commits)} ground(s) are pinned to a commit and there is no git "
                 "repository holding the entries; freshness did not run",
             )
         ]
-    if (problem := git_problem(repo)) is not None:
+    if repo is not None and (problem := git_problem(repo)) is not None:
         return [Report("fail", None, "freshness", f"{problem}; freshness did not run")]
+    tree = repo if repo is not None else ledger.tree
 
     asked = {}
+    anchors = {}  # (pin, path, section) -> the digest an anchor at a commit names
     placed = {}  # (pin, reading) -> whether the reading sits between the pin and HEAD
 
     def drifted(pointer):
@@ -573,7 +584,7 @@ def run(ledger, write=False, cached=False, entries=None):
         one question inside one report.
         """
         if pointer.raw not in asked:
-            asked[pointer.raw] = drift(repo, pointer, repo, config, cached=cached)
+            asked[pointer.raw] = drift(repo, pointer, tree, config, cached=cached, memo=anchors)
         return asked[pointer.raw]
 
     for e, (i, raw, ground) in pinned:
@@ -586,10 +597,10 @@ def run(ledger, write=False, cached=False, entries=None):
         # Compared from where the ground was last read, which is the Ground itself until
         # a corroborating verdict re-reads it.
         p, reading = effective_pointer(e, ground, config, repo, placed)
-        finding, detail = drifted(p)
-        if finding is None:
+        found = drifted(p)
+        if found.finding is None:
             continue
-        if finding == "unknown":
+        if found.finding == "unknown":
             # Not discharged and not a flag: a verdict discharges a
             # drift that was established, and nothing here was established.
             reports.append(
@@ -597,11 +608,11 @@ def run(ledger, write=False, cached=False, entries=None):
                     "fail",
                     e.prefix,
                     part,
-                    f"`{raw}` was not checked: {detail}",
+                    f"`{raw}` was not checked: {found.detail}",
                 )
             )
             continue
-        if finding == "unstable-pin":
+        if found.finding == "unstable-pin":
             reports.append(
                 Report(
                     "flag",
@@ -612,42 +623,21 @@ def run(ledger, write=False, cached=False, entries=None):
                 )
             )
             continue
-        # What the artifact is as this run reads it, asked before the acknowledgement is
-        # weighed rather than only on the `--write` path: it is half of what makes a
-        # verdict a discharge of *this* drift, and it is what `--write` records.
-        seen, why_unseen = seen_at(repo, p, repo / p.target, cached, finding == "withdrawn")
-        acknowledged = False
-        for v in acknowledgements(e, p, author):
-            state, could_not = discharges(repo, p, v, seen)
-            if state:
-                acknowledged = True
-                break
-            if state is None:
-                # A git that cannot answer is not a git answering no. Silence here would
-                # retire the suppression rule; an accusation here would forge one against
-                # a correctly discharged verdict. The run says which, and exits non-zero.
-                reports.append(
-                    Report(
-                        "fail",
-                        e.prefix,
-                        part,
-                        f"`{raw}` has drifted and whether verdict {v.index} by {author} "
-                        f"discharges it could not be established: {could_not}",
-                    )
-                )
-                acknowledged = True
-                break
-        if acknowledged:
+        # What the artifact is as this run reads it is half of what makes a verdict a
+        # discharge of *this* drift, and it is what `--write` records.
+        if any(discharges(v, found.seen) for v in acknowledgements(e, p, author)):
             continue
         where = f"section {p.section!r}" if p.sectioned else "it"
-        origin = "the pin"
+        origin = "the anchor" if p.by_value else "the pin"
         if reading is not None:
-            origin = f"the reading verdict {reading.index} recorded at {p.pin[:12]}"
-        if finding == "withdrawn":
+            origin = f"the reading verdict {reading.index}"
+            if not p.by_value:
+                origin += f" recorded at {p.pin[:12]}"
+        if found.finding == "withdrawn":
             where_it_was = "the index" if cached else "the working tree"
             gone = (
                 f"section {p.section!r} is no longer in `{p.target}`"
-                if p.sectioned and in_this_run(repo, p, repo / p.target, cached)[0]
+                if p.sectioned and in_this_run(repo, p, tree / p.target, cached)[0]
                 else f"`{raw}` is not in {where_it_was}"
             )
             reports.append(
@@ -656,7 +646,7 @@ def run(ledger, write=False, cached=False, entries=None):
                     e.prefix,
                     part,
                     f"{gone}; the ground it names is gone "
-                    f"({since_phrase(detail, 'the artifact', origin)})",
+                    f"({since_phrase(found.detail, 'the artifact', origin)})",
                 )
             )
             note = "propagated from a withdrawn ground"
@@ -666,32 +656,14 @@ def run(ledger, write=False, cached=False, entries=None):
                     "flag",
                     e.prefix,
                     part,
-                    f"`{raw}` has moved: {since_phrase(detail, where, origin)}",
+                    f"`{raw}` has moved: {since_phrase(found.detail, where, origin)}",
                 )
             )
             note = "propagated from a moved ground"
-        if not write:
-            continue
-        # A verdict records what the artifact was when the drift was seen, and that record
-        # is the whole of what `orphans()` later holds it to. One this run cannot state is
-        # one nothing could ever check, so it is not written: the ledger is left as it was
-        # and the run says why, rather than appending a discharge that is unfalsifiable
-        # from the moment it is made.
-        why = why_unseen
-        if seen is None:
-            reports.append(
-                Report(
-                    "fail",
-                    e.prefix,
-                    part,
-                    f"no verdict was appended for `{raw}`: git could not say what the "
-                    f"artifact is, so the drift could not be recorded ({why})",
-                )
-            )
-            continue
-        pending.append((e, verdict_block(e.grade, p, note, author, seen)))
+        if write:
+            pending.append((e, verdict_block(e.grade, p, note, author, found.seen)))
 
-    reports += orphans(entries, config, repo, author, drifted, placed)
+    reports += orphans(entries, config, repo, author, drifted, anchors, placed)
 
     if write:
         for e, block in grouped(pending):
@@ -709,111 +681,6 @@ def run(ledger, write=False, cached=False, entries=None):
                 )
             )
     return reports
-
-
-def blobs_since(repo, pointer):
-    """(every object id the artifact has held between the pin and HEAD, why git could not
-    say).
-
-    `git log --raw` prints the before and after object id of the path at each commit that
-    changed it, so one call answers what a walk of the history would. `--full-history`
-    because the omission this is guarding against is the loud one: a version git declined
-    to list is a discharge called an orphan, which is MEDIUM-34's wedge again
-    (L0112-the-blob-history-is-read-with-full-history, cites-as-live).
-    """
-    answer = git_call(
-        repo,
-        "log",
-        "--format=%H",
-        "--raw",
-        "--no-abbrev",
-        "--full-history",
-        f"{pointer.pin}..HEAD",
-        "--",
-        literal(pointer.target),
-    )
-    if not answer.ok:
-        return None, answer.why
-    seen = set()
-    for line in answer.out.splitlines():
-        if not line.startswith(":"):
-            continue  # a commit id on its own line, which is not a version of the path
-        seen |= {tok for tok in line.split() if OBJECT_ID_RE.match(tok)}
-    return seen - {NULL_OBJECT_ID}, None
-
-
-# What a verdict's `artifact:` turns out to be worth, once git has been asked.
-CAUSED = "caused"  # the artifact really was that, between the pin and here
-STATES_NO_DRIFT = "states-no-drift"  # the pin's own blob, or `absent` over no deletion
-UNCONFIRMED = "unconfirmed"  # a blob no commit ever held: refutes nothing, confirms nothing
-NO_RECORD = "no-record"  # missing or unreadable, which is `validate`'s to report
-
-
-def caused(repo, pointer, verdict):
-    """(what the drift this verdict states turns out to be, why git could not say).
-
-    The orphan rule exists to stop a *pre-emptive* forgery — a verdict written before the
-    ground moved, so that the ground never has to be looked at again. `docs/FRESHNESS.md`:
-    "Otherwise the discharge is forgeable by writing the verdict pre-emptively." A verdict
-    this checker wrote itself, because the ground had moved, is not that; and undoing the
-    edit afterwards must not turn the discharge into a failure no legal edit could clear,
-    since verdicts append and only append and the pin above the APPEND marker is frozen.
-
-    The question that separates the two is what the verdict *states*, and the verdict
-    states it: `artifact:` records what the ground was when the drift was seen. So this
-    asks whether the artifact really was that, between the pin and now — a blob the path
-    has actually held, or, for a withdrawn ground, a commit that really deleted it. Asking
-    instead whether anything has *touched* the artifact, which is what this function
-    replaces, answered a question the forger controls: one commit that edits the artifact
-    and one that puts it back laundered a pre-emptive discharge permanently, and a mode
-    change or a rename away and back did it just as well.
-
-    **Not caused is two different answers, and collapsing them wedged the ledger.** A
-    record git can *refute* — the pin's own blob, which states no drift at all, or
-    `absent` over a history holding no deletion — is the pre-emptive forgery this rule was
-    written for. A record git can only fail to *confirm* — a well-formed blob no commit
-    ever held — is what an ordinary drift looks like when it is never committed: the
-    author edits a note, `freshness --write` records the working-tree blob, the ledger is
-    committed, and then the edit is abandoned. Read as the first, that left a permanent
-    failure no legal edit could clear, since verdicts append and only append, the pin is
-    frozen, and `--write` appends nothing for a ground that is fresh. So the two are
-    separate answers here and `orphans()` gives them separate outcomes.
-
-    A verdict that records nothing, or records something unreadable, is neither: it is
-    malformed, `validate` says so of every verdict in every state, and saying it again
-    here would make one defect two to whoever reads the output.
-    """
-    seen = (verdict.artifact or "").strip()
-    if not seen or seen == NULL_OBJECT_ID:
-        return NO_RECORD, None
-    if seen == ABSENT:
-        gone = git_call(
-            repo,
-            "log",
-            "--format=%H",
-            "--diff-filter=D",
-            "--full-history",
-            f"{pointer.pin}..HEAD",
-            "--",
-            literal(pointer.target),
-        )
-        if not gone.ok:
-            return None, gone.why
-        return (CAUSED if gone.out.strip() else STATES_NO_DRIFT), None
-    if not OBJECT_ID_RE.match(seen):
-        return NO_RECORD, None
-    # The artifact as the pin has it is not a drift, whatever else is true of it, so a
-    # verdict recording the pin's own blob states nothing. Asked first, because it is the
-    # cheap half and the half a forger reaches for.
-    at_pin = git_call(repo, "rev-parse", "--verify", "--quiet", f"{pointer.pin}:{pointer.target}")
-    if at_pin.code not in (0, 1):
-        return None, at_pin.why
-    if at_pin.ok and at_pin.out.strip() == seen:
-        return STATES_NO_DRIFT, None
-    held, why = blobs_since(repo, pointer)
-    if held is None:
-        return None, why
-    return (CAUSED if seen in held else UNCONFIRMED), None
 
 
 def propagated_by_ground(entry, config, author):
@@ -836,7 +703,7 @@ def naming(verdicts):
     return "verdicts " + ", ".join(str(v.index) for v in verdicts)
 
 
-def orphans(entries, config, repo, author, drifted, placed=None):
+def orphans(entries, config, repo, author, drifted, anchors, placed=None):
     """A ground whose acknowledgement states a cause that did not happen. Without this the
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
@@ -845,44 +712,49 @@ def orphans(entries, config, repo, author, drifted, placed=None):
     (L0110-an-orphan-is-asked-of-the-ground-and-not-of-each-verdict, cites-as-live),
     because what the rule protects is a ground — that a drifted one is never silently
     fresh — and an entry may legitimately carry more than one propagated verdict against
-    the same ground. The pre-commit path
-    produces exactly that: the hook records the staged blob, the author stages one more
-    edit before committing, and the next run appends a verdict naming what was finally
-    committed. It costs the rule its accusation against a verdict that is refutable while
-    a truthful sibling stands, and that accusation is kept below rather than given up.
+    the same ground. The pre-commit path produces exactly that: the hook records the
+    staged section, the author stages one more edit before committing, and the next run
+    appends a verdict naming what was finally committed. It costs the rule its accusation
+    against a verdict that is refutable while a truthful sibling stands, and that
+    accusation is kept below rather than given up.
 
-    **Two outcomes, because "not caused" is two answers.** A record git can refute — the
-    pin's own blob, or `absent` over a history holding no deletion — is the pre-emptive
-    forgery, and it fails. A record git can only fail to confirm is what an ordinary drift
-    looks like when it is never committed: `freshness --write` records the working-tree
-    blob, the ledger is committed, the author abandons the edit, and no later run will
-    ever append a second verdict because the ground is fresh. Failing that left a
-    permanent red no legal edit could clear on the documented workflow and an author who
-    changed their mind, so it flags
-    (L0111-a-refutable-record-fails-and-an-unconfirmable-one-flags, cites-as-live). The
-    flag is not a softening of the forgery rule: a verdict nothing can confirm cannot
-    silence a drift either, because `discharges()` requires the same `caused` that this
-    does.
+    **Two outcomes, because "not caused" is two answers.** A record that states no drift
+    — the digest its own pointer's anchor names — is the pre-emptive forgery, the value a
+    forger can read off the entry without running anything, and it fails whatever stands
+    beside it and whether or not the comparison has moved past that pointer. A record on
+    a ground that is fresh where it is compared from, stating something this run does not
+    see, is what an ordinary drift leaves behind when it is never committed, or when it
+    is committed and then undone: `freshness --write` records the section, the ledger is
+    committed, the author abandons the edit, and no later run appends anything because
+    the ground is fresh. Failing that left a permanent red no legal edit could clear on
+    the documented workflow and an author who changed their mind, so it flags — and only
+    while no reading of the ground sits after it in the file. A reading is a person
+    having looked, dated, and a record written before it has been looked past whatever
+    pointer either names; without that, a drift committed and then reverted left a flag
+    that no reading could clear, since the only reading that would was the ground's own
+    digest, and it was not the reading's raw that decided anything but its position
+    (L0210-a-record-before-a-later-reading-is-moved-past, cites-as-live). The flag is not
+    a softening of the forgery rule: a verdict nothing can confirm cannot silence a drift
+    either, because `discharges()` accepts only the digest in front of the run. No
+    history is asked, so nothing here can be laundered by a commit that edits the
+    artifact and one that puts it back, and a git that answers is not needed for the
+    accusation to be made or withheld.
     """
     reports = []
     for e in entries:
-        pointers, moved_past = {}, set()
+        pointers, read_after = {}, {}
         for _, _, p in checked_pointers(e, config):
-            # Where the ground was pinned and every reading since: a propagated verdict
-            # names whichever of them the run that wrote it compared against, and a
-            # reading that a later reading has replaced is still the cause of the drift
-            # recorded against it. `moved_past` is the pin and the readings the
-            # comparison has since moved on from.
+            # Where the ground was anchored and every reading since: a propagated verdict
+            # names whichever of them the run that wrote it compared against. `read_after`
+            # is, for each of those pointers, the index of the latest reading of the
+            # ground; a record with a lower index was written before someone looked.
             pointers[p.raw] = p
             found = readings(e, p, config, repo, placed)
             for v in found:
                 pointers.setdefault(v.pointer.raw, v.pointer)
-            if found:
-                moved_past.add(p.raw)
-                moved_past.update(v.pointer.raw for v in found)
-                # By pointer and not by position: two readings at one commit are one
-                # pointer, and the last of them is where the comparison is, not past it.
-                moved_past.discard(found[-1].pointer.raw)
+            latest = found[-1].index if found else 0
+            for raw in {p.raw, *(v.pointer.raw for v in found)}:
+                read_after[raw] = max(read_after.get(raw, 0), latest)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:
@@ -897,40 +769,24 @@ def orphans(entries, config, repo, author, drifted, placed=None):
                     )
                 )
                 continue
-            finding = drifted(ground)[0]
-            if finding == "unknown":
+            found = drifted(ground)
+            if found.finding == "unknown":
                 # An orphan is a verdict whose stated cause did not happen. Whether it
                 # happened is exactly what git declined to say, and `run()` reports that;
                 # forging the accusation out of the silence would make a correctly
                 # discharged verdict fail.
                 continue
-            fresh = finding in (None, "unstable-pin")
-            if not fresh and raw not in moved_past:
-                # Moved, or withdrawn, and still where the ground is compared from: the
-                # drift is reported beside whatever these verdicts say, and a record git
-                # can only fail to confirm is not called an orphan against it. The
-                # pre-commit flow lives here — a verdict recording a staged blob, or
-                # `absent` for a deletion not yet committed, before the commit is made.
-                continue
-            states = [(v, *caused(repo, ground, v)) for v in all_verdicts]
-            could_not = next((why for _, st, why in states if st is None), None)
-            refuted = [v for v, st, _ in states if st == STATES_NO_DRIFT]
-            established = any(st == CAUSED for _, st, _ in states)
-            # A missing or unreadable `artifact:` is `validate`'s to report, of every
-            # verdict in every state rather than only of one that has come back fresh.
-            # Saying it here too made three of the four bad shapes two failures under two
-            # checker names, the second of them describing the wrong defect.
-            unconfirmed = [v for v, st, _ in states if st == UNCONFIRMED]
-
-            # The refutable half is also asked of a pointer the comparison has moved past.
-            # A verdict recording the blob its pointer already has stated no drift when
-            # it was written; a real drift afterwards, and then a reading that moves the
+            # The refutable half is asked of every pointer, moved-past or not. A verdict
+            # recording the digest its pointer's anchor names stated no drift when it was
+            # written; a real drift afterwards, and then a reading that moves the
             # comparison on, would otherwise take the flag that exposed it with them.
+            anchor, _ = anchor_digest(repo, ground, config, anchors)
+            refuted = [v for v in all_verdicts if anchor and (v.artifact or "").strip() == anchor]
             if refuted:
                 # Kept even when a truthful sibling stands: no run of this checker writes
-                # a verdict recording the blob the pin already has, so there is no honest
-                # flow to wedge, and a forged verdict beside a caused one is exactly the
-                # thing a reader needs told.
+                # a verdict recording the digest the anchor already names, so there is no
+                # honest flow to wedge, and a forged verdict beside a caused one is
+                # exactly the thing a reader needs told.
                 reports.append(
                     Report(
                         "fail",
@@ -942,34 +798,25 @@ def orphans(entries, config, repo, author, drifted, placed=None):
                     )
                 )
                 continue
-            if not fresh or established:
+            unread = [v for v in all_verdicts if v.index > read_after.get(raw, 0)]
+            if not unread:
                 continue
-            if could_not is not None:
-                # A git that cannot answer is not a git answering no — the class the
-                # fourth pass closed across six findings. Whether the drift happened is
-                # exactly what git declined to say, and a check that did not run is never
-                # a check that passed.
-                reports.append(
-                    Report(
-                        "fail",
-                        e.prefix,
-                        "Verdicts",
-                        f"{naming(all_verdicts)} by {author} names `{raw}` as its cause "
-                        f"and whether that drift happened could not be established: "
-                        f"{could_not}",
-                    )
-                )
+            if found.finding not in (None, "unstable-pin"):
+                # Moved, or withdrawn, and still where the ground is compared from: the
+                # drift is reported beside whatever these verdicts say, and a record that
+                # does not describe it is not called an orphan against it. The pre-commit
+                # flow lives here — a verdict recording a staged section, or `absent` for
+                # a deletion not yet committed, before the commit is made.
                 continue
-            if unconfirmed:
-                reports.append(
-                    Report(
-                        "flag",
-                        e.prefix,
-                        "Verdicts",
-                        f"{naming(unconfirmed)} by {author} names `{raw}` as its cause "
-                        "and records an artifact no commit between the pin and here ever "
-                        "held; the drift it discharges was never committed, so nothing "
-                        "can confirm it and nothing can refute it",
-                    )
+            reports.append(
+                Report(
+                    "flag",
+                    e.prefix,
+                    "Verdicts",
+                    f"{naming(unread)} by {author} names `{raw}` as its cause and "
+                    "records an artifact this run does not see; the drift it discharges "
+                    "is not in front of the run, so nothing can confirm it and nothing "
+                    "can refute it",
                 )
+            )
     return reports
