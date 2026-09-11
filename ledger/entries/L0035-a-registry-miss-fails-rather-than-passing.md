@@ -43,6 +43,13 @@ none
 - 2026-09-10T21:49:48-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:f01906eb76fb139642ae98df2065ca95a93dceb22e3ed5ee178f036c9203d30b
   note: read against the working tree after the anchor-by-value branch was added: the source branch is untouched and a registry miss still fails naming the check that could not run; the assertion holds as written.
+- 2026-09-11T02:49:32-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:f01906eb76fb139642ae98df2065ca95a93dceb22e3ed5ee178f036c9203d30b
+  artifact: sha256:55d28960d1b04ffe2db203a3b19334115b161628741178ffc4ed4882dac5893d
+  note: propagated from a moved ground
+- 2026-09-11T02:49:51-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:55d28960d1b04ffe2db203a3b19334115b161628741178ffc4ed4882dac5893d
+  note: read against the working tree after the by-value branch was moved out of resolve_pointer into resolve_by_value: what remains is the unpinned read from the tree, the pinned read out of git, and the entry and source branches, and the failure messages now write the pin as @<pin> since no by-value anchor reaches them; the assertion holds as written.
 
 ## References
 

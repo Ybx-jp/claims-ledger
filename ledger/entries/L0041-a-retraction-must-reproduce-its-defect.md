@@ -35,6 +35,14 @@ none
 
 ## Verdicts
 
+- 2026-09-11T02:49:32-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "run" @ec82c16045421ce5a6cb71befe8ddbe6067489ae
+  artifact: sha256:3abb7abd6286ca9b9d146f430c1723b8be318754b5c247bcfcd5369c5df8adc0
+  note: propagated from a moved ground
+- 2026-09-11T02:49:51-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:3abb7abd6286ca9b9d146f430c1723b8be318754b5c247bcfcd5369c5df8adc0
+  note: read against the working tree after resolve began resolving a ground anchored by value from the tree or from history: run now routes such a ground to resolve_by_value, asks once per entry whether git holds it, and passes a by-value reading's own evidence over; the unasked gate is asked once for the ledger before either path and both honour it, and the retraction re-check is unchanged; the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

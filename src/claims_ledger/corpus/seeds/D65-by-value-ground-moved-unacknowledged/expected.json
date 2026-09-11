@@ -1,0 +1,20 @@
+{
+  "class": "a by-value ground moved after the claim rested on it",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 02, A0001 Grounds 1",
+      "why": "the note the claim rests on was remeasured after the entry landed; D45 by value, with the anchor the digest of the section rather than the commit that carried it",
+      "message": "differs from the anchor"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the flag exists to force the choice: a reading anchored by value if the claim survives, or a refutation if it does not. resolve passes at both commits, since the founding text is in the tree at commit 01 and in the history at commit 02"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

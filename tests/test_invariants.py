@@ -20,7 +20,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from conftest import LAB_NOTE, QUOTE, SOURCE_TEXT, Project
+from conftest import LAB_NOTE, QUOTE, SOURCE_TEXT, Project, redigest
 
 from claims_ledger import authoring, cli, propagate, references, resolve, validate
 from claims_ledger.corpus import run as corpus_run
@@ -674,6 +674,9 @@ def test_straight_and_curly_quote_delimiters_both_resolve_but_change_the_fingerp
 # alone) changes nothing any checker's grammar cares about -- per the normalization
 # promise checked directly in section 3 -- so every seed's expected.json verdict must be
 # reproduced exactly, including the seeds whose history runs across several commits.
+# The one thing it does change is the text of an artifact, and a by-value anchor names
+# that text by digest, so the anchors are recomputed for the transformed seed the way the
+# runner substitutes `@commitNN`: see `redigest` in conftest.
 
 
 def _add_trailing_whitespace(text):
@@ -699,6 +702,7 @@ def _transform_seed_tree(src, dst, transform):
 def test_trailing_whitespace_does_not_change_a_seeds_expected_verdict(seed, tmp_path):
     dst = tmp_path / "seed"
     _transform_seed_tree(seed, dst, _add_trailing_whitespace)
+    redigest(seed, dst)
     ok, lines, _ = corpus_run.run_seed(dst, CORPUS)
     assert ok, "\n".join(lines)
 

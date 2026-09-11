@@ -142,15 +142,14 @@ def test_a_by_value_ground_whose_section_is_not_in_the_tree_does_not_resolve(pro
     d = "sha256:" + "ab" * 32
     _entry_with(project, f'- lab: docs/note-001.md § "Method" ={d}')
     messages = [r[2] for r in _reports(project, resolve) if r[0] == "fail"]
-    assert messages == [f"docs/note-001.md ={d} has no section 'Method'"]
+    assert len(messages) == 1
+    assert "docs/note-001.md has no section 'Method' in the working tree" in messages[0]
+    assert "the entry is not committed" in messages[0]
 
 
 def test_a_by_value_ground_whose_file_is_not_in_the_tree_does_not_resolve(project):
     d = "sha256:" + "ab" * 32
     _entry_with(project, f'- lab: docs/note-999.md § "Observation" ={d}')
     messages = [r[2] for r in _reports(project, resolve) if r[0] == "fail"]
-    message = (
-        f"lab: docs/note-999.md ={d} does not resolve: the anchor names no revision, so "
-        "docs/note-999.md is read from the working tree, where it is not a readable file"
-    )
-    assert messages == [message]
+    assert len(messages) == 1
+    assert "docs/note-999.md is not a readable file in the working tree" in messages[0]

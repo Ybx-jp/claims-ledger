@@ -363,6 +363,9 @@ the record of what else there is still to check.
 | a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
 | an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |
 | an anchor left as the `=?` placeholder | D62, K30 | catch — a ground stated by value names its datum by digest, and the placeholder names none; K30 is the same ground with the digest computed |
+| a by-value anchor that does not digest to the tree, in an entry not yet committed | D63 | catch — the hook is the moment a mistyped or stale digest can still be fixed |
+| a committed by-value anchor naming text no version of the path holds | D64 | flag — the end state a rewritten history leaves, written directly; the datum is stated in full, and only the diff is lost |
+| a by-value ground moved after the claim rested on it | D65 | flag — D45 by value; the claim may or may not survive it, and a human decides |
 | a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |

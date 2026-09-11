@@ -1,5 +1,6 @@
 """A throwaway project with a ledger in it, for the tests that write."""
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -165,3 +166,57 @@ def project(tmp_path):
 def repository():
     """This checkout, for the tests that are about how it is packaged and wired."""
     return Path(__file__).resolve().parent.parent
+
+
+# A by-value anchor is the digest of a section's text, and a seed writes it as a literal
+# so it can be read without running the runner. A transformation of a seed's text that
+# is meant to say nothing new — trailing whitespace on every line — therefore has to do
+# for the digest what the runner does for `@commitNN`: name the section as the transformed
+# seed holds it. A digest that named nothing in the untransformed seed (D63, D64) is left
+# as written, since it is the seed's point that it matches nothing.
+_POINTER_LINE = re.compile(
+    r'^(?:- |\s+evidence: )(\w+): (\S+?)(?: § "([^"]+)")? [=@]', re.MULTILINE
+)
+
+
+def redigest(before, after):
+    """Rewrite every by-value digest in the transformed seed `after` that named a section
+    of an artifact as `before` held it, to the digest of that section as `after` holds
+    it. `before` and `after` are seed directories of the same shape."""
+    from claims_ledger.corpus.run import CORPUS, corpus_config
+    from claims_ledger.schema import digest_of, section_digest
+
+    if (before / "commits").is_dir():
+        states = [
+            (before / "commits" / s.name, after / "commits" / s.name)
+            for s in sorted((before / "commits").iterdir())
+            if s.is_dir()
+        ]
+    else:
+        states = [(before, after)]
+    mapping = {}
+    for old_state, new_state in states:
+        config = corpus_config(Path(CORPUS), new_state / "entries")
+        for entry in sorted((new_state / "entries").glob("*.md")):
+            for type_name, rel, section in _POINTER_LINE.findall(entry.read_text("utf-8")):
+                if not (old_state / rel).is_file() or not (new_state / rel).is_file():
+                    continue
+                was = (old_state / rel).read_text(encoding="utf-8")
+                now = (new_state / rel).read_text(encoding="utf-8")
+                if section:
+                    old = section_digest(was, config, type_name, section)
+                    new = section_digest(now, config, type_name, section)
+                else:
+                    old, new = digest_of(was), digest_of(now)
+                if old and new and old != new:
+                    mapping[old] = new
+    for path in after.rglob("*.md"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue  # D50's document is not text, and a digest is not in it
+        swapped = text
+        for old, new in mapping.items():
+            swapped = swapped.replace(old, new)
+        if swapped != text:
+            path.write_text(swapped, encoding="utf-8")

@@ -1,0 +1,21 @@
+{
+  "class": "a committed by-value anchor naming text no version of the path holds",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "flag",
+      "where": "commit 01, A0001 Grounds 1",
+      "why": "the end state a rewritten history leaves a by-value ground in, written directly because the corpus cannot make a commit unreachable: the entry is committed, its anchor digests to text no commit ever carried, and the diff a person would read during repair cannot be shown. A flag and not a failure, because the datum is stated in full and freshness compares it exactly as before; a reading of the section as it now stands is what moves the ground past it. Compare D54, where the same rewrite costs a pinned ground its evidence outright",
+      "message": "no version of docs/note-100.md this repository holds"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 01, A0001 Grounds 1",
+      "why": "the section as the tree has it does not digest to the anchor, which is the same fact seen from the other checker",
+      "message": "has moved"
+    }
+  ],
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

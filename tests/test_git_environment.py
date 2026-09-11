@@ -318,19 +318,25 @@ def test_cached_write_records_the_artifact_as_the_named_index_has_it(
     pinned,  # noqa: F811
     monkeypatch,
 ):
-    """`freshness --write` records the object id of the artifact it compared, and that
+    """`freshness --write` records the digest of the section it compared, and that
     record is what a later run reads to decide whether a verdict discharges the drift in
-    front of it. Read out of the wrong index it records the id the pin already has, which
-    is a verdict stating no drift — a forgery the machinery wrote itself.
+    front of it. Read out of the wrong index it records the digest the pin already has,
+    which is a verdict stating no drift — a forgery the machinery wrote itself; read
+    out of the working tree it records a drift nobody staged.
     """
     note = pinned.root / "docs" / "note-001.md"
     pinned.note(note.read_text(encoding="utf-8").replace("0.04", "0.09"))
     index = partial_index(pinned.p, note)
-    staged = pinned.p.blob("docs/note-001.md")
+    staged = pinned.p.digest("docs/note-001.md", "Observation")
+    pinned.note(note.read_text(encoding="utf-8").replace("0.09", "0.11"))
+    unstaged = pinned.p.digest("docs/note-001.md", "Observation")
+    assert staged != unstaged
 
     monkeypatch.setenv("GIT_INDEX_FILE", str(index))
     pinned.p.cl("freshness", "--write", "--cached")
-    assert f"artifact: {staged}" in pinned.entry_path().read_text(encoding="utf-8")
+    written = pinned.entry_path().read_text(encoding="utf-8")
+    assert f"artifact: {staged}" in written
+    assert unstaged not in written
 
 
 @pytest.fixture
