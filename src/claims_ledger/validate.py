@@ -513,19 +513,27 @@ def check_verdicts(e, entries, config):
                 fail(
                     part,
                     "no artifact: line; a propagated verdict over a pinned ground records "
-                    "the object id the drift was seen at, or `absent` for a ground that "
-                    "was gone, and a discharge that states no cause is one nothing can check",
+                    "the digest of the section the drift was seen at, or `absent` for a "
+                    "ground that was gone, and a discharge that states no cause is one "
+                    "nothing can check",
                 )
-            elif v.artifact != ABSENT and not OBJECT_ID_RE.match(v.artifact):
+            elif (
+                v.artifact != ABSENT
+                and not DIGEST_RE.match(v.artifact)
+                and not OBJECT_ID_RE.match(v.artifact)
+            ):
+                # A 40-character object id is the shape verdicts recorded before anchors
+                # could be stated by value; it is still well-formed, and `freshness` holds
+                # it to nothing, since a whole file's id cannot be compared with a section.
                 fail(
                     part,
-                    f"artifact `{v.artifact}` is neither a 40-character object id nor `{ABSENT}`",
+                    f"artifact `{v.artifact}` is neither a section digest `sha256:<64 hex>`, "
+                    f"a 40-character object id nor `{ABSENT}`",
                 )
             elif v.artifact == NULL_OBJECT_ID:
                 # Well-formed and naming nothing. Git's null object id is forty hex
                 # characters no artifact has ever hashed to, so it passes the shape while
-                # recording no artifact at all — and `blobs_since()` drops it from what
-                # the path has held, so the value is one nothing can ever confirm.
+                # recording no artifact at all.
                 fail(part, "artifact is the null object id, which names no artifact")
         elif v.artifact is not None:
             # The other direction, and the one a person reaches for: `artifact:` on a

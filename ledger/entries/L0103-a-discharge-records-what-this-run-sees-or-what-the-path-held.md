@@ -35,6 +35,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-10T22:05:54-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0198-a-discharge-records-the-digest-this-run-sees · supersedes
+  note: the history half of the rule was removed: a discharge is held to the digest in front of the run and to nothing the path held between the pin and here; Scope and Backing are unchanged
 
-- src/claims_ledger/freshness.py · standing · cites-as-live
+## References

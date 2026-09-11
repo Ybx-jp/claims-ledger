@@ -57,6 +57,13 @@ none
 - 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "run" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
   note: read against commit 54aa2e4, which passes the run's ancestry memo to effective_pointer and orphans; nothing else in the loop changed, and the appends, the failure without a repository, the exit after a write, the unstatable artifact, the terminal exemption and the once-per-run memo hold; the assertion holds as written.
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "run" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
+  artifact: sha256:e95965ef764409d49cfc0a68bcbf017e722714e5427d9bb10082f5f6110e1793
+  note: propagated from a moved ground
+- 2026-09-10T22:06:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:e95965ef764409d49cfc0a68bcbf017e722714e5427d9bb10082f5f6110e1793
+  note: read against the working tree after freshness began comparing by digest on both sides: run still appends through append_verdict from propagate and has no append of its own; the assertion holds as written.
 
 ## References
 

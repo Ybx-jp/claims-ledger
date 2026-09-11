@@ -136,7 +136,7 @@ not in `UNPINNED`, and whose entry's status is not terminal:
    `§ "<section>"` pointer the two texts are read and only the named section is compared,
    so an edit elsewhere in the artifact is not this ground's drift, and there too a side
    that could not be read at all is **unknown** rather than moved
-   (L0009-a-section-pin-compares-its-section-or-says-it-could-not, cites-as-live). Bytes
+   (L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides, cites-as-live). Bytes
    that are *there* and are not UTF-8 stay **moved**: that artifact did change, and it
    simply cannot be narrowed to a section. Only now, and only for the message, run
    `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count.

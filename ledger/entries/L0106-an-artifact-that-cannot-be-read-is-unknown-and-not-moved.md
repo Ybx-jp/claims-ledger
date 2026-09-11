@@ -53,6 +53,13 @@ none
 - 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "in_this_run" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "drift" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+  artifact: sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
+  note: propagated from a moved ground
+- 2026-09-10T22:06:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
+  note: read against the working tree after freshness began comparing by digest on both sides: drift keeps its unknown branches for a path that cannot be reached and a file that cannot be read, in front of the digest comparison that replaced git's diff; the assertion holds as written.
 
 ## References
 

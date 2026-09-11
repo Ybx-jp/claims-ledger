@@ -34,6 +34,14 @@ none
 
 ## Verdicts
 
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "drift" @c1f9f2b89bb28557c7d0b6be9f5d29909677a848
+  artifact: sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
+  note: propagated from a moved ground
+- 2026-09-10T22:06:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
+  note: read against the working tree after freshness began comparing by digest on both sides: a pin git cannot classify, a blob it cannot read at the pin, and a path it cannot compare still come back as unknown with the reason; the assertion holds as written.
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

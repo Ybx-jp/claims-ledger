@@ -56,7 +56,8 @@ none
 - 2026-09-09T14:35:57-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "orphans" @9d2289e8eaefecc7f3ac1132c9fa6934aae60e28
   note: read against commit 9d2289e, which collects moved_past by pointer rather than by position, so two readings at one commit are one baseline; the rule is still asked of the ground, a refutable record still fails and an unconfirmable one still flags; the assertion holds as written.
+- 2026-09-10T22:05:55-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0203-a-record-is-refuted-against-its-anchor-and-confirmed-against-the-tree · supersedes
+  note: caused was removed: a record is refuted against the digest its anchor names and confirmed only by the tree in front of the run; the cohort widens to every propagated verdict
 
 ## References
-
-- src/claims_ledger/freshness.py · standing · cites-as-live

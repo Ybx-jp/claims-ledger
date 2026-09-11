@@ -56,6 +56,13 @@ none
 - 2026-09-09T14:35:57-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "orphans" @9d2289e8eaefecc7f3ac1132c9fa6934aae60e28
   note: read against commit 9d2289e, which collects moved_past by pointer rather than by position, so two readings at one commit are one baseline; the rule is still asked of the ground, a refutable record still fails and an unconfirmable one still flags; the assertion holds as written.
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "orphans" @9d2289e8eaefecc7f3ac1132c9fa6934aae60e28
+  artifact: sha256:d96fa97c95eb92bc42112d1200215b73bb53248605acae83b623652ba658a300
+  note: propagated from a moved ground
+- 2026-09-10T22:06:18-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:d96fa97c95eb92bc42112d1200215b73bb53248605acae83b623652ba658a300
+  note: read against the working tree after freshness began comparing by digest on both sides: the question is still asked of the ground, with every propagated verdict naming it weighed together and a refutable one named even beside a truthful sibling; the assertion holds as written.
 
 ## References
 

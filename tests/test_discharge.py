@@ -7,9 +7,8 @@ and a drift is silenced only by a verdict that actually describes it. The `artif
 line is the field the whole rule rests on, and the tests below are the only thing holding
 it to a shape.
 
-The three residuals at the end are strict xfails: `docs/FRESHNESS.md` states them in
-prose, and prose does not go red when it becomes false. Each asserts the report the
-checker *would* make if the residual were closed, so half-closing one says so.
+The two cases at the end were strict xfails while `docs/FRESHNESS.md` stated them as
+residuals of a rule that asked history; the rule asks none now, and they pass.
 
 Every case builds a real repository and makes real commits. Nothing patches git, the
 filesystem or the package — a git that cannot answer is produced by putting a shim on
@@ -22,7 +21,6 @@ from __future__ import annotations
 import os
 import subprocess
 
-import pytest
 from test_freshness import pinned  # noqa: F401  — the fixture, reused as-is
 from test_freshness_spec import build
 
@@ -232,7 +230,13 @@ def test_a_staged_drift_edited_again_before_the_commit_does_not_wedge(pinned):  
     pinned.p.git("add", "-A")
     pinned.p.git("commit", "-qm", "put it back")
 
-    assert pinned.outcomes() == [], "the discharged ground is wedged: no legal edit clears it"
+    # The ground is fresh again and the two verdicts record sections this run does not
+    # see: nothing can confirm them and nothing can refute them. A flag, not a failure —
+    # the entry is contested with no reading, so a reading is owed, and the flag says so
+    # without wedging the commit.
+    got = pinned.outcomes()
+    assert [o for o, _, _ in got] == ["flag"], got
+    assert "nothing can confirm it and nothing can refute it" in got[0][2]
     assert pinned.p.cl("check") == 0
 
 
@@ -241,7 +245,7 @@ def test_the_orphan_rule_still_refuses_a_ground_no_verdict_caused(pinned):  # no
     rather than of each verdict must not become "one verdict excuses the rest": with no
     caused verdict among them, two verdicts recording the blob the pin already has are
     still an orphan, and the report names both."""
-    at_pin = pinned.p.blob("docs/note-001.md")
+    at_pin = pinned.p.digest("docs/note-001.md", "Observation")
     pinned.append(propagated(pinned.pin, at_pin))
     pinned.append(propagated(pinned.pin, at_pin))
     ((part, message),) = failures(pinned, checker=freshness)
@@ -257,12 +261,12 @@ def test_a_forged_verdict_is_named_even_beside_a_caused_sibling(pinned):  # noqa
     the report was the rule's only diagnostic. A verdict recording the pin's own blob is
     refutable whatever stands beside it, and no run of this checker writes one, so there
     is no honest flow for the accusation to wedge."""
-    at_pin = pinned.p.blob("docs/note-001.md")
+    at_pin = pinned.p.digest("docs/note-001.md", "Observation")
     pinned.append(propagated(pinned.pin, at_pin))
     pinned.note(NOTE.replace("0.04", "0.09"))
     pinned.p.git("add", "-A")
     pinned.p.git("commit", "-qm", "a real drift, really discharged")
-    pinned.append(propagated(pinned.pin, pinned.p.blob("docs/note-001.md")))
+    pinned.append(propagated(pinned.pin, pinned.p.digest("docs/note-001.md", "Observation")))
     (pinned.root / "docs" / "note-001.md").write_text(NOTE, encoding="utf-8")
     pinned.p.git("add", "-A")
     pinned.p.git("commit", "-qm", "and back to what the pin has")
@@ -276,12 +280,12 @@ def test_a_forged_verdict_is_named_even_beside_a_caused_sibling(pinned):  # noqa
 def test_an_abandoned_pre_commit_discharge_does_not_wedge(pinned):  # noqa: F811
     """QE8-82. The whole sequence is documented workflow and an author who changed their
     mind: edit a note, run `freshness --write`, commit the ledger the way the docs say to,
-    then undo the edit. The recorded blob was never in a commit, so `caused()` can never
-    say yes; and unlike QE7-74's shape there is no second verdict to rescue the group,
-    because `--write` appends nothing for a ground that is fresh.
+    then undo the edit. The recorded section is not the one in front of the run, and
+    unlike QE7-74's shape there is no second verdict to rescue the group, because
+    `--write` appends nothing for a ground that is fresh.
 
-    So the outcome is the lever rather than the branch: a record git can only fail to
-    *confirm* is not the same thing as one git can *refute*, and reporting the first as a
+    So the outcome is the lever rather than the branch: a record the checker cannot
+    *confirm* is not the same thing as one it can *refute*, and reporting the first as a
     forgery is what made it a permanent red no legal edit could clear."""
     original = (pinned.root / "docs" / "note-001.md").read_bytes()
     pinned.note(NOTE.replace("0.04", "0.09"))
@@ -292,7 +296,7 @@ def test_an_abandoned_pre_commit_discharge_does_not_wedge(pinned):  # noqa: F811
     (pinned.root / "docs" / "note-001.md").write_bytes(original)
     ((outcome, part, message),) = pinned.outcomes()
     assert (outcome, part) == ("flag", "Verdicts"), "an abandoned edit wedges the entry"
-    assert "never committed" in message
+    assert "nothing can confirm it and nothing can refute it" in message
     assert pinned.p.cl("check") == 0
 
 
@@ -306,7 +310,8 @@ def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa:
     here is byte-identical to the blob at the pin the whole way through. One commit touches
     it, the next puts it back, and nothing about the ground has changed.
     """
-    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
+    forged = pinned.p.digest("docs/note-001.md", "Observation")
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=forged))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], (
         "the control: the forgery is caught while the artifact has never been touched"
     )
@@ -328,15 +333,16 @@ def test_a_forged_discharge_is_not_laundered_by_a_no_op_commit(pinned):  # noqa:
 
 
 def test_a_git_that_cannot_answer_does_not_retire_the_orphan_check(pinned, tmp_path, monkeypatch):  # noqa: F811
-    """Fixed. The defect, as this pass wrote it: ever_drifted() reads a git that could not answer
-    as `it drifted` — `not count.isdigit() or int(count) > 0` — so a rev-list that fails or
-    times out retires the forged-discharge check silently, with no report that it did not run
-
-    The fourth pass closed this class across six findings: a git that cannot answer is not a
-    git answering no. `ever_drifted()` is the one git call in the package with no channel for
-    `could not be established`, and it fails open — toward silence.
+    """Fixed, twice over. The defect, as this pass wrote it: ever_drifted() read a git that
+    could not answer as `it drifted`, so a rev-list that failed or timed out retired the
+    forged-discharge check silently, with no report that it did not run. The rule then
+    learned to say `could not be established`; and now it asks history nothing at all — a
+    record is refuted against the anchor the pointer names and the tree in front of the
+    run — so a `rev-list` that cannot answer has no way in. Kept as the control that it
+    stays that way.
     """
-    pinned.append(FORGERY.format(pin=pinned.pin, artifact=pinned.p.blob("docs/note-001.md")))
+    forged = pinned.p.digest("docs/note-001.md", "Observation")
+    pinned.append(FORGERY.format(pin=pinned.pin, artifact=forged))
     assert [o for o, _, _ in outcomes(pinned.root)] == ["fail"], "the control"
 
     monkeypatch.setenv("PATH", f"{shim_git(tmp_path, 'rev-list')}{os.pathsep}{os.environ['PATH']}")
@@ -371,26 +377,21 @@ def test_an_edit_below_a_fence_inside_the_pinned_section_is_still_caught(project
 
 # === The residuals, held by something that goes red when they close ===================
 #
-# `docs/FRESHNESS.md` states three residuals of the discharge rule. A strict xfail
-# asserts the report the checker *would* make if the residual were closed, so the day
-# someone half-closes one of these the suite says so instead of the specification
-# quietly drifting away from the code.
+# `docs/FRESHNESS.md` once stated these two as residuals of a discharge rule that asked
+# history whether a recorded artifact was ever held. The rule asks history nothing now —
+# a record either names the section in front of the run or it does not — and both
+# residuals closed by deletion. They stay as the regressions for that.
 
 
 TWO_SECTIONS = NOTE + "\n## Method\n\nStar graphs, one layer, sixteen dimensions.\n"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="`caused()` has no section awareness: it asks whether the *file* ever held the "
-    "recorded blob, so one ordinary commit editing a different section supplies a blob a "
-    "discharge on this section can name, with the pinned section untouched. Residual 2 of "
-    "docs/FRESHNESS.md.",
-)
 def test_a_blob_from_another_sections_edit_does_not_discharge_this_one(pinned):  # noqa: F811
     """The forger edits `## Method`, commits, and writes a discharge on `§ "Observation"`
-    naming the blob the file now holds. One `git rev-parse`, no revert, and the pinned
-    section was never touched."""
+    recording the object id the file now has — the whole file, which is what the old
+    rule could find in history. A whole file's id names no section, so it describes no
+    drift of this ground and discharges nothing; the pinned section was never touched,
+    and when it really moves the flag is there."""
     pinned.note(TWO_SECTIONS)
     pinned.p.git("add", "-A")
     pinned.p.git("commit", "-qm", "a section the claim does not rest on")
@@ -402,19 +403,16 @@ def test_a_blob_from_another_sections_edit_does_not_discharge_this_one(pinned): 
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="`absent` is checked against the file, not against the verdict: a ground "
-    "deleted and restored in two commits satisfies it, which is a touch-and-revert. "
-    "Residual 3 of docs/FRESHNESS.md.",
-)
 def test_a_delete_and_restore_does_not_discharge_a_withdrawal(pinned):  # noqa: F811
-    """`absent` needs no object id at all: `git rm`, commit, restore, commit, and the
-    pre-emptively written discharge stands over every later drift of the ground."""
+    """`absent` needs no digest at all: `git rm`, commit, restore, commit, and the
+    pre-emptively written discharge used to stand over every later drift of the ground,
+    because the deletion was in the history. History is not asked now: `absent` records
+    a ground that is gone, and a ground that is there and has moved is not that."""
     original = (pinned.root / "docs" / "note-001.md").read_bytes()
     pinned.append(propagated(pinned.pin, "absent"))
     pinned.p.git("rm", "-q", "docs/note-001.md")
     pinned.p.git("commit", "-qm", "gone")
+    (pinned.root / "docs").mkdir(exist_ok=True)
     (pinned.root / "docs" / "note-001.md").write_bytes(original)
     pinned.p.git("add", "-A")
     pinned.p.git("commit", "-qm", "and back")

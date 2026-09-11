@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-10T22:05:55-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0201-a-recorded-drift-states-the-digest-it-was-seen-at · supersedes
+  note: seen_at was removed: the record is the digest of the section as the comparison read it, not the object id of the whole file; the cohort now includes withdrawn grounds
 
-- src/claims_ledger/freshness.py · standing · cites-as-live
+## References

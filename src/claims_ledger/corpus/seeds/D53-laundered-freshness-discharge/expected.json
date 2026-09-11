@@ -1,26 +1,34 @@
 {
-  "class": "a propagated verdict nothing caused, and the history a forger builds to hide that",
+  "class": "a propagated verdict nothing caused, and the history a forger builds to hide it",
   "known_good": false,
   "expect": [
     {
       "checker": "freshness",
       "outcome": "fail",
       "where": "commit 02, A0001 Verdicts",
-      "why": "the ground has not moved, so the verdict discharges a finding that was never made"
+      "why": "the ground has not moved, so the verdict discharges a finding that was never made; it records the digest the anchor itself names, which states no drift",
+      "message": "states no drift"
     },
     {
       "checker": "freshness",
       "outcome": "flag",
       "where": "commit 03, A0001 Grounds 1",
-      "why": "commit 03 really does move the ground, and the verdict written at commit 02 does not describe that drift: it records the blob the pin has, which is neither what this run reads the artifact as nor anything the path held as a drift. A verdict matched to a ground by its pointer alone silenced this flag, which is how a discharge carrying any value at all — or none — kept a real, committed, ongoing drift at exit 0",
+      "why": "commit 03 really does move the ground, and the verdict written at commit 02 does not describe that drift: it records the digest the anchor names, which is not what this run reads the section as. A verdict matched to a ground by its pointer alone silenced this flag, which is how a discharge carrying any value at all — or none — kept a real, committed, ongoing drift at exit 0",
       "message": "has moved"
     },
     {
       "checker": "freshness",
       "outcome": "fail",
+      "where": "commit 03, A0001 Verdicts",
+      "why": "the refutable half is asked of every pointer whether or not its ground is fresh: the record states no drift whatever the tree does afterwards, and a real drift on top of it does not launder it",
+      "message": "states no drift"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "fail",
       "where": "commit 04, A0001 Verdicts",
-      "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, the checker read that as proof the discharge was caused and accepted it permanently. The verdict records the blob the pin itself has, which states no drift, so it is still an orphan",
-      "message": "records the artifact as the pin itself has it"
+      "why": "commit 03 edits the artifact and commit 04 puts it back, so every commit since the pin has touched it — and the ground is byte-identical to the pin throughout. Asked whether the artifact was ever touched, an earlier rule read that as proof the discharge was caused and accepted it permanently; asked of history at all, a later one could be handed a version the path really held. Nothing is asked of history now: the record is the digest the anchor itself names, which states no drift, so it is still an orphan",
+      "message": "states no drift"
     }
   ],
   "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"

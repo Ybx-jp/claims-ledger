@@ -35,6 +35,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-10T22:05:55-07:00 · refuted · grade: measured · author: main
+  evidence: entry: L0198-a-discharge-records-the-digest-this-run-sees · cites-as-live
+  note: the deletion is no longer looked for in history: absent is held to the ground in front of the run, and a withdrawal that was undone is unconfirmable rather than confirmed
 
-- src/claims_ledger/freshness.py · standing · cites-as-live
+## References

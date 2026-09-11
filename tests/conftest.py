@@ -78,6 +78,22 @@ class Project:
         )
         return out.stdout.strip()
 
+    def digest(self, rel, section=None, type_name="lab"):
+        """The digest of `rel` as the working tree has it — of the named section, or of
+        the whole text — which is what `freshness --write` records in a verdict's
+        `artifact:` line and what an anchor stated by value names. A hand-written verdict
+        in a fixture needs the real value: a discharge is a verdict that describes the
+        drift in front of it, and a fixture that names the wrong digest discharges nothing.
+        """
+        from claims_ledger.schema import digest_of, open_ledger, section_digest
+
+        text = (self.root / rel).read_text(encoding="utf-8")
+        if section is None:
+            return digest_of(text)
+        found = section_digest(text, open_ledger(root=self.root).config, type_name, section)
+        assert found is not None, (rel, section)
+        return found
+
     def write_full_entry(self, path):
         """Turn a scaffolded entry into one every checker passes."""
         text = path.read_text(encoding="utf-8")

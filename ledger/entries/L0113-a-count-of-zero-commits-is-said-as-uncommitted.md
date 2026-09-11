@@ -41,6 +41,13 @@ none
 - 2026-09-09T13:28:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "since_phrase" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
   note: read against commit 825902d, which takes the origin of the comparison for its wording; the zero-commit case still reads as uncommitted; the assertion holds as written.
+- 2026-09-10T22:05:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "since_phrase" @825902da5293a5d7121cfa0a7b9cc6d3d4eb5ef0
+  artifact: sha256:185c8113c9d735b07d46fc5e2c152bc66bb085825db8f485087c2eac537ce94a
+  note: propagated from a moved ground
+- 2026-09-10T22:06:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "since_phrase" =sha256:185c8113c9d735b07d46fc5e2c152bc66bb085825db8f485087c2eac537ce94a
+  note: read against the working tree after freshness began comparing by digest on both sides: a count of zero is still said as uncommitted; an anchor stated by value gives no count and the message says only that the section differs, which narrows the cohort to anchors at a commit and leaves the assertion true of them.
 
 ## References
 
