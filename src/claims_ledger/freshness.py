@@ -727,33 +727,34 @@ def orphans(entries, config, repo, author, drifted, anchors, placed=None):
     is committed and then undone: `freshness --write` records the section, the ledger is
     committed, the author abandons the edit, and no later run appends anything because
     the ground is fresh. Failing that left a permanent red no legal edit could clear on
-    the documented workflow and an author who changed their mind, so it flags
-    (L0203-a-record-is-refuted-against-its-anchor-and-confirmed-against-the-tree,
-    cites-as-live). The flag is not a softening of the forgery rule: a verdict nothing
-    can confirm cannot silence a drift either, because `discharges()` accepts only the
-    digest in front of the run. No history is asked, so nothing here can be laundered by
-    a commit that edits the artifact and one that puts it back, and a git that answers is
-    not needed for the accusation to be made or withheld.
+    the documented workflow and an author who changed their mind, so it flags — and only
+    while no reading of the ground sits after it in the file. A reading is a person
+    having looked, dated, and a record written before it has been looked past whatever
+    pointer either names; without that, a drift committed and then reverted left a flag
+    that no reading could clear, since the only reading that would was the ground's own
+    digest, and it was not the reading's raw that decided anything but its position
+    (L0210-a-record-before-a-later-reading-is-moved-past, cites-as-live). The flag is not
+    a softening of the forgery rule: a verdict nothing can confirm cannot silence a drift
+    either, because `discharges()` accepts only the digest in front of the run. No
+    history is asked, so nothing here can be laundered by a commit that edits the
+    artifact and one that puts it back, and a git that answers is not needed for the
+    accusation to be made or withheld.
     """
     reports = []
     for e in entries:
-        pointers, moved_past = {}, set()
+        pointers, read_after = {}, {}
         for _, _, p in checked_pointers(e, config):
             # Where the ground was anchored and every reading since: a propagated verdict
-            # names whichever of them the run that wrote it compared against, and a
-            # reading that a later reading has replaced is still the cause of the drift
-            # recorded against it. `moved_past` is the anchor and the readings the
-            # comparison has since moved on from.
+            # names whichever of them the run that wrote it compared against. `read_after`
+            # is, for each of those pointers, the index of the latest reading of the
+            # ground; a record with a lower index was written before someone looked.
             pointers[p.raw] = p
             found = readings(e, p, config, repo, placed)
             for v in found:
                 pointers.setdefault(v.pointer.raw, v.pointer)
-            if found:
-                moved_past.add(p.raw)
-                moved_past.update(v.pointer.raw for v in found)
-                # By pointer and not by position: two readings at one commit are one
-                # pointer, and the last of them is where the comparison is, not past it.
-                moved_past.discard(found[-1].pointer.raw)
+            latest = found[-1].index if found else 0
+            for raw in {p.raw, *(v.pointer.raw for v in found)}:
+                read_after[raw] = max(read_after.get(raw, 0), latest)
         for raw, all_verdicts in propagated_by_ground(e, config, author).items():
             ground = pointers.get(raw)
             if ground is None:
@@ -797,7 +798,8 @@ def orphans(entries, config, repo, author, drifted, anchors, placed=None):
                     )
                 )
                 continue
-            if raw in moved_past:
+            unread = [v for v in all_verdicts if v.index > read_after.get(raw, 0)]
+            if not unread:
                 continue
             if found.finding not in (None, "unstable-pin"):
                 # Moved, or withdrawn, and still where the ground is compared from: the
@@ -811,7 +813,7 @@ def orphans(entries, config, repo, author, drifted, anchors, placed=None):
                     "flag",
                     e.prefix,
                     "Verdicts",
-                    f"{naming(all_verdicts)} by {author} names `{raw}` as its cause and "
+                    f"{naming(unread)} by {author} names `{raw}` as its cause and "
                     "records an artifact this run does not see; the drift it discharges "
                     "is not in front of the run, so nothing can confirm it and nothing "
                     "can refute it",

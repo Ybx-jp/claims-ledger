@@ -35,5 +35,13 @@ none
 
 ## Verdicts
 
+- 2026-09-11T03:57:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:462643362dd16beb66b7c055e703fda5f8d8a7cf2d2722a33eb4c2f2789f9c23
+  artifact: sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
+  note: propagated from a moved ground
+- 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
+  note: read against the working tree after the fill of a pending anchor was narrowed to a Grounds line or a verdict's evidence line, since a Warrant sentence ending in the same text was being rewritten in the frozen region of a committed entry (qe gate, ticket c4e62619f4d5476f): every placeholder in the Grounds and in verdict evidence is still filled from the tree, a pointer whose text is not there is still refused by name before the write, and the committed refusal is still asked only for the frozen region; the assertion holds as written.
+
 ## References
 - src/claims_ledger/authoring.py · standing · cites-as-live

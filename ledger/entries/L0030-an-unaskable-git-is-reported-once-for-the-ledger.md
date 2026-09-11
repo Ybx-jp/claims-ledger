@@ -57,6 +57,13 @@ none
 - 2026-09-11T02:49:51-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:55d28960d1b04ffe2db203a3b19334115b161628741178ffc4ed4882dac5893d
   note: read against the working tree after the by-value branch was moved out of resolve_pointer into resolve_by_value: what remains is the unpinned read from the tree, the pinned read out of git, and the entry and source branches, and the failure messages now write the pin as @<pin> since no by-value anchor reaches them; the assertion holds as written.
+- 2026-09-11T03:57:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:3abb7abd6286ca9b9d146f430c1723b8be318754b5c247bcfcd5369c5df8adc0
+  artifact: sha256:46ff53ce04ef51ab0c8664adc2690f80426a469e4d4df265094310a9c67f133b
+  note: propagated from a moved ground
+- 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:46ff53ce04ef51ab0c8664adc2690f80426a469e4d4df265094310a9c67f133b
+  note: read against the working tree after run began passing --cached through to resolve_by_value, so a by-value anchor is held to the index under the hook: the unasked gate is still asked once for the ledger and honoured by both paths; the assertion holds as written.
 
 ## References
 

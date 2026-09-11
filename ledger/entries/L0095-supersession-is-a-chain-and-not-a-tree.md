@@ -42,6 +42,13 @@ none
 - 2026-09-10T22:06:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:cf64b57b2a6d1b3aad822325eaa3371cbbb7adf635f773ad6e7b53c12cb4341a
   note: read against the working tree after freshness began comparing by digest on both sides: the supersession chain rule is untouched by the artifact-shape edit; the assertion holds as written.
+- 2026-09-11T03:57:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:cf64b57b2a6d1b3aad822325eaa3371cbbb7adf635f773ad6e7b53c12cb4341a
+  artifact: sha256:2cc50a11f18089b10ca35b6968d534962c348565f1c4911bc74d46621f6af10b
+  note: propagated from a moved ground
+- 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:2cc50a11f18089b10ca35b6968d534962c348565f1c4911bc74d46621f6af10b
+  note: read against the working tree after the restatement rule in check_verdicts began exempting a corroboration stated by value, which may name the ground's own digest: one superseded verdict per entry and the successor naming it back are unchanged; the assertion holds as written.
 
 ## References
 

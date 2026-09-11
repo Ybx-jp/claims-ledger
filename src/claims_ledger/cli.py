@@ -451,7 +451,9 @@ def cmd_check(args, ledger):
         if name == "validate":
             reports = validate.run(ledger, cached=args.cached, entries=staged)
         elif name == "resolve":
-            reports = resolve.run(ledger, entries=working)
+            # The working entries, but the index's artifacts: a by-value anchor is held
+            # to what the commit will carry, which is what the hook is asking about.
+            reports = resolve.run(ledger, entries=working, cached=args.cached)
         elif name == "references":
             reports = references.run(ledger, entries=working)
         elif name == "propagate":

@@ -416,11 +416,17 @@ def restamp(ledger, path, write=False, force=False):
         if not n:
             raise AuthoringError(f"no `verbatim_sha: {declared}` line to replace in {path}")
     for raw, digest in pending:
-        # The placeholder is the pointer's last word; the same pointer written twice —
-        # as a ground and as a reading of it — names the same section and gets the same
-        # digest, so every occurrence is filled.
+        # The placeholder is the pointer's last word, and only a Grounds line or a
+        # verdict's evidence line is a pointer: a Warrant sentence that happens to end
+        # in the same text is prose in the frozen region, and a fill that reached it
+        # rewrote what check_history holds immutable, on a committed entry, at exit 0.
         stated = raw[: -len(PENDING_ANCHOR)] + digest
-        new = re.sub(re.escape(raw) + r"(?=\r?$)", lambda _m, s=stated: s, new, flags=re.MULTILINE)
+        new = re.sub(
+            r"^(- |[ \t]+evidence: )" + re.escape(raw) + r"(?=\r?$)",
+            lambda m, s=stated: m.group(1) + s,
+            new,
+            flags=re.MULTILINE,
+        )
     refuse_to_write_outside_the_root(ledger, path)
     try:
         write_text_atomically(path, new)

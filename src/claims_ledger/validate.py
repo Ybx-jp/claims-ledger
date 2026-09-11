@@ -398,9 +398,12 @@ def check_verdicts(e, entries, config):
     looks fresh again (L0093-a-propagated-verdicts-artifact-is-checked-in-every-state,
     cites-as-live).
 
-    A corroborating verdict has to point somewhere the entry's Grounds do not already,
-    which is what makes it the record of a reading rather than a restatement of what was
-    already cited (L0094-a-corroborating-verdict-points-somewhere-new, cites-as-live).
+    A corroborating verdict stated by reference has to point somewhere the entry's
+    Grounds do not already, which is what makes it the record of a reading rather than a
+    restatement of what was already cited; one stated by value may name the ground's own
+    digest, because that records the section read again and found as the ground states
+    it, which is the reading that moves a record of an undone drift past
+    (L0209-a-corroborating-verdict-by-reference-points-somewhere-new, cites-as-live).
 
     Supersession is a chain and not a tree: one superseded verdict per entry, naming a
     successor whose own `supersedes:` names it back
@@ -488,11 +491,13 @@ def check_verdicts(e, entries, config):
                             "discoverability runs both ways",
                         )
             if v.status == "corroborated" and normalize(v.evidence) in ground_keys:
-                fail(
-                    part,
-                    "a corroborating verdict must point at a ground the entry does not "
-                    "already cite",
-                )
+                q = v.pointer
+                if q is None or not q.by_value:
+                    fail(
+                        part,
+                        "a corroborating verdict must point at a ground the entry does not "
+                        "already cite",
+                    )
         # `artifact:` is machine provenance, and this is the only checker that looks at
         # its shape. `freshness` writes it and `orphans()` holds the verdict to it — but
         # `orphans()` asks only once the ground looks fresh again, so in the state a

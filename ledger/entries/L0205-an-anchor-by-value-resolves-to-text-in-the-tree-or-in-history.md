@@ -33,6 +33,8 @@ none
 <!-- APPEND BELOW THIS LINE ONLY -->
 
 ## Verdicts
+- 2026-09-11T03:57:51-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0211-an-anchor-by-value-resolves-to-text-this-run-reads-or-in-history · supersedes
+  note: the tree this run reads is the index under --cached, which the hook runs, and a read of the working tree there let an entry land with an anchor no version of the path holds (qe gate, ticket c4e62619f4d5476f); Scope names the index now
 
 ## References
-- src/claims_ledger/resolve.py · standing · cites-as-live

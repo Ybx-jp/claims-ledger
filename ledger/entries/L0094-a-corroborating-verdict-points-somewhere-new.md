@@ -41,7 +41,8 @@ none
 - 2026-09-10T22:06:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:cf64b57b2a6d1b3aad822325eaa3371cbbb7adf635f773ad6e7b53c12cb4341a
   note: read against the working tree after freshness began comparing by digest on both sides: the corroboration rule is untouched by the artifact-shape edit; the assertion holds as written.
+- 2026-09-11T03:57:02-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0209-a-corroborating-verdict-by-reference-points-somewhere-new · supersedes
+  note: narrowed to a reading stated by reference: a reading by value may name the ground's own digest, since that records the section read again and found as the ground states it, and it is the reading that clears a record of an undone drift; Scope and Backing unchanged
 
 ## References
-
-- src/claims_ledger/validate.py · standing · cites-as-live

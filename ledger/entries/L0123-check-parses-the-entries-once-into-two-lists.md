@@ -42,6 +42,13 @@ none
 - 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "cmd_check" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+- 2026-09-11T03:57:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_check" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  artifact: sha256:18d89c978b00ae1f8eccf9cb6f8bad2851495302fc68b9a114c5a10720d46215
+  note: propagated from a moved ground
+- 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_check" =sha256:18d89c978b00ae1f8eccf9cb6f8bad2851495302fc68b9a114c5a10720d46215
+  note: read against the working tree after cmd_check began handing --cached to resolve as well, for the index's artifacts under a by-value anchor: the entries are still parsed once into the two lists as stated, and resolve still takes the working list; that a third checker now reads the index's artifacts is a fact about artifacts and not about the lists this claim counts; the assertion holds as written.
 
 ## References
 

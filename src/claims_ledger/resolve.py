@@ -30,6 +30,7 @@ from .schema import (
     git,
     git_blobs,
     git_call,
+    git_env,
     git_problem,
     load_entries,
     load_registry,
@@ -219,18 +220,34 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     return out
 
 
-def digest_in_tree(ledger, p):
+def digest_in_tree(ledger, p, cached=False):
     """(whether the tree this run reads holds the text the anchor names, or None when the
-    path is not a readable file there, why not)."""
-    path = ledger.tree / p.target
-    if not path.is_file():
-        return None, f"{p.target} is not a readable file in the working tree"
-    text, problem = read_document(path)
-    if text is None:
-        return None, f"{p.target} {problem}"
+    path is not a readable file there, why not).
+
+    The index under `--cached`, read through git as `freshness` reads it, and the working
+    tree otherwise. The hook runs `check --cached`, and a read of the working tree there
+    answered for a file the author had staged in one state and left in another: the
+    anchor matched the tree, the commit carried the index, and the entry landed with an
+    anchor no version of the path holds — D64's end state with no rewrite anywhere.
+    """
+    where = "the index" if cached else "the working tree"
+    if cached:
+        answer = git_call(
+            ledger.repo or ledger.tree, "show", f":{p.target}", env=git_env(index=True)
+        )
+        if not answer.ok:
+            return None, f"{p.target} could not be read from the index ({answer.why})"
+        text = answer.out
+    else:
+        path = ledger.tree / p.target
+        if not path.is_file():
+            return None, f"{p.target} is not a readable file in {where}"
+        text, problem = read_document(path)
+        if text is None:
+            return None, f"{p.target} {problem}"
     found = section_text(text, ledger.config, p.type, p.section) if p.sectioned else text
     if found is None:
-        return None, f"{p.target} has no section {p.section!r} in the working tree"
+        return None, f"{p.target} has no section {p.section!r} in {where}"
     return digest_of(found) == p.digest, None
 
 
@@ -286,7 +303,7 @@ def digest_in_history(ledger, p):
     return False, None
 
 
-def resolve_by_value(p, e, part, ledger, committed, unasked=None):
+def resolve_by_value(p, e, part, ledger, committed, unasked=None, cached=False):
     """Reports for a ground whose anchor is stated by value; empty when it resolves.
 
     `p` is the pointer the ground is compared from — the ground itself, or the latest
@@ -304,11 +321,11 @@ def resolve_by_value(p, e, part, ledger, committed, unasked=None):
     flagged rather than failed — the datum is stated in full and is compared exactly as
     before, and what is lost is the diff a person would read, which a rewritten history
     drops and a reading of the section as it now stands moves the ground past
-    (L0205-an-anchor-by-value-resolves-to-text-in-the-tree-or-in-history,
+    (L0211-an-anchor-by-value-resolves-to-text-this-run-reads-or-in-history,
     cites-as-live). `committed` is `(whether git has the entry, why it could not say)`.
     """
     out = []
-    held, why = digest_in_tree(ledger, p)
+    held, why = digest_in_tree(ledger, p, cached)
     if held:
         return out
     is_committed_, unanswered = committed
@@ -326,6 +343,7 @@ def resolve_by_value(p, e, part, ledger, committed, unasked=None):
         )
         return out
     if not is_committed_:
+        where = "the index" if cached else "the working tree"
         reason = why or (
             f"{p.target} holds section {p.section!r} with a different digest"
             if p.sectioned
@@ -336,8 +354,8 @@ def resolve_by_value(p, e, part, ledger, committed, unasked=None):
                 "fail",
                 e.prefix,
                 part,
-                f"`{p.raw}` names text the working tree does not hold: {reason}; the entry "
-                "is not committed, and `claims-ledger sha --write` recomputes its anchors",
+                f"`{p.raw}` names text {where} does not hold: {reason}; the entry is not "
+                "committed, and `claims-ledger sha --write` recomputes its anchors",
             )
         )
         return out
@@ -539,7 +557,7 @@ def check_retraction(e, sources):
     return out
 
 
-def run(ledger, entries=None):
+def run(ledger, entries=None, cached=False):
     entries = load_entries(ledger) if entries is None else entries
     index = by_id(entries)
     sources = Sources(ledger)
@@ -578,7 +596,9 @@ def run(ledger, entries=None):
                 if committed is None:
                     committed = is_committed(ledger.repo, e.path)
                 q, _ = effective_pointer(e, p, ledger.config, ledger.repo)
-                reports += resolve_by_value(q, e, f"Grounds {i}", ledger, committed, unasked)
+                reports += resolve_by_value(
+                    q, e, f"Grounds {i}", ledger, committed, unasked, cached=cached
+                )
                 continue
             reports += resolve_pointer(p, e, "Grounds", index, sources, ledger, unasked)
         for v in e.verdicts:

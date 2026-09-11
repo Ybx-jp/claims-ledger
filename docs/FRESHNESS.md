@@ -345,7 +345,12 @@ later reading cannot carry the accusation away. A record on a ground that is fre
 it is compared from, naming something this run does not see, is **unconfirmable** — a
 flag — because that is exactly what an ordinary drift that was never committed or was
 undone looks like, and failing it left a permanent red no legal edit could clear
-(L0203-a-record-is-refuted-against-its-anchor-and-confirmed-against-the-tree, cites-as-live).
+(L0210-a-record-before-a-later-reading-is-moved-past, cites-as-live).
+A record that a later reading of the ground sits after in the file is moved past, whatever
+pointer either names: a reading is a person having looked, dated, and the drift the record
+describes was looked at. This is what clears the one flow the flag would otherwise hold
+forever — a drift recorded, committed and reverted, where the only reading a person can
+write names the ground's own digest, which `validate` accepts by value for exactly this.
 A verdict that records nothing does not parse. None of this makes the discharge
 unforgeable — the ledger is text a person writes, and a forger who genuinely drifts the
 artifact and names its digest has made a record a reader can follow.
@@ -363,8 +368,9 @@ overstates its own guarantee is the defect this package exists to refuse.
 - ~~**`caused()` has no section awareness.**~~ Closed by deletion: there is no `caused()`,
   and the record is a section's digest, so a commit to another section of the file
   supplies nothing a discharge can name.
-- **`absent` is checked against the file, not against the verdict.** A ground deleted and
-  restored in two commits satisfies it, which is a touch-and-revert.
+- ~~**`absent` is checked against the file, not against the verdict.**~~ Closed with the
+  history walk: a record of `absent` discharges only a deletion in front of the run, and a
+  ground deleted and restored is a ground whose record nothing sees.
 - **A verdict that records what the run would have recorded is a discharge, whoever wrote
   it.** The digest of a section is one function call, and a hand-written verdict carrying
   it holds a live drift at exit 0 across all five checkers. This
@@ -375,9 +381,9 @@ overstates its own guarantee is the defect this package exists to refuse.
   the record is *true*, not about who made it.
 
 So the accidental forgery is narrowed rather than removed: a record equal to the anchor
-is refuted outright, and the two above are not. Both remaining residuals require an
-author with commit access deliberately writing a verdict in the machine's name, and both
-are stated here rather than left for a reader to find.
+is refuted outright, and the one above is not. The remaining residual requires an author
+with commit access deliberately writing a verdict in the machine's name, and it is
+stated here rather than left for a reader to find.
 
 **A git that cannot answer is not a git answering no.** Reading the anchor's section out
 of the commit a by-reference pointer names can fail — a corrupt pack, the per-call

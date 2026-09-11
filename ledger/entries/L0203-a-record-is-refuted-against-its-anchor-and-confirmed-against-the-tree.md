@@ -34,7 +34,8 @@ none
 <!-- APPEND BELOW THIS LINE ONLY -->
 
 ## Verdicts
+- 2026-09-11T03:57:02-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0210-a-record-before-a-later-reading-is-moved-past · supersedes
+  note: the unconfirmable half gains its discharge: a record before a later reading of the ground is moved past whatever pointer either names, measured by the qe gate as the one flow the flag held forever; Scope and Backing unchanged
 
 ## References
-- src/claims_ledger/freshness.py · standing · cites-as-live
-- docs/FRESHNESS.md · standing · cites-as-live
