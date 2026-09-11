@@ -80,9 +80,12 @@ set -e
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
 # console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
-# asks each checker for the index wherever that checker has a `--cached` of its own, so a
-# drift that is staged and then reverted in the working tree cannot commit silently
-# (L0212-the-hook-asks-for-the-index-wherever-a-checker-has-a-cached-mode, cites-as-live).
+# asks each checker for the index wherever that checker has a `--cached` of its own, so what
+# those checkers report is what the commit will carry rather than what the working tree
+# happens to hold when `git commit` runs. It does not follow that nothing can commit
+# unreported: the two checkers without the flag still read the working tree, and so does
+# `resolve` for a ground pinned at `working`, which names the tree by its own name
+# (L0216-the-hook-asks-the-index-of-every-checker-that-takes-the-flag, cites-as-live).
 
 
 def hook_text(python=None):
@@ -402,9 +405,11 @@ def cmd_validate(args, ledger):
 def cmd_resolve(args, ledger):
     # All three take the flag, and that is the claim: the guard so a fallback is named, the
     # load so the entries are the ones being committed, the run so a by-value anchor is held
-    # to the artifact the commit will carry. Any one left bare answers about a state no
-    # commit contains, and answers it with a pass
-    # (L0214-resolve-asked-for-the-index-reads-it-for-entries-and-artifacts, cites-as-live).
+    # to the artifact the commit will carry. Leaving one bare is the shape that survives a
+    # suite — two of the three then answer about a state no commit contains and answer it
+    # with a pass, and the third keeps its verdict, losing only the notice that the index
+    # went unread
+    # (L0215-cmd-resolve-puts-the-cached-flag-to-each-of-its-three-calls, cites-as-live).
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop

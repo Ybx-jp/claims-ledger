@@ -377,8 +377,42 @@ def test_resolve_cached_says_so_when_the_index_cannot_be_read(project, capsys):
     capsys.readouterr()
 
     project.cl("resolve", "--cached")
-    said = capsys.readouterr()
-    assert "--cached" in said.err or "--cached" in said.out, (said.out, said.err)
+    got = capsys.readouterr()
+    said = got.err + got.out
+    assert "fell back to the working tree" in said, said
+    assert "what is staged was not checked" in said, said
+
+    # The other half of the same rule, and the half no test held: a run that did not ask
+    # for the index has not fallen back from it, however broken the index is. Without this
+    # arm, `cmd_resolve` guarding with a hard `True` passes the whole suite.
+    project.cl("resolve")
+    bare = capsys.readouterr()
+    assert "--cached" not in bare.err + bare.out, bare
+
+
+def test_a_healthy_index_is_not_reported_as_a_fallback(project, capsys):
+    """The negative control the fallback note never had. Asserting only that the note can
+    appear leaves two mutants alive through all 1072 tests: one that makes `index_problem`
+    always answer, so every healthy `--cached` run declares that what is staged was not
+    checked; and one that hands `cmd_resolve`'s guard a hard `True`, so a bare `resolve`
+    announces a fallback for a flag nobody passed. Both are measured to survive without
+    this. (qe ticket a55240cd1f6f47e5, QE21-2.)
+    """
+    project.git("init", "-q")
+    _entry_anchored_at_the_tree(project)
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    # A readable index, asked for: nothing fell back, so nothing says it did.
+    assert project.cl("resolve", "--cached") == 0
+    healthy = capsys.readouterr()
+    assert "fell back" not in healthy.err + healthy.out, healthy
+    assert "was not checked" not in healthy.err + healthy.out, healthy
+
+    # And a bare run says nothing about a flag it was not given.
+    assert project.cl("resolve") == 0
+    bare = capsys.readouterr()
+    assert "--cached" not in bare.err + bare.out, bare
 
 
 def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):

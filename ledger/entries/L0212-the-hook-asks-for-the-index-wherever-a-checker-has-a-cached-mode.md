@@ -35,5 +35,8 @@ none
 
 ## Verdicts
 
+- 2026-09-11T15:06:52-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0216-the-hook-asks-the-index-of-every-checker-that-takes-the-flag · supersedes
+  note: the clause inherited from L0120 — that a drift staged and then reverted cannot commit unreported — claims more than the template decides, since two checkers have no cached mode and resolve reads the working tree for a ground pinned at working. The successor claims what the hook asks for and leaves the residual stated beside it
+
 ## References
-- src/claims_ledger/cli.py · standing · cites-as-live

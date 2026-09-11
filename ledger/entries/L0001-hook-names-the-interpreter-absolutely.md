@@ -54,6 +54,10 @@ Every checking line of the template begins with the python slot and invokes the 
   evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:942ba9cbee29435b9afade468b70c036de4abd07b6e7e016882f1ff9faa7fbf5
   note: re-read after the citing comment below the template moved from L0120 to its successor L0212, which is inside this section and so changed its digest again in the same commit. The template itself is untouched by that move and the claim is unaffected.
 
+- 2026-09-11T15:07:33-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:d06993cdf185d0d14a901a2219c9e489349385ce8c48b3d25eeb773eb7d2f834
+  note: re-read after the sentence below the template was corrected and its citation moved to L0216. The template's own lines are untouched: each still begins with the python slot and reaches the package with -m.
+
 ## References
 
 - README.md · standing · cites-as-live

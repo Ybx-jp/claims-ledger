@@ -34,5 +34,8 @@ none
 
 ## Verdicts
 
+- 2026-09-11T15:06:52-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0215-cmd-resolve-puts-the-cached-flag-to-each-of-its-three-calls · supersedes
+  note: the assertion claimed the command reads the index for every question it puts to the tree, and it does not: a ground pinned at working is read from the working tree whatever the flag says, and under an unreadable index the entries fall back while the artifacts go on asking the index. The successor claims the three call sites, which is what the ground decides and what the tests hold
+
 ## References
-- src/claims_ledger/cli.py · standing · cites-as-live
