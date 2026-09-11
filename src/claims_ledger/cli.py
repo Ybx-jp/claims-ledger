@@ -70,7 +70,9 @@ HOOK_TEMPLATE = """#!/bin/sh
 # the anchor matched the tree, and the commit carried the index.
 #
 # `references` and `propagate` have no `--cached` of their own yet, so this hook still
-# reads the working tree for those two.
+# reads the working tree for those two; and `resolve` reads it for a ground pinned at
+# `working`, which names the working tree by its own name and which `freshness` passes
+# over entirely. So this hook narrows what can commit unseen; it does not close it.
 set -e
 {python} -m claims_ledger validate --cached
 {python} -m claims_ledger resolve --cached
@@ -80,12 +82,10 @@ set -e
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
 # console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
-# asks each checker for the index wherever that checker has a `--cached` of its own, so what
-# those checkers report is what the commit will carry rather than what the working tree
-# happens to hold when `git commit` runs. It does not follow that nothing can commit
-# unreported: the two checkers without the flag still read the working tree, and so does
-# `resolve` for a ground pinned at `working`, which names the tree by its own name
-# (L0216-the-hook-asks-the-index-of-every-checker-that-takes-the-flag, cites-as-live).
+# asks each checker for the index wherever that checker has a `--cached` of its own. What
+# each of those checkers then does with it is that checker's own claim; the template says
+# only which lines carry the flag, and the lines that do not say so beside them
+# (L0217-the-hook-carries-the-cached-flag-on-every-line-that-takes-one, cites-as-live).
 
 
 def hook_text(python=None):

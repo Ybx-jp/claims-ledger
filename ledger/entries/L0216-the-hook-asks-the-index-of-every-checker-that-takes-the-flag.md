@@ -35,5 +35,8 @@ none
 
 ## Verdicts
 
+- 2026-09-11T16:06:37-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0217-the-hook-carries-the-cached-flag-on-every-line-that-takes-one · supersedes
+  note: the assertion replaced one false consequence clause with another. Both said what the flag buys; the ground settles only which lines carry it. The successor claims that and stops, and what the hook buys is stated in the template beside the lines instead.
+
 ## References
-- src/claims_ledger/cli.py · standing · cites-as-live

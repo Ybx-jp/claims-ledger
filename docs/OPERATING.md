@@ -184,9 +184,14 @@ into the successor buys exactly one more supersession on the next unrelated edit
 it instead: pin the code that carries the rule rather than a caller that follows it, and
 configure a `section-pattern` if the claim is about something narrower than a whole table
 or function. The tell is mechanical — when `sha --write` on the successor computes a
-`verbatim_sha` **byte-identical** to its predecessor's, the claim never moved and only its
-ground did. That is the case where narrowing is the whole of the repair, and often the
-case where acknowledging is and no successor is needed at all.
+`verbatim_sha` **byte-identical** to its predecessor's, the Scope and the Backing never
+moved and only the ground did. That is the case where narrowing is the whole of the
+repair, and often the case where acknowledging is and no successor is needed at all.
+
+Read it as a tell about the Scope and not about the claim, because the fingerprint is
+computed from the Scope and the Backing alone: an Assertion that turns out to be false
+over a Scope that was right the whole time is superseded with the fingerprint unmoved, and
+that is the supersession this tell will tell you not to make.
 
 **3. Supersede.** Both directions are checked against each other, and supersession is a
 chain, never a tree — an entry carries exactly one `superseded` verdict.
