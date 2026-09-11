@@ -55,8 +55,14 @@ within a file or to a different file, a rename. Append a `corroborated` verdict 
 section where it now is, at the current revision, with a note recording the move:
 
     - <timestamp> · corroborated · grade: <grade> · author: <you>
-      evidence: <type>: <path> § "<section>" @<revision>
+      evidence: <type>: <path> § "<section>" =?
       note: <what moved, and that the assertion is unaffected>
+
+The anchor is stated by value: `claims-ledger sha --write <entry>` fills `=?` with the
+digest of the section as the working tree has it, on a committed entry too, since the
+verdict sits below the append marker. A reading by value needs no commit to be placed at,
+so it goes in the same commit as the edit it read. `@<revision>` is still accepted and
+names a commit that has to exist already.
 
 `contested` is not terminal, so the status moves to `corroborated`, citations that read
 `cites-as-live` stay legal, and the entry keeps its id. The evidence must name the artifact
@@ -100,10 +106,12 @@ acknowledging is enough and no successor is needed at all.
 entry is in history, and `claims-ledger validate` compares against history to catch an edit
 there. Repair by adding to the end, never by revising a ground or removing a verdict.
 
-**Land it without rewriting history.** A pin names a revision, so a squash merge, a rebase
-merge or a force-push over rewritten history removes the evidence for every ground pinned
-into the vanished commits at once, and each one then costs a supersession. Merge commits
-only, on any branch whose commits are pinned.
+**Land it without rewriting history.** A ground stated by reference names a revision, so a
+squash merge, a rebase merge or a force-push over rewritten history removes the evidence
+for every such ground pinned into the vanished commits at once, and each one then costs a
+supersession. Merge commits only, on any branch whose commits a ground names by
+reference. A ground stated by value loses only the diff a person would read during
+repair, and a reading of the section as it now stands moves it past that.
 
 ## Reference
 

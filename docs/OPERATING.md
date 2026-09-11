@@ -1,4 +1,4 @@
-# Operating a ledger that pins commits
+# Operating a ledger that pins claims to code
 
 `docs/SCHEMA.md` says what an entry is. `docs/FRESHNESS.md` says what a pin is and what
 the fifth checker does with it. This says what it costs to run one over time: the two
@@ -10,26 +10,42 @@ broken; nothing here can stop you breaking them, which is why it is written down
 
 ## The history rewrite
 
-A `code:` or `toml:` ground pins a section of a file **at a commit**:
+A `code:` or `toml:` ground names a section of a file and an anchor, and the anchor
+states the datum in one of two ways:
 
     - code: src/thing.py § "widget" @4023af4006273319aec9ae2512d197e4a99fce8c
+    - code: src/thing.py § "widget" =sha256:3e1c…(64 hex)
 
-That commit id is the whole of the ground's reproducibility. Anything that removes the
-commit from the branch's history removes the evidence with it:
+The first is **by reference**: the section as it stood at that commit, and the commit id
+is the whole of the ground's reproducibility. The second is **by value**: the digest of
+the section's text, exactly as `freshness` compares it, computed from the working tree
+by `claims-ledger sha --write` before the entry is committed — so the ground names what
+the claim rests on without naming a commit at all. New grounds and every reading are
+written by value; a ledger that has been kept for a while carries both forms.
 
-- **A squash merge** replaces a branch's commits with one new commit.
-- **A rebase merge** rewrites every commit with a new id.
+A rewrite of history costs the two forms different things. Anything that removes a
+commit from the branch's history —
+
+- **A squash merge**, which replaces a branch's commits with one new commit.
+- **A rebase merge**, which rewrites every commit with a new id.
 - **A force-push over rewritten history**, an `amend` of a commit a pin names, a
   `filter-branch` or `filter-repo` pass — the same thing by other means.
 
-After any of them `resolve` fails for every ground pinned into the vanished commits, at
-once. The failures are not repairable in place: Grounds sit above the append-only marker
-and a pin cannot be edited, so the only route back is a supersession per entry — a new
-entry pinned at a commit that exists, a `superseded` verdict on each old one, and every
-citation moved. Eight entries is an afternoon. A hundred is a rewrite of the ledger.
+— removes the evidence of every ground stated by reference into it. `resolve` fails for
+each of them at once, and the failures are not repairable in place: Grounds sit above the
+append-only marker and an anchor cannot be edited, so the only route back is a
+supersession per entry — a new entry resting on the artifact as it now stands, a
+`superseded` verdict on each old one, and every citation moved. Eight entries is an
+afternoon. A hundred is a rewrite of the ledger.
 
-**So: merge commits only, on any branch whose commits are pinned.** Turn the other
-strategies off at the source rather than relying on habit. On GitHub that is
+A ground stated by value loses nothing it rests on. The datum is in the anchor and
+`freshness` compares it exactly as before; what the rewrite costs is the diff a person
+would read during repair. When no version of the path this repository holds digests to
+the anchor any more, `resolve` flags the ground rather than showing its founding text,
+and a reading of the section as it now stands moves the ground past the flag.
+
+**So: merge commits only, on any branch whose commits a ground names by reference.** Turn
+the other strategies off at the source rather than relying on habit. On GitHub that is
 `allow_squash_merge` and `allow_rebase_merge` set false on the repository, which stops the
 merge button as well as the command line:
 
@@ -38,7 +54,9 @@ merge button as well as the command line:
 
 The merge guard `claims-ledger harness install` writes into a project refuses the local
 commands for a coding agent, and is one enforcement of this section rather than a
-substitute for it.
+substitute for it. Both defend the grounds stated by reference. A ledger whose every
+ground and reading is by value has nothing left for them to defend, and keeping them is
+then a choice for the project rather than a rule of the ledger.
 
 **If it has already happened**, do not paper over it. `resolve` naming a commit that is
 not in the repository is a true report of a real loss, and an entry whose evidence is gone
@@ -80,38 +98,31 @@ history rewrite, and permitted here only because those commits are unmerged and 
 pins them. Check that before doing it: an entry created on that same branch may pin them,
 and then the rewrite costs what the section above says it costs.
 
-## Adding an entry takes two commits
+## Adding an entry takes one commit
 
-This bites the first time and then never again, so it is worth stating plainly.
+An entry's citation usually lives *inside* the section that entry rests on — the
+docstring sits in the function, the README sentence sits in a file that some other entry
+pins. A ground stated by reference cannot name the commit that carries its own citation,
+because that commit does not exist yet, and landing an entry used to take two commits
+with the hook bypassed between them. A ground stated by value is computed before any
+commit exists, so the code, the citation and the entry land together:
 
-An entry's citation usually lives *inside* the section that entry pins — the docstring
-sits in the function, the README sentence sits in a file that some other entry pins. So a
-single commit cannot work: the entry would have to name a commit that does not exist yet,
-and pinning the commit before it flags the ground as `moved` on the entry's first run.
+1. Write the code, and the citation in the prose that states the commitment — README
+   sentence, docstring, comment — inside the section the entry will rest on.
+2. Write the entry, with each ground's anchor left as `=?`.
+3. Run `claims-ledger sha --write <entry>`. It fingerprints the entry and fills each `=?`
+   with the digest of the section as the tree has it, and it refuses, naming the
+   pointer, when that section is not there.
+4. Commit all three. The installed pre-commit hook passes on the first try: `references`
+   sees the entry, `resolve` sees the anchor match the tree, `freshness` sees the ground
+   fresh.
 
-1. **Commit one:** the code, and the prose that cites the entry — README sentence,
-   docstring, comment.
-2. **Commit two:** the entry file, with its grounds pinned to commit one.
-
-**The installed pre-commit hook will refuse commit one.** It runs `references`, commit one
-carries a citation naming an entry that does not exist yet, and that is exactly the defect
-`references` exists to catch.
-
-The checker is not being conservative here; it cannot do better. At commit one a citation
-to an entry that is arriving in the next commit and a citation to an entry that never
-existed are the same bytes in the same file with the same ledger beside them. Nothing
-distinguishes them until the second commit exists, so there is no flag that could be added
-to tell them apart — only a promise, from you, that the second commit is coming. `git
-commit --no-verify` is that promise. Then let the hook run normally on commit two.
-
-Two things follow. Run `claims-ledger check` yourself before committing the second half:
-between the two commits the tree is knowingly inconsistent, and the hook you bypassed is
-the only thing that would otherwise tell you when it stopped being. If the promise is not
-kept — if commit two never arrives — CI is what catches it, which is why the workflow
-checks out the full history and runs `check` on every push; the bypass is local and
-one commit deep, and nothing downstream of it is bypassed. And never resolve the refusal
-by deleting the citation: the citation is the link the ledger exists to keep, and a commit
-that drops it passes the check by removing the thing being checked.
+Two things follow. Never resolve a `references` refusal by deleting the citation: the
+citation is the link the ledger exists to keep, and a commit that drops it passes the
+check by removing the thing being checked. And a citation written into a section that
+other entries already rest on flags their grounds as `moved` in the same run, because it
+is an edit to their span; that is the mechanism working, and a reading discharges it, as
+below.
 
 ## Repairing a drifted pin
 
@@ -137,8 +148,8 @@ For a `moved` or `withdrawn` ground:
     claims-ledger freshness --write
 
 This appends a `contested` verdict under the propagation author, carrying the pointer as
-evidence and the object id git would store the drifted artifact under as `artifact:`. Exit
-1 is correct — it wrote something. Write this verdict with the tool and never by hand:
+evidence and the digest of the section as this run read it as `artifact:`. Exit 1 is
+correct — it wrote something. Write this verdict with the tool and never by hand:
 `artifact:` is machine provenance and is checked as such, and a hand-written propagation
 verdict is a person borrowing the authority of a check that did not run.
 
@@ -148,17 +159,20 @@ by name. That list is how you find the prose to repair.
 **2. Re-judge.** This is the step no tool does. Read the Assertion against the artifact as
 it now stands:
 
-- **The claim still holds.** Supersede it — step 3. A pin cannot be edited, and that is
-  deliberate: a claim re-established on new evidence is a different claim from the one
-  established on the old.
+- **The claim still holds, on different evidence.** Supersede it — step 3. An anchor
+  cannot be edited, and that is deliberate: a claim re-established on new evidence is a
+  different claim from the one established on the old.
 - **The claim is no longer true.** Append a `refuted` verdict whose evidence points at
   what shows it false, and rewrite the prose. The citations are removed with the sentence,
   not moved.
 - **The artifact moved and the claim did not** — a reformat, a comment, a renumbering, a
   section moved to another path, a rename. Acknowledge it rather than superseding it:
   append a `corroborated` verdict naming the artifact as it now stands, with a note
-  recording what moved. The entry keeps its id, its Grounds and its citations. Its
-  evidence must name the artifact as it is now rather than restate the ground —
+  recording what moved. Write its anchor as `=?` and let `sha --write` fill it: a
+  reading stated by value needs no commit to be placed at, and filling it touches nothing
+  above the marker, so the reading lands in the same commit as the edit it read. The
+  entry keeps its id, its Grounds and its citations. Its evidence must name the artifact
+  as it is now rather than restate the ground —
   `validate` refuses a corroborating verdict pointing at a ground the entry already
   cites, which is what makes it a record of a reading — and `freshness` compares the
   ground from that reading afterwards, so a later change is reported again.
@@ -179,14 +193,15 @@ chain, never a tree — an entry carries exactly one `superseded` verdict.
 
     claims-ledger new <slug>
 
-Copy Assertion, Scope, Warrant and Backing across; re-pin the Grounds to the artifact as
-it now stands; declare `supersedes: <old id>` in the successor's frontmatter; append to
+Copy Assertion, Scope, Warrant and Backing across; write the Grounds against the artifact
+as it now stands, each anchor `=?`; declare `supersedes: <old id>` in the successor's
+frontmatter; append to
 the predecessor a verdict whose evidence is `entry: <new id> · supersedes`; move every
 citation the reference check named; and run `claims-ledger sha --write` on the successor
 **before** it is committed, since `sha --write` refuses an entry that is already in
 history.
 
-Then commit the pair as above, and merge without rewriting history.
+Then commit, and merge without rewriting history.
 
 ## What this costs, honestly
 

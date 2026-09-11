@@ -17,7 +17,7 @@ sentence fails a check when the thing under it moves.
 There is no backlog. A commitment written into prose with no entry behind it passes every
 check — that is the one door the checkers do not watch — so an entry put off is not an
 entry anything will ask for later. The cost of writing it does not fall either: the
-citation goes inside the span the entry pins, so a later pass pays the same two commits
+citation goes inside the span the entry pins, so a later pass pays the same commit again
 plus the drift its own citation causes.
 
 Two shapes of deferral to refuse in particular:
@@ -100,20 +100,20 @@ citations that would fail it, and turning it on is a sweep followed by the setti
 So a file being outside the document list means only that prose in it cannot carry a
 citation — never that a claim about it cannot be grounded.
 
-## Two commits
+## One commit
 
-The citation usually sits inside the span the entry pins, so one commit cannot do it: the
-entry would have to name a revision that does not exist yet.
+The citation usually sits inside the span the entry pins, and a ground anchored by value
+names that span by the digest of its text rather than by a revision, so the code, the
+citation and the entry land together. Write each ground's anchor as `=?`:
 
-1. **The prose that cites the entry.** The pre-commit hook refuses this, because the
-   citation names an entry that is not there — `git commit --no-verify` is the promise
-   that the second commit is coming.
-2. **The entry files**, with grounds pinned to the first commit.
+    - code: src/thing.py § "widget" =?
 
-Run `claims-ledger check` yourself between the two. Resolving the refusal by deleting the
-citation passes the check by removing what is being checked.
-
-Batching helps: every citation in the first commit, every entry in the second, one bypass.
+`claims-ledger sha --write <entry>` fingerprints the entry and fills every `=?` with the
+digest of the section as the working tree has it. Then commit the three as one; the
+pre-commit hook passes on the first try, because the entry the citation names is there
+and the anchor matches the tree. A ground can still be written `@<commit>` by reference,
+and that is the form a history rewrite destroys; by value, a squash or rebase costs only
+the diff a person would read during repair.
 
 ## Choosing a ground
 
@@ -136,7 +136,7 @@ it flags.
 
 ## Ask who is already there
 
-    claims-ledger neighbours 'code: path/to/file.py § "the_section" @HEAD'
+    claims-ledger neighbours 'code: path/to/file.py § "the_section" =?'
     claims-ledger neighbours <entry id>
 
 Once a ground is chosen and before the entry is written, this answers with the entries
@@ -202,18 +202,18 @@ And one reads the Scope against the Warrant:
 3. Choose each ground: the narrowest section that carries the rule.
 4. `claims-ledger neighbours` on each ground, before writing the entry, and decide what to
    do with anything it surfaces.
-5. Write every citation, each inside the section its entry pins. First commit,
-   `--no-verify`.
+5. Write every citation, each inside the section its entry pins.
 6. `claims-ledger new <slug>` per entry; fill Assertion, Scope, Grounds, Warrant and
-   Backing; pin each ground to the first commit; add the `## References` row naming each
+   Backing; write each ground's anchor as `=?`; add the `## References` row naming each
    citing document and the act it uses.
-7. `claims-ledger sha --write` on every new entry, before it is committed — it refuses an
-   entry version control already has.
-8. `claims-ledger check`, then the second commit with the hook running.
+7. `claims-ledger sha --write` on every new entry, before it is committed — it fills the
+   anchors from the tree, and refuses an entry version control already has.
+8. `claims-ledger check`, then one commit — code, citations and entries — with the hook
+   running.
 
 Step 8 will report drift on entries already pinned to the sections the citations went
 into. That is expected and it is the mechanism working; `repair-a-drifted-pin` covers
-discharging each with a re-read.
+discharging each with a re-read, which goes in the same commit.
 
 ## Reference
 

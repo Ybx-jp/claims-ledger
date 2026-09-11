@@ -36,14 +36,14 @@ and both directions are checked against each other.
 
 6. **`claims-ledger check`**, then commit.
 
-## The two commits
+## One commit
 
-The successor's grounds name a revision, and the citations that move usually sit inside the
-spans those grounds pin. So the prose goes in one commit and the entries in the next, with
-grounds pinned to the first. The pre-commit hook refuses the first, because it carries
-citations to an entry that does not exist yet; `--no-verify` is the promise that the second
-is coming, and running `claims-ledger check` by hand between them is what makes that
-promise checkable.
+The citations that move usually sit inside the spans the successor's grounds pin, and a
+ground anchored by value names a span by the digest of its text rather than by a revision.
+So the successor's grounds are written `=?`, `claims-ledger sha --write` fills them from
+the working tree along with the fingerprint, and the moved citations, the predecessor's
+verdict and the successor go in one commit with the hook running. A ground written
+`@<commit>` by reference still works and is what a history rewrite destroys.
 
 ## The tell that a supersession was not needed
 

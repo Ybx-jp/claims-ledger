@@ -147,7 +147,7 @@ condition: mean aggregation, one layer
 
 ## Grounds
 
-- lab: notes/001.md § "Observation" @9fceb02
+- lab: notes/001.md § "Observation" =sha256:1c9e2b7d5a03…
 - source: fx-paper · whole text
 
 ## Warrant
@@ -186,7 +186,7 @@ rebased history costs, and how a drifted claim is repaired — is in
 | `claims-ledger resolve` | every pointer resolves; every quoted span is a contiguous span of the named source's stored bytes, with elisions marked |
 | `claims-ledger references` | citation acts agree with the target's current status, entry to entry and document to entry, both directions |
 | `claims-ledger propagate` | when an entry falls or is challenged, its dependents carry the `contested` flag that says why (`--write` appends them) |
-| `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and its bytes match the pin, and the pin is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
+| `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and the digest of its section matches the anchor — stated by value, or read out of the commit a by-reference anchor names — and a by-reference anchor is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/figures/five-checks-dark.svg">
@@ -263,9 +263,12 @@ documents = ["*.md", "docs/*.md"]
 document-excludes = []
 
 # The named artifacts an entry may rest on. A sectioned type is written
-#   lab: <path> § "<section>" @<commit>
+#   lab: <path> § "<section>" =sha256:<digest>
 # and a plain one
-#   experiment: <path> @<commit>
+#   experiment: <path> =sha256:<digest>
+# The anchor names the datum by value — the digest of the section as the checkers
+# compare it, which `sha --write` fills in for `=?` — or by reference, `@<commit>`, as
+# the section stood at that commit.
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
@@ -399,18 +402,16 @@ reaches the package with `-m`
 `claims-ledger` would fail with `not found` on every commit for anyone who installed
 into a virtualenv that was not active.
 
-### Landing an entry takes two commits
+### Landing an entry takes one commit
 
-An entry's citation usually sits *inside* the section that entry pins — the docstring is
-in the function. One commit cannot pin itself, so the pair is: first the code and the
-prose that cites the entry, then the entry, with its grounds pinned to that first commit.
-
-The installed hook refuses the first of the two. It runs `references`, and commit one
-carries a citation naming an entry that does not exist yet — which is the defect
-`references` exists to catch, and which it cannot tell apart from a half-written pair,
-because at commit one the two are the same bytes. Commit it with `git commit --no-verify`,
-run `claims-ledger check` by hand before the second, and never resolve the refusal by
-deleting the citation. CI reads the full history and is what catches a promise not kept.
+An entry's citation usually sits *inside* the section that entry rests on — the
+docstring is in the function. A ground stated by value is the digest of that section's
+text, computed from the working tree before any commit exists, so the code, the citation
+and the entry land together: write each ground's anchor as `=?`, run
+`claims-ledger sha --write` on the entry to fingerprint it and fill the anchors, and
+commit all three. The pre-commit hook passes on the first try. A ground may still be
+stated by reference, `@<commit>`, and that is the form a squashed or rebased history
+destroys; the by-value form loses only the diff a person would read during repair.
 
 `docs/OPERATING.md` covers this, what a rewritten history costs a pinned ledger, and the
 order in which a drifted claim is repaired.
@@ -436,7 +437,7 @@ same scripts under its own directory, wired in the file that agent really reads 
 which is the only file it loads hooks from; `claims-ledger harness list` prints the table.
 The scripts read both payload dialects and answer in the one they were called in. The
 hooks report drift at edit time, refuse the squash and
-rebase merges that would destroy every commit pin, and lay out the four repairs when a
+rebase merges that would destroy every ground stated by reference, and lay out the four repairs when a
 citation's act stops matching its target's status; the skills carry the procedures behind
 them. Nothing already in the project is written over — a file that differs is left alone
 and named, and `--force` is what changes that — and a settings file that already exists

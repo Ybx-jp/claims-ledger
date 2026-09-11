@@ -12,7 +12,8 @@ say about them, which is what stops a draft being mistaken for a finished entry.
 and hypotheses also carry `credence` and `resolves_when`.
 
 `verbatim_sha` is a fingerprint over the parts of the entry that must not drift after it
-is committed. `claims-ledger sha --write <path>` computes it, and refuses an entry that
+is committed. `claims-ledger sha --write <path>` computes it, fills each ground's `=?`
+anchor with the digest of its section as the tree has it, and refuses an entry that
 version control already has — so it is run before the entry's first commit, not after.
 
 ## Assertion
