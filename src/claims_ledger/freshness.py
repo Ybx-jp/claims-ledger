@@ -127,6 +127,8 @@ def checked_pointers(entry, config):
     for i, (raw, p) in enumerate(entry.grounds, start=1):
         if p is None or p.type not in config.evidence_types or p.pin in UNPINNED:
             continue
+        if p.by_value:
+            continue  # an anchor stated by value: not compared by this checker yet
         out.append((i, raw, p))
     return out
 

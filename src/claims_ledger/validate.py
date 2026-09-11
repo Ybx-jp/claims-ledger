@@ -22,6 +22,7 @@ from .schema import (
     ACTS,
     APPEND,
     DECIMAL_RE,
+    DIGEST_RE,
     ENTRY_ACTS,
     FALLEN,
     GRADES,
@@ -30,6 +31,7 @@ from .schema import (
     MEASURED_AND_ABOVE,
     NULL_OBJECT_ID,
     OBJECT_ID_RE,
+    PENDING_ANCHOR,
     SCOPE_KEYS,
     SECTIONS,
     SHA_RE,
@@ -351,6 +353,35 @@ def check_sections(e, config):
             fail("References", f"`{raw}` is not `- <path> · standing | record · <act>`")
         elif r.act not in ACTS:
             fail("References", f"`{raw}` carries act `{r.act}`")
+    return out
+
+
+def check_anchors(e, config):
+    """Every by-value anchor on the entry — in its Grounds and in its verdicts' evidence —
+    is a digest and not the placeholder.
+
+    `=?` is what an author writes while choosing the ground, and `claims-ledger sha
+    --write` is what turns it into the digest of the section as the tree has it. Left as
+    written it would be a ground that names no datum at all, which no later checker could
+    compare against anything, so it is refused here, of every pointer in every state,
+    before anything is read out of the tree
+    (L0197-a-pending-anchor-is-refused-until-it-is-computed, cites-as-live).
+    """
+    out = []
+    fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
+    places = [(f"Grounds {i}", raw, p) for i, (raw, p) in enumerate(e.grounds, start=1)]
+    places += [(f"verdict {v.index}", v.evidence, v.pointer) for v in e.verdicts if v.evidence]
+    for part, raw, p in places:
+        if p is None or p.type not in config.evidence_types or not p.by_value:
+            continue
+        if p.digest == PENDING_ANCHOR:
+            fail(
+                part,
+                f"`{raw}` has an anchor still to be computed; `claims-ledger sha --write` "
+                "fills `=?` with the digest of the section as the tree has it",
+            )
+        elif not DIGEST_RE.match(p.digest):
+            fail(part, f"`{raw}`: an anchor stated by value is `=sha256:<64 hex>`, or `=?`")
     return out
 
 
@@ -877,6 +908,7 @@ def run(ledger, cached=False, entries=None):
     for e in entries:
         reports += check_frontmatter(e, index, config)
         reports += check_sections(e, config)
+        reports += check_anchors(e, config)
         reports += check_verdicts(e, index, config)
         reports += check_supersession(e, index)
     reports += check_history(ledger, entries, cached=cached)

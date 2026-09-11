@@ -9,7 +9,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 90 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 92 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -213,7 +213,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 90 seeds, each a small ledger with committed
+the red-team corpus it was built against: 92 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -223,7 +223,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-90/90 seeds pass
+92/92 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the

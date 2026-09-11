@@ -77,7 +77,10 @@ def pinned_evidence(entry, config):
     return [
         p
         for p in pointers
-        if p is not None and p.type in config.evidence_types and p.pin not in UNPINNED
+        if p is not None
+        and p.type in config.evidence_types
+        and p.pin not in UNPINNED
+        and not p.by_value
     ]
 
 
@@ -175,7 +178,9 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     out = []
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     if p.type in ledger.config.evidence_types:
-        if p.pin in UNPINNED:
+        if p.pin in UNPINNED or p.by_value:
+            # An anchor stated by value names the datum and no revision, so the artifact
+            # is read from the tree the run is reading, as an unpinned pointer is.
             path = ledger.tree / p.target
             # read_document, not read_text: an evidence file that is unreadable or not
             # UTF-8 is a pointer that does not resolve, reported below, never a crash.
@@ -189,9 +194,15 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
             # history seed the repository is built in a temporary directory.
             text = git(ledger.repo or ledger.tree, "show", f"{p.pin}:{p.target}")
         if text is None:
-            fail(f"{p.type}: {p.target} @{p.pin} does not resolve: {why_not(ledger, p)}")
+            why = (
+                f"the anchor names no revision, so {p.target} is read from the working "
+                "tree, where it is not a readable file"
+                if p.by_value
+                else why_not(ledger, p)
+            )
+            fail(f"{p.type}: {p.target} {p.anchor} does not resolve: {why}")
         elif p.section and section_span(text, ledger.config, p.type, p.section) is None:
-            fail(f"{p.target} @{p.pin} has no section {p.section!r}")
+            fail(f"{p.target} {p.anchor} has no section {p.section!r}")
     elif p.type == "entry":
         if p.target not in index:
             fail(f"entry: {p.target} does not exist")

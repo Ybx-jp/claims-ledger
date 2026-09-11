@@ -362,6 +362,7 @@ the record of what else there is still to check.
 | a drift acknowledged by a propagated verdict | K20 | pass |
 | a fallen entry whose grounds have drifted | K21 | pass — a fallen entry's Grounds are history |
 | an unpinned ground | K22 | pass — `@working` opts out and freshness has nothing to say |
+| an anchor left as the `=?` placeholder | D62, K30 | catch — a ground stated by value names its datum by digest, and the placeholder names none; K30 is the same ground with the digest computed |
 | a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
@@ -390,8 +391,10 @@ keeps D58's rule from firing on the act itself), K27 (a document naming an entry
 parenthesis with no act and again in running prose, neither of which is a citation
 shape), K28 (a citation inside the section its entry pins, which is the shape the rule
 exists to produce), K29 (two parentheses carrying an act-shaped word after an id this
-ledger never minted — lint codes, which is the shape ordinary prose takes most often).
-K01–K03, K09, K15–K18 and K19–K29 test the schema's own rules and encode no claim from
+ledger never minted — lint codes, which is the shape ordinary prose takes most often),
+K30 (a ground whose anchor is stated by value, the digest of its section rather than a
+commit).
+K01–K03, K09, K15–K18 and K19–K30 test the schema's own rules and encode no claim from
 the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon

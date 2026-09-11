@@ -1,0 +1,14 @@
+{
+  "class": "an anchor left as the placeholder",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 Grounds 1",
+      "why": "`=?` is what an author writes while choosing the ground and what `sha --write` replaces with the digest of the section as the tree has it; left as written it names no datum, so nothing downstream could compare it against anything, and it is refused before any artifact is read",
+      "message": "still to be computed"
+    }
+  ],
+  "note": "a flat seed, like D56: the anchor names no revision, so no checker has any reason to reach for git here"
+}

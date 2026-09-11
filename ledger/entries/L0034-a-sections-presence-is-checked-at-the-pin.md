@@ -34,6 +34,14 @@ none
 
 ## Verdicts
 
+- 2026-09-10T21:49:35-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" @ec82c16045421ce5a6cb71befe8ddbe6067489ae
+  artifact: 380802d3237b2e0a79b628ddda818b883cf042b5
+  note: propagated from a moved ground
+- 2026-09-10T21:49:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:f01906eb76fb139642ae98df2065ca95a93dceb22e3ed5ee178f036c9203d30b
+  note: read against the working tree after the anchor-by-value branch was added: a section is still checked for presence in the text read at the pointer's pin; a pointer anchored by value names no pin and is read from the tree instead, which narrows the cohort this states to pointers by reference and leaves the assertion true of them.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

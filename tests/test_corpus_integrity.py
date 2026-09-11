@@ -469,7 +469,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 90
+    assert len(SEEDS) == 92
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -578,7 +578,10 @@ REPORT_SITE_COUNTS = {
     # D57-scope-narrower-than-its-warrant, which is the only thing holding it.
     # 77 + 1: the entry whose every ground is a `distinguishes` act. Swept — deleting it
     # reddens the corpus at D58-entry-resting-only-on-a-distinction, and nothing else.
-    "validate.py": 78,
+    # 78 + 2: an anchor stated by value that is the `=?` placeholder, and one that is not
+    # a digest. Swept — deleting the first reddens the corpus at D62-anchor-left-pending
+    # and tests/test_anchors.py; deleting the second reddens tests/test_anchors.py alone.
+    "validate.py": 80,
     "resolve.py": 16,
     # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
     # Swept — deleting it reddens the corpus at
