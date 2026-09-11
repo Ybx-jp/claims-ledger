@@ -42,7 +42,8 @@ none
 - 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/config.py § "KEYS" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+- 2026-09-11T03:12:11-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0208-the-schema-itself-is-not-configurable · supersedes
+  note: KEYS gained citation-placement, a key that names how strictly one check reports rather than where the ledger sits or what the project calls things, so the assertion's account of the keys was short by one kind; re-stated over the table as it now stands, with Scope and Backing unchanged
 
 ## References
-
-- src/claims_ledger/config.py · standing · cites-as-live

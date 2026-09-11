@@ -44,6 +44,13 @@ none
 - 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "run" @aadceb0aba82a85fe71b15394896c43977751709
   note: read against the change in commit aadceb0, which added the report for a citation-shaped parenthesis whose act is not a citation act; that loop reads documents and the terminal exemption this claim names is untouched
+- 2026-09-11T03:10:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: propagated from a moved ground
+- 2026-09-11T03:10:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: read against the working tree after run gained a `minted` set and a skip for citation-shaped parentheticals whose id this ledger never minted, the placement check appended after the roster check, and one renumbered citation, since the reading at aadceb0: the test of an entry's status against TERMINAL before its grounds are read is unchanged; the assertion holds as written.
 
 ## References
 

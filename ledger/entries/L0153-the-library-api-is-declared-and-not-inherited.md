@@ -42,6 +42,13 @@ none
 - 2026-09-08T13:35:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__all__" @3d35a815b1a4ae4b2da74af69e2c413230f597b5
   note: read against the change in commit 3d35a81, which added ENTRY_ACTS to the export list so the act vocabulary can be printed rather than remembered; the five checkers this claim names are declared exactly as before
+- 2026-09-11T03:10:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @3d35a815b1a4ae4b2da74af69e2c413230f597b5
+  artifact: sha256:0ec437883e7b9f8c693d8fae4377e96eeed176283a2060cbc712f87adf8dde74
+  note: propagated from a moved ground
+- 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__all__" =sha256:0ec437883e7b9f8c693d8fae4377e96eeed176283a2060cbc712f87adf8dde74
+  note: read against the working tree after two citing comments were added inside the list since the reading at 3d35a81: the five checkers are still named in the export list beside the vocabulary; the assertion holds as written.
 
 ## References
 

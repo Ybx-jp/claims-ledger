@@ -52,6 +52,13 @@ none
 - 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "CHECKERS" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+- 2026-09-11T03:10:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/neighbours.py § "run" @989493fa4655725014cedb6408b4ff9c7e680498
+  artifact: sha256:4280e0c927e801ad99376bc928f5bec5cc8dd0fb6c6cd0ee53d009473bc4efe5
+  note: propagated from a moved ground
+- 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/neighbours.py § "run" =sha256:4280e0c927e801ad99376bc928f5bec5cc8dd0fb6c6cd0ee53d009473bc4efe5
+  note: read against the working tree after the docstring gained a paragraph citing this entry since the reading at 989493f: run still returns lines, builds no Report and writes nothing; the assertion holds as written.
 
 ## References
 

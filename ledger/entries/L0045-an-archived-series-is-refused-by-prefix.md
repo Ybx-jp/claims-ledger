@@ -51,6 +51,13 @@ none
 - 2026-09-08T18:58:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "archived_id_re" @34e1bf7da1ee0807955e3508ed131518672ac517
   note: read against commit 34e1bf7 by diffing the section at the pin and at that commit; it differs in exactly two places — a docstring paragraph carrying the citation for L0177, and the digit class narrowed from `\\d` to `[0-9]`. Neither is what this claim says: the pattern still fires on the prefix alone without regard to whether the id resolves, and it still admits three digits or more. ID_RE mints no id whose digits are outside ASCII, so the population the condition names is the same one
+- 2026-09-11T03:10:06-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" @5ee55ae6992f10c834510759f026644f42614025
+  artifact: sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: propagated from a moved ground
+- 2026-09-11T03:10:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:f70bdd5d1e540e25c19e6de691f1c670b4c121ef585d25c54b0f8304ce9dba26
+  note: read against the working tree after run gained a docstring, a `minted` set and a skip for citation-shaped parentheticals whose id this ledger never minted, the placement check appended after the roster check, and one renumbered citation, since the reading at 5ee55ae: the archived-prefix matches are still reported per document before the citation walk and skipped inside it, and the new unminted-id skip leaves archived prefixes to that earlier report; the assertion holds as written.
 
 ## References
 
