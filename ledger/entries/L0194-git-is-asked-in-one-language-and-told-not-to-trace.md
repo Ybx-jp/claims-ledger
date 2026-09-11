@@ -43,6 +43,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
   note: read against the commit that revises this docstring's account of the index exception. LC_ALL is still pinned last over whatever the caller had and the tracing variables are still dropped, so nothing this claim rests on changed.
 
+- 2026-09-11T14:15:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:fdf0922f5d91edf99f7b8083db4ece44b25c58d7528717a965fd29691be79656
+  note: re-read after the same docstring was rewrapped to the line limit the linter holds; the prose is unchanged in substance and the code in this section is byte-identical, so nothing this claim rests on moved.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

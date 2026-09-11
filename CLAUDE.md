@@ -67,7 +67,8 @@ wrote no skills and reported success. So `.claude/skills/` is a local install no
 
     claims-ledger harness install --agent claude --no-hooks
 
-after a fresh clone, and again after editing a shipped skill. No symlink here reaches into
+after a fresh clone, and with `--force` after editing a shipped skill — without it a file
+that is there and differs is left alone, named on stderr, and the command exits 1. No symlink here reaches into
 the package and a test walks the tree to say so
 (L0188-no-symlink-in-the-repository-reaches-into-the-package, cites-as-live); what a built
 wheel carries of the harness is counted against the tree rather than assumed

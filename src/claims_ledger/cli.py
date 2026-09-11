@@ -150,9 +150,7 @@ def build_parser():
     v = sub.add_parser("validate", help="entries are well-formed, and history is immutable")
     v.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
-    r = sub.add_parser(
-        "resolve", help="pointers resolve and quotations are spans of their sources"
-    )
+    r = sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
     r.add_argument("--cached", action="store_true", help="read staged entries from the git index")
     sub.add_parser("references", help="citation acts agree with statuses, both directions")
 
@@ -402,6 +400,11 @@ def cmd_validate(args, ledger):
 
 
 def cmd_resolve(args, ledger):
+    # All three take the flag, and that is the claim: the guard so a fallback is named, the
+    # load so the entries are the ones being committed, the run so a by-value anchor is held
+    # to the artifact the commit will carry. Any one left bare answers about a state no
+    # commit contains, and answers it with a pass
+    # (L0214-resolve-asked-for-the-index-reads-it-for-entries-and-artifacts, cites-as-live).
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop

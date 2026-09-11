@@ -218,7 +218,9 @@ def test_an_orphan_is_not_accused_on_a_ground_that_could_not_be_read(project):
     g = ground(project)
     entry_with(project, [g])
     commit_all(project, "claim and note")
-    append(project, propagated(g.removeprefix("- "), project.digest("docs/note-001.md", "Observation")))
+    append(
+        project, propagated(g.removeprefix("- "), project.digest("docs/note-001.md", "Observation"))
+    )
     commit_all(project, "a record naming the anchor's own digest")
     (project.root / "docs" / "note-001.md").chmod(0o000)
     try:

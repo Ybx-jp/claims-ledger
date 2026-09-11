@@ -24,7 +24,7 @@ on screen is invented; the films add order, emphasis and time.
 | 3 · a new claim | cuts to R0013, spotlight on its Assertion: *A new claim is written. It refutes R0001.*; cuts to R0001 at the APPEND marker, spotlight on the empty place: *R0001 is refuted. The verdict names the new claim.* — and the row lands inside it, `evidence: entry: R0013 · cites-as-live` | `status`: *The status follows the last verdict: refuted.* | a new claim is written; the old one gets a verdict naming it; the status follows |
 | 4 · what fails | — | `check`: FLAG (measured evidence against a preregistered claim, for review), FAIL R0002, R0003, README.md, ROSTER.md, propagate FAIL ×2, exit 1; spotlight on the four | everything that cited it live now fails |
 | 5 · propagate | cuts to R0003: a `contested` row, `author: propagation`, `evidence: … R0001 · fallen` | `propagate --write` FLAG appended; `status`: both dependents contested | the machine writes the dependents their row |
-| 6 · the gate | — | `git commit`: the hook runs `check`, exit 1 | the commit is refused until the citations are fixed |
+| 6 · the gate | — | `git commit`: the hook runs the five checkers, exit 1 | the commit is refused until the citations are fixed |
 | thesis | | | *Nothing falls silently.* |
 
 ## replaced-never-edited — the superseded case
@@ -35,7 +35,7 @@ on screen is invented; the films add order, emphasis and time.
 | 2 · check | — | `check`, clean | five checkers, all clean |
 | 3 · a successor | cuts to R0013, spotlight on `supersedes: R0006…`: *A new claim is written. It supersedes R0006.*; cuts to R0006 at the marker: *R0006 is superseded. The verdict names its successor.* — the row lands, `evidence: entry: R0013 · supersedes` | `status`: *The status follows the last verdict: superseded.* | succession is recorded on both sides |
 | 4 · check | — | `check`, clean: *Successor and predecessor name each other. All clean.* | nothing cited R0006 live, and both sides agree, so nothing fails |
-| 5 · the gate | — | `git commit`: the hook runs `check`, exit 0: *Accepted.* | the chain R0005 → R0006 → R0013 is on the record |
+| 5 · the gate | — | `git commit`: the hook runs the five checkers, exit 0: *Accepted.* | the chain R0005 → R0006 → R0013 is on the record |
 | thesis | | | *A claim is replaced, never edited.* |
 
 The successor keeps the predecessor's Scope; a successor whose verbatim record differs

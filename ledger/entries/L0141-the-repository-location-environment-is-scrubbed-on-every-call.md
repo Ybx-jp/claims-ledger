@@ -61,6 +61,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
   note: read against the commit that names three cached checkers in this docstring where it named two. The repository-location group is unchanged and is still dropped on every call; only prose describing the index exception moved.
 
+- 2026-09-11T14:15:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:fdf0922f5d91edf99f7b8083db4ece44b25c58d7528717a965fd29691be79656
+  note: re-read after the same docstring was rewrapped to the line limit the linter holds; the prose is unchanged in substance and the code in this section is byte-identical, so nothing this claim rests on moved.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
