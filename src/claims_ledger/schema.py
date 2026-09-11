@@ -1271,9 +1271,9 @@ def git_env(index=False):
     for a partial commit that is not `.git/index`: measured on git 2.43.0, a plain
     `git commit` gives the hook `GIT_INDEX_FILE=.git/index` and `git commit -- <path>`
     gives it `.git/next-index-<pid>.lock`, holding HEAD plus the named paths. Scrubbing it
-    there would take `validate --cached` and `freshness --cached` off the content being
-    committed and onto content that is not — the same false pass as the rest of this list,
-    pointed the other way. So the one question this package does ask of the environment is
+    there would take the three checkers the hook runs with `--cached` — `validate`,
+    `resolve` and `freshness` — off the content being committed and onto content that is
+    not, the same false pass as the rest of this list, pointed the other way. So the one question this package does ask of the environment is
     asked — by the callers whose subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """

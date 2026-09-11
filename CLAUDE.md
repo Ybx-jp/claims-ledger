@@ -3,7 +3,8 @@
 This package holds a ledger of the claims about *itself*: entries under `ledger/`
 pinned to the code that keeps them true and cited from the README sentence and the
 docstring that state the same commitment in prose.
-`claims-ledger check` runs in the pre-commit hook and again in CI.
+The pre-commit hook runs the five checkers one line each, asking for the index wherever
+a checker has a `--cached` of its own; `claims-ledger check` runs them again in CI.
 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
 claims to code — what a rewritten history costs a ground stated by reference, the

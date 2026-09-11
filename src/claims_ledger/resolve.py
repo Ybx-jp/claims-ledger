@@ -225,10 +225,11 @@ def digest_in_tree(ledger, p, cached=False):
     path is not a readable file there, why not).
 
     The index under `--cached`, read through git as `freshness` reads it, and the working
-    tree otherwise. The hook runs `check --cached`, and a read of the working tree there
-    answered for a file the author had staged in one state and left in another: the
-    anchor matched the tree, the commit carried the index, and the entry landed with an
-    anchor no version of the path holds — D64's end state with no rewrite anywhere.
+    tree otherwise. The hook runs this checker as `resolve --cached`, and a read of the
+    working tree there answered for a file the author had staged in one state and left in
+    another: the anchor matched the tree, the commit carried the index, and the entry
+    landed with an anchor no version of the path holds — D64's end state with no rewrite
+    anywhere.
     """
     where = "the index" if cached else "the working tree"
     if cached:

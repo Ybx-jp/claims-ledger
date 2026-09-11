@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-11T13:35:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "git_env" @b73beb89121b47f1e945220810dfaae2c9ac4844
+  artifact: sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
+  note: propagated from a moved ground
+
+- 2026-09-11T13:36:03-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
+  note: read against the commit that revises this docstring's account of the index exception. LC_ALL is still pinned last over whatever the caller had and the tracing variables are still dropped, so nothing this claim rests on changed.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

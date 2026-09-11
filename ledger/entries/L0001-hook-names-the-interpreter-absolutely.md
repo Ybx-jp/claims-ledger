@@ -41,6 +41,18 @@ Every checking line of the template begins with the python slot and invokes the 
 - 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+- 2026-09-11T13:35:32-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  artifact: sha256:ef256aa23cc7413d91429d67ef52e2822809552ecd1778bc9a3597b6eabb3170
+  note: propagated from a moved ground
+
+- 2026-09-11T13:36:03-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:ef256aa23cc7413d91429d67ef52e2822809552ecd1778bc9a3597b6eabb3170
+  note: read against the commit that points the hook's resolve line at the index. This claim is about how the interpreter is named, not about which flags the checking lines carry: every checking line still begins with the python slot and reaches the package with -m, and hook_text still fills that slot with sys.executable.
+
+- 2026-09-11T13:38:35-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:942ba9cbee29435b9afade468b70c036de4abd07b6e7e016882f1ff9faa7fbf5
+  note: re-read after the citing comment below the template moved from L0120 to its successor L0212, which is inside this section and so changed its digest again in the same commit. The template itself is untouched by that move and the claim is unaffected.
 
 ## References
 

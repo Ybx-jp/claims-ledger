@@ -42,7 +42,14 @@ none
 - 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+- 2026-09-11T13:35:32-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  artifact: sha256:ef256aa23cc7413d91429d67ef52e2822809552ecd1778bc9a3597b6eabb3170
+  note: propagated from a moved ground
+
+- 2026-09-11T13:37:26-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0212-the-hook-asks-for-the-index-wherever-a-checker-has-a-cached-mode · supersedes
+  note: the assertion is carried across unchanged; the condition fixed the count of checkers with a cached mode of their own, and resolve gaining one made three where it said two, so the successor names the rule and leaves the counting to the template
 
 ## References
 
-- src/claims_ledger/cli.py · standing · cites-as-live

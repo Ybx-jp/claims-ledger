@@ -36,5 +36,14 @@ none
 
 ## Verdicts
 
+- 2026-09-11T13:35:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_tree" =sha256:1b7be15bf39229a275c3175bab5378650c20ab608f8cb00c521a0664e06d7011
+  artifact: sha256:6d0ede392a0e4991eb4d795b1565967b5f8252ad3fc1b108f17a03079b295380
+  note: propagated from a moved ground
+
+- 2026-09-11T13:36:03-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_tree" =sha256:6d0ede392a0e4991eb4d795b1565967b5f8252ad3fc1b108f17a03079b295380
+  note: read against the commit that gives resolve a --cached of its own and points the hook's resolve line at it. What this claim asserts is unchanged and the code is byte-identical: the index under --cached, the working tree otherwise. The Warrant named that hook line `check --cached`, which the installed hook never ran; it runs `resolve --cached`.
+
 ## References
 - src/claims_ledger/resolve.py · standing · cites-as-live

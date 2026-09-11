@@ -52,6 +52,14 @@ none
 - 2026-09-09T10:18:16-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "git_env" @b73beb89121b47f1e945220810dfaae2c9ac4844
   note: read against this commit, which adds the tracing variables to what is dropped and pins the language. Neither touches this claim: the repository-location list is unchanged and still dropped on every call, and the index variable is still kept only where the index is the subject.
+- 2026-09-11T13:35:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "git_env" @b73beb89121b47f1e945220810dfaae2c9ac4844
+  artifact: sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
+  note: propagated from a moved ground
+
+- 2026-09-11T13:36:03-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:c087a08faabe59becc1684ea54899cfd2b1227e36c80ae6fad7d215c036dcbd5
+  note: read against the commit that names three cached checkers in this docstring where it named two. The repository-location group is unchanged and is still dropped on every call; only prose describing the index exception moved.
 
 ## References
 

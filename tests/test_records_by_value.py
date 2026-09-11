@@ -96,6 +96,17 @@ def reading(digest, section="Observation", note_="read again"):
     )
 
 
+def propagated(raw, artifact, note_="propagated from a moved ground"):
+    """A record written by hand, as a forger would write it: the tool only ever records the
+    digest it just read, so the artifact is the one thing a fixture has to choose itself."""
+    return (
+        f"- {now()} · contested · grade: measured · author: propagation\n"
+        f"  evidence: {raw}\n"
+        f"  artifact: {artifact}\n"
+        f"  note: {note_}\n"
+    )
+
+
 def record(project):
     """`freshness --write`, as the hook would run it: the drift in front of the run, recorded."""
     assert project.cl("freshness", "--write") == 1
@@ -197,9 +208,33 @@ def test_a_by_value_reading_of_one_section_is_not_a_reading_of_another(project):
     assert reports(project) == []
 
 
+def test_an_orphan_is_not_accused_on_a_ground_that_could_not_be_read(project):
+    """Mutant L10, on a ground stated by value. The skip has to hold where `anchor_digest`
+    still answers — by value it asks git nothing — or the refuted rule runs on a comparison
+    that was never made. The by-reference case below cannot see this: there the same git
+    that could not hand over the artifact cannot compute the anchor either, so the refuted
+    rule finds nothing to fire on and the mutant survives the assertion."""
+    project.git("init", "-q")
+    g = ground(project)
+    entry_with(project, [g])
+    commit_all(project, "claim and note")
+    append(project, propagated(g.removeprefix("- "), project.digest("docs/note-001.md", "Observation")))
+    commit_all(project, "a record naming the anchor's own digest")
+    (project.root / "docs" / "note-001.md").chmod(0o000)
+    try:
+        got = reports(project)
+    finally:
+        (project.root / "docs" / "note-001.md").chmod(0o644)
+    # One report, and it is the unread ground. With the skip gone the refuted rule runs
+    # anyway and accuses the record of stating no drift, on a section nothing compared.
+    assert [(o, p) for o, p, _ in got] == [("fail", "Grounds 1")], got
+    assert "records the artifact as the pin itself has it" not in "".join(m for _, _, m in got)
+
+
 def test_an_orphan_is_not_accused_on_a_ground_git_could_not_compare(project, tmp_path, monkeypatch):
-    """Mutant L10: with the `unknown` skip removed, a git that cannot hand over the
-    pinned blob turned a truthful record into an unconfirmable one."""
+    """The same skip, reached through a git that cannot hand over the pinned blob. This one
+    does not kill mutant L10 on its own — see the by-value case above — and is kept for the
+    `was not checked` path it does cover."""
     project.git("init", "-q")
     project.git("add", "-A")
     project.git("commit", "-qm", "the note")

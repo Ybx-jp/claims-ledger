@@ -64,12 +64,16 @@ HOOK_TEMPLATE = """#!/bin/sh
 # `freshness` looked past it at the already-reverted working tree and found nothing
 # wrong. This was the surface MEDIUM-33's own writeup named as the one that matters.
 #
-# `resolve`, `references` and `propagate` have no `--cached` of their own yet, so this
-# hook still reads the working tree for those three; giving all five the flag is a wider
-# fix than this one, and out of this pass's budget to audit.
+# `resolve` asks for it too, because a ground anchored by value is held to the text the
+# tree this run reads: an author who stages an artifact in one state and leaves the working
+# tree in another otherwise commits an entry whose anchor no version of the path holds —
+# the anchor matched the tree, and the commit carried the index.
+#
+# `references` and `propagate` have no `--cached` of their own yet, so this hook still
+# reads the working tree for those two.
 set -e
 {python} -m claims_ledger validate --cached
-{python} -m claims_ledger resolve
+{python} -m claims_ledger resolve --cached
 {python} -m claims_ledger references
 {python} -m claims_ledger propagate
 {python} -m claims_ledger freshness --cached
@@ -78,7 +82,7 @@ set -e
 # console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
 # asks each checker for the index wherever that checker has a `--cached` of its own, so a
 # drift that is staged and then reverted in the working tree cannot commit silently
-# (L0120-the-hook-reads-the-index-wherever-a-checker-can, cites-as-live).
+# (L0212-the-hook-asks-for-the-index-wherever-a-checker-has-a-cached-mode, cites-as-live).
 
 
 def hook_text(python=None):
@@ -146,7 +150,10 @@ def build_parser():
     v = sub.add_parser("validate", help="entries are well-formed, and history is immutable")
     v.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
-    sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
+    r = sub.add_parser(
+        "resolve", help="pointers resolve and quotations are spans of their sources"
+    )
+    r.add_argument("--cached", action="store_true", help="read staged entries from the git index")
     sub.add_parser("references", help="citation acts agree with statuses, both directions")
 
     pr = sub.add_parser("propagate", help="dependents of fallen entries carry the contested flag")
@@ -395,11 +402,11 @@ def cmd_validate(args, ledger):
 
 
 def cmd_resolve(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = resolve.run(ledger, entries=entries)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = resolve.run(ledger, entries=entries, cached=args.cached)
     return report_command("resolve", reports, entries, ledger)
 
 
@@ -441,19 +448,21 @@ def cmd_check(args, ledger):
         return stop
     worst = 0
     # The entries are parsed once for the five checkers rather than once each. Two lists
-    # and not one: under `--cached` `validate` and `freshness` read what is staged and the
-    # other three read the working tree, which is the difference `--cached` exists to
-    # make. (docs/audits/ARCH-AUDIT.md, finding 4.)
-    # (L0123-check-parses-the-entries-once-into-two-lists, cites-as-live)
+    # and not one: under `--cached` `validate`, `resolve` and `freshness` read what is
+    # staged and the other two read the working tree, which is the difference `--cached`
+    # exists to make. (docs/audits/ARCH-AUDIT.md, finding 4.)
+    # (L0213-a-combined-run-parses-the-entries-once-into-two-lists, cites-as-live)
     working = load_entries(ledger)
     staged = load_entries(ledger, cached=True) if args.cached else working
     for name in CHECKERS:
         if name == "validate":
             reports = validate.run(ledger, cached=args.cached, entries=staged)
         elif name == "resolve":
-            # The working entries, but the index's artifacts: a by-value anchor is held
-            # to what the commit will carry, which is what the hook is asking about.
-            reports = resolve.run(ledger, entries=working, cached=args.cached)
+            # The staged entries against the index's artifacts, the pair the commit will
+            # carry. Handed the working entries instead, an entry staged with one anchor
+            # and edited to another in the tree had the tree's anchor held to the index's
+            # artifact — a pair no commit contains — and landed unresolved either way.
+            reports = resolve.run(ledger, entries=staged, cached=args.cached)
         elif name == "references":
             reports = references.run(ledger, entries=working)
         elif name == "propagate":

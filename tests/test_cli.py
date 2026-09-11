@@ -234,6 +234,72 @@ def test_the_installed_hook_asks_freshness_about_the_index():
     assert "--cached" in line, f"the hook runs {line!r}"
 
 
+def test_the_hook_asks_for_the_index_wherever_the_checker_accepts_it(capsys):
+    """L0212. The hook's `--cached` lines are exactly the checkers whose own parser takes
+    the flag — asked of the parser rather than a list written down here, so a checker that
+    gains a cached mode and is not given it in the template fails here instead of quietly
+    reading the working tree at the commit boundary.
+
+    The gate's mutant N8 dropped the cached wiring from `cmd_check` and survived the whole
+    suite: `check` was the only caller that had it, and the installed hook never runs
+    `check`. Nothing asserted what the hook's own lines ask for. (qe ticket 2b90973d753f445c,
+    QE19-1.)
+    """
+    parser = cli.build_parser()
+    accepts = set()
+    for name in cli.CHECKERS:
+        try:
+            parser.parse_args([name, "--cached"])
+        except SystemExit:
+            continue
+        accepts.add(name)
+    capsys.readouterr()
+    assert accepts, "precondition: some checker takes --cached"
+
+    ran = {}
+    for line in hook_text(python="/usr/bin/python3").splitlines():
+        if "-m claims_ledger" not in line or line.lstrip().startswith("#"):
+            continue
+        words = line.split()
+        ran[words[words.index("claims_ledger") + 1]] = set(words[words.index("claims_ledger") + 2 :])
+    assert set(ran) == set(cli.CHECKERS), ran
+    assert {n for n, flags in ran.items() if "--cached" in flags} == accepts, ran
+
+
+def test_check_cached_holds_the_staged_entry_and_not_the_one_being_edited(project, capsys):
+    """`resolve` under `--cached` reads the entries from the index, as `validate` and
+    `freshness` do. Handed the working list instead it held the tree's anchor against the
+    index's artifact — a pair no commit contains — so an entry staged with an anchor
+    nothing digests to and corrected in the working tree alone passed the hook and landed
+    unresolved. (qe ticket 2b90973d753f445c, QE19-2.)
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "fraction-law") == 0
+    path = next(project.entries.glob("A0001-*.md"))
+    project.write_full_entry(path)
+    bogus = "sha256:" + "ab" * 32
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            '- lab: docs/note-001.md § "Observation" @working',
+            f'- lab: docs/note-001.md § "Observation" ={bogus}',
+        ),
+        encoding="utf-8",
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")  # the bogus anchor is what the commit would carry
+    good = project.digest("docs/note-001.md", "Observation")
+    path.write_text(path.read_text(encoding="utf-8").replace(bogus, good), encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0  # corrected in the tree only
+    capsys.readouterr()
+
+    assert project.cl("check") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("check", "--cached") == 1, "the staged entry names text nothing holds"
+    out = capsys.readouterr().out
+    assert "resolve: 1 failure(s)" in out, out
+    assert "the index does not hold" in out, out
+
+
 def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
     """`check` parses the entries once for all five checkers, and under `--cached` it
     parses twice — `validate` and `freshness` read what is staged, the other three read
