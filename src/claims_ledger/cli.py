@@ -94,6 +94,28 @@ set -e
 # (L0217-the-hook-carries-the-cached-flag-on-every-line-that-takes-one, cites-as-live).
 
 
+HOOK_MARKER = HOOK_TEMPLATE.splitlines()[1]
+# The template's own second line, taken from it rather than written out again, so a hook
+# this package wrote is recognised by a string that cannot drift from what it writes.
+
+
+def is_our_hook(path):
+    """Whether what is at `path` is a pre-commit hook this package wrote.
+
+    The marker line, not the whole text: `{python}` is interpolated at install time, so
+    two installs of the same version differ wherever the interpreter does. Anything that
+    cannot be read — a dangling link, a directory, bytes that are not UTF-8 — is not ours,
+    which is the answer that asks the reader to decide rather than the one that offers to
+    overwrite.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            head = fh.read(len(HOOK_MARKER) + 512)
+    except (OSError, UnicodeDecodeError):
+        return False
+    return HOOK_MARKER in head.splitlines()[:4]
+
+
 def hook_text(python=None):
     return HOOK_TEMPLATE.format(python=shlex.quote(python or sys.executable))
 
@@ -270,6 +292,9 @@ def build_parser():
 
     h = sub.add_parser("hook", help="the pre-commit hook that runs the checkers")
     h.add_argument("--install", action="store_true", help="write it to .git/hooks/pre-commit")
+    h.add_argument(
+        "--force", action="store_true", help="replace a pre-commit hook that is already there"
+    )
 
     hs = sub.add_parser("harness", help="the coding-agent hooks and skills this package ships")
     hs_sub = hs.add_subparsers(dest="harness_command", required=True)
@@ -797,16 +822,35 @@ def cmd_hook(args, ledger):
         # containment guard so that a deliberate `pre-commit -> ../../shared/pre-commit`
         # — a team sharing one hook — is met with "leaving it alone" and the hook text,
         # which is what it was always met with, rather than with an accusation.
-        # (L0129-an-existing-hook-is-left-alone-and-the-text-is-printed, cites-as-live)
-        if os.path.lexists(path):
-            print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
+        #
+        # `--force` is the way past it, and without one this was the only installer here a
+        # project could not update: a checkout that ran `--install` once kept that hook
+        # forever, however far the shipped one moved on. The refusal says which of the two
+        # cases it is, because they want different things of the reader — an older copy of
+        # this hook wants `--force`, and somebody's own hook wants a decision. A marker
+        # line rather than a comparison of the whole text, which cannot be made: the
+        # interpreter is interpolated, so no two installs need match byte for byte.
+        # (L0224-an-existing-hook-is-left-alone-unless-the-install-is-forced, cites-as-live)
+        if os.path.lexists(path) and not args.force:
+            ours = (
+                " It is an older copy of this hook; `--force` replaces it."
+                if is_our_hook(path)
+                else " It is not a copy of this hook, so replacing it is a decision to make."
+            )
+            print(
+                f"{path} exists; leaving it alone.{ours} Its contents would be:\n",
+                file=sys.stderr,
+            )
             print(hook_text(), end="")
             return 1
-        # Nothing is there, so anything the write lands on is reached through a link the
-        # repository does not control — the hooks directory itself being one. A dangling
-        # `pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming
-        # the in-root path it had not written to; a `hooks -> /tmp` does the same one
-        # level up, and `lexists` above cannot see that one.
+        # Whatever the write lands on may be reached through a link the repository does not
+        # control — the hooks directory itself being one. A dangling `pre-commit ->
+        # /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming the in-root path
+        # it had not written to; a `hooks -> /tmp` does the same one level up, and
+        # `lexists` above cannot see that one. Asked under `--force` as well, and that is
+        # what keeps a shared hook shared: the write resolves a symlink before it replaces,
+        # so forcing over `pre-commit -> ../../shared/pre-commit` would rewrite the team's
+        # file rather than this repository's link to it. Refused, with the link named.
         # (L0130-the-hook-is-not-installed-through-an-escaping-link, cites-as-live)
         outside = leaves_root(hooks, path)
         if outside is not None:

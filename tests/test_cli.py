@@ -562,3 +562,67 @@ def test_resolve_cached_reads_the_registry_the_commit_will_carry(project, capsys
     capsys.readouterr()
     assert project.cl("resolve", "--cached") == 1, "the staged registry has no row for it"
     assert "has no registry row" in capsys.readouterr().out
+
+
+def test_hook_install_force_replaces_an_older_copy_of_this_hook(project, capsys):
+    """The only installer here a project could not update: a checkout that ran `--install`
+    once kept that hook forever, however far the shipped one moved on. `init` and
+    `harness install` both have a `--force`; this now does too.
+
+    The refusal without one says which case it is, because the two want different things
+    of the reader. A marker line decides that, not a comparison of the whole text, which
+    cannot be made: the interpreter is interpolated into the template, so no two installs
+    need match byte for byte.
+    """
+    project.git("init", "-q")
+    hook = project.root / ".git" / "hooks" / "pre-commit"
+    assert project.cl("hook", "--install") == 0
+    stale = hook.read_text(encoding="utf-8").replace("freshness --cached", "freshness")
+    hook.write_text(stale, encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install") == 1
+    assert "older copy of this hook" in capsys.readouterr().err
+    assert hook.read_text(encoding="utf-8") == stale, "unforced, it is still left alone"
+
+    assert project.cl("hook", "--install", "--force") == 0
+    assert "freshness --cached" in hook.read_text(encoding="utf-8")
+
+
+def test_a_hook_that_is_not_ours_is_named_as_a_decision_to_make(project, capsys):
+    """The other half of the same message. Anything that cannot be read as our own text —
+    somebody's own hook here, and a dangling link or a directory by the same route — is
+    not offered a `--force` in the reply, because replacing it is not this command's call.
+    """
+    project.git("init", "-q")
+    hook = project.root / ".git" / "hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\necho mine\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install") == 1
+    said = capsys.readouterr().err
+    assert "not a copy of this hook" in said
+    assert "--force" not in said
+    assert hook.read_text(encoding="utf-8") == "#!/bin/sh\necho mine\n"
+
+
+def test_a_forced_install_does_not_rewrite_a_shared_hook_through_a_link(project, capsys):
+    """`--force` replaces this repository's hook, and a link that leaves the hooks
+    directory is not this repository's hook. The write resolves a symlink before it
+    replaces, so forcing over `pre-commit -> ../../shared/pre-commit` would rewrite the
+    team's file; the containment guard is asked under `--force` too, and refuses.
+    """
+    project.git("init", "-q")
+    shared = project.root / "shared"
+    shared.mkdir()
+    team = shared / "pre-commit"
+    team.write_text("#!/bin/sh\necho team\n", encoding="utf-8")
+    hooks = project.root / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    (hooks / "pre-commit").symlink_to("../../shared/pre-commit")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install", "--force") == 2
+    assert "outside the hooks directory" in capsys.readouterr().err
+    assert team.read_text(encoding="utf-8") == "#!/bin/sh\necho team\n"

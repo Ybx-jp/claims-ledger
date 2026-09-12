@@ -34,6 +34,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:57:19-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_hook" =sha256:83e6591b8dc27100bba8c3eb6c269a0823bfa9ae91e9544d9c5a621469dba086
+  note: re-read after the commit that gives this installer a `--force`. The containment guard is unchanged and is now asked on the forced path as well, which is what keeps a shared hook shared: the write resolves a symlink before it replaces, so forcing over a link that leaves the hooks directory would rewrite the file at the other end. Measured — the team's file is untouched and the command exits 2. The claim is that the hook is not installed through an escaping link, and it holds on one more path than it did.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live
