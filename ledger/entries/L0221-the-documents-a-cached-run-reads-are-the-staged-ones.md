@@ -43,6 +43,10 @@ none
   evidence: code: src/claims_ledger/references.py § "document_bodies" =sha256:d7b05530f9ea7a17716bd87da386361e2f2e482be7a89acb4fccd8be69d58554
   note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). The staged pair is taken as it comes rather than rewrapped, so a staged document that is not UTF-8 and one git could not be asked about are both reported. Reading each document once for the run, from the index under the flag, is unchanged.
 
+- 2026-09-12T14:47:27-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "document_bodies" =sha256:d7b05530f9ea7a17716bd87da386361e2f2e482be7a89acb4fccd8be69d58554
+  note: unchanged and re-read. Its Scope condition — a document the index does not hold is read from the working tree — is now confined to the run whose listing fell back, because a document the listing holds is by construction one the index holds. Worth recording because `check` cannot see it: this entry pins `staged_documents` and `document_bodies`, and what narrowed the condition was `open_ledger`, which it does not pin (the fix-review gate on this branch (qe ticket 45909368c43c4379), F5).
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

@@ -223,6 +223,9 @@ class Ledger:
     # [(display name, problem)]. They are not in `docs`, because a document that was not
     # read was not checked and must not be counted as though it had been.
     unreadable_docs: list = dataclasses.field(default_factory=list)
+    # What a `--cached` open could not ask the index, as plain sentences for the guard to
+    # print. A listing that fell back to the working tree says so there or nowhere.
+    index_notes: list = dataclasses.field(default_factory=list)
 
     @property
     def tree(self):
@@ -404,17 +407,120 @@ def selects_document(rel, config):
     return not (inside and (rel == ledger_rel or rel.startswith(ledger_rel + "/")))
 
 
+MAX_SYMLINK_EXPANSIONS = 4096
+SYMLINK_DEPTH = 16
+
+
+def index_tree(config):
+    """({rel: mode}, why) — every path a checkout of the index would make reachable, or
+    `({}, why)` when the index could not be asked. `rel` is `/`-separated from the project
+    root; `mode` is the mode of the regular file finally reached, so a path reached through
+    a symlink carries the mode of its target.
+
+    THE INDEX IS NOT THE SET OF PATHS THE COMMIT MAKES REACHABLE, and the difference is a
+    committed symlinked directory. `ls-files` reports the symlink as one blob and its
+    target's files as others; a checkout restores the link, and `docs/bad.md` is then a
+    real path that `ls-files` never named. Measured before this: with `docs -> real` and
+    `real/bad.md` carrying a broken citation, `references --cached` reports `0 documents`
+    and `0 failure(s)` at exit 0 while a fresh clone of that very commit fails at exit 1 —
+    the cached-clean/committed-fails contrast that the listing exists to close, pointed the
+    wrong way (qe ticket 45909368c43c4379, F3). The entry list had the same hole through
+    the same door: a symlinked `ledger/entries` made every checker report `0 entries` at
+    exit 0 (F1).
+
+    The expansion needs nothing from the working tree, which is what keeps the answer the
+    index's own: a symlink's blob IS its target, so the whole shape is readable from the
+    commit being built (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+
+    Bounded on both axes, because a symlink graph is arbitrary: `SYMLINK_DEPTH` passes, so
+    a cycle stops rather than growing paths forever, and `MAX_SYMLINK_EXPANSIONS` added
+    paths, so a wide fan-out cannot make the listing the slow part of a commit. A target
+    that is absolute, or that climbs out of the repository, is no part of this tree and is
+    not followed.
+    """
+    answer = git_call(config.root, "ls-files", "--cached", "-z", "-s", env=git_env(index=True))
+    if not answer.ok:
+        return {}, answer.why
+    modes, links = {}, {}
+    for record in answer.out.split("\0"):
+        # `<mode> SP <object> SP <stage> TAB <path>`; `-z` ends the record at the NUL, so
+        # `partition` on the first tab leaves a path holding a tab intact.
+        meta, tab, rel = record.partition("\t")
+        if not tab or not rel:
+            continue
+        mode = meta.split(" ", 1)[0]
+        # An unmerged path arrives once per stage. One path is one file whatever the
+        # conflict, and reading it three times reported every failure three times
+        # (qe ticket 45909368c43c4379, F4); the first stage wins, as a dict does.
+        modes.setdefault(rel, mode)
+        if mode == "120000":
+            links[rel] = None
+    if links:
+        blobs, _failures = git_blobs(
+            config.root, (f":{rel}" for rel in links), env=git_env(index=True)
+        )
+        for rel in list(links):
+            data = blobs.get(f":{rel}")
+            # A link git did not answer for is simply not followed: it stays a symlink in
+            # the listing, which the mode check then names as not a regular file.
+            target = None if data is None else _link_target(rel, data)
+            if target is None:
+                del links[rel]
+            else:
+                links[rel] = target
+    # `{address: (mode, the path it finally names)}`. The second half is what
+    # `os.path.realpath` answers for the working tree, and it is free here: an address only
+    # exists because this pass built it from the path it reaches.
+    reach = {rel: (mode, rel) for rel, mode in modes.items()}
+    for _ in range(SYMLINK_DEPTH):
+        added = {}
+        for link, target in links.items():
+            for rel, (mode, real) in reach.items():
+                if rel != target and not rel.startswith(target + "/"):
+                    continue
+                through = link + rel[len(target) :]
+                # A link to a regular FILE is that file at this address, which is what
+                # `os.path.isfile` answers for the working tree and therefore what the
+                # tree listing counts. So a resolved link takes its target's mode rather
+                # than staying `120000` and being named unreadable — the two listings
+                # disagreed about `docs/link.md -> note.md` until this, one reporting the
+                # link and one the target.
+                was = added.get(through, reach.get(through))
+                if was is None or (was[0] == "120000" and mode != "120000"):
+                    added[through] = (mode, real)
+        if not added or len(reach) + len(added) > MAX_SYMLINK_EXPANSIONS:
+            break
+        reach.update(added)
+        links = {rel: t for rel, t in links.items() if reach[rel][0] == "120000"}
+    return reach, None
+
+
+def _link_target(rel, data):
+    """Where a symlink blob points, as a path from the project root, or None when it points
+    outside the tree the commit carries.
+
+    A target is read relative to the link's own directory, the way the filesystem reads it.
+    Absolute, or climbing past the root: the commit does not carry what is there, so the
+    listing says nothing about it rather than guessing (a dangling link simply reaches no
+    path in the map, which needs no case of its own).
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if not text or text.startswith("/"):
+        return None
+    target = posixpath.normpath(posixpath.join(posixpath.dirname(rel), text))
+    if target == ".." or target.startswith("../") or target == ".":
+        return None
+    return target
+
+
 def index_documents(config):
     """(documents, unreadable, why) — the configured documents the index holds, in the
     shape `tree_documents` returns them, or `(None, None, why)` when the index could not
     be asked. Asked only where `open_ledger` found a `.git` at the project root, which is
     the only place a `Ledger` ever has a repository.
-
-    One root, not two: `ls-files` answers paths relative to the repository it is run in,
-    and everything downstream — the patterns, the excludes, the display name, the path a
-    document is finally read at — is relative to the project root. Taking the repository
-    as a second argument would let those come apart silently the day a ledger sits below
-    its repository's root, and every path here would be counted from the wrong place.
 
     Which documents exist is a question about a tree, and under `--cached` the tree is the
     index. Globbing the working tree there was a false pass with the shape this package
@@ -427,40 +533,43 @@ def index_documents(config):
     (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
 
     The listing is the index's alone rather than added to the tree's, which is the answer
-    the entry list gives too and for the same reason: the index is not a delta, it holds
-    every tracked path, so it *is* what the commit will carry. Adding the tree's matches
-    back would put a document the commit does not carry on the list, and a run that reads
-    a file no commit contains is the report this tool must never produce, whichever
-    direction it points.
+    the entry list gives too and for the same reason: `ls-files` lists every tracked path,
+    not what changed, so with the symlinks expanded it is what the commit will carry.
+    Adding the tree's matches back would put a document the commit does not carry on the
+    list, and a run that reads a file no commit contains is the report this tool must never
+    produce, whichever direction it points.
 
-    `-s`, for the mode: a symlink and a gitlink are entries in the index like any other,
-    and `cat-file` hands back the link target as though it were the document's text. The
-    working-tree listing refuses a path that is not a regular file by name rather than
-    silently; so does this.
+    One root, not two: `ls-files` answers paths relative to the repository it is run in,
+    and everything downstream — the patterns, the excludes, the display name, the path a
+    document is finally read at — is relative to the project root. Taking the repository
+    as a second argument would let those come apart silently the day a ledger sits below
+    its repository's root, and every path here would be counted from the wrong place.
 
-    `-z`, because a path is not a line. One `ls-files` for the whole repository and the
-    matching done here rather than through a pathspec: git's `:(glob)` is close to
-    `glob`'s but not the same, and a pathspec that is narrower anywhere is a document
-    dropped without a word.
+    Two things `tree_documents` gets from the filesystem and this gets from the mode and
+    the expansion. A path that is not a regular file is named rather than read, because
+    `cat-file` hands back a symlink's target as though it were the document's text. And one
+    document reached at two addresses is reported at one, the shorter, which is the
+    realpath dedup `tree_documents` makes — here the expansion already says which addresses
+    reach the same file.
     """
-    answer = git_call(config.root, "ls-files", "--cached", "-z", "-s", env=git_env(index=True))
-    if not answer.ok:
-        return None, None, answer.why
-    docs, unreadable, seen = [], [], set()
-    for record in answer.out.split("\0"):
-        # `<mode> <object> <stage>\t<path>`; a path holding a tab is still one record,
-        # because `-z` ends it at the NUL and `partition` takes the first tab only.
-        meta, tab, rel = record.partition("\t")
-        if not tab or not rel or not selects_document(rel, config):
+    reach, why = index_tree(config)
+    if why:
+        return None, None, why
+    unreadable, by_target = [], {}
+    for rel, (mode, real) in sorted(reach.items()):
+        if not selects_document(rel, config):
             continue
-        if rel in seen:
-            continue  # a path at more than one merge stage is still one document
-        seen.add(rel)
-        if meta.split(" ", 1)[0] not in ("100644", "100755"):
+        if mode not in ("100644", "100755"):
             unreadable.append((rel, "is not a regular file in the index; it was not checked"))
             continue
-        docs.append((rel, Path(config.root) / rel))
-    return sorted(docs), unreadable, None
+        # Keyed by the path finally named, so one document addressed twice is reported at
+        # one address — the shorter, which is the rule `tree_documents` applies to the
+        # realpaths it resolves.
+        if real in by_target and len(by_target[real]) <= len(rel):
+            continue
+        by_target[real] = rel
+    docs = [(rel, Path(config.root) / rel) for rel in sorted(by_target.values())]
+    return docs, unreadable, None
 
 
 def unreadable_document(path):
@@ -539,11 +648,26 @@ def open_ledger(root=None, config_path=None, config=None, cached=False):
     config = config or load_config(root=root, config_path=config_path)
     repo = config.root if (config.root / ".git").exists() else None
     docs, unreadable = tree_documents(config)
+    notes = []
     if cached and repo:
-        indexed, index_unreadable, _why = index_documents(config)
-        if indexed is not None:
+        indexed, index_unreadable, why = index_documents(config)
+        if indexed is None:
+            # NOT silence. `index_problem()` asks `ls-files -- .git`, which prints nothing
+            # whatever the repository holds, so it cannot fail the way a listing of every
+            # tracked path can — a timeout, a pack it cannot open. Measured with a git that
+            # fails only this call: `references --cached` went from exit 1 naming a staged
+            # document to `0 documents` and `0 failure(s)` with nothing said, which is
+            # L0227's finding one listing over (qe ticket 45909368c43c4379, F2).
+            notes.append(
+                f"the index could not be listed ({why}), so --cached fell back to the "
+                "working tree's documents; what is staged was not checked"
+                # (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live)
+            )
+        else:
             docs, unreadable = indexed, index_unreadable
-    return Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
+    return Ledger(
+        config=config, docs=docs, repo=repo, unreadable_docs=unreadable, index_notes=notes
+    )
 
 
 def default_ledger(tree=None):
@@ -1814,29 +1938,41 @@ def index_entry_files(ledger):
     holds one entry and fails `references` at exit 1 naming the citation
     (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
 
-    `-z`, because a path is not a line: a filename holding a newline or a quote comes back
-    quoted otherwise, and a quoted path names nothing. Single-level, to match what the
-    directory listing matches.
+    The listing is `index_tree`'s, not a pathspec's, because the entries directory itself
+    can be a symlink. A pathspec filtered on the literal `ledger/entries` and git reports
+    the real path, so every entry fell off the list: measured, a symlinked entries
+    directory gave `resolve --cached` `0 entries` and `0 failure(s)` at exit 0 where the
+    bare run read one, which is the report this whole package exists to refuse, restored by
+    the very change that was meant to close it (qe ticket 45909368c43c4379, F1). What the
+    expansion costs is a listing of the repository rather than of the ledger; what stays
+    flat is the number of git processes, which is one, whatever either holds.
+
+    Single-level and no dotfile, to match what the directory listing matches.
     """
     if not ledger.repo:
         return None, "the ledger has no repository of its own"
     rel = os.path.relpath(ledger.entries_dir, ledger.repo).replace(os.sep, "/")
     if rel == ".." or rel.startswith("../"):
         return None, f"{rel} is outside the repository at {ledger.repo}"
-    answer = git_call(
-        ledger.repo, "ls-files", "--cached", "-z", "--", f":(literal){rel}", env=git_env(index=True)
-    )
-    if not answer.ok:
-        return None, answer.why
+    reach, why = index_tree(ledger.config)
+    if why:
+        return None, why
     prefix = "" if rel == "." else rel + "/"
-    paths = []
-    for name in answer.out.split("\0"):
+    # Keyed by the path, which is what `list_entry_files` lists: an alias inside the
+    # directory is a second entry file to the bare run, and a cached run that silently
+    # folded it into one would disagree with the run beside it about what the ledger holds.
+    # Deduplication that IS owed happens a step earlier, where an unmerged path arrives once
+    # per stage and one path is one file whatever the conflict — dropping that loaded a
+    # conflicted entry three times and reported every failure in it three times
+    # (qe ticket 45909368c43c4379, F4).
+    paths = set()
+    for name in reach:
         if not name.startswith(prefix):
             continue
         tail = name[len(prefix) :]
         if "/" in tail or not tail.endswith(".md") or tail.startswith("."):
             continue
-        paths.append(Path(ledger.repo) / name)
+        paths.add(Path(ledger.repo) / name)
     return sorted(paths), None
 
 

@@ -35,6 +35,10 @@ none
 
 ## Verdicts
 
+- 2026-09-12T14:47:27-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "skipped_checks" =sha256:a4106561e8404138ed6bbb1862d8c2cee8a1ba085d236fc0d62ca1afdcb2c069
+  note: acknowledged: `skipped_checks` gained the two sentences that name a cached listing which fell back, which is this claim doing more rather than differently. L0231 states the addition.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

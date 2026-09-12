@@ -790,7 +790,7 @@ def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
     a hidden file and a hidden directory, which `glob` never selects; a nested path, which
     a single-level pattern does not reach; and a name a pattern nearly matches.
     """
-    from claims_ledger.schema import selects_document, tree_documents
+    from claims_ledger.schema import index_documents, selects_document, tree_documents
 
     root = project.root
     (root / "docs" / "deep").mkdir(parents=True, exist_ok=True)
@@ -816,15 +816,43 @@ def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
         ".hidden/inside.md",
         "docs/note-001.md",
     ]
+    # Symlinks, because the two listings answer about them by different machinery: `glob`
+    # and `os.path.isfile` follow them, and the index listing has to expand them out of the
+    # blobs to reach the same answer. A symlinked directory is how a document the commit
+    # carries went missing from the index listing entirely.
+    (root / "linked").symlink_to("docs")
+    (root / "docs" / "alias.md").symlink_to("plain.md")
+    (root / "docs" / "escape.md").symlink_to("../../outside.md")
+    every += ["linked/plain.md", "docs/alias.md", "docs/escape.md", "linked/alias.md"]
+
     base = open_ledger(root=root).config
     # Both shapes a `documents` pattern comes in. `**` is the one that matters most here:
     # it is what CLAUDE.md names as the way this repository's own globs would be widened,
     # and `glob` does not descend a hidden directory for it.
-    for patterns in (("*.md", "docs/*.md"), ("**/*.md",), ("docs/**",)):
+    project.git("init", "-q")
+    project.git("add", "-A")
+    for patterns in (("*.md", "docs/*.md"), ("**/*.md",), ("linked/*.md",), ("docs/**",)):
         config = dataclasses.replace(base, documents=patterns)
-        globbed = {rel for rel, _path in tree_documents(config)[0]}
-        selected = {rel for rel in every if selects_document(rel, config)}
-        assert selected == globbed, patterns
+        # The WHOLE listing, not only membership. `selects_document` decides which paths a
+        # pattern selects, but the mode decides whether a symlink is read or named and the
+        # dedup decides which of two addresses of one file is reported — both invisible to
+        # the predicate, and both diverged from the tree until an agreement test could see
+        # them. So the two listings are compared as listings.
+        globbed, tree_unreadable = tree_documents(config)
+        indexed, index_unreadable, why = index_documents(config)
+        assert why is None, why
+        assert {rel for rel, _ in indexed} == {rel for rel, _ in globbed}, (
+            f"the listings disagree for {patterns}"
+        )
+        refused, tree_refused = (
+            {rel for rel, _ in index_unreadable},
+            {rel for rel, _ in tree_unreadable},
+        )
+        assert refused <= tree_refused, f"the index refuses what the tree reads: {patterns}"
+        # What the tree names and the index does not can only be a DIRECTORY a pattern
+        # reached — `docs/**` matches `docs` itself. The index holds no directories, so it
+        # has nothing to say about one, and nothing was dropped by staying quiet.
+        assert all((root / rel).is_dir() for rel in tree_refused - refused), patterns
         # And not vacuously equal on both sides: the edges are really in the tree.
         assert globbed, patterns
     single = dataclasses.replace(base, documents=("*.md", "docs/*.md"))
@@ -836,15 +864,38 @@ def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
     assert not selects_document(".hidden/inside.md", wide), "but not into a hidden directory"
 
 
-def test_a_staged_symlink_that_matches_a_document_pattern_is_named_not_read(project, capsys):
-    """A symlink is an index entry like any other and `cat-file` hands back its target as
-    though it were the document's text. The working-tree listing refuses a path that is not
-    a regular file by name rather than silently; so does the index listing."""
+def test_a_staged_symlink_to_a_document_is_read_at_its_own_address(project, capsys):
+    """A symlink is an index entry like any other, and the two listings have to agree about
+    what it is. `os.path.isfile` follows it, so the tree listing counts `docs/link.md` as a
+    document and drops the target as a second address of one file; the index listing said
+    `is not a regular file` and counted the target instead. Both read the same bytes, so
+    nothing failed — which is exactly why only an agreement test finds it
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
     project.git("init", "-q")
     assert project.cl("new", "first") == 0
     project.write_full_entry(project.entry("A0001-first.md"))
-    link = project.root / "docs" / "link.md"
-    link.symlink_to("note-001.md")
+    (project.root / "docs" / "link.md").symlink_to("note-001.md")
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 0
+    out = capsys.readouterr().out
+    assert "not a regular file" not in out
+    # One document, not two: the link and its target are one file at two addresses, and
+    # the shorter address is the one reported — the rule the tree listing applies.
+    assert "1 document" in out
+
+
+def test_a_staged_symlink_that_leaves_the_tree_is_named_not_read(project, capsys):
+    """The case the mode check is really for. A link the commit carries whose target the
+    commit does not — it climbs out of the repository — resolves to nothing, so it stays a
+    symlink in the listing and is named rather than read: `cat-file` would hand back the
+    target's text as though it were the document's."""
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    (project.root / "docs" / "escape.md").symlink_to("../../elsewhere.md")
     project.git("add", "-A")
     capsys.readouterr()
 
@@ -852,8 +903,127 @@ def test_a_staged_symlink_that_matches_a_document_pattern_is_named_not_read(proj
     # one that was, and may not pass quietly — the same answer the tree listing gives.
     assert project.cl("references", "--cached") == 1
     out = capsys.readouterr().out
-    assert "docs/link.md: is not a regular file in the index; it was not checked" in out
+    assert "docs/escape.md: is not a regular file in the index; it was not checked" in out
     assert "1 document" in out, "and it is not counted as a document that was read"
+
+
+def test_a_symlinked_entries_directory_is_still_listed_under_cached(project, capsys):
+    """Fixed: the entry listing filtered `ls-files` on the literal string `ledger/entries/`
+    and git reports the path it really stores, so a symlinked entries directory matched
+    nothing and every checker reported `0 entries` at exit 0 — the report this package
+    exists to refuse, restored by the change that was meant to close it. The expansion
+    reaches it from the index's own symlink blob
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    entries = project.root / "ledger" / "entries"
+    real = project.root / "real-entries"
+    real.mkdir()
+    for path in entries.glob("*"):
+        path.rename(real / path.name)
+    entries.rmdir()
+    entries.symlink_to("../real-entries")
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0
+    assert "resolve (1 entry)" in capsys.readouterr().out, "the bare run reads it"
+    assert project.cl("resolve", "--cached") == 0
+    assert "resolve (1 entry)" in capsys.readouterr().out, "and so does the cached run"
+
+
+def test_an_entry_unmerged_in_the_index_is_loaded_once(project, capsys):
+    """Fixed: dropping the union also dropped its `set()`, and `ls-files` reports an
+    unmerged path once per stage — so one conflicted entry was parsed three times and every
+    failure in it reported three times. One path is one file whatever the conflict
+    (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry")
+    project.git("checkout", "-q", "-b", "other")
+    path.write_text(path.read_text("utf-8").replace("one layer", "two layers"), "utf-8")
+    project.git("commit", "-qam", "other")
+    project.git("checkout", "-q", "-")
+    path.write_text(path.read_text("utf-8").replace("one layer", "three layers"), "utf-8")
+    project.git("commit", "-qam", "mine")
+
+    # `Project.git` raises on a non-zero exit and a conflicting merge is one, so the merge
+    # and the stage count are run directly.
+    def raw(*args):
+        return subprocess.run(
+            ["git", "-C", str(project.root), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    raw("merge", "other")
+    staged = raw("ls-files", "-s", "--", str(path)).stdout.splitlines()
+    assert len(staged) == 3, staged
+    capsys.readouterr()
+
+    project.cl("validate", "--cached")
+    assert "validate (1 entry)" in capsys.readouterr().out
+
+
+def _git_whose_full_listing_fails(tmp_path):
+    """A real git that fails only the `ls-files -s` listing of every tracked path, and
+    answers everything else — `index_problem`'s own `ls-files -- .git` included. The
+    discrimination is the point: a question that prints nothing cannot fail the way a
+    listing of a whole repository can."""
+    d = tmp_path / "listing-shim-bin"
+    d.mkdir(exist_ok=True)
+    real = shutil.which("git")
+    shim = (
+        "#!/bin/sh\n"
+        'for a in "$@"; do\n'
+        '  [ "$a" = "-s" ] || continue\n'
+        '  echo "fatal: simulated pack failure" >&2\n'
+        "  exit 128\n"
+        "done\n"
+        f'exec {real} "$@"\n'
+    )
+    (d / "git").write_text(
+        shim,
+        encoding="utf-8",
+    )
+    (d / "git").chmod(0o755)
+    return d
+
+
+def test_a_listing_that_fell_back_to_the_working_tree_is_named(project, capsys, tmp_path):
+    """Fixed: both listings fell back to the working tree in silence, each claiming in its
+    own comment that `index_problem()` reported it. It cannot — it asks a question whose
+    output is empty whatever the repository holds. Measured on a document staged and then
+    removed from the tree, the fallback turned exit 1 into `0 documents` and `0 failure(s)`
+    with nothing said (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", "utf-8")
+    project.git("add", "-A")
+    bad.unlink()  # only the index can see it now
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "with a working git it is read"
+    capsys.readouterr()
+
+    shim = _git_whose_full_listing_fails(tmp_path)
+    old = os.environ["PATH"]
+    os.environ["PATH"] = f"{shim}{os.pathsep}{old}"
+    try:
+        project.cl("references", "--cached")
+    finally:
+        os.environ["PATH"] = old
+    err = capsys.readouterr().err
+    assert "fell back to the working tree's documents" in err
+    assert "fell back to the working tree's entries" in err
 
 
 def _git_whose_cat_file_fails(tmp_path, only_for=None):

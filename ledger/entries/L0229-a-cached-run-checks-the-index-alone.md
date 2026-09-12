@@ -37,6 +37,10 @@ none
 
 ## Verdicts
 
+- 2026-09-12T14:47:27-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_entry_files" =sha256:a37ddd186d31e632203734cdeb652380a483c34a4a265e9876e55d716da780a7
+  note: the Assertion stands. The same false clause as L0228 carries here, and two defects the union had been covering came with it: a symlinked `ledger/entries` gave `0 entries` at exit 0 where the bare run read one, and dropping the union's `set()` loaded an unmerged entry once per stage — 3 entries and 24 failures where 1 and 8 were due. Both measured by the fix-review gate on this branch (qe ticket 45909368c43c4379), F1 and F4; the listing expands symlinks and keys by the path each address finally names.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

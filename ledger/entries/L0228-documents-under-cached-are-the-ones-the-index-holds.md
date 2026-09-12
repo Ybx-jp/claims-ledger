@@ -36,6 +36,14 @@ none
 
 ## Verdicts
 
+- 2026-09-12T14:47:27-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_documents" =sha256:0baee22ce9f04a61c4275aeec57091962013844a40efbfc1abe7fb9b1041617b
+  note: the Assertion stands and the listing now expands the index's own symlinks to reach it. One clause of the Warrant was false as written: "the index ... is what the commit will carry" is not true of a committed symlinked directory, where `ls-files` names the link and its target's files and a checkout makes a third path real. Measured by the fix-review gate on this branch (qe ticket 45909368c43c4379), F3 — `docs -> real` with `real/bad.md` gave `0 documents` at exit 0 while a fresh clone of the commit failed at exit 1. Repaired in code rather than by supersession, the way this ledger has settled a false Warrant clause before; L0230 states the rule.
+
+- 2026-09-12T14:48:18-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:69a9b396207e4ba4ed6f2a4c9f494d0ca338570b2270afb81197d311523e2f2b
+  note: the other half of the same reading. `open_ledger` carries the listing's `why` out now instead of dropping it, so a fallback is named rather than silent; the rule is L0231's and this claim is unchanged by it.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
