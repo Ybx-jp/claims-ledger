@@ -19,7 +19,7 @@ import re
 from .authoring import is_committed
 from .freshness import effective_pointer, literal
 from .schema import (
-    NULL_OBJECT_ID,
+    NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
     UNPINNED,
@@ -285,8 +285,14 @@ def digest_in_history(ledger, p):
     ids = set()
     for line in log.out.splitlines():
         if line.startswith(":"):
+            # A raw log line names its blobs by object id, and how wide one of those is
+            # belongs to the repository: sixty-four hex characters where it was created
+            # with `--object-format=sha256`. A forty-wide pattern discarded every id
+            # there, leaving the search with nothing to read and this function reporting
+            # text that is perfectly well in history as held by no version at all
+            # (L0220-an-object-id-is-as-wide-as-the-repository-makes-it, cites-as-live).
             ids |= {tok for tok in line.split() if OBJECT_ID_RE.match(tok)}
-    ids.discard(NULL_OBJECT_ID)
+    ids -= NULL_OBJECT_IDS
     blobs, failures = git_blobs(repo, sorted(ids))
     for data in blobs.values():
         text = blob_text(data)

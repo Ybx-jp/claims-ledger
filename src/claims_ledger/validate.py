@@ -29,7 +29,7 @@ from .schema import (
     ID_RE,
     KINDS,
     MEASURED_AND_ABOVE,
-    NULL_OBJECT_ID,
+    NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
     SCOPE_KEYS,
@@ -527,18 +527,20 @@ def check_verdicts(e, entries, config):
                 and not DIGEST_RE.match(v.artifact)
                 and not OBJECT_ID_RE.match(v.artifact)
             ):
-                # A 40-character object id is the shape verdicts recorded before anchors
-                # could be stated by value; it is still well-formed, and `freshness` holds
-                # it to nothing, since a whole file's id cannot be compared with a section.
+                # A bare object id is the shape verdicts recorded before anchors could be
+                # stated by value; it is still well-formed, and `freshness` holds it to
+                # nothing, since a whole file's id cannot be compared with a section. Its
+                # width is the repository's — forty hex characters, or sixty-four where the
+                # repository was created with `--object-format=sha256`.
                 fail(
                     part,
                     f"artifact `{v.artifact}` is neither a section digest `sha256:<64 hex>`, "
-                    f"a 40-character object id nor `{ABSENT}`",
+                    f"a bare object id nor `{ABSENT}`",
                 )
-            elif v.artifact == NULL_OBJECT_ID:
-                # Well-formed and naming nothing. Git's null object id is forty hex
-                # characters no artifact has ever hashed to, so it passes the shape while
-                # recording no artifact at all.
+            elif v.artifact in NULL_OBJECT_IDS:
+                # Well-formed and naming nothing. Git's null object id is all zeros at
+                # either width, and no artifact has ever hashed to it, so it passes the
+                # shape while recording no artifact at all.
                 fail(part, "artifact is the null object id, which names no artifact")
         elif v.artifact is not None:
             # The other direction, and the one a person reaches for: `artifact:` on a

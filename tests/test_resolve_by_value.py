@@ -6,6 +6,9 @@ of the path the repository holds. Every case here builds a real repository.
 """
 
 import subprocess
+import tempfile
+
+import pytest
 
 from claims_ledger import freshness, resolve
 from claims_ledger.schema import open_ledger
@@ -74,6 +77,47 @@ def test_a_committed_ground_whose_text_moved_on_resolves_from_history(project):
     )
     assert reports(project) == []
     assert [o for o, _, _ in reports(project, freshness)] == ["flag"]
+
+
+def test_history_is_searched_in_a_sha256_repository_too(project):
+    """The same case as the sibling above, in a repository created with
+    `--object-format=sha256`, where every object id git prints is sixty-four hex
+    characters instead of forty.
+
+    `blobs_since` collects the blob ids out of `git log --raw --no-abbrev` by matching
+    them against `OBJECT_ID_RE`, which was forty-wide. In such a repository every id was
+    filtered out, the set came back empty, and this ground — whose founding text is one
+    commit back, exactly as above — was reported as held by no version of the file the
+    repository has, blaming a rewritten history that had not happened. Narrowing the
+    pattern back to `{40}` reddens this and leaves the sha1 sibling green, which is the
+    pair that says the width was the whole of it.
+
+    Measured before the widening: the immutability check, `sha --write`'s refusal on a
+    committed entry, and a plain `check` over a clean ledger all worked in a sha256
+    repository. This was the one false report, not a package that does not run there.
+    """
+    if not _sha256_repositories_are_supported():
+        pytest.skip("this git cannot create a sha256 repository")
+    project.git("init", "-q", "--object-format=sha256")
+    entry_by_value(project)
+    commit_all(project, "the claim, and the note it rests on")
+    (project.root / "docs" / "note-001.md").write_text(
+        NOTE.replace("0.04", "0.09"), encoding="utf-8"
+    )
+    assert reports(project) == []
+    assert [o for o, _, _ in reports(project, freshness)] == ["flag"]
+
+
+def _sha256_repositories_are_supported():
+    with tempfile.TemporaryDirectory() as probe:
+        return (
+            subprocess.run(
+                ["git", "init", "-q", "--object-format=sha256", probe],
+                capture_output=True,
+                check=False,
+            ).returncode
+            == 0
+        )
 
 
 def test_a_committed_ground_whose_text_no_version_holds_is_flagged(project):

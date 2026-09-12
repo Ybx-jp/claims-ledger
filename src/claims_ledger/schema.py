@@ -121,8 +121,25 @@ ABSENT = "absent"
 # which writes the line, because `validate` is the checker that holds it to a shape and a
 # rule enforced only by the code that writes the value is a rule a hand-edit walks past
 # (L0151-the-artifact-shape-is-defined-where-it-is-checked, cites-as-live).
-OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
+OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+# Forty hex characters or sixty-four: a hash width is the repository's business and not the
+# ledger's, and one created with `--object-format=sha256` names every object in the wider
+# one. `_COMMIT_RE` in the history walk has admitted both since it was written, which is
+# the tell that the narrow version here was an oversight rather than a decision. Measured,
+# it bit one caller and not the one it was predicted to: `digest_in_history` filters
+# `git log --raw`'s output through this pattern, so in a sha256 repository every blob id
+# was discarded, the set came back empty, and a ground stated by value whose text had left
+# the tree was reported as held by no version of the file the repository has — blaming a
+# rewritten history that had not happened. The immutability check, `sha --write`'s refusal
+# on a committed entry and a plain `check` over a clean ledger were each measured to work
+# there before this widening, so what it repairs is that one false report and not a package
+# that does not run.
+
 NULL_OBJECT_ID = "0" * 40
+NULL_OBJECT_IDS = frozenset({NULL_OBJECT_ID, "0" * 64})
+# Both widths, because a ledger is read in whichever repository holds it and the null id is
+# all zeros at either. Derived from the one above rather than written out twice, so the two
+# cannot drift apart.
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 PENDING_ANCHOR = "?"
