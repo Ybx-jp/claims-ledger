@@ -443,3 +443,38 @@ def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
     assert "filename and id" not in capsys.readouterr().out, (
         "--cached must give validate the staged entry, which is the one being committed"
     )
+
+
+def test_the_cached_entry_list_is_the_index_and_not_the_working_tree(project, capsys):
+    """Which entries there are is a question about a tree, and under `--cached` that tree
+    is the index. `load_entries` globbed the working tree whatever the flag said, so an
+    entry staged and then deleted from the tree was in the commit and in no checker's
+    list: all five reported `0 failure(s)` at exit 0 over a ledger about to gain a broken
+    entry, and with that the only entry, over `0 entries`.
+
+    The staged entry is broken on purpose — its anchor names text nothing holds — so the
+    observable is not merely that it was counted but that the failure it carries was
+    reported. Both directions are asserted: a bare run sees the tree, which no longer has
+    it, and says `0 entries`; the cached run sees the one the index holds.
+
+    Deleting the index list from `load_entries` reddens this and nothing else in the
+    suite. (The third 0.1.0 release condition; qe ticket a55240cd1f6f47e5.)
+    """
+    project.git("init", "-q")
+    path = _entry_anchored_at_the_tree(project)
+    good = project.digest("docs/note-001.md", "Observation")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(good, "sha256:" + "cd" * 32), encoding="utf-8"
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")  # the broken entry is what the commit would carry
+    path.unlink()  # and the working tree no longer has it at all
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0
+    assert "0 entries" in capsys.readouterr().out
+
+    assert project.cl("resolve", "--cached") == 1, "the staged entry names text nothing holds"
+    out = capsys.readouterr().out
+    assert "1 entry)" in out, out
+    assert "A0001" in out and "does not hold" in out, out

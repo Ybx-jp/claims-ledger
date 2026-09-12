@@ -162,9 +162,12 @@ def test_the_history_checks_spawn_the_same_number_of_git_processes_for_five_entr
     assert [a[3] for a in counts] == ["rev-parse", "log", "cat-file"], counts
     assert validate.run(open_ledger(root=project.root), cached=True) == []
     with_one_cached = len(counts) - with_one
-    # One more under --cached: `load_entries` reads the staged blobs through a
-    # `cat-file --batch` of its own, which is not check_history's.
+    # Two more under --cached, both `load_entries`' own and neither check_history's: one
+    # `ls-files` for which entries the index holds, then one `cat-file --batch` for what
+    # each of them says. Both are one call for the whole ledger, which is why the count
+    # below is still flat from one entry to five.
     assert [a[3] for a in counts[with_one:]] == [
+        "ls-files",
         "cat-file",
         "rev-parse",
         "log",

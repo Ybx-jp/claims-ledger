@@ -1657,16 +1657,73 @@ def list_entry_files(entries_dir):
         ) from exc
 
 
+def index_entry_files(ledger):
+    """(paths, why) for the `*.md` entries the index holds under `entries_dir`: the list a
+    commit being built would carry, as absolute paths, or `(None, why)` when the index
+    could not be asked.
+
+    Which entries exist is a question about a tree, and under `--cached` the tree is the
+    index. Globbing the working tree there was a false pass with the shape this package
+    exists to refuse: an entry staged and then deleted from the tree is in the commit and
+    was in no checker's list, so all five reported `0 failure(s)` over a ledger that was
+    about to gain a broken entry — and with the only entry staged that way, `0 entries`
+    (L0219-the-entries-under-cached-are-the-ones-the-index-holds, cites-as-live).
+
+    What the caller does with this is add it to the working tree's listing rather than
+    replace one with the other, and that is a decision already made here: an entry taken
+    out of the index with `git rm --cached` and edited in the tree is caught under
+    `--cached` because the loader still sees it
+    (test_a_preamble_edit_is_caught_under_cached_when_the_index_holds_no_blob). Checking an
+    entry the commit will not carry can only cost a report nobody needed; not checking one
+    it will carry is the false pass. So the list is the union, and this end of it is the
+    end that was missing.
+
+    `-z`, because a path is not a line: a filename holding a newline or a quote comes back
+    quoted otherwise, and a quoted path names nothing. Single-level, to match what the
+    directory listing matches.
+    """
+    if not ledger.repo:
+        return None, "the ledger has no repository of its own"
+    rel = os.path.relpath(ledger.entries_dir, ledger.repo).replace(os.sep, "/")
+    if rel == ".." or rel.startswith("../"):
+        return None, f"{rel} is outside the repository at {ledger.repo}"
+    answer = git_call(
+        ledger.repo, "ls-files", "--cached", "-z", "--", f":(literal){rel}", env=git_env(index=True)
+    )
+    if not answer.ok:
+        return None, answer.why
+    prefix = "" if rel == "." else rel + "/"
+    paths = []
+    for name in answer.out.split("\0"):
+        if not name.startswith(prefix):
+            continue
+        tail = name[len(prefix) :]
+        if "/" in tail or not tail.endswith(".md") or tail.startswith("."):
+            continue
+        paths.append(Path(ledger.repo) / name)
+    return sorted(paths), None
+
+
 def load_entries(ledger, cached=False):
-    """Every entry under entries_dir, sorted by filename. With `cached`, an entry that is
-    in the git index is read from the index instead of the working tree, which is what a
-    pre-commit hook wants to check."""
+    """Every entry under entries_dir, sorted by filename. With `cached`, the entries are
+    the ones the index holds — both which of them there are and what each one says — which
+    is what a pre-commit hook wants to check."""
     entries = []
+    indexed = None
+    if cached:
+        indexed, _why = index_entry_files(ledger)
+        # A `why` here is the fallback `index_problem()` already reports through the guard,
+        # so it is not reported a second time: the listing falls back to the working tree
+        # so that a run whose index cannot be read still checks something, having said so.
+    in_tree = []
     if isinstance(
         entries_dir_listing_error(ledger.entries_dir), (FileNotFoundError, NotADirectoryError)
     ):
-        return entries  # a ledger not created yet; `guard()` is what refuses to report
-    paths = sorted(list_entry_files(ledger.entries_dir))
+        if not indexed:
+            return entries  # a ledger not created yet; `guard()` is what refuses to report
+    else:
+        in_tree = list_entry_files(ledger.entries_dir)
+    paths = sorted(set(indexed or []) | set(in_tree))
     staged = {}
     if cached and ledger.repo:
         # One `cat-file --batch` for every entry rather than one `git show` each: the
