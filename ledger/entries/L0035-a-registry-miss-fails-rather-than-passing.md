@@ -51,6 +51,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:55d28960d1b04ffe2db203a3b19334115b161628741178ffc4ed4882dac5893d
   note: read against the working tree after the by-value branch was moved out of resolve_pointer into resolve_by_value: what remains is the unpinned read from the tree, the pinned read out of git, and the entry and source branches, and the failure messages now write the pin as @<pin> since no by-value anchor reaches them; the assertion holds as written.
 
+- 2026-09-11T19:50:54-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "Sources" =sha256:10b6e2e89ca3151df0f26d542563a1e0be7f6c72ddf21c655f1c4187173c549a
+  note: re-read after the commit that has this reader take the source registry from the index when the run was asked for the index. Which registry is read is a new question here; what a row says, and what a missing row does, are unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

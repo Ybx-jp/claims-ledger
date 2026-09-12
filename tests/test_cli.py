@@ -535,3 +535,30 @@ def test_propagate_cached_reads_the_staged_entries(project, capsys):
     capsys.readouterr()
     assert project.cl("propagate", "--cached") == 1, "the staged challenge demands a verdict"
     assert "A0002-second" in capsys.readouterr().out
+
+
+def test_resolve_cached_reads_the_registry_the_commit_will_carry(project, capsys):
+    """The source registry is one file the whole ledger rests on, and `Sources` read it
+    from the working tree whatever the run was asked. An emptied registry staged and
+    restored in the tree took every checker to a clean run over a commit that lands with
+    each `source:` ground unresolvable — the registry the commit carries had no rows at all.
+
+    Found by the qe gate against this branch (ticket 11fd0ed94d86405f) while it was asked
+    about something else, and reproduced here before it was fixed. Dropping `cached=cached`
+    from the `Sources(...)` call reddens this and nothing else.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    registry = project.root / "ledger" / "sources.jsonl"
+    kept = registry.read_text(encoding="utf-8")
+    assert "fx-source" in kept, "the fixture registers a source this entry points at"
+    registry.write_text("", encoding="utf-8")
+    project.git("add", "-A")  # the commit would carry a registry with no rows in it
+    registry.write_text(kept, encoding="utf-8")  # and the tree has it back
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged registry has no row for it"
+    assert "has no registry row" in capsys.readouterr().out

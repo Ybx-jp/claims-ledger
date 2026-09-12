@@ -1761,17 +1761,29 @@ def by_id(entries):
     return {e.id: e for e in entries if e.id}
 
 
-def load_registry(path):
+def load_registry(path, text=None):
     """sources.jsonl as {id: row}. A missing file is an empty registry; a malformed row
-    is reported by resolve when something points at it."""
+    is reported by resolve when something points at it.
+
+    `text` is the registry as some other tree has it — the index, under `--cached` — and is
+    read in place of the file when given."""
     rows = {}
     path = Path(path)
+    if text is not None:
+        return _registry_rows(text, path)
     if not os.path.lexists(path):
         return rows  # a ledger with no sources registered yet
     problem = file_problem(path, "the source registry")
     if problem is not None:
         raise LedgerError(f"{path}: {problem}")
-    for lineno, ln in enumerate(read_text_or_raise(path, "the source registry").splitlines(), 1):
+    return _registry_rows(read_text_or_raise(path, "the source registry"), path)
+
+
+def _registry_rows(text, path):
+    """The rows of a registry's text, wherever the text came from. `path` names the file
+    only so that a malformed line can be reported at a place a person can open."""
+    rows = {}
+    for lineno, ln in enumerate(text.splitlines(), 1):
         if not ln.strip():
             continue
         try:
@@ -1879,6 +1891,21 @@ def staged_documents(ledger, paths):
         if data is not None:
             out[path] = blob_text(data)
     return out
+
+
+def staged_text(ledger, path):
+    """The text the index holds for `path`, or None when it holds none.
+
+    One path rather than a batch, for the reader whose subject is a single file the whole
+    ledger rests on: the source registry
+    (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
+    """
+    if not ledger.repo:
+        return None
+    rel = os.path.relpath(path, ledger.repo)
+    blobs, _ = git_blobs(ledger.repo, [f":{rel}"], env=git_env(index=True))
+    data = blobs.get(f":{rel}")
+    return None if data is None else blob_text(data)
 
 
 def read_document(path):

@@ -36,6 +36,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:50:54-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "Sources" =sha256:10b6e2e89ca3151df0f26d542563a1e0be7f6c72ddf21c655f1c4187173c549a
+  note: re-read after the commit that has this reader take the source registry from the index when the run was asked for the index. Which registry is read is a new question here; what a row says, and what a missing row does, are unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

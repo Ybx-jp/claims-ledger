@@ -41,6 +41,7 @@ from .schema import (
     section_span,
     section_text,
     source_bytes,
+    staged_text,
 )
 
 SENTENCE_END = ".!?"
@@ -54,9 +55,16 @@ class Sources:
     (L0035-a-registry-miss-fails-rather-than-passing, cites-as-live).
     """
 
-    def __init__(self, ledger):
+    def __init__(self, ledger, cached=False):
         self.ledger = ledger
-        self.rows = load_registry(ledger.registry)
+        # Under `--cached` the registry is read from the index, because it is the registry
+        # the commit will carry and every `source:` ground in the ledger rests on it.
+        # Read from the working tree whatever the flag said, an emptied registry staged and
+        # restored in the tree took all five checkers to a clean run over a commit that
+        # lands with every source pointer unresolvable
+        # (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
+        text = staged_text(ledger, ledger.registry) if cached else None
+        self.rows = load_registry(ledger.registry, text=text)
         self._texts = {}
 
     def text(self, source_id):
@@ -565,9 +573,9 @@ def check_retraction(e, sources):
 
 
 def run(ledger, entries=None, cached=False):
-    entries = load_entries(ledger) if entries is None else entries
+    entries = load_entries(ledger, cached=cached) if entries is None else entries
     index = by_id(entries)
-    sources = Sources(ledger)
+    sources = Sources(ledger, cached=cached)
     reports = []
     # A pinned pointer is read out of git, and `git()` answers None both for a pin that
     # is not there and for a git that could not be asked. Read as the first, a git that
