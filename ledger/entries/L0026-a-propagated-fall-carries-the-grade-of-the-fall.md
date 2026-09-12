@@ -51,6 +51,10 @@ none
   evidence: code: src/claims_ledger/propagate.py § "run" =sha256:0ca4d23c82c30d940fab79c0e6c5feb672853f2c9f34db3401c9efbd0d9f8e59
   note: read against the working tree after run gained a docstring carrying the citations for the rules it holds, moved into the span the grounds pin, since the reading at 5ee55ae: the code of the section is byte-identical once the docstring is set aside, so a verdict propagated from a fall still takes its grade from the falling verdict and names that verdict's index and timestamp in its note; the assertion holds as written.
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" =sha256:8fa19789e9badc1682afa37198032a2207b9e89ef81a5b34d8ec9cfeccb3aa67
+  note: re-read after the same commit, which gives this checker a cached mode: it takes the flag and passes it to the entry load. The walk and every rule in it are unchanged.
+
 ## References
 
 - src/claims_ledger/propagate.py · standing · cites-as-live

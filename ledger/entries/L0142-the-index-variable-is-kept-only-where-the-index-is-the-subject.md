@@ -59,6 +59,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:88c1e210b0a22ec11e9349553777e856ee7899d1992ab20c15519c468f024a04
   note: re-read after the commit that adds the pathspec-interpretation variables to what this call drops. GIT_INDEX_FILE is still the one variable discarded from the drop set, still only under `index=True`, and the new group is dropped unconditionally, so the exception this claim is about is untouched.
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:4988936b31fa54b9cfd7a9841c39a5e812c03b7e1f4314490d134d8c4ba3c351
+  note: re-read after the same commit. The docstring's count of the checkers the hook runs with the flag is now all five where it said three; which variables are dropped and which one is kept, and under what condition, are untouched.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

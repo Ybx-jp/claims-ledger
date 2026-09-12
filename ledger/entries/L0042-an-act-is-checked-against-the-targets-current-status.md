@@ -67,6 +67,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "ACT_ALLOWS" =sha256:dbedd55b9526800ec0bb9fce6377a79db28cf261fdfe831a5d65c4ceac39523f
   note: read against the working tree after ACT_ALLOWS gained a comment explaining the distinguishes row since the reading at aadceb0: every row of the table, and the statuses it maps each act to, is unchanged; the assertion holds as written.
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:166a79c96b6b68db961e4aeb6e8a271e668650a3181d75583405ee4478808d6f
+  note: re-read after the commit that gives this checker a cached mode: it takes the flag, loads the entries with it, and reads each configured document from the index where the index holds it. Every rule this claim is about is unchanged — what moved is which tree the text being checked was read from, and the bodies being read once for the run instead of once per loop.
+
 ## References
 
 - src/claims_ledger/references.py · standing · cites-as-live

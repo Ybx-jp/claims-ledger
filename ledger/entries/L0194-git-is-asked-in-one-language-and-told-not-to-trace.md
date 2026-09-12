@@ -51,6 +51,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:88c1e210b0a22ec11e9349553777e856ee7899d1992ab20c15519c468f024a04
   note: re-read after the commit that adds the pathspec-interpretation variables to what this call drops. LC_ALL is still pinned last over whatever the caller had and the tracing group is still dropped whole; the new names answer a third question — which path — and take nothing from this one.
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:4988936b31fa54b9cfd7a9841c39a5e812c03b7e1f4314490d134d8c4ba3c351
+  note: re-read after the same commit. The docstring's count of the checkers the hook runs with the flag is now all five where it said three; which variables are dropped and which one is kept, and under what condition, are untouched.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

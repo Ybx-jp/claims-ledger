@@ -30,10 +30,27 @@ from .schema import (
     normalize,
     read_document,
     section_span,
+    staged_documents,
 )
 
 
-def misplaced_citations(ledger, entries=None, only=None):
+def document_bodies(ledger, cached=False):
+    """{path: (text, problem)} for every configured document, read once for the whole run.
+
+    Under `cached` a document the index holds is read from the index, because that is the
+    text the commit will carry and the citation it holds is the one that will land
+    (L0221-the-documents-a-cached-run-reads-are-the-staged-ones, cites-as-live). Read once
+    here rather than at each of the three loops below, which used to read every document
+    three times over.
+    """
+    staged = staged_documents(ledger, (path for _, path in ledger.docs)) if cached else {}
+    bodies = {}
+    for _name, path in ledger.docs:
+        bodies[path] = (staged[path], None) if path in staged else read_document(path)
+    return bodies
+
+
+def misplaced_citations(ledger, entries=None, only=None, bodies=None):
     """Citations that sit outside the section the entry they name is pinned to.
 
     The rule is narrow, and every part of the narrowness is load-bearing. It asks only
@@ -56,9 +73,10 @@ def misplaced_citations(ledger, entries=None, only=None):
     index = by_id(entries)
     config = ledger.config
     outcome = config.citation_placement
+    bodies = document_bodies(ledger) if bodies is None else bodies
     out = []
     for name, path in ledger.docs:
-        body, _ = read_document(path)
+        body, _ = bodies[path]
         if body is None:
             continue  # reported by run(), which is where an unreadable document is a failure
         for m in CITATION_RE.finditer(body):
@@ -106,7 +124,7 @@ def roster_rows(body):
     return rows
 
 
-def check_roster(entries, index, status, ledger):
+def check_roster(entries, index, status, ledger, bodies):
     """The hypothesis roster is a hand-maintained view of the entries: one row per
     hypothesis whose status is not terminal
     (L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's
@@ -127,7 +145,7 @@ def check_roster(entries, index, status, ledger):
     for name, path in ledger.docs:
         if os.path.basename(name) != roster:
             continue
-        body, _ = read_document(path)
+        body, _ = bodies[path]
         if body is None:
             continue  # reported once, by run(), rather than once per checker loop
         for ident, act, cells in roster_rows(body):
@@ -176,7 +194,7 @@ def check_roster(entries, index, status, ledger):
     return out
 
 
-def run(ledger, entries=None):
+def run(ledger, entries=None, cached=False):
     """Both directions.
 
     **Entry to entry.** Every `entry:` ground names an entry that exists and carries an
@@ -198,7 +216,8 @@ def run(ledger, entries=None):
     (L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
     and says nothing about restatements in other words.
     """
-    entries = load_entries(ledger) if entries is None else entries
+    entries = load_entries(ledger, cached=cached) if entries is None else entries
+    bodies = document_bodies(ledger, cached=cached)
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
     minted = {e.id.split("-", 1)[0] for e in entries}
@@ -246,7 +265,7 @@ def run(ledger, entries=None):
 
     cited = {}  # doc name -> {(entry id, act)}
     for name, path in ledger.docs:
-        body, problem = read_document(path)
+        body, problem = bodies[path]
         if body is None:
             reports.append(Report("fail", None, name, f"{problem}; its citations were not checked"))
             continue
@@ -334,9 +353,9 @@ def run(ledger, entries=None):
                     )
                 )
 
-    reports += check_roster(entries, index, status, ledger)
+    reports += check_roster(entries, index, status, ledger, bodies)
     if config.citation_placement != "off":
-        reports += misplaced_citations(ledger, entries=entries)
+        reports += misplaced_citations(ledger, entries=entries, bodies=bodies)
 
     for e in entries:
         for _raw, r in e.references:

@@ -478,3 +478,60 @@ def test_the_cached_entry_list_is_the_index_and_not_the_working_tree(project, ca
     out = capsys.readouterr().out
     assert "1 entry)" in out, out
     assert "A0001" in out and "does not hold" in out, out
+
+
+def test_references_cached_reads_the_staged_documents(project, capsys):
+    """`references --cached` reads a document out of the index, because the citation the
+    commit will carry is the one written there. The checker read the working tree whatever
+    it was asked, so a citation staged against one status and corrected in the tree alone
+    passed the hook and committed broken — a verdict over prose no commit contains.
+
+    Both directions, because the whole content of the test is that they differ.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    text = path.read_text(encoding="utf-8").replace(
+        "## References\n", "## References\n\n- docs/note-001.md · standing · cites-as-live\n"
+    )
+    path.write_text(text, encoding="utf-8")
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+
+    note.write_text(kept + "\nSee (A0404-no-such-entry, cites-as-live).\n", encoding="utf-8")
+    project.git("add", "-A")  # the index holds a citation of an id nothing minted
+    note.write_text(kept + "\nSee (A0001-first, cites-as-live).\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "the staged note cites an id nothing minted"
+    assert "A0404-no-such-entry" in capsys.readouterr().out
+
+
+def test_propagate_cached_reads_the_staged_entries(project, capsys):
+    """The same rule for the fifth checker. `propagate` walks entry-to-entry edges, so its
+    subject is which entries there are and what they say — and under the flag that is the
+    index. Mutant: `cmd_propagate` calling `load_entries(ledger)` without the flag.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    assert project.cl("new", "second") == 0
+    first = project.write_full_entry(project.entry("A0001-first.md"))
+    project.write_full_entry(project.entry("A0002-second.md"))
+    kept = first.read_text(encoding="utf-8")
+    first.write_text(
+        kept.replace(
+            '- lab: docs/note-001.md § "Observation" @working',
+            '- lab: docs/note-001.md § "Observation" @working\n- entry: A0002-second · challenges',
+        ),
+        encoding="utf-8",
+    )
+    project.git("add", "-A")  # the index holds the challenge, which demands a verdict
+    first.write_text(kept, encoding="utf-8")  # and the tree does not
+    capsys.readouterr()
+
+    assert project.cl("propagate") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("propagate", "--cached") == 1, "the staged challenge demands a verdict"
+    assert "A0002-second" in capsys.readouterr().out

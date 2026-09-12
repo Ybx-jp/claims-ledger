@@ -38,6 +38,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:4988936b31fa54b9cfd7a9841c39a5e812c03b7e1f4314490d134d8c4ba3c351
+  note: re-read after the same commit. The docstring's count of the checkers the hook runs with the flag is now all five where it said three; which variables are dropped and which one is kept, and under what condition, are untouched.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

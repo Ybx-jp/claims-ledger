@@ -62,6 +62,10 @@ Every checking line of the template begins with the python slot and invokes the 
   evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:64ff75703d6e7dc76ef58f6a949f2a473b9a5898b0f825c3d801f012c5e64407
   note: re-read after the template's comment gained the resolver's working-pin residual and the sentence below it was cut back to what the template settles. The checking lines themselves are untouched: each still begins with the python slot and reaches the package with -m.
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:6160c0f534722d9b5eeb02f420943fc33910cec54d0f2e982ad000972b9dcacc
+  note: re-read after the commit that gives the two remaining checkers a cached mode. The template now carries the flag on all five lines, which is what this claim requires of it: every line whose checker takes the flag has it, and no other line does. The comment beside it states the one residual left — a ground pinned at working, which resolve reads from the working tree and freshness passes over.
+
 ## References
 
 - README.md · standing · cites-as-live

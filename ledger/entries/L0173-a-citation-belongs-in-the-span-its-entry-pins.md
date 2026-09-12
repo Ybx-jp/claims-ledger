@@ -34,6 +34,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "misplaced_citations" =sha256:e97be4dbb7399cbd52282246e54f6fbe51f39111bd3b045d23531b2645d667c7
+  note: re-read after the same commit. This function is handed the document bodies the run already read rather than reading each document again; the placement rule it holds, and what it reports, are untouched.
+
 ## References
 
 - src/claims_ledger/references.py · standing · cites-as-live

@@ -69,15 +69,21 @@ HOOK_TEMPLATE = """#!/bin/sh
 # tree in another otherwise commits an entry whose anchor no version of the path holds —
 # the anchor matched the tree, and the commit carried the index.
 #
-# `references` and `propagate` have no `--cached` of their own yet, so this hook still
-# reads the working tree for those two; and `resolve` reads it for a ground pinned at
-# `working`, which names the working tree by its own name and which `freshness` passes
-# over entirely. So this hook narrows what can commit unseen; it does not close it.
+# `references` and `propagate` ask for it too, and all five lines now carry it. For
+# `references` that means the documents as well as the entries: a citation staged against
+# one status and corrected in the tree alone otherwise passed here, because the checker
+# read prose no commit contains.
+#
+# One residual is left, and it is named rather than denied: `resolve` reads the working
+# tree for a ground pinned at `working`, which names that tree by its own name, and
+# `freshness` passes such grounds over entirely. A `working` section withdrawn, staged and
+# restored in the tree still commits unreported. Everything else these five read is the
+# index.
 set -e
 {python} -m claims_ledger validate --cached
 {python} -m claims_ledger resolve --cached
-{python} -m claims_ledger references
-{python} -m claims_ledger propagate
+{python} -m claims_ledger references --cached
+{python} -m claims_ledger propagate --cached
 {python} -m claims_ledger freshness --cached
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
@@ -155,10 +161,14 @@ def build_parser():
 
     r = sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
     r.add_argument("--cached", action="store_true", help="read staged entries from the git index")
-    sub.add_parser("references", help="citation acts agree with statuses, both directions")
+    rf = sub.add_parser("references", help="citation acts agree with statuses, both directions")
+    rf.add_argument(
+        "--cached", action="store_true", help="read staged entries and documents from the git index"
+    )
 
     pr = sub.add_parser("propagate", help="dependents of fallen entries carry the contested flag")
     pr.add_argument("--write", action="store_true", help="append the missing verdicts")
+    pr.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
     fr = sub.add_parser(
         "freshness", help="pinned grounds still name the artifact they were established on"
@@ -425,11 +435,11 @@ def cmd_resolve(args, ledger):
 
 
 def cmd_references(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = references.run(ledger, entries=entries)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = references.run(ledger, entries=entries, cached=args.cached)
     print_reports(
         reports,
         f"references ({plural(len(entries), 'entry', 'entries')}, "
@@ -439,11 +449,11 @@ def cmd_references(args, ledger):
 
 
 def cmd_propagate(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = propagate.run(ledger, write=args.write, entries=entries)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = propagate.run(ledger, write=args.write, entries=entries, cached=args.cached)
     return report_command("propagate", reports, entries, ledger)
 
 
@@ -461,28 +471,27 @@ def cmd_check(args, ledger):
     if stop is not None:
         return stop
     worst = 0
-    # The entries are parsed once for the five checkers rather than once each. Two lists
-    # and not one: under `--cached` `validate`, `resolve` and `freshness` read what is
-    # staged and the other two read the working tree, which is the difference `--cached`
-    # exists to make. (docs/audits/ARCH-AUDIT.md, finding 4.)
-    # (L0213-a-combined-run-parses-the-entries-once-into-two-lists, cites-as-live)
-    working = load_entries(ledger)
-    staged = load_entries(ledger, cached=True) if args.cached else working
+    # The entries are parsed once for the five checkers rather than once each. All five
+    # now take `--cached`, so under the flag they are given one list — the staged one —
+    # rather than the two this held while `references` and `propagate` had no cached mode
+    # of their own. (docs/audits/ARCH-AUDIT.md, finding 4.)
+    # (L0222-a-combined-run-parses-the-entries-once-into-one-list, cites-as-live)
+    entries = load_entries(ledger, cached=args.cached)
     for name in CHECKERS:
         if name == "validate":
-            reports = validate.run(ledger, cached=args.cached, entries=staged)
+            reports = validate.run(ledger, cached=args.cached, entries=entries)
         elif name == "resolve":
             # The staged entries against the index's artifacts, the pair the commit will
             # carry. Handed the working entries instead, an entry staged with one anchor
             # and edited to another in the tree had the tree's anchor held to the index's
             # artifact — a pair no commit contains — and landed unresolved either way.
-            reports = resolve.run(ledger, entries=staged, cached=args.cached)
+            reports = resolve.run(ledger, entries=entries, cached=args.cached)
         elif name == "references":
-            reports = references.run(ledger, entries=working)
+            reports = references.run(ledger, entries=entries, cached=args.cached)
         elif name == "propagate":
-            reports = propagate.run(ledger, write=False, entries=working)
+            reports = propagate.run(ledger, write=False, entries=entries, cached=args.cached)
         else:
-            reports = freshness.run(ledger, write=False, cached=args.cached, entries=staged)
+            reports = freshness.run(ledger, write=False, cached=args.cached, entries=entries)
         print_reports(reports, name)
         worst = max(worst, exit_code(reports))
     return worst

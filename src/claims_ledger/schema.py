@@ -1309,9 +1309,9 @@ def git_env(index=False):
     for a partial commit that is not `.git/index`: measured on git 2.43.0, a plain
     `git commit` gives the hook `GIT_INDEX_FILE=.git/index` and `git commit -- <path>`
     gives it `.git/next-index-<pid>.lock`, holding HEAD plus the named paths. Scrubbing it
-    there would take the three checkers the hook runs with `--cached` — `validate`,
-    `resolve` and `freshness` — off the content being committed and onto content that is
-    not, the same false pass as the rest of this list, pointed the other way. So the one
+    there would take the checkers the hook runs with `--cached` — all five of them — off
+    the content being committed and onto content that is not, the same false pass as the
+    rest of this list, pointed the other way. So the one
     question this package does ask of the environment is asked — by the callers whose
     subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
@@ -1851,6 +1851,34 @@ def unreachable_artifact(path):
     except OSError as exc:
         return f"cannot be read ({exc.strerror or exc})"
     return None
+
+
+def staged_documents(ledger, paths):
+    """{path: text} for those of `paths` the git index holds, read through one
+    `cat-file --batch`.
+
+    The documents a citation is read out of, as the commit will carry them. `references`
+    checked the working tree whatever it was asked, so a citation staged against one status
+    and corrected in the tree alone passed the hook and committed broken — the checker
+    reported on text no commit contains
+    (L0221-the-documents-a-cached-run-reads-are-the-staged-ones, cites-as-live).
+
+    A path the index does not hold is absent from the answer and the caller reads it from
+    the tree, which is the same fallback the entry loader makes: a document that is not
+    staged is not being changed by this commit, and the tree's copy is what the commit will
+    leave behind.
+    """
+    paths = list(paths)
+    if not paths or not ledger.repo:
+        return {}
+    rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
+    blobs, _ = git_blobs(ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True))
+    out = {}
+    for path, rel in rels.items():
+        data = blobs.get(f":{rel}")
+        if data is not None:
+            out[path] = blob_text(data)
+    return out
 
 
 def read_document(path):
