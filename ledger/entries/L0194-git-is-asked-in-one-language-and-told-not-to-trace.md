@@ -47,6 +47,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:fdf0922f5d91edf99f7b8083db4ece44b25c58d7528717a965fd29691be79656
   note: re-read after the same docstring was rewrapped to the line limit the linter holds; the prose is unchanged in substance and the code in this section is byte-identical, so nothing this claim rests on moved.
 
+- 2026-09-11T17:11:14-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "git_env" =sha256:88c1e210b0a22ec11e9349553777e856ee7899d1992ab20c15519c468f024a04
+  note: re-read after the commit that adds the pathspec-interpretation variables to what this call drops. LC_ALL is still pinned last over whatever the caller had and the tracing group is still dropped whole; the new names answer a third question — which path — and take nothing from this one.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

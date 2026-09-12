@@ -21,6 +21,7 @@ import os
 import subprocess
 
 import pytest
+from test_failure_paths import nested_in_a_repository
 from test_freshness import pinned  # noqa: F401  — the fixture, reused as-is
 
 FROZEN_EDIT = (
@@ -432,3 +433,39 @@ def test_an_entry_whose_blob_is_gone_is_still_a_committed_entry(committed, capsy
     assert project.cl("sha", "--write", str(path)) == 2
     assert "is committed" in capsys.readouterr().err
     assert path.read_text(encoding="utf-8") == before.replace(*FROZEN_EDIT)
+
+
+@pytest.mark.parametrize(
+    "variable",
+    ["GIT_LITERAL_PATHSPECS", "GIT_GLOB_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_ICASE_PATHSPECS"],
+)
+def test_a_pathspec_is_read_as_written_whatever_the_environment_says(
+    project, capsys, monkeypatch, variable
+):
+    """The third family of variable, and it answers a different question from the other
+    two: not *which repository* and not *what does it print*, but *which path did you
+    mean*.
+
+    Two calls in this package write `:(literal)<path>` — the enclosing-repository walk and
+    freshness's history question — because a path is a filename and not a wildcard
+    (L0101). `GIT_LITERAL_PATHSPECS=1` tells git that every pathspec is already literal,
+    which makes `:(literal)docs/note.md` the name of a file with a parenthesis in it.
+    Nothing has ever been at that path, so git answers — cleanly, at exit 0 — that no
+    commit ever touched it.
+
+    Measured on git 2.43.0, before the scrub reached the pathspec list: with the variable
+    exported, `validate` over a ledger an enclosing repository has committed went from
+    exit 1 naming an immutable region to **exit 0 with nothing said**, because the walk
+    read "no commit has touched these entries" as "no repository holds them". It is
+    finding 3's false pass reached through the environment instead of through the walk.
+
+    All four pathspec variables are parametrized on the rule that none of them is
+    consulted, not because each was measured to bite: only `GIT_LITERAL_PATHSPECS`
+    reddens this when the scrub is deleted — glob, noglob and icase leave `:(literal)`
+    alone on this git. The rule is the subject, so the siblings stay.
+    """
+    nested_in_a_repository(project)
+    monkeypatch.setenv(variable, "1")
+    capsys.readouterr()
+    assert project.cl("validate") == 1
+    assert "which this ledger is not reading" in capsys.readouterr().out

@@ -1247,6 +1247,27 @@ GIT_REPOSITORY_ENV = (
 # never wants
 # (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
 
+GIT_PATHSPEC_ENV = (
+    # A path written as a literal is asked about as the path it names, so none of these
+    # is consulted on any call
+    # (L0218-a-pathspec-means-the-path-it-names, cites-as-live).
+    "GIT_LITERAL_PATHSPECS",
+    "GIT_GLOB_PATHSPECS",
+    "GIT_NOGLOB_PATHSPECS",
+    "GIT_ICASE_PATHSPECS",
+)
+# A pathspec this package writes says which path it means, and these four rewrite that
+# sentence after it is written. `GIT_LITERAL_PATHSPECS=1` is the one measured to bite: it
+# takes `:(literal)` for the *name of a file* rather than for git's own way of saying "the
+# text is a filename", so the two calls that use it — the enclosing-repository walk and
+# freshness's history question — ask about a path nothing has ever been at and are
+# answered, cleanly and at exit 0, that no commit touched it. Measured on git 2.43.0: with
+# the variable exported, `validate` over a ledger an enclosing repository has committed
+# went from exit 1 naming an immutable region to exit 0 with nothing said. The other three
+# are dropped on the same account as the repository list above rather than because each was
+# measured — a variable that decides what a pathspec means is a false pass waiting for a
+# git version that reads it, and no caller here wants one.
+
 GIT_NOISE_ENV = (
     "GIT_TRACE",
     "GIT_TRACE2",
@@ -1278,7 +1299,7 @@ def git_env(index=False):
     subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """
-    drop = set(GIT_REPOSITORY_ENV) | set(GIT_NOISE_ENV)
+    drop = set(GIT_REPOSITORY_ENV) | set(GIT_PATHSPEC_ENV) | set(GIT_NOISE_ENV)
     if index:
         drop.discard("GIT_INDEX_FILE")
     # `LC_ALL=C` last, over whatever the caller had. Everything this package learns from
