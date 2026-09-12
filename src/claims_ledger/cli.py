@@ -406,9 +406,15 @@ def cmd_resolve(args, ledger):
     # All three take the flag, and that is the claim: the guard so a fallback is named, the
     # load so the entries are the ones being committed, the run so a by-value anchor is held
     # to the artifact the commit will carry. Leaving one bare is the shape that survives a
-    # suite — two of the three then answer about a state no commit contains and answer it
-    # with a pass, and the third keeps its verdict, losing only the notice that the index
-    # went unread
+    # suite: two of the three then answer about a state no commit contains — the working
+    # entry against the index's artifact, or the staged entry against the working tree's —
+    # and both shapes of wrong answer were measured from a bare call. A bare load passed a
+    # staged entry whose anchor named nothing, at exit 0. A bare run passed an anchor the
+    # index does not hold, at exit 0, in one disagreement; in the other it did fail, but
+    # against the working tree, telling the author to restamp an anchor that was right. So
+    # what the flag buys is that the answer is about the state being committed at all, and
+    # a pass is one of the two ways it is not. The third keeps its verdict and loses only
+    # the notice that the index went unread
     # (L0215-cmd-resolve-puts-the-cached-flag-to-each-of-its-three-calls, cites-as-live).
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
