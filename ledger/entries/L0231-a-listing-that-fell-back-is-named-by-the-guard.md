@@ -43,6 +43,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:cdb2e3c004bed5b4eec6d25cd27d1cd0cadf91d92128da0946e87f134bb1b290
   note: acknowledged: the ledger is built before the cached listing so the one expansion can be kept on it (L0232). What is listed is unchanged.
 
+- 2026-09-12T16:01:20-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:12b0add8826ea242f3c28b69e381c98bc1b0cd97c4c39bb1b5a788b6eca8305f
+  note: acknowledged: `open_ledger` extends the guard notes rather than replacing them, so the expansion's own truncation note is not dropped, and the truncation is carried as a note rather than as a failure (L0230's reading). This claim is untouched by either.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

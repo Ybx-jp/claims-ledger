@@ -33,6 +33,7 @@ from .schema import (
     git_call,
     git_env,
     git_problem,
+    index_spec,
     load_entries,
     load_registry,
     normalize,
@@ -276,7 +277,14 @@ def digest_in_tree(ledger, p, cached=False):
     where = "the index" if cached else "the working tree"
     if cached:
         answer = git_call(
-            ledger.repo or ledger.tree, "show", f":{p.target}", env=git_env(index=True)
+            ledger.repo or ledger.tree,
+            "show",
+            # Through the chokepoint, like the other six: a target reached by a symlinked
+            # directory is held by the index under another name, and asking for the address
+            # git does not have made this the one read that still answered about the wrong
+            # tree (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+            index_spec(ledger, p.target),
+            env=git_env(index=True),
         )
         if not answer.ok:
             return None, f"{p.target} could not be read from the index ({answer.why})"

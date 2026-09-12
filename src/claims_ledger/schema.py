@@ -446,7 +446,7 @@ def index_tree(config):
     """
     answer = git_call(config.root, "ls-files", "--cached", "-z", "-s", env=git_env(index=True))
     if not answer.ok:
-        return {}, answer.why
+        return {}, answer.why, None
     modes, links = {}, {}
     for record in answer.out.split("\0"):
         # `<mode> SP <object> SP <stage> TAB <path>`; `-z` ends the record at the NUL, so
@@ -478,7 +478,7 @@ def index_tree(config):
     # `os.path.realpath` answers for the working tree, and it is free here: an address only
     # exists because this pass built it from the path it reaches.
     reach = {rel: (mode, rel) for rel, mode in modes.items()}
-    room = MAX_SYMLINK_EXPANSIONS
+    room, truncated = MAX_SYMLINK_EXPANSIONS, None
     for _ in range(SYMLINK_DEPTH):
         added = {}
         for link, target in links.items():
@@ -501,22 +501,26 @@ def index_tree(config):
             # The cap counts paths ADDED, not paths held: counting the whole listing meant
             # any repository above the cap got no expansion at all, silently, and this
             # repository's 784 tracked files were under it so nothing said otherwise
-            # (qe ticket f868273f36b448ab, F2). Reaching it is a narrower universe than the
-            # commit has, which is the one thing a cached run may not be quiet about.
-            return reach, (
+            # (qe ticket f868273f36b448ab, F2).
+            truncated = (
                 f"more than {MAX_SYMLINK_EXPANSIONS} paths are reachable only through "
-                "symlinks; the listing would not have been the whole commit"
+                "symlinks; the listing holds what was reached and not the rest"
             )
+            break
         room -= len(added)
         reach.update(added)
         links = {rel: t for rel, t in links.items() if reach[rel][0] == "120000"}
     else:
         if links:
-            return reach, (
-                f"symlinks are nested more than {SYMLINK_DEPTH} deep; the listing would "
-                "not have been the whole commit"
+            # A CYCLE, usually, rather than a deep chain: `ln -s . here` reaches one
+            # segment further every pass and never runs out. The first wording said
+            # "nested more than N deep", which is false of a link nested none deep.
+            truncated = (
+                f"symlinks were followed {SYMLINK_DEPTH} times and still reach further — a "
+                "cycle, or a chain longer than that; the listing holds what was reached "
+                "and not the rest"
             )
-    return reach, None
+    return reach, None, truncated
 
 
 def _link_target(rel, data):
@@ -551,8 +555,16 @@ def index_reach(ledger):
         if not ledger.repo:
             ledger.index_reach, ledger.index_why = {}, "the ledger has no repository of its own"
         else:
-            reach, why = index_tree(ledger.config)
+            reach, why, truncated = index_tree(ledger.config)
             ledger.index_reach, ledger.index_why = reach, why
+            if truncated:
+                # A TRUNCATION IS NOT A FAILURE, and answering it with one was a false pass
+                # of its own: a `why` sends the whole listing to the working tree, so an
+                # ordinary `ln -s . here` took a staged-only document off the list entirely
+                # and the run reported clean at exit 0 where the commit before it exited 1.
+                # A narrower universe than the commit has is not a wrong one; the listing
+                # keeps what it reached, and the guard says what it did not.
+                ledger.index_notes.append(f"{truncated}; some staged paths were not checked")
     return ledger.index_reach, ledger.index_why
 
 
@@ -736,7 +748,10 @@ def open_ledger(root=None, config_path=None, config=None, cached=False):
             )
         else:
             ledger.docs, ledger.unreadable_docs = indexed, index_unreadable
-    ledger.index_notes = notes
+    # Extended, not replaced: the expansion appends its own note during the listing above,
+    # and assigning here dropped it on the floor — the truncation went unsaid, which is the
+    # whole point of having it.
+    ledger.index_notes.extend(note for note in notes if note not in ledger.index_notes)
     return ledger
 
 

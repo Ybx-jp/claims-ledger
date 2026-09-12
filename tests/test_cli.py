@@ -1115,13 +1115,47 @@ def test_the_expansion_cap_counts_what_it_adds_and_says_when_it_bites(project, m
     ledger = open_ledger(root=project.root)
 
     monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 8)
-    reach, why = schema.index_tree(ledger.config)
+    reach, why, truncated = schema.index_tree(ledger.config)
     assert why is None, "more tracked files than the cap is not more ADDED than the cap"
+    assert truncated is None
     assert "linked/note.md" in reach, "and the expansion still happened"
 
     monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 0)
-    _reach, why = schema.index_tree(ledger.config)
-    assert why and "reachable only through symlinks" in why, "and the cap is never silent"
+    reach, why, truncated = schema.index_tree(ledger.config)
+    assert truncated and "reachable only through symlinks" in truncated, "never silent"
+    # A TRUNCATION IS NOT A FAILURE: `why` is what sends the whole listing to the working
+    # tree, and a narrower universe than the commit has is not a wrong one. What was
+    # reached is kept and reported on.
+    assert why is None
+    assert reach, "the direct paths are still listed"
+
+
+def test_a_symlink_cycle_does_not_send_the_listing_to_the_working_tree(project, capsys):
+    """Fixed, and it was a regression of the bound I had just added. `ln -s . here` reaches
+    one segment further every pass and never runs out, so the depth branch fired on an
+    ORDINARY self-referential link nested none deep — and it answered with a `why`, which
+    sends the whole cached listing to the working tree. Measured: a staged-only document
+    carrying a broken citation went unchecked at exit 0 where the commit before it exited 1
+    (qe ticket 7b317b5ea95e4670, F1). The listing keeps what it reached
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    (project.root / "sub").mkdir()
+    (project.root / "sub" / "here").symlink_to(".")
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", "utf-8")
+    project.git("add", "-A")
+    bad.unlink()  # staged only: the working tree cannot see it
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 1, "the commit carries the broken citation"
+    out, err = capsys.readouterr()
+    assert "docs/bad.md" in out
+    assert "2 documents" in out, "the note the fixture already had, plus the staged one"
+    # And the run still says what it could not reach, rather than going quiet about it.
+    assert "still reach further" in err
 
 
 def _git_whose_cat_file_fails(tmp_path, only_for=None):

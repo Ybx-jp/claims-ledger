@@ -45,5 +45,9 @@ none
   evidence: code: src/claims_ledger/resolve.py § "digest_in_tree" =sha256:6d0ede392a0e4991eb4d795b1565967b5f8252ad3fc1b108f17a03079b295380
   note: read against the commit that gives resolve a --cached of its own and points the hook's resolve line at it. What this claim asserts is unchanged and the code is byte-identical: the index under --cached, the working tree otherwise. The Warrant named that hook line `check --cached`, which the installed hook never ran; it runs `resolve --cached`.
 
+- 2026-09-12T16:01:20-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_tree" =sha256:ded13acc42d3521b82816650f7216cd623c78770deb8c80eddb57bd8556402a9
+  note: acknowledged: the cached read asks for the path the index holds rather than for the pointer target as written, which under a symlinked directory are different names for one blob (L0232). Which tree the anchor is held to — what this claim is about — is unchanged.
+
 ## References
 - src/claims_ledger/resolve.py · standing · cites-as-live

@@ -35,8 +35,17 @@ none
 
 ## Verdicts
 
+- 2026-09-12T16:00:57-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_spec" =sha256:69c45e197f4978c0ff0de01cd2afabf5d04bd9ef4641b133274955f5da4a85cc
+  note: the Assertion was FALSE when written and is true now. The Warrant counts six sites that build an index object name; there are seven — `resolve.py`'s `digest_in_tree` asks `git show :<target>` directly and was not routed (the fix-review gate on this branch (qe ticket 7b317b5ea95e4670)). Its direction was a false FAIL rather than a false pass, so nothing landed wrong, but the claim said every read and one read was not. Routed now. The enumeration that finds all seven is `grep git_env(index=` — ten call sites, three of which need no path — rather than grepping for the spec shape, which is what missed it.
+
+- 2026-09-12T16:01:20-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_reach" =sha256:bd3ede747afafeb7d1bba9e732d1d60d08bd21f82ad280875e5497dbfa119566
+  note: acknowledged: a truncated expansion is carried as a note beside the reach rather than as a `why`, so the listing keeps what it reached (L0230's reading). What this claim says an index read names is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
 - src/claims_ledger/validate.py · standing · cites-as-live
 - src/claims_ledger/freshness.py · standing · cites-as-live
+- src/claims_ledger/resolve.py · standing · cites-as-live
