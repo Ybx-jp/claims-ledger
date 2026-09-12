@@ -328,7 +328,13 @@ def build_parser():
 
 
 def ledger_for(args):
-    return open_ledger(root=args.root, config_path=args.config)
+    # `cached` is asked of `args` rather than passed by each command, because the document
+    # list it decides is built once when the ledger is opened and every checker reads it
+    # from there. The commands that do not take the flag do not have the attribute
+    # (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    return open_ledger(
+        root=args.root, config_path=args.config, cached=getattr(args, "cached", False)
+    )
 
 
 def plural(n, one, many):

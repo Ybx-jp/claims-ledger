@@ -3,6 +3,7 @@ that quotes it, and have all five checkers pass. Then the ways the authoring com
 refuse to do the wrong thing.
 """
 
+import dataclasses
 import json
 import os
 import shutil
@@ -669,11 +670,17 @@ def test_a_working_pin_over_an_untracked_file_still_resolves_under_cached(projec
     """
     project.git("init", "-q")
     assert project.cl("new", "first") == 0
-    project.write_full_entry(project.entry("A0001-first.md"))
+    entry = project.write_full_entry(project.entry("A0001-first.md"))
+    # The ENTRY is staged and the artifact is not, which is the shape the pin is for. The
+    # entry has to be, or the cached run has no entry to read and this passes over nothing.
+    project.git("add", "--", str(entry))
     assert (project.root / "docs" / "note-001.md").is_file()
     capsys.readouterr()
 
     assert project.cl("resolve", "--cached") == 0, capsys.readouterr().out
+    # The count, so this cannot go quietly vacuous: a run that read no entry at all would
+    # also exit 0, and would be asserting nothing about the fallback it is named for.
+    assert "resolve (1 entry)" in capsys.readouterr().out
 
 
 def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, capsys):
@@ -689,7 +696,8 @@ def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, ca
     """
     project.git("init", "-q")
     assert project.cl("new", "first") == 0
-    project.write_full_entry(project.entry("A0001-first.md"))
+    entry = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "--", str(entry))  # or the cached run reads no entry at all
     note = project.root / "docs" / "note-001.md"
     kept = note.read_bytes()
     note.write_bytes(b"# note 001\n\n## Observation\n\n\xff\xfe not utf-8\n")
@@ -701,6 +709,151 @@ def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, ca
     capsys.readouterr()
     assert project.cl("resolve", "--cached") == 1, "the staged artifact is not UTF-8 text"
     assert "does not resolve" in capsys.readouterr().out
+
+
+def test_a_document_only_the_index_holds_is_checked_under_cached(project, capsys):
+    """Fixed: the document list was globbed off the working tree for every run, `--cached`
+    included, so a document the index holds and the tree does not was on nobody's list —
+    never read, never counted, never checked.
+
+    Measured before the fix, in a throwaway repository: `check --cached` reported
+    `1 document` and `0 failure(s)` at exit 0, and a fresh clone of the commit it was about
+    to make failed `references` at exit 1 over that very document
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry and the note it rests on")
+
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted-this, cites-as-live).\n", "utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1, "the citation is broken while the tree holds it"
+    capsys.readouterr()
+
+    project.git("add", "--", str(bad))
+    bad.unlink()  # staged, and gone from the working tree
+
+    assert project.cl("references", "--cached") == 1, "the commit carries it, so it is read"
+    out = capsys.readouterr().out
+    assert "docs/bad.md" in out
+    assert "2 documents" in out, "and it is counted, not silently skipped"
+    # The bare run is about the working tree, which no longer holds the document at all.
+    assert project.cl("references") == 0
+
+
+def test_a_citation_of_an_entry_the_commit_drops_fails_under_cached(project, capsys):
+    """Fixed: the cached entry list was the union of the index and the working tree, so an
+    entry taken out of the index with `git rm --cached` was still on it. That does not cost
+    a spare report — it supplies the citation's target, and the run passes over a commit
+    whose citation dangles.
+
+    Measured before the fix: all five checkers reported `2 entries` and `0 failure(s)` at
+    exit 0, and a fresh clone of the commit held one entry and failed `references` at
+    exit 1 (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    first = project.write_full_entry(project.entry("A0001-first.md"))
+    assert project.cl("new", "second") == 0
+    project.write_full_entry(project.entry("A0002-second.md"))
+    citer = project.root / "docs" / "citer.md"
+    citer.write_text("# citer\n\nA sentence (A0001-first, cites-as-live).\n", encoding="utf-8")
+    # The cited entry lists the document back; below the append marker, so the seal holds.
+    first.write_text(
+        first.read_text(encoding="utf-8").rstrip("\n")
+        + "\n\n- docs/citer.md · standing · cites-as-live\n",
+        encoding="utf-8",
+    )
+    project.git("add", "-A")
+    project.git("commit", "-qm", "two entries and a document citing the first")
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 0, capsys.readouterr().out
+    capsys.readouterr()
+
+    project.git("rm", "-q", "--cached", str(first))  # dropped from the commit, kept on disk
+
+    assert project.cl("references", "--cached") == 1, "the commit will not carry A0001"
+    out = capsys.readouterr().out
+    assert "A0001-first" in out
+    assert "references (1 entry" in out, "the index holds one entry, not two"
+    # The working tree still has both, and a bare run is about the working tree.
+    assert project.cl("references") == 0
+
+
+def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
+    """The index listing matches paths as strings, where the tree listing has `glob` do it,
+    and two matchers that can disagree are a document count that depends on which tree the
+    run was asked about. Held to `glob`'s answer over a tree built to exercise the edges:
+    a hidden file and a hidden directory, which `glob` never selects; a nested path, which
+    a single-level pattern does not reach; and a name a pattern nearly matches.
+    """
+    from claims_ledger.schema import selects_document, tree_documents
+
+    root = project.root
+    (root / "docs" / "deep").mkdir(parents=True, exist_ok=True)
+    (root / ".hidden").mkdir(exist_ok=True)
+    for rel in (
+        "top.md",
+        "top.txt",
+        "docs/plain.md",
+        "docs/.draft.md",
+        "docs/deep/nested.md",
+        ".dotfile.md",
+        ".hidden/inside.md",
+    ):
+        (root / rel).write_text("# x\n", encoding="utf-8")
+
+    every = [
+        "top.md",
+        "top.txt",
+        "docs/plain.md",
+        "docs/.draft.md",
+        "docs/deep/nested.md",
+        ".dotfile.md",
+        ".hidden/inside.md",
+        "docs/note-001.md",
+    ]
+    base = open_ledger(root=root).config
+    # Both shapes a `documents` pattern comes in. `**` is the one that matters most here:
+    # it is what CLAUDE.md names as the way this repository's own globs would be widened,
+    # and `glob` does not descend a hidden directory for it.
+    for patterns in (("*.md", "docs/*.md"), ("**/*.md",), ("docs/**",)):
+        config = dataclasses.replace(base, documents=patterns)
+        globbed = {rel for rel, _path in tree_documents(config)[0]}
+        selected = {rel for rel in every if selects_document(rel, config)}
+        assert selected == globbed, patterns
+        # And not vacuously equal on both sides: the edges are really in the tree.
+        assert globbed, patterns
+    single = dataclasses.replace(base, documents=("*.md", "docs/*.md"))
+    wide = dataclasses.replace(base, documents=("**/*.md",))
+    assert selects_document("docs/plain.md", single)
+    assert not selects_document("docs/.draft.md", single), "glob never selects a dotfile"
+    assert not selects_document("docs/deep/nested.md", single), "and `*` stops at a slash"
+    assert selects_document("docs/deep/nested.md", wide), "where `**` spans segments"
+    assert not selects_document(".hidden/inside.md", wide), "but not into a hidden directory"
+
+
+def test_a_staged_symlink_that_matches_a_document_pattern_is_named_not_read(project, capsys):
+    """A symlink is an index entry like any other and `cat-file` hands back its target as
+    though it were the document's text. The working-tree listing refuses a path that is not
+    a regular file by name rather than silently; so does the index listing."""
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    link = project.root / "docs" / "link.md"
+    link.symlink_to("note-001.md")
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    # A failure, not a silent skip: a document that was not checked may not be counted as
+    # one that was, and may not pass quietly — the same answer the tree listing gives.
+    assert project.cl("references", "--cached") == 1
+    out = capsys.readouterr().out
+    assert "docs/link.md: is not a regular file in the index; it was not checked" in out
+    assert "1 document" in out, "and it is not counted as a document that was read"
 
 
 def _git_whose_cat_file_fails(tmp_path, only_for=None):

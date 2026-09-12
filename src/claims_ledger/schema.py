@@ -357,6 +357,112 @@ def tree_documents(config):
     return docs, unreadable
 
 
+def _glob_matches(parts, segments):
+    """`_segments_match`, plus the one rule it is documented never to need: `glob` selects
+    a name beginning with `.` only through a pattern segment that begins with one, and
+    never descends into a hidden directory for `**`.
+
+    The tree listing gets that rule from `glob` itself. The index listing is a list of
+    strings, so it has to apply the rule here or `docs/*.md` — which has never selected
+    `docs/.draft.md` from the working tree — would start selecting it under the flag, and
+    the document count would depend on which tree the run was asked about.
+    """
+    if not segments:
+        return not parts
+    if segments[0] == "**":
+        return any(
+            not any(part.startswith(".") for part in parts[:i])
+            and _glob_matches(parts[i:], segments[1:])
+            for i in range(len(parts) + 1)
+        )
+    return (
+        bool(parts)
+        and not (parts[0].startswith(".") and not segments[0].startswith("."))
+        # fnmatchcase for the reason `_segments_match` gives: a document count that
+        # depends on the machine's case rules is not a count.
+        and fnmatch.fnmatchcase(parts[0], segments[0])
+        and _glob_matches(parts[1:], segments[1:])
+    )
+
+
+def selects_document(rel, config):
+    """Whether the `documents` patterns select `rel` — a path from the project root,
+    `/`-separated — once the excludes and the ledger's own directory are taken off.
+
+    The membership half of what `tree_documents` does, asked of a path rather than of the
+    filesystem, so that the index can be asked the same question the working tree is
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    """
+    parts = rel.split("/")
+    if not any(_glob_matches(parts, _pattern_segments(p)) for p in config.documents):
+        return False
+    if excluded_document(rel, config.document_excludes):
+        return False
+    # The ledger does not cite itself, the same exclusion the tree listing makes.
+    ledger_rel = os.path.relpath(config.ledger_dir, config.root).replace(os.sep, "/")
+    inside = ledger_rel != ".." and not ledger_rel.startswith("../")
+    return not (inside and (rel == ledger_rel or rel.startswith(ledger_rel + "/")))
+
+
+def index_documents(config):
+    """(documents, unreadable, why) — the configured documents the index holds, in the
+    shape `tree_documents` returns them, or `(None, None, why)` when the index could not
+    be asked. Asked only where `open_ledger` found a `.git` at the project root, which is
+    the only place a `Ledger` ever has a repository.
+
+    One root, not two: `ls-files` answers paths relative to the repository it is run in,
+    and everything downstream — the patterns, the excludes, the display name, the path a
+    document is finally read at — is relative to the project root. Taking the repository
+    as a second argument would let those come apart silently the day a ledger sits below
+    its repository's root, and every path here would be counted from the wrong place.
+
+    Which documents exist is a question about a tree, and under `--cached` the tree is the
+    index. Globbing the working tree there was a false pass with the shape this package
+    exists to refuse, and it was not even a `--cached` defect: `tree_documents` is the
+    document universe for every run, so a document the index holds and the tree does not —
+    `git add docs/bad.md && rm docs/bad.md` — was on nobody's list. Measured, with a
+    document staged that way carrying a citation of an id nothing minted: `check --cached`
+    reports `1 document` and `0 failure(s)` at exit 0, and a fresh clone of the commit it
+    was about to make fails `references` at exit 1 naming that document
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+
+    The listing is the index's alone rather than added to the tree's, which is the answer
+    the entry list gives too and for the same reason: the index is not a delta, it holds
+    every tracked path, so it *is* what the commit will carry. Adding the tree's matches
+    back would put a document the commit does not carry on the list, and a run that reads
+    a file no commit contains is the report this tool must never produce, whichever
+    direction it points.
+
+    `-s`, for the mode: a symlink and a gitlink are entries in the index like any other,
+    and `cat-file` hands back the link target as though it were the document's text. The
+    working-tree listing refuses a path that is not a regular file by name rather than
+    silently; so does this.
+
+    `-z`, because a path is not a line. One `ls-files` for the whole repository and the
+    matching done here rather than through a pathspec: git's `:(glob)` is close to
+    `glob`'s but not the same, and a pathspec that is narrower anywhere is a document
+    dropped without a word.
+    """
+    answer = git_call(config.root, "ls-files", "--cached", "-z", "-s", env=git_env(index=True))
+    if not answer.ok:
+        return None, None, answer.why
+    docs, unreadable, seen = [], [], set()
+    for record in answer.out.split("\0"):
+        # `<mode> <object> <stage>\t<path>`; a path holding a tab is still one record,
+        # because `-z` ends it at the NUL and `partition` takes the first tab only.
+        meta, tab, rel = record.partition("\t")
+        if not tab or not rel or not selects_document(rel, config):
+            continue
+        if rel in seen:
+            continue  # a path at more than one merge stage is still one document
+        seen.add(rel)
+        if meta.split(" ", 1)[0] not in ("100644", "100755"):
+            unreadable.append((rel, "is not a regular file in the index; it was not checked"))
+            continue
+        docs.append((rel, Path(config.root) / rel))
+    return sorted(docs), unreadable, None
+
+
 def unreadable_document(path):
     """Why `path` cannot be read as UTF-8 text, or None.
 
@@ -419,12 +525,24 @@ def unlistable_document_dirs(config):
     return problems
 
 
-def open_ledger(root=None, config_path=None, config=None):
+def open_ledger(root=None, config_path=None, config=None, cached=False):
     """The project's ledger: its configuration, the documents that may cite it, and the
-    git repository its history checks read."""
+    git repository its history checks read.
+
+    `cached` decides which tree the documents are listed from, and it is settled here
+    rather than at each reader because the list is also what the run counts and reports
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live). An
+    index that cannot be answered for falls back to the working tree's listing, and the
+    `why` is not carried out of here: it is the fallback `index_problem()` already reports
+    through the guard, on the line that says what was not checked.
+    """
     config = config or load_config(root=root, config_path=config_path)
     repo = config.root if (config.root / ".git").exists() else None
     docs, unreadable = tree_documents(config)
+    if cached and repo:
+        indexed, index_unreadable, _why = index_documents(config)
+        if indexed is not None:
+            docs, unreadable = indexed, index_unreadable
     return Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
 
 
@@ -1684,16 +1802,17 @@ def index_entry_files(ledger):
     exists to refuse: an entry staged and then deleted from the tree is in the commit and
     was in no checker's list, so all five reported `0 failure(s)` over a ledger that was
     about to gain a broken entry — and with the only entry staged that way, `0 entries`
-    (L0219-the-entries-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    (L0219-the-entries-under-cached-are-the-ones-the-index-holds, cites-as-fallen).
 
-    What the caller does with this is add it to the working tree's listing rather than
-    replace one with the other, and that is a decision already made here: an entry taken
-    out of the index with `git rm --cached` and edited in the tree is caught under
-    `--cached` because the loader still sees it
-    (test_a_preamble_edit_is_caught_under_cached_when_the_index_holds_no_blob). Checking an
-    entry the commit will not carry can only cost a report nobody needed; not checking one
-    it will carry is the false pass. So the list is the union, and this end of it is the
-    end that was missing.
+    What the caller does with this is use it INSTEAD OF the working tree's listing, not
+    added to it. The union this replaced was justified here on the ground that checking an
+    entry the commit will not carry "can only cost a report nobody needed", and that is
+    measurably false: the union does not add a spare report, it supplies a citation
+    target. Measured, with `docs/citer.md` citing entry X `cites-as-live` and X taken out
+    of the index with `git rm --cached` and left in the tree — all five checkers report
+    `2 entries` and `0 failure(s)` at exit 0, and a fresh clone of the commit that made
+    holds one entry and fails `references` at exit 1 naming the citation
+    (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
 
     `-z`, because a path is not a line: a filename holding a newline or a quote comes back
     quoted otherwise, and a quoted path names nothing. Single-level, to match what the
@@ -1736,11 +1855,14 @@ def load_entries(ledger, cached=False):
     if isinstance(
         entries_dir_listing_error(ledger.entries_dir), (FileNotFoundError, NotADirectoryError)
     ):
-        if not indexed:
+        if indexed is None:
             return entries  # a ledger not created yet; `guard()` is what refuses to report
     else:
         in_tree = list_entry_files(ledger.entries_dir)
-    paths = sorted(set(indexed or []) | set(in_tree))
+    # The index's listing alone, not added to the working tree's: the index is not a delta,
+    # it holds every tracked path, so it is what the commit will carry
+    # (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    paths = sorted(in_tree) if indexed is None else sorted(indexed)
     staged = {}
     if cached and ledger.repo:
         # One `cat-file --batch` for every entry rather than one `git show` each: the

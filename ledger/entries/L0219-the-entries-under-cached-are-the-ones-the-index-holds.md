@@ -39,6 +39,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "load_entries" =sha256:d4dc42f779ecdf38bc378aad7f7e87d1355965958087a0f25dd52598fc9b040f
   note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). An entry the index was asked about and did not answer for now stops the run instead of being read from the working tree at exit 0. Which entries the list holds — the union this claim is about — is unchanged.
 
+- 2026-09-12T13:58:24-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0229-a-cached-run-checks-the-index-alone · supersedes
+  note: the half this got right stands, that the working tree is not the list under the flag; the union is withdrawn, because its stated reason — that checking an entry the commit will not carry can only cost a report nobody needed — is measurably false. It supplies a citation's target, and all five checkers passed at exit 0 over a commit whose citation dangles.
+
 ## References
 
-- src/claims_ledger/schema.py · standing · cites-as-live
+- src/claims_ledger/schema.py · standing · cites-as-fallen

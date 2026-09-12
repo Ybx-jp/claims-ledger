@@ -68,16 +68,26 @@ def test_a_preamble_edit_is_reported_as_outside_any_section(project, capsys):
     assert "same text" not in out
 
 
-def test_a_preamble_edit_is_caught_under_cached_when_the_index_holds_no_blob(project):
-    """Fixed: under --cached the byte comparison reads the entry's staged blob and has
-    nothing to compare when the index holds none, so a preamble edit over an entry that
-    had been `git rm --cached` passed the hook's path. The text comparison reads what the
-    loader read, and the loader falls back to the working tree — so it still sees it."""
+def test_an_entry_removed_from_the_index_is_not_held_immutable_under_cached(project):
+    """The reversal of what this file asserted while the cached entry list was a union, and
+    the intent of that assertion survives it.
+
+    This used to stage a preamble edit over an entry taken out of the index with
+    `git rm --cached`, and demand that `validate --cached` still catch it — on the reading
+    that a union list errs safely. It does not: the commit being built does not carry this
+    file, so there is no frozen region in it to hold, and supplying the entry anyway is what
+    let a citation of it pass (see
+    `test_a_citation_of_an_entry_the_commit_drops_fails_under_cached`).
+
+    The half that matters is kept whole: a bare run, which is about the working tree, still
+    catches the edit (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    """
     path = sealed_entry(project)
     head, rest = path.read_text(encoding="utf-8").split("\n## Assertion", 1)
     path.write_text(head + PAYLOAD + "\n## Assertion" + rest, encoding="utf-8")
     project.git("rm", "-q", "--cached", str(path))
-    assert project.cl("validate", "--cached") != 0
+    assert project.cl("validate", "--cached") == 0, "the commit does not carry this entry"
+    assert project.cl("validate") != 0, "the working tree does, and the edit is caught there"
 
 
 def test_an_edit_inside_a_frozen_section_is_still_caught(project):
