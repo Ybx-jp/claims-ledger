@@ -22,7 +22,7 @@ from .schema import (
     LedgerError,
     Report,
     by_id,
-    load_entries,
+    entries_for,
     read_text_exact,
     write_text_atomically,
 )
@@ -198,7 +198,7 @@ def run(ledger, write=False, entries=None, cached=False):
     distinguished itself from it
     (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live).
     """
-    entries = load_entries(ledger, cached=cached) if entries is None else entries
+    entries = entries_for(ledger, cached=cached, write=write) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
     author = ledger.config.propagation_author

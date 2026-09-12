@@ -46,7 +46,10 @@ def document_bodies(ledger, cached=False):
     staged = staged_documents(ledger, (path for _, path in ledger.docs)) if cached else {}
     bodies = {}
     for _name, path in ledger.docs:
-        bodies[path] = (staged[path], None) if path in staged else read_document(path)
+        # `staged` already carries (text, problem) in the shape `read_document` returns, so
+        # a document the index holds as undecodable bytes, and one git could not be asked
+        # about, are both reported here rather than read out of the working tree.
+        bodies[path] = staged[path] if path in staged else read_document(path)
     return bodies
 
 

@@ -30,6 +30,7 @@ from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
     entries_dir_listing_error,
+    entries_for,
     exit_code,
     file_problem,
     git_available,
@@ -478,7 +479,7 @@ def cmd_propagate(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger, cached=args.cached)
+    entries = entries_for(ledger, cached=args.cached, write=args.write)
     reports = propagate.run(ledger, write=args.write, entries=entries, cached=args.cached)
     return report_command("propagate", reports, entries, ledger)
 
@@ -487,7 +488,7 @@ def cmd_freshness(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger, cached=args.cached)
+    entries = entries_for(ledger, cached=args.cached, write=args.write)
     reports = freshness.run(ledger, write=args.write, cached=args.cached, entries=entries)
     return report_command("freshness", reports, entries, ledger)
 

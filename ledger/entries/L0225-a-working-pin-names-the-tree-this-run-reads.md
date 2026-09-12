@@ -37,6 +37,14 @@ none
 
 ## Verdicts
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:19bcb888815f2f87524700a5797837a53eecd7d27c0e9462981a29caee410876
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). An artifact git was asked for and did not answer is reported on the pointer's own line instead of being read from the working tree. The `working` rule, the strict decode and the section rule are unchanged.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_blob" =sha256:1a1181993646e87847163a92b22b56a92f9fa0fd8f19f555244faed6d964ac85
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). Now (bytes, problem): a batch read git did not answer is no longer folded into 'the index does not hold it'. What the caller does with the bytes is unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

@@ -22,7 +22,7 @@ from types import SimpleNamespace
 import pytest
 from conftest import LAB_NOTE, QUOTE, SOURCE_TEXT, Project, redigest
 
-from claims_ledger import authoring, cli, propagate, references, resolve, validate
+from claims_ledger import authoring, cli, propagate, references, resolve, schema, validate
 from claims_ledger.corpus import run as corpus_run
 from claims_ledger.schema import (
     Verdict,
@@ -350,7 +350,10 @@ def test_checkers_do_not_depend_on_filesystem_enumeration_order(seed, tmp_path, 
     monkeypatch.setattr(validate, "load_entries", reversed_load_entries)
     monkeypatch.setattr(resolve, "load_entries", reversed_load_entries)
     monkeypatch.setattr(references, "load_entries", reversed_load_entries)
-    monkeypatch.setattr(propagate, "load_entries", reversed_load_entries)
+    # `propagate` and `freshness` reach the loader through `schema.entries_for`, which is
+    # where the rule about `--write` and the index lives, so the patch goes there for those
+    # two. It reaches `freshness` as well, which this never patched at all.
+    monkeypatch.setattr(schema, "load_entries", reversed_load_entries)
 
     reversed_reports = {name: report_bag(rs) for name, rs in run_all_checkers(ledger).items()}
     assert reversed_reports == baseline

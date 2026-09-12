@@ -594,7 +594,15 @@ REPORT_SITE_COUNTS = {
     # there; and a git that could not say whether the entry is committed was held by
     # nothing, so test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure
     # was written for it.
-    "resolve.py": 20,
+    # 20 + 1: the artifact of a `working` ground that git could not read out of the index,
+    # which is not the index saying it does not hold the path. Swept (2026-09-11) —
+    # deleting it reddens
+    # test_an_artifact_the_index_could_not_be_read_for_is_a_pointer_that_fails and nothing
+    # else. Its three siblings raise rather than report, so they are not sites and are not
+    # counted here, but each was swept the same way and each was held by nothing until the
+    # test named in its own commit was written: the entry list, the source registry, and
+    # the configured documents.
+    "resolve.py": 21,
     # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
     # Swept — deleting it reddens the corpus at
     # D59-document-cites-with-an-act-that-is-not-one, and nothing else.

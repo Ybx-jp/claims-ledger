@@ -48,11 +48,11 @@ from .schema import (
     UNPINNED,
     Report,
     digest_of,
+    entries_for,
     git,
     git_call,
     git_env,
     git_problem,
-    load_entries,
     read_artifact,
     section_text,
 )
@@ -529,7 +529,7 @@ def run(ledger, write=False, cached=False, entries=None):
     looked at before it is committed
     (L0115-a-write-that-appended-still-exits-non-zero, cites-as-live).
     """
-    entries = load_entries(ledger, cached=cached) if entries is None else entries
+    entries = entries_for(ledger, cached=cached, write=write) if entries is None else entries
     config = ledger.config
     author = config.propagation_author
     reports = []

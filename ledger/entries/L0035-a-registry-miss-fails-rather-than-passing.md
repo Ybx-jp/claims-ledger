@@ -59,6 +59,14 @@ none
   evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:fc0a18fb75dbff09becb8ca4c1722262b0bde177a4bc084884ee11dcf75a8f5c
   note: re-read after the commit that has a ground pinned at working read from the tree the run reads — the index under the flag, the working tree for a path the index does not hold, and the staged bytes decoded strictly so that an artifact which is not UTF-8 is not resolved where the working-tree read would refuse it. The rule this claim states is untouched and is the one that decided the strict decode.
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "Sources" =sha256:96e0d8199e6c027a3f2c3838f40301b237366c23c0be0d137303dd06c41e583a
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). A registry git could not hand over now stops the run rather than falling back to the working tree's. Which registry is read under the flag is unchanged.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:19bcb888815f2f87524700a5797837a53eecd7d27c0e9462981a29caee410876
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). An artifact git was asked for and did not answer is reported on the pointer's own line instead of being read from the working tree. The `working` rule, the strict decode and the section rule are unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

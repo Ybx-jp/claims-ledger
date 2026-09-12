@@ -4,6 +4,8 @@ refuse to do the wrong thing.
 """
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -699,3 +701,148 @@ def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, ca
     capsys.readouterr()
     assert project.cl("resolve", "--cached") == 1, "the staged artifact is not UTF-8 text"
     assert "does not resolve" in capsys.readouterr().out
+
+
+def _git_whose_cat_file_fails(tmp_path, only_for=None):
+    """A real git that fails `cat-file` — for every batch, or only for one whose input
+    names `only_for`. The batch's specs arrive on stdin, so the discriminating shim reads
+    them there and passes them on when it delegates."""
+    d = tmp_path / "shim-bin"
+    d.mkdir(exist_ok=True)
+    real = shutil.which("git")
+    if only_for is None:
+        body = f'for a in "$@"; do [ "$a" = cat-file ] && exit 128; done\nexec {real} "$@"\n'
+    else:
+        body = (
+            'for a in "$@"; do\n'
+            '  if [ "$a" = cat-file ]; then\n'
+            "    input=$(cat)\n"
+            f'    case "$input" in *{only_for}*) exit 128;; esac\n'
+            f'    printf \'%s\\n\' "$input" | {real} "$@"\n'
+            "    exit $?\n"
+            "  fi\n"
+            "done\n"
+            f'exec {real} "$@"\n'
+        )
+    (d / "git").write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    (d / "git").chmod(0o755)
+    return d
+
+
+def _staged_withdrawal(project):
+    """A project whose `@working` ground the index no longer satisfies and the tree does:
+    the shape a cached run must report, so that a run which fails to read the index cannot
+    be mistaken for a run that read it and found nothing wrong."""
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+    note.write_text(kept.replace("## Observation", "## Method"), encoding="utf-8")
+    project.git("add", "-A")
+    note.write_text(kept, encoding="utf-8")
+    return project
+
+
+def test_an_entry_the_index_could_not_be_read_for_stops_the_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """A `cat-file` that could not answer is not the index saying it does not have the
+    path. Every staged read folded the two together, so a git broken only in `cat-file` —
+    a timeout, a pack it cannot open, a kill — took the whole ledger back to the working
+    tree and reported a clean run: measured, `resolve --cached` went from exit 1 naming a
+    staged withdrawal to `0 failure(s)` with nothing said.
+
+    It stops the run the way an unlistable entries directory does, because the entry has
+    not been parsed and there is no per-entry line to say it on.
+
+    The message is asserted and not only the exit code, and that is what makes this hold
+    the site: the registry read raises the same error at the same exit code a moment later,
+    so a test that asked for 2 alone passed with this stop deleted.
+    """
+    _staged_withdrawal(project)
+    assert project.cl("resolve", "--cached") == 1, "the fixture's withdrawal must be reported"
+    monkeypatch.setenv(
+        "PATH", f"{_git_whose_cat_file_fails(tmp_path)}{os.pathsep}{os.environ['PATH']}"
+    )
+    assert project.cl("resolve", "--cached") == 2
+    said = capsys.readouterr().err
+    assert "A0001-first.md" in said, said
+    assert "could not be read from the index" in said
+
+
+def test_an_artifact_the_index_could_not_be_read_for_is_a_pointer_that_fails(
+    project, tmp_path, monkeypatch, capsys
+):
+    """The same rule one layer in, at the pointer rather than at the entry list. Here the
+    entries load and only the artifact's blob is unreadable, so the run has a line to say
+    it on and says it there rather than reading the working tree's copy of the artifact.
+    """
+    _staged_withdrawal(project)
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="docs/note-001.md")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1
+    assert "could not be read from the index" in capsys.readouterr().out
+
+
+def test_a_staged_document_that_is_not_utf8_is_reported_as_it_is_in_the_tree(project, capsys):
+    """`document_bodies` decoded staged documents with `blob_text`, which replaces what it
+    cannot decode — so a document the index holds as bytes nobody can read came back as
+    text with the real thing's shape, and `references --cached` reported a clean run where
+    the landed commit fails. L0047's rule is that an unreadable document is a failure and
+    not a clean run; the flag was deciding whether it applied.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_bytes()
+    note.write_bytes(kept + b"\n\xff\xfe tail\n")
+    project.git("add", "-A")
+    note.write_bytes(kept)
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1
+    assert "is not UTF-8 text" in capsys.readouterr().out
+
+
+def test_a_registry_the_index_could_not_be_read_for_stops_the_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """Every `source:` ground in a ledger rests on the registry, so a registry git could
+    not hand over is not an empty registry and is not the working tree's either. The shim
+    fails only the batch naming the registry, so the entries load and this is the one read
+    under test.
+    """
+    _staged_withdrawal(project)
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="sources.jsonl")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 2
+    said = capsys.readouterr().err
+    assert "sources.jsonl" in said, said
+    assert "could not be read from the index" in said
+
+
+def test_a_document_the_index_could_not_be_read_for_is_a_failure_not_a_clean_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """The same rule for the documents a citation is read out of. Reading the working
+    tree's copy because git would not answer for the index's is a verdict about prose no
+    commit contains, reported as a clean run — which is what L0047 refuses for a document
+    that cannot be opened, arrived at through the flag instead of through the filesystem.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="note-001.md")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 1
+    out = capsys.readouterr().out
+    assert "could not be read from the index" in out, out

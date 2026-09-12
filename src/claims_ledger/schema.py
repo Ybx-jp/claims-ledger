@@ -1747,14 +1747,47 @@ def load_entries(ledger, cached=False):
         # pre-commit hook runs this over the whole ledger on every commit. A path that is
         # not in the index gets no blob and is read from the working tree, as before.
         rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-        blobs, _ = git_blobs(
+        blobs, failures = git_blobs(
             ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
         )
-        staged = {path: blobs.get(f":{rel}") for path, rel in rels.items()}
+        for path, rel in rels.items():
+            spec = f":{rel}"
+            if spec in blobs:
+                staged[path] = blobs[spec]
+                continue
+            why = failures.get(spec, ABSENT_FROM_INDEX)
+            if not blob_absent(why):
+                # An entry git was asked about and did not answer for. Read from the tree
+                # instead, this is a checker reporting on content no commit contains at
+                # exit 0 — the report this whole package exists to refuse. There is no
+                # per-entry channel to say it on, because the entry has not been parsed,
+                # so it stops the run the way an unlistable entries directory does.
+                raise LedgerError(f"{path}: could not be read from the index ({why})")
     for path in paths:
         data = staged.get(path)
         entries.append(parse_entry(path, None if data is None else blob_text(data)))
     return entries
+
+
+def entries_for(ledger, *, cached, write):
+    """The entries a checker run should hold, given what it was asked and whether it will
+    write.
+
+    `--write` appends to the working tree, so a run that will write decides from the
+    working tree even when the comparison it makes is asked of the index. Deciding from the
+    index means deciding from a tree that does not hold what the last run just appended:
+    measured on both writers before this, three runs of `--write --cached` with no
+    `git add` between them left three copies of one verdict, each run re-reading an index
+    that never gained the verdict the run before had written. What the flag still decides
+    is the artifact a verdict RECORDS, which is read where the comparison is made and is
+    the whole reason to ask for the index
+    (L0226-a-write-decides-from-the-tree-it-appends-to, cites-as-live).
+
+    One function because the rule has four call sites — the two commands and the two
+    writers' own fallbacks — and a rule written out four times is a rule three of them can
+    drift from.
+    """
+    return load_entries(ledger, cached=cached and not write)
 
 
 def by_id(entries):
@@ -1866,8 +1899,11 @@ def unreachable_artifact(path):
 
 
 def staged_documents(ledger, paths):
-    """{path: text} for those of `paths` the git index holds, read through one
-    `cat-file --batch`.
+    """{path: (text, problem)} for those of `paths` the git index has something to say
+    about, read through one `cat-file --batch`. A path the index simply does not hold is
+    absent from the answer and the caller reads it from the tree; a path git could not be
+    asked about is present, with the problem, so that it is reported rather than read from
+    the wrong tree.
 
     The documents a citation is read out of, as the commit will carry them. `references`
     checked the working tree whatever it was asked, so a citation staged against one status
@@ -1884,38 +1920,84 @@ def staged_documents(ledger, paths):
     if not paths or not ledger.repo:
         return {}
     rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-    blobs, _ = git_blobs(ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True))
+    blobs, failures = git_blobs(
+        ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
+    )
     out = {}
     for path, rel in rels.items():
-        data = blobs.get(f":{rel}")
-        if data is not None:
-            out[path] = blob_text(data)
+        spec = f":{rel}"
+        if spec in blobs:
+            # Strictly, and reported the way the working-tree read reports it: a document
+            # the index holds as bytes nobody can decode is an unreadable document there
+            # too, and `blob_text` would hand back text with the real thing's shape.
+            out[path] = _strict_text(blobs[spec])
+            continue
+        why = failures.get(spec, ABSENT_FROM_INDEX)
+        if not blob_absent(why):
+            out[path] = (None, f"could not be read from the index ({why})")
     return out
 
 
+ABSENT_FROM_INDEX = "git says it is missing"
+
+
+def blob_absent(why):
+    """Whether `git_blobs` is saying the index does not hold this path, as against saying
+    it could not answer.
+
+    The difference is the whole of a `--cached` read's honesty and it was folded away: a
+    caller that treats every failure as absence reads a `cat-file` that timed out, died on
+    a pack it could not open, or was killed, as "not staged" — and then reads the working
+    tree instead and reports a clean run. Measured with a git whose `cat-file` exits 128,
+    `resolve --cached` went from exit 1 naming a staged withdrawal to `0 failure(s)` with
+    nothing said. A question git did not answer is not a no
+    (L0227-an-unanswered-index-read-is-not-an-absent-path, cites-as-live).
+    """
+    return why == ABSENT_FROM_INDEX
+
+
+def _strict_text(data):
+    """(text, problem) for blob bytes, decoded strictly and with the endings `read_text`
+    would give. `blob_text` decodes with replacement, which is right where the subject is a
+    comparison of two trees and wrong where the subject is whether a file is readable at
+    all: it turns bytes no reader can read into text with the shape of the real thing."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return None, f"is not UTF-8 text (byte {exc.start}: {exc.reason})"
+    return text.replace("\r\n", "\n").replace("\r", "\n"), None
+
+
 def staged_blob(ledger, path):
-    """The bytes the index holds for `path`, or None when it holds none.
+    """(bytes, problem) for what the index holds at `path`. `(None, None)` when the index
+    simply does not hold it.
 
     Bytes, not text, for the caller that has to tell "the index does not have this" from
     "the index has it and it is not UTF-8" — two answers `blob_text` folds into one,
     because it decodes with replacement.
     """
     if not ledger.repo:
-        return None
+        return None, None
     rel = os.path.relpath(path, ledger.repo)
-    blobs, _ = git_blobs(ledger.repo, [f":{rel}"], env=git_env(index=True))
-    return blobs.get(f":{rel}")
+    spec = f":{rel}"
+    blobs, failures = git_blobs(ledger.repo, [spec], env=git_env(index=True))
+    if spec in blobs:
+        return blobs[spec], None
+    why = failures.get(spec, ABSENT_FROM_INDEX)
+    return (None, None) if blob_absent(why) else (None, f"could not be read from the index ({why})")
 
 
 def staged_text(ledger, path):
-    """The text the index holds for `path`, or None when it holds none.
+    """(text, problem) for what the index holds at `path`, decoded strictly.
 
     One path rather than a batch, for the reader whose subject is a single file the whole
     ledger rests on: the source registry
     (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
     """
-    data = staged_blob(ledger, path)
-    return None if data is None else blob_text(data)
+    data, problem = staged_blob(ledger, path)
+    if problem is not None or data is None:
+        return None, problem
+    return _strict_text(data)
 
 
 def read_document(path):

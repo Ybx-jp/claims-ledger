@@ -40,6 +40,14 @@ none
   evidence: code: src/claims_ledger/schema.py § "staged_text" =sha256:6daf3e9091b8d39dc73fd925bffbd30a2245683b23d55feeefcd512d821bf987
   note: re-read after the same commit, which splits the bytes out into `staged_blob` and leaves this as the decoded convenience over it. The registry is still read from the index under the flag, which is what this ground is cited for.
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "Sources" =sha256:96e0d8199e6c027a3f2c3838f40301b237366c23c0be0d137303dd06c41e583a
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). A registry git could not hand over now stops the run rather than falling back to the working tree's. Which registry is read under the flag is unchanged.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_text" =sha256:436bb4c123e387d2f441c93598916d631ca5a0f229b933c6c13c628bd03bdab1
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). Split over `staged_blob` and decoded strictly, and a read git did not answer now comes back as a problem. The registry is still read from the index under the flag.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

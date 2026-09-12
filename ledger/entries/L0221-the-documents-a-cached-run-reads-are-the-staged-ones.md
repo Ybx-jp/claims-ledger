@@ -35,6 +35,14 @@ none
 
 ## Verdicts
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_documents" =sha256:4b689b4467db42f58ddd5b1413c27c5d60f8d751f20f9775b441b4333cc4372d
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). This now returns (text, problem) in the shape `read_document` returns, decodes strictly, and keeps a path git could not answer for rather than dropping it. Which documents are read from the index is unchanged.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "document_bodies" =sha256:d7b05530f9ea7a17716bd87da386361e2f2e482be7a89acb4fccd8be69d58554
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). The staged pair is taken as it comes rather than rewrapped, so a staged document that is not UTF-8 and one git could not be asked about are both reported. Reading each document once for the run, from the index under the flag, is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

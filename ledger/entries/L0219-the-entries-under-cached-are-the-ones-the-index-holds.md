@@ -35,6 +35,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "load_entries" =sha256:d4dc42f779ecdf38bc378aad7f7e87d1355965958087a0f25dd52598fc9b040f
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). An entry the index was asked about and did not answer for now stops the run instead of being read from the working tree at exit 0. Which entries the list holds — the union this claim is about — is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

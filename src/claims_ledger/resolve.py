@@ -23,6 +23,7 @@ from .schema import (
     OBJECT_ID_RE,
     PENDING_ANCHOR,
     UNPINNED,
+    LedgerError,
     Report,
     blob_text,
     by_id,
@@ -64,7 +65,11 @@ class Sources:
         # restored in the tree took all five checkers to a clean run over a commit that
         # lands with every source pointer unresolvable
         # (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
-        text = staged_text(ledger, ledger.registry) if cached else None
+        text, problem = staged_text(ledger, ledger.registry) if cached else (None, None)
+        if problem is not None:
+            # Every `source:` ground rests on these rows, so a registry git could not hand
+            # over is not an empty registry and is not the working tree's either.
+            raise LedgerError(f"{ledger.registry}: {problem}")
         self.rows = load_registry(ledger.registry, text=text)
         self._texts = {}
 
@@ -209,9 +214,14 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None, cached=Fal
             # A path the index does not hold falls back to the working tree, and that is
             # the point rather than a concession: `working` is the pin for evidence that is
             # not committed yet, so index-only would fail the case the pin exists for.
-            text, staged = None, None
+            text, staged, unread = None, None, None
             if cached:
-                staged = staged_blob(ledger, ledger.tree / p.target)
+                staged, unread = staged_blob(ledger, ledger.tree / p.target)
+            if unread is not None:
+                # git was asked and did not answer. Reading the working tree here would be
+                # a clean run over a question nobody answered.
+                fail(f"{p.type}: {p.target} @{p.pin} {unread}")
+                return out
             if staged is not None:
                 # Decoded strictly, unlike `blob_text`, and not fallen back from: the index
                 # HAS this path, so the working tree's copy is not what the commit carries.

@@ -64,6 +64,10 @@ none
   evidence: code: src/claims_ledger/freshness.py § "run" =sha256:e95965ef764409d49cfc0a68bcbf017e722714e5427d9bb10082f5f6110e1793
   note: read against the working tree after freshness began comparing by digest on both sides: the memo is still keyed on the whole pointer text; the assertion holds as written.
 
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:5845bd95fa9dbd8dfddbd89e398428975cac3ba77376d3ff4263898772561d03
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). The same: the entries come through `entries_for` now. The comparison, what it records and when it writes are unchanged.
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live
