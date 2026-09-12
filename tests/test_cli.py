@@ -839,7 +839,7 @@ def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
         # the predicate, and both diverged from the tree until an agreement test could see
         # them. So the two listings are compared as listings.
         globbed, tree_unreadable = tree_documents(config)
-        indexed, index_unreadable, why = index_documents(config)
+        indexed, index_unreadable, why = index_documents(open_ledger(config=config))
         assert why is None, why
         assert {rel for rel, _ in indexed} == {rel for rel, _ in globbed}, (
             f"the listings disagree for {patterns}"
@@ -1022,8 +1022,106 @@ def test_a_listing_that_fell_back_to_the_working_tree_is_named(project, capsys, 
     finally:
         os.environ["PATH"] = old
     err = capsys.readouterr().err
-    assert "fell back to the working tree's documents" in err
-    assert "fell back to the working tree's entries" in err
+    # One sentence, not one per listing: both read the same cached answer now, so a run
+    # says once that it did not read the index — and says it before any report.
+    assert err.count("fell back to the working tree") == 1
+    assert "what is staged was not checked" in err
+
+
+def test_a_staged_entry_under_a_symlinked_directory_is_read_from_the_index(project, capsys):
+    """Fixed, and it is the defect the listing fix made possible. Expanding the index's
+    symlinks put `ledger/entries/A0001.md` back on the list when the index holds it under
+    another name — and then the blob batch asked git for THAT address, git had nothing
+    there, `blob_absent` read nothing as `not staged`, and the entry was read from the
+    WORKING TREE. Measured: `grade: bogus` staged and corrected in the tree gave
+    `validate --cached` `1 entry` and `0 failure(s)` at exit 0, while a fresh clone of the
+    commit it made failed at exit 1
+    (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+    """
+    entries = project.root / "ledger" / "entries"
+    real = project.root / "real-entries"
+    real.mkdir()
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    path.rename(real / path.name)
+    entries.rmdir()
+    entries.symlink_to("../real-entries")
+    moved = real / path.name
+    capsys.readouterr()
+    assert project.cl("validate") == 0, capsys.readouterr().out
+
+    kept = moved.read_text(encoding="utf-8")
+    moved.write_text(kept.replace("grade: measured", "grade: bogus"), encoding="utf-8")
+    project.git("add", "-A")
+    moved.write_text(kept, encoding="utf-8")  # the index is broken; the tree is not
+    capsys.readouterr()
+
+    assert project.cl("validate", "--cached") == 1, "the commit carries `grade: bogus`"
+    assert "bogus" in capsys.readouterr().out
+    assert project.cl("validate") == 0, "and the working tree is still fine"
+
+
+def test_a_staged_document_reached_through_a_symlink_is_read_from_the_index(project, capsys):
+    """The same defect on the document side: the body came from the working tree at an
+    address git has no blob for, so a citation staged broken and corrected in the tree
+    passed the hook. For a symlink to a FILE it was worse — git answers at that address
+    with the link's own blob, whose bytes are the target's NAME, so the document's text was
+    the string `note-001.md` (L0232-an-index-read-names-the-path-the-index-holds,
+    cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    real = project.root / "real-docs"
+    real.mkdir()
+    (real / "note.md").write_text("# note\n\nA sentence, citing nothing.\n", encoding="utf-8")
+    (project.root / "docs" / "via.md").symlink_to("../real-docs/note.md")
+    project.git("add", "-A")
+    # Staged with a broken citation, corrected in the working tree.
+    (real / "note.md").write_text(
+        "# note\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", encoding="utf-8"
+    )
+    project.git("add", "-A")
+    (real / "note.md").write_text("# note\n\nA sentence, citing nothing.\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, "the working tree is clean"
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "the commit carries the broken one"
+    assert "A9999-nothing-minted" in capsys.readouterr().out
+
+
+def test_the_expansion_cap_counts_what_it_adds_and_says_when_it_bites(project, monkeypatch):
+    """Fixed: the cap compared `len(reach) + len(added)` — the whole listing — against a
+    limit meant for paths ADDED, so every repository with more tracked files than the limit
+    got no expansion at all, silently. This repository's own file count sat under it, so
+    nothing said otherwise (qe ticket f868273f36b448ab). And reaching the cap is a narrower
+    universe than the commit has, which is the one thing a cached run may not be quiet
+    about (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    from claims_ledger import schema
+
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    real = project.root / "real-docs"
+    real.mkdir()
+    (real / "note.md").write_text("# n\n\nnothing cited\n", encoding="utf-8")
+    (project.root / "linked").symlink_to("real-docs")
+    for i in range(12):  # plenty of tracked files, and only ONE reachable by symlink
+        (project.root / f"filler-{i}.txt").write_text("x\n", encoding="utf-8")
+    project.git("add", "-A")
+    ledger = open_ledger(root=project.root)
+
+    monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 8)
+    reach, why = schema.index_tree(ledger.config)
+    assert why is None, "more tracked files than the cap is not more ADDED than the cap"
+    assert "linked/note.md" in reach, "and the expansion still happened"
+
+    monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 0)
+    _reach, why = schema.index_tree(ledger.config)
+    assert why and "reachable only through symlinks" in why, "and the cap is never silent"
 
 
 def _git_whose_cat_file_fails(tmp_path, only_for=None):

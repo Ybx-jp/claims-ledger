@@ -226,6 +226,12 @@ class Ledger:
     # What a `--cached` open could not ask the index, as plain sentences for the guard to
     # print. A listing that fell back to the working tree says so there or nowhere.
     index_notes: list = dataclasses.field(default_factory=list)
+    # `{address: (mode, the path it finally names)}` for the index this run was opened
+    # against, or None where nothing has asked yet. Computed ONCE and kept, because three
+    # listings and four readers want it and a `ls-files` apiece is three too many in a
+    # pre-commit hook.
+    index_reach: dict | None = None
+    index_why: str | None = None
 
     @property
     def tree(self):
@@ -472,6 +478,7 @@ def index_tree(config):
     # `os.path.realpath` answers for the working tree, and it is free here: an address only
     # exists because this pass built it from the path it reaches.
     reach = {rel: (mode, rel) for rel, mode in modes.items()}
+    room = MAX_SYMLINK_EXPANSIONS
     for _ in range(SYMLINK_DEPTH):
         added = {}
         for link, target in links.items():
@@ -488,10 +495,27 @@ def index_tree(config):
                 was = added.get(through, reach.get(through))
                 if was is None or (was[0] == "120000" and mode != "120000"):
                     added[through] = (mode, real)
-        if not added or len(reach) + len(added) > MAX_SYMLINK_EXPANSIONS:
+        if not added:
             break
+        if len(added) > room:
+            # The cap counts paths ADDED, not paths held: counting the whole listing meant
+            # any repository above the cap got no expansion at all, silently, and this
+            # repository's 784 tracked files were under it so nothing said otherwise
+            # (qe ticket f868273f36b448ab, F2). Reaching it is a narrower universe than the
+            # commit has, which is the one thing a cached run may not be quiet about.
+            return reach, (
+                f"more than {MAX_SYMLINK_EXPANSIONS} paths are reachable only through "
+                "symlinks; the listing would not have been the whole commit"
+            )
+        room -= len(added)
         reach.update(added)
         links = {rel: t for rel, t in links.items() if reach[rel][0] == "120000"}
+    else:
+        if links:
+            return reach, (
+                f"symlinks are nested more than {SYMLINK_DEPTH} deep; the listing would "
+                "not have been the whole commit"
+            )
     return reach, None
 
 
@@ -516,7 +540,52 @@ def _link_target(rel, data):
     return target
 
 
-def index_documents(config):
+def index_reach(ledger):
+    """({address: (mode, real path)}, why) for `ledger`'s index, asked once and kept.
+
+    Every reader of the index goes through `index_spec` below, and every one of them needs
+    this map, so it is computed here rather than at each — three `ls-files` per command,
+    fifteen per hook run, was the cost of not doing so.
+    """
+    if ledger.index_reach is None:
+        if not ledger.repo:
+            ledger.index_reach, ledger.index_why = {}, "the ledger has no repository of its own"
+        else:
+            reach, why = index_tree(ledger.config)
+            ledger.index_reach, ledger.index_why = reach, why
+    return ledger.index_reach, ledger.index_why
+
+
+def index_spec(ledger, rel):
+    """The `:<path>` git will answer for, given `rel` from the project root.
+
+    THE ONE PLACE A PATH BECOMES AN INDEX READ, and it exists because the listings learned
+    to name paths git does not. Expanding the index's symlinks puts `docs/bad.md` on the
+    list when the index holds `docs -> real` and `real/bad.md`; git has no blob at that
+    address, `cat-file` says missing, `blob_absent` reads missing as "not staged", and the
+    reader falls back to the WORKING TREE at exactly the paths the expansion existed to
+    add. Measured: an entry staged with `grade: bogus` under a symlinked entries directory
+    and corrected in the tree gave `validate --cached` `1 entry` and `0 failure(s)` at
+    exit 0, while a fresh clone of the commit it made failed at exit 1 — the listing
+    repaired and the read left pointing at the wrong tree
+    (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+
+    A path the expansion does not know is asked for as itself, which is every path in a
+    repository holding no symlinks and is what this always did.
+    """
+    reach, _why = index_reach(ledger)
+    known = reach.get(rel)
+    return f":{known[1] if known else rel}"
+
+
+def index_specs(ledger, rels):
+    """`{rel: spec}` for several paths, so a caller batching `cat-file` asks the reach once
+    rather than once per path."""
+    reach, _why = index_reach(ledger)
+    return {rel: f":{reach[rel][1] if rel in reach else rel}" for rel in rels}
+
+
+def index_documents(ledger):
     """(documents, unreadable, why) — the configured documents the index holds, in the
     shape `tree_documents` returns them, or `(None, None, why)` when the index could not
     be asked. Asked only where `open_ledger` found a `.git` at the project root, which is
@@ -552,7 +621,8 @@ def index_documents(config):
     realpath dedup `tree_documents` makes — here the expansion already says which addresses
     reach the same file.
     """
-    reach, why = index_tree(config)
+    config = ledger.config
+    reach, why = index_reach(ledger)
     if why:
         return None, None, why
     unreadable, by_target = [], {}
@@ -649,8 +719,9 @@ def open_ledger(root=None, config_path=None, config=None, cached=False):
     repo = config.root if (config.root / ".git").exists() else None
     docs, unreadable = tree_documents(config)
     notes = []
+    ledger = Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
     if cached and repo:
-        indexed, index_unreadable, why = index_documents(config)
+        indexed, index_unreadable, why = index_documents(ledger)
         if indexed is None:
             # NOT silence. `index_problem()` asks `ls-files -- .git`, which prints nothing
             # whatever the repository holds, so it cannot fail the way a listing of every
@@ -660,14 +731,13 @@ def open_ledger(root=None, config_path=None, config=None, cached=False):
             # L0227's finding one listing over (qe ticket 45909368c43c4379, F2).
             notes.append(
                 f"the index could not be listed ({why}), so --cached fell back to the "
-                "working tree's documents; what is staged was not checked"
+                "working tree; what is staged was not checked"
                 # (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live)
             )
         else:
-            docs, unreadable = indexed, index_unreadable
-    return Ledger(
-        config=config, docs=docs, repo=repo, unreadable_docs=unreadable, index_notes=notes
-    )
+            ledger.docs, ledger.unreadable_docs = indexed, index_unreadable
+    ledger.index_notes = notes
+    return ledger
 
 
 def default_ledger(tree=None):
@@ -1954,7 +2024,7 @@ def index_entry_files(ledger):
     rel = os.path.relpath(ledger.entries_dir, ledger.repo).replace(os.sep, "/")
     if rel == ".." or rel.startswith("../"):
         return None, f"{rel} is outside the repository at {ledger.repo}"
-    reach, why = index_tree(ledger.config)
+    reach, why = index_reach(ledger)
     if why:
         return None, why
     prefix = "" if rel == "." else rel + "/"
@@ -2005,11 +2075,10 @@ def load_entries(ledger, cached=False):
         # pre-commit hook runs this over the whole ledger on every commit. A path that is
         # not in the index gets no blob and is read from the working tree, as before.
         rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-        blobs, failures = git_blobs(
-            ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
-        )
+        specs = index_specs(ledger, rels.values())
+        blobs, failures = git_blobs(ledger.repo, specs.values(), env=git_env(index=True))
         for path, rel in rels.items():
-            spec = f":{rel}"
+            spec = specs[rel]
             if spec in blobs:
                 staged[path] = blobs[spec]
                 continue
@@ -2178,12 +2247,11 @@ def staged_documents(ledger, paths):
     if not paths or not ledger.repo:
         return {}
     rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-    blobs, failures = git_blobs(
-        ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
-    )
+    specs = index_specs(ledger, rels.values())
+    blobs, failures = git_blobs(ledger.repo, specs.values(), env=git_env(index=True))
     out = {}
     for path, rel in rels.items():
-        spec = f":{rel}"
+        spec = specs[rel]
         if spec in blobs:
             # Strictly, and reported the way the working-tree read reports it: a document
             # the index holds as bytes nobody can decode is an unreadable document there
@@ -2236,8 +2304,7 @@ def staged_blob(ledger, path):
     """
     if not ledger.repo:
         return None, None
-    rel = os.path.relpath(path, ledger.repo)
-    spec = f":{rel}"
+    spec = index_spec(ledger, os.path.relpath(path, ledger.repo))
     blobs, failures = git_blobs(ledger.repo, [spec], env=git_env(index=True))
     if spec in blobs:
         return blobs[spec], None

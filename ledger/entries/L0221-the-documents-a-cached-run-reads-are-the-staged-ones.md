@@ -47,6 +47,10 @@ none
   evidence: code: src/claims_ledger/references.py § "document_bodies" =sha256:d7b05530f9ea7a17716bd87da386361e2f2e482be7a89acb4fccd8be69d58554
   note: unchanged and re-read. Its Scope condition — a document the index does not hold is read from the working tree — is now confined to the run whose listing fell back, because a document the listing holds is by construction one the index holds. Worth recording because `check` cannot see it: this entry pins `staged_documents` and `document_bodies`, and what narrowed the condition was `open_ledger`, which it does not pin (the fix-review gate on this branch (qe ticket 45909368c43c4379), F5).
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_documents" =sha256:ac7a6bceda0387b6ea3578639516774ffa06d7a75299f63b0874c7d1e18ca026
+  note: acknowledged: the document bodies are asked for at the path the index holds rather than at the invented address (L0232); which tree they come from, which is what this claim is about, is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

@@ -42,6 +42,10 @@ none
   evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
   note: read against the working tree after freshness began comparing by digest on both sides: a pin git cannot classify, a blob it cannot read at the pin, and a path it cannot compare still come back as unknown with the reason; the assertion holds as written.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:33c2c162d1481a0cca280d3b703aee8ae0342c09f1c287831340905d0213540e
+  note: acknowledged: `drift` threads the ledger down so its two cached reads can name the path the index holds. Nothing about what counts as drift changed (L0232).
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

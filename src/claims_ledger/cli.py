@@ -36,8 +36,8 @@ from .schema import (
     git_available,
     git_call,
     git_problem,
-    index_entry_files,
     index_problem,
+    index_reach,
     list_entry_files,
     load_entries,
     load_registry,
@@ -386,14 +386,18 @@ def skipped_checks(ledger, cached=False):
     # asks a question whose output is empty whatever the repository holds, so it cannot
     # fail the way a listing of every tracked path can; a listing that fell back says so
     # here or nowhere (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live).
-    notes += ledger.index_notes
+    notes += [note for note in ledger.index_notes if note not in notes]
     if cached and ledger.repo and not problem:
-        _entries, why = index_entry_files(ledger)
-        if why:
-            notes.append(
-                f"the index could not be listed ({why}), so --cached fell back to the "
-                "working tree's entries; what is staged was not checked"
-            )
+        # The SAME listing the loader will read, not a second call: a note printed from an
+        # independent call says nothing about the call that actually runs, and the one that
+        # failed silently was the loader's (qe ticket f868273f36b448ab, F3).
+        _reach, why = index_reach(ledger)
+        note = (
+            f"the index could not be listed ({why}), so --cached fell back to the "
+            "working tree; what is staged was not checked"
+        )
+        if why and note not in notes:
+            notes.append(note)
     for name, problem in ledger.unreadable_docs:
         notes.append(f"{name} {problem}")
     return notes

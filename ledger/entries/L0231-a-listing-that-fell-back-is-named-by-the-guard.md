@@ -35,6 +35,14 @@ none
 
 ## Verdicts
 
+- 2026-09-12T15:32:09-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "skipped_checks" =sha256:591fe5ccbbe808b54adfee728a271fd2f75ef5c96ffc45e91f5f0016a5062a11
+  note: the Assertion stands, and what it rested on was half true. The guard asked a SECOND, independent listing call, so a note could be printed for a call that succeeded while the loader's own call failed and fell back in silence (the fix-review gate on this branch (qe ticket f868273f36b448ab)). Both now read one answer, asked once and kept on the ledger, so the sentence the guard prints is about the listing the run actually used — and is printed once rather than per listing.
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:cdb2e3c004bed5b4eec6d25cd27d1cd0cadf91d92128da0946e87f134bb1b290
+  note: acknowledged: the ledger is built before the cached listing so the one expansion can be kept on it (L0232). What is listed is unchanged.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

@@ -48,6 +48,7 @@ from .schema import (
     git_call,
     git_env,
     git_history,
+    index_spec,
     load_entries,
     normalize,
     parse_entry,
@@ -794,7 +795,11 @@ def check_history(ledger, entries, cached=False):
         if revisions[rel]:
             wanted.append(f"HEAD:{rel}")
             if cached:
-                wanted.append(f":{rel}")
+                # The path the index HOLDS, which under a symlinked entries directory is
+                # not the address the listing named. Asking for the address got `missing`,
+                # and the byte comparison then had nothing to compare and said nothing
+                # (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+                wanted.append(index_spec(ledger, rel))
     # `git_env(index=cached)`: this batch asks for `:{rel}` — the staged blob — only when
     # `--cached` was passed, and that is the one spec whose answer depends on which index
     # git is looking at. Every other spec names a commit and is unaffected.
@@ -855,7 +860,9 @@ def check_history(ledger, entries, cached=False):
         # rewritten from CRLF to LF compared equal to itself while every byte of it had
         # changed. "Immutable" means the bytes.
         then_bytes = _frozen_bytes(original_bytes)
-        now_bytes = _frozen_bytes(blobs.get(f":{rel}") if cached else _read_bytes(e.path))
+        now_bytes = _frozen_bytes(
+            blobs.get(index_spec(ledger, rel)) if cached else _read_bytes(e.path)
+        )
         if not named and None not in (then_bytes, now_bytes) and then_bytes != now_bytes:
             out.append(
                 Report(

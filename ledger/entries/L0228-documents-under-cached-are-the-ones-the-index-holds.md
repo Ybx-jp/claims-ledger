@@ -44,6 +44,14 @@ none
   evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:69a9b396207e4ba4ed6f2a4c9f494d0ca338570b2270afb81197d311523e2f2b
   note: the other half of the same reading. `open_ledger` carries the listing's `why` out now instead of dropping it, so a fallback is named rather than silent; the rule is L0231's and this claim is unchanged by it.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_documents" =sha256:815d4db31244ff813ea8a1faa82830f0dec20da40a0b9241ba6beb909bb537c5
+  note: acknowledged: the listing reads the shared expansion rather than asking for its own (L0232). The list itself is unchanged.
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:cdb2e3c004bed5b4eec6d25cd27d1cd0cadf91d92128da0946e87f134bb1b290
+  note: acknowledged: the ledger is built before the cached listing so the one expansion can be kept on it (L0232). What is listed is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

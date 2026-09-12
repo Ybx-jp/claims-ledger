@@ -45,6 +45,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "staged_blob" =sha256:1a1181993646e87847163a92b22b56a92f9fa0fd8f19f555244faed6d964ac85
   note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). Now (bytes, problem): a batch read git did not answer is no longer folded into 'the index does not hold it'. What the caller does with the bytes is unchanged.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_blob" =sha256:3ce8b5e1ba9e16cc37fefcfa6dbad78f6d9da9d5685c4071939e54a2ae220bab
+  note: acknowledged: the spec is built by `index_spec` now, so a path reached through a symlinked directory names the blob the index really has (L0232). The two answers this claim exists to keep apart are unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

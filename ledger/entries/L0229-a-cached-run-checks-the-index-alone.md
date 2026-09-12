@@ -41,6 +41,14 @@ none
   evidence: code: src/claims_ledger/schema.py § "index_entry_files" =sha256:a37ddd186d31e632203734cdeb652380a483c34a4a265e9876e55d716da780a7
   note: the Assertion stands. The same false clause as L0228 carries here, and two defects the union had been covering came with it: a symlinked `ledger/entries` gave `0 entries` at exit 0 where the bare run read one, and dropping the union's `set()` loaded an unmerged entry once per stage — 3 entries and 24 failures where 1 and 8 were due. Both measured by the fix-review gate on this branch (qe ticket 45909368c43c4379), F1 and F4; the listing expands symlinks and keys by the path each address finally names.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "index_entry_files" =sha256:0c0f0e36f6f6f7747c0fed9d5555396c6c78451f8805b44b8f98a996ad0cb34b
+  note: acknowledged: the listing reads the shared expansion rather than asking for its own (L0232). The list itself is unchanged.
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "load_entries" =sha256:1f07291798534700d0b4b32f58be6faa647da05854f6a8b9dee242dbcfb99ab2
+  note: acknowledged: the entry blobs are asked for at the path the index holds (L0232). Which entries the list holds is unchanged.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
