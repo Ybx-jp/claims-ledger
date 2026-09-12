@@ -49,6 +49,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:55d28960d1b04ffe2db203a3b19334115b161628741178ffc4ed4882dac5893d
   note: read against the working tree after the by-value branch was moved out of resolve_pointer into resolve_by_value: what remains is the unpinned read from the tree, the pinned read out of git, and the entry and source branches, and the failure messages now write the pin as @<pin> since no by-value anchor reaches them; the assertion holds as written.
 
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:fc0a18fb75dbff09becb8ca4c1722262b0bde177a4bc084884ee11dcf75a8f5c
+  note: re-read after the commit that has a ground pinned at working read from the tree the run reads — the index under the flag, the working tree for a path the index does not hold, and the staged bytes decoded strictly so that an artifact which is not UTF-8 is not resolved where the working-tree read would refuse it. The rule this claim states is untouched and is the one that decided the strict decode.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

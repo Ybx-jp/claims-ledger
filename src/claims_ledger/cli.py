@@ -74,11 +74,12 @@ HOOK_TEMPLATE = """#!/bin/sh
 # one status and corrected in the tree alone otherwise passed here, because the checker
 # read prose no commit contains.
 #
-# One residual is left, and it is named rather than denied: `resolve` reads the working
-# tree for a ground pinned at `working`, which names that tree by its own name, and
-# `freshness` passes such grounds over entirely. A `working` section withdrawn, staged and
-# restored in the tree still commits unreported. Everything else these five read is the
-# index.
+# A ground pinned at `working` is read from the index here too: `working` names the tree
+# the run reads, and under this flag that is the index. A path the index does not hold
+# falls back to the working tree, which is the case the pin exists for. `freshness` passes
+# such grounds over, and that is not a gap in this list — a ground with no pin has nothing
+# to have moved from, and what can be asked of it, that its section is still there, is
+# asked above.
 set -e
 {python} -m claims_ledger validate --cached
 {python} -m claims_ledger resolve --cached

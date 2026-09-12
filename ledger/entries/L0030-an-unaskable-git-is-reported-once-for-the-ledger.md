@@ -69,6 +69,14 @@ none
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:1afa6db071f8945b7597ec1f0a6e820cb7c492a0ceb8f12a824bd26f1c9b7352
   note: re-read after the same commit, which passes the cached flag to the registry reader and to the entry load this function falls back on. Every rule this claim is about is untouched.
 
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:b990e60091c0928d78bbb6d5733fe0354c6f242962eab2644ca770fc0cd96eba
+  note: re-read after the same commit, which passes the cached flag on to the pointer reader at both of this function's call sites. Every rule this claim is about is untouched.
+
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:fc0a18fb75dbff09becb8ca4c1722262b0bde177a4bc084884ee11dcf75a8f5c
+  note: re-read after the commit that has a ground pinned at working read from the tree the run reads — the index under the flag, the working tree for a path the index does not hold, and the staged bytes decoded strictly so that an artifact which is not UTF-8 is not resolved where the working-tree read would refuse it. The rule this claim states is untouched and is the one that decided the strict decode.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

@@ -41,6 +41,7 @@ from .schema import (
     section_span,
     section_text,
     source_bytes,
+    staged_blob,
     staged_text,
 )
 
@@ -180,7 +181,7 @@ def why_not(ledger, p):
     )
 
 
-def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
+def resolve_pointer(p, e, part, index, sources, ledger, unasked=None, cached=False):
     """Reports for one typed pointer; empty when it resolves. `unasked` is why git could
     not be asked at all, in which case a pinned pointer is left unjudged: `run()` has
     already said so once, for the ledger
@@ -199,10 +200,33 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     if p.type in ledger.config.evidence_types:
         if p.pin in UNPINNED:
-            path = ledger.tree / p.target
-            # read_document, not read_text: an evidence file that is unreadable or not
-            # UTF-8 is a pointer that does not resolve, reported below, never a crash.
-            text = read_document(path)[0] if path.is_file() else None
+            # `working` names the tree this run reads, and under `--cached` that is the
+            # index: the installed hook runs `resolve --cached`, and reading the working
+            # tree there answered about text no commit contains — a `working` section
+            # withdrawn, staged and restored in the tree committed unreported.
+            # (L0225-a-working-pin-names-the-tree-this-run-reads, cites-as-live)
+            #
+            # A path the index does not hold falls back to the working tree, and that is
+            # the point rather than a concession: `working` is the pin for evidence that is
+            # not committed yet, so index-only would fail the case the pin exists for.
+            text, staged = None, None
+            if cached:
+                staged = staged_blob(ledger, ledger.tree / p.target)
+            if staged is not None:
+                # Decoded strictly, unlike `blob_text`, and not fallen back from: the index
+                # HAS this path, so the working tree's copy is not what the commit carries.
+                # Decoding with replacement here would resolve a staged artifact that is
+                # not UTF-8, where the working-tree read reports it as a pointer that does
+                # not resolve — the same file answered two ways by one flag.
+                try:
+                    text = staged.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+                except UnicodeDecodeError:
+                    text = None
+            else:
+                path = ledger.tree / p.target
+                # read_document, not read_text: an evidence file that is unreadable or not
+                # UTF-8 is a pointer that does not resolve, reported below, never a crash.
+                text = read_document(path)[0] if path.is_file() else None
         elif unasked:
             return out
         else:
@@ -615,7 +639,9 @@ def run(ledger, entries=None, cached=False):
                     q, e, f"Grounds {i}", ledger, committed, unasked, cached=cached
                 )
                 continue
-            reports += resolve_pointer(p, e, "Grounds", index, sources, ledger, unasked)
+            reports += resolve_pointer(
+                p, e, "Grounds", index, sources, ledger, unasked, cached=cached
+            )
         for v in e.verdicts:
             p = v.pointer
             if p is None or p.type == "defect":
@@ -625,7 +651,9 @@ def run(ledger, entries=None, cached=False):
                 # stated in full; `validate` holds it to a shape and `freshness` compares
                 # the latest one, so there is nothing here to read it out of.
                 continue
-            reports += resolve_pointer(p, e, f"verdict {v.index}", index, sources, ledger, unasked)
+            reports += resolve_pointer(
+                p, e, f"verdict {v.index}", index, sources, ledger, unasked, cached=cached
+            )
         if e.status() == "retracted":
             reports += check_retraction(e, sources)
         else:

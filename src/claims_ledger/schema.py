@@ -1893,6 +1893,20 @@ def staged_documents(ledger, paths):
     return out
 
 
+def staged_blob(ledger, path):
+    """The bytes the index holds for `path`, or None when it holds none.
+
+    Bytes, not text, for the caller that has to tell "the index does not have this" from
+    "the index has it and it is not UTF-8" — two answers `blob_text` folds into one,
+    because it decodes with replacement.
+    """
+    if not ledger.repo:
+        return None
+    rel = os.path.relpath(path, ledger.repo)
+    blobs, _ = git_blobs(ledger.repo, [f":{rel}"], env=git_env(index=True))
+    return blobs.get(f":{rel}")
+
+
 def staged_text(ledger, path):
     """The text the index holds for `path`, or None when it holds none.
 
@@ -1900,11 +1914,7 @@ def staged_text(ledger, path):
     ledger rests on: the source registry
     (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
     """
-    if not ledger.repo:
-        return None
-    rel = os.path.relpath(path, ledger.repo)
-    blobs, _ = git_blobs(ledger.repo, [f":{rel}"], env=git_env(index=True))
-    data = blobs.get(f":{rel}")
+    data = staged_blob(ledger, path)
     return None if data is None else blob_text(data)
 
 

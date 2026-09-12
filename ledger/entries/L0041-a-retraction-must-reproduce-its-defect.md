@@ -54,6 +54,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:1afa6db071f8945b7597ec1f0a6e820cb7c492a0ceb8f12a824bd26f1c9b7352
   note: re-read after the same commit, which passes the cached flag to the registry reader and to the entry load this function falls back on. Every rule this claim is about is untouched.
 
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:b990e60091c0928d78bbb6d5733fe0354c6f242962eab2644ca770fc0cd96eba
+  note: re-read after the same commit, which passes the cached flag on to the pointer reader at both of this function's call sites. Every rule this claim is about is untouched.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

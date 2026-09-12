@@ -36,6 +36,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "staged_text" =sha256:6daf3e9091b8d39dc73fd925bffbd30a2245683b23d55feeefcd512d821bf987
+  note: re-read after the same commit, which splits the bytes out into `staged_blob` and leaves this as the decoded convenience over it. The registry is still read from the index under the flag, which is what this ground is cited for.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

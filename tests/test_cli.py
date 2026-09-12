@@ -626,3 +626,76 @@ def test_a_forced_install_does_not_rewrite_a_shared_hook_through_a_link(project,
     assert project.cl("hook", "--install", "--force") == 2
     assert "outside the hooks directory" in capsys.readouterr().err
     assert team.read_text(encoding="utf-8") == "#!/bin/sh\necho team\n"
+
+
+def test_a_working_pin_is_read_from_the_index_under_cached(project, capsys):
+    """The fifth and last of the 0.1.0 release conditions, and the one left open longest
+    because it was a design question rather than a defect: what `working` means when the
+    run was asked for the index.
+
+    It means the tree this run reads. `resolve_pointer` took the unpinned branch and read
+    `ledger.tree` before the flag was consulted, so a `working` section withdrawn, staged
+    and restored in the working tree committed unreported — through the installed hook,
+    which runs `resolve --cached`. Both directions are asserted: the bare run reads the
+    tree, which still has the section, and says so.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    assert '§ "Observation" @working' in path.read_text(encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry and the note it rests on")
+
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+    note.write_text(kept.replace("## Observation", "## Method"), encoding="utf-8")
+    project.git("add", "--", str(note))  # the index has no Observation section
+    note.write_text(kept, encoding="utf-8")  # and the working tree has it back
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged note withdrew the section"
+    assert "has no section 'Observation'" in capsys.readouterr().out
+
+
+def test_a_working_pin_over_an_untracked_file_still_resolves_under_cached(project, capsys):
+    """The fallback, and why it is the point rather than a concession: `working` is the pin
+    for evidence that is not committed yet, so reading the index and stopping there would
+    fail exactly the case the pin exists for. A path the index does not hold is read from
+    the working tree, as it always was.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    assert (project.root / "docs" / "note-001.md").is_file()
+    capsys.readouterr()
+
+    assert project.cl("resolve", "--cached") == 0, capsys.readouterr().out
+
+
+def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, capsys):
+    """The asymmetry a naive read of the index would have introduced, and the reason the
+    staged blob is decoded strictly and never fallen back from.
+
+    `git_call` and `blob_text` both decode with replacement, so an artifact staged as
+    bytes that are not UTF-8 would have come back as text with replacement characters —
+    section header intact, pointer resolved — where the working-tree read reports it as a
+    pointer that does not resolve (L0033). One flag, one file, two answers. Falling back
+    to the tree would be just as wrong: the index HAS this path, so the tree's copy is not
+    what the commit carries.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_bytes()
+    note.write_bytes(b"# note 001\n\n## Observation\n\n\xff\xfe not utf-8\n")
+    project.git("add", "--", str(note))
+    note.write_bytes(kept)  # the working tree is fine; the index is not
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged artifact is not UTF-8 text"
+    assert "does not resolve" in capsys.readouterr().out

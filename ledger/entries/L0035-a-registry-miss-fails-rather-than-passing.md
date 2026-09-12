@@ -55,6 +55,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "Sources" =sha256:10b6e2e89ca3151df0f26d542563a1e0be7f6c72ddf21c655f1c4187173c549a
   note: re-read after the commit that has this reader take the source registry from the index when the run was asked for the index. Which registry is read is a new question here; what a row says, and what a missing row does, are unchanged.
 
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:fc0a18fb75dbff09becb8ca4c1722262b0bde177a4bc084884ee11dcf75a8f5c
+  note: re-read after the commit that has a ground pinned at working read from the tree the run reads — the index under the flag, the working tree for a path the index does not hold, and the staged bytes decoded strictly so that an artifact which is not UTF-8 is not resolved where the working-tree read would refuse it. The rule this claim states is untouched and is the one that decided the strict decode.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live
