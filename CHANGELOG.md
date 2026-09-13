@@ -11,7 +11,7 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
-## [0.0.1] — 2026-09-11
+## [0.0.1] — 2026-09-13
 
 First release, and a deliberately small number: this goes to a few people who asked for
 it, not to an announcement. `0.1.0` is kept back for the public one, and nothing about
