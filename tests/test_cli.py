@@ -953,16 +953,23 @@ def test_an_entry_unmerged_in_the_index_is_loaded_once(project, capsys):
     project.git("commit", "-qam", "mine")
 
     # `Project.git` raises on a non-zero exit and a conflicting merge is one, so the merge
-    # and the stage count are run directly.
+    # and the stage count are run directly — carrying the identity `Project.git` would have
+    # supplied. `git merge` resolves the committer before it touches the index, so without
+    # one it aborts at exit 128 and leaves the index exactly as it was: a single stage-0
+    # path, which is indistinguishable from a merge that simply did not conflict. Relying on
+    # the ambient identity passes wherever the developer has one configured and fails in CI,
+    # where a repository under a temporary directory has none.
     def raw(*args):
         return subprocess.run(
-            ["git", "-C", str(project.root), *args],
+            ["git", "-C", str(project.root), "-c", "user.name=t", "-c", "user.email=t@e", *args],
             capture_output=True,
             text=True,
             check=False,
         )
 
-    raw("merge", "other")
+    merged = raw("merge", "other")
+    # Exit 1 is the conflict this test is about; anything else means the merge never ran.
+    assert merged.returncode == 1, (merged.returncode, merged.stdout, merged.stderr)
     staged = raw("ls-files", "-s", "--", str(path)).stdout.splitlines()
     assert len(staged) == 3, staged
     capsys.readouterr()
