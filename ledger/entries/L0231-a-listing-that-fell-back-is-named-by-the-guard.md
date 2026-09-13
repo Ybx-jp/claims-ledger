@@ -1,0 +1,53 @@
+---
+id: L0231-a-listing-that-fell-back-is-named-by-the-guard
+kind: claim
+stated: 2026-09-12T14:45:41-07:00
+author: main
+grade: measured
+supersedes: none
+verbatim_sha: 9f58a9b1e3143c1c6cbc1a5e4240b0d9b13236d4024fb08cd008fb1023dc00a1
+---
+
+## Assertion
+
+A cached run whose index listing could not be taken falls back to the working tree and the guard names that fallback before the report, so the run says which tree it actually read.
+
+## Scope
+
+metric: whether a cached run whose listing failed says so before its report
+cohort: every checking command given the cached flag, for the entry listing and the document listing alike
+condition: the sentence names the listing that failed and the reason git gave
+
+## Grounds
+
+- code: src/claims_ledger/cli.py § "skipped_checks" =sha256:a4106561e8404138ed6bbb1862d8c2cee8a1ba085d236fc0d62ca1afdcb2c069
+- code: src/claims_ledger/schema.py § "open_ledger" =sha256:69a9b396207e4ba4ed6f2a4c9f494d0ca338570b2270afb81197d311523e2f2b
+
+## Warrant
+
+`index_problem` asks `ls-files -- .git`, whose output is empty whatever the repository holds; that is deliberate, so a repository with a hundred thousand files still prints nothing. It therefore cannot fail the way a listing of every tracked path can — a timeout, a pack it cannot open — and both listings claimed in their own comments that it reported their fallback for them. Measured with a git failing only the listing call, on a document staged and then removed from the working tree: `references --cached` went from exit 1 naming the staged document to `0 documents` and `0 failure(s)` at exit 0 with nothing said (qe ticket 45909368c43c4379, F2). That is L0227's finding one listing over, and the same answer applies — a question git did not answer is not a no. The fallback itself is kept rather than made a stop, because a run whose index cannot be read should still check something; what was missing was the half that says so.
+
+## Backing
+
+none
+
+<!-- APPEND BELOW THIS LINE ONLY -->
+
+## Verdicts
+
+- 2026-09-12T15:32:09-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "skipped_checks" =sha256:591fe5ccbbe808b54adfee728a271fd2f75ef5c96ffc45e91f5f0016a5062a11
+  note: the Assertion stands, and what it rested on was half true. The guard asked a SECOND, independent listing call, so a note could be printed for a call that succeeded while the loader's own call failed and fell back in silence (the fix-review gate on this branch (qe ticket f868273f36b448ab)). Both now read one answer, asked once and kept on the ledger, so the sentence the guard prints is about the listing the run actually used — and is printed once rather than per listing.
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:cdb2e3c004bed5b4eec6d25cd27d1cd0cadf91d92128da0946e87f134bb1b290
+  note: acknowledged: the ledger is built before the cached listing so the one expansion can be kept on it (L0232). What is listed is unchanged.
+
+- 2026-09-12T16:01:20-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "open_ledger" =sha256:12b0add8826ea242f3c28b69e381c98bc1b0cd97c4c39bb1b5a788b6eca8305f
+  note: acknowledged: `open_ledger` extends the guard notes rather than replacing them, so the expansion's own truncation note is not dropped, and the truncation is carried as a note rather than as a failure (L0230's reading). This claim is untouched by either.
+
+## References
+
+- src/claims_ledger/cli.py · standing · cites-as-live
+- src/claims_ledger/schema.py · standing · cites-as-live

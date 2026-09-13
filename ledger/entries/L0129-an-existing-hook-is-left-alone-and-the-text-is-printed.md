@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-11T19:56:32-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0224-an-existing-hook-is-left-alone-unless-the-install-is-forced · supersedes
+  note: the assertion left an existing hook alone unconditionally, and that made this the one installer in the package a project could not update: a checkout that installed once kept that hook however far the shipped one moved on. `--force` is the exception now, and the successor states the rule with it. Everything the predecessor claimed about the unforced path — the link-following question, the order it is asked in — is unchanged and is restated there
 
-- src/claims_ledger/cli.py · standing · cites-as-live
+## References

@@ -45,6 +45,10 @@ none
   evidence: code: src/claims_ledger/schema.py § "ABSENT" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
 
+- 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "OBJECT_ID_RE" =sha256:839f612a1927030849314c6a1fc1edeac16800b4e55ae033fb73889b32521948
+  note: re-read after the commit that widens an object id to the repository's own hash width. The shape is still defined here, beside the checker that holds a verdict to it and not beside the code that writes the value, which is the whole of this claim; only the width it admits moved.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

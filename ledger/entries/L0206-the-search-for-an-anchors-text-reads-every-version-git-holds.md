@@ -34,5 +34,9 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:75047ccad1a470ef72c17a05d8453b51ab1364e869757765003a8204c2ec4efa
+  note: re-read after the commit that widens an object id to the repository's own hash width, and the reading records that this claim did not hold everywhere before it. The search reads every version of the path by collecting blob ids out of `git log --raw --no-abbrev`, and it filtered them through a forty-wide pattern: in a repository created with `--object-format=sha256` every id was discarded and no version was read at all, so a ground whose text had left the tree was reported as held by no version the repository has — the shallow-clone sentence's own failure mode, arrived at with the history intact. Measured in both formats before and after. The claim as written needs no change; the code now does what it says in either repository.
+
 ## References
 - src/claims_ledger/resolve.py · standing · cites-as-live

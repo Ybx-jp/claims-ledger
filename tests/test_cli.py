@@ -3,7 +3,10 @@ that quotes it, and have all five checkers pass. Then the ways the authoring com
 refuse to do the wrong thing.
 """
 
+import dataclasses
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -443,3 +446,858 @@ def test_check_cached_gives_each_checker_the_tree_it_reads(project, capsys):
     assert "filename and id" not in capsys.readouterr().out, (
         "--cached must give validate the staged entry, which is the one being committed"
     )
+
+
+def test_the_cached_entry_list_is_the_index_and_not_the_working_tree(project, capsys):
+    """Which entries there are is a question about a tree, and under `--cached` that tree
+    is the index. `load_entries` globbed the working tree whatever the flag said, so an
+    entry staged and then deleted from the tree was in the commit and in no checker's
+    list: all five reported `0 failure(s)` at exit 0 over a ledger about to gain a broken
+    entry, and with that the only entry, over `0 entries`.
+
+    The staged entry is broken on purpose — its anchor names text nothing holds — so the
+    observable is not merely that it was counted but that the failure it carries was
+    reported. Both directions are asserted: a bare run sees the tree, which no longer has
+    it, and says `0 entries`; the cached run sees the one the index holds.
+
+    Deleting the index list from `load_entries` reddens this and nothing else in the
+    suite. (The third 0.1.0 release condition; qe ticket a55240cd1f6f47e5.)
+    """
+    project.git("init", "-q")
+    path = _entry_anchored_at_the_tree(project)
+    good = project.digest("docs/note-001.md", "Observation")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(good, "sha256:" + "cd" * 32), encoding="utf-8"
+    )
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")  # the broken entry is what the commit would carry
+    path.unlink()  # and the working tree no longer has it at all
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0
+    assert "0 entries" in capsys.readouterr().out
+
+    assert project.cl("resolve", "--cached") == 1, "the staged entry names text nothing holds"
+    out = capsys.readouterr().out
+    assert "1 entry)" in out, out
+    assert "A0001" in out and "does not hold" in out, out
+
+
+def test_references_cached_reads_the_staged_documents(project, capsys):
+    """`references --cached` reads a document out of the index, because the citation the
+    commit will carry is the one written there. The checker read the working tree whatever
+    it was asked, so a citation staged against one status and corrected in the tree alone
+    passed the hook and committed broken — a verdict over prose no commit contains.
+
+    Both directions, because the whole content of the test is that they differ.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    text = path.read_text(encoding="utf-8").replace(
+        "## References\n", "## References\n\n- docs/note-001.md · standing · cites-as-live\n"
+    )
+    path.write_text(text, encoding="utf-8")
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+
+    note.write_text(kept + "\nSee (A0404-no-such-entry, cites-as-live).\n", encoding="utf-8")
+    project.git("add", "-A")  # the index holds a citation of an id nothing minted
+    note.write_text(kept + "\nSee (A0001-first, cites-as-live).\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "the staged note cites an id nothing minted"
+    assert "A0404-no-such-entry" in capsys.readouterr().out
+
+
+def test_propagate_cached_reads_the_staged_entries(project, capsys):
+    """The same rule for the fifth checker. `propagate` walks entry-to-entry edges, so its
+    subject is which entries there are and what they say — and under the flag that is the
+    index. Mutant: `cmd_propagate` calling `load_entries(ledger)` without the flag.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    assert project.cl("new", "second") == 0
+    first = project.write_full_entry(project.entry("A0001-first.md"))
+    project.write_full_entry(project.entry("A0002-second.md"))
+    kept = first.read_text(encoding="utf-8")
+    first.write_text(
+        kept.replace(
+            '- lab: docs/note-001.md § "Observation" @working',
+            '- lab: docs/note-001.md § "Observation" @working\n- entry: A0002-second · challenges',
+        ),
+        encoding="utf-8",
+    )
+    project.git("add", "-A")  # the index holds the challenge, which demands a verdict
+    first.write_text(kept, encoding="utf-8")  # and the tree does not
+    capsys.readouterr()
+
+    assert project.cl("propagate") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("propagate", "--cached") == 1, "the staged challenge demands a verdict"
+    assert "A0002-second" in capsys.readouterr().out
+
+
+def test_resolve_cached_reads_the_registry_the_commit_will_carry(project, capsys):
+    """The source registry is one file the whole ledger rests on, and `Sources` read it
+    from the working tree whatever the run was asked. An emptied registry staged and
+    restored in the tree took every checker to a clean run over a commit that lands with
+    each `source:` ground unresolvable — the registry the commit carries had no rows at all.
+
+    Found by the qe gate against this branch (ticket 11fd0ed94d86405f) while it was asked
+    about something else, and reproduced here before it was fixed. Dropping `cached=cached`
+    from the `Sources(...)` call reddens this and nothing else.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    registry = project.root / "ledger" / "sources.jsonl"
+    kept = registry.read_text(encoding="utf-8")
+    assert "fx-source" in kept, "the fixture registers a source this entry points at"
+    registry.write_text("", encoding="utf-8")
+    project.git("add", "-A")  # the commit would carry a registry with no rows in it
+    registry.write_text(kept, encoding="utf-8")  # and the tree has it back
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged registry has no row for it"
+    assert "has no registry row" in capsys.readouterr().out
+
+
+def test_hook_install_force_replaces_an_older_copy_of_this_hook(project, capsys):
+    """The only installer here a project could not update: a checkout that ran `--install`
+    once kept that hook forever, however far the shipped one moved on. `init` and
+    `harness install` both have a `--force`; this now does too.
+
+    The refusal without one says which case it is, because the two want different things
+    of the reader. A marker line decides that, not a comparison of the whole text, which
+    cannot be made: the interpreter is interpolated into the template, so no two installs
+    need match byte for byte.
+    """
+    project.git("init", "-q")
+    hook = project.root / ".git" / "hooks" / "pre-commit"
+    assert project.cl("hook", "--install") == 0
+    stale = hook.read_text(encoding="utf-8").replace("freshness --cached", "freshness")
+    hook.write_text(stale, encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install") == 1
+    assert "older copy of this hook" in capsys.readouterr().err
+    assert hook.read_text(encoding="utf-8") == stale, "unforced, it is still left alone"
+
+    assert project.cl("hook", "--install", "--force") == 0
+    assert "freshness --cached" in hook.read_text(encoding="utf-8")
+
+
+def test_a_hook_that_is_not_ours_is_named_as_a_decision_to_make(project, capsys):
+    """The other half of the same message. Anything that cannot be read as our own text —
+    somebody's own hook here, and a dangling link or a directory by the same route — is
+    not offered a `--force` in the reply, because replacing it is not this command's call.
+    """
+    project.git("init", "-q")
+    hook = project.root / ".git" / "hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\necho mine\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install") == 1
+    said = capsys.readouterr().err
+    assert "not a copy of this hook" in said
+    assert "--force" not in said
+    assert hook.read_text(encoding="utf-8") == "#!/bin/sh\necho mine\n"
+
+
+def test_a_forced_install_does_not_rewrite_a_shared_hook_through_a_link(project, capsys):
+    """`--force` replaces this repository's hook, and a link that leaves the hooks
+    directory is not this repository's hook. The write resolves a symlink before it
+    replaces, so forcing over `pre-commit -> ../../shared/pre-commit` would rewrite the
+    team's file; the containment guard is asked under `--force` too, and refuses.
+    """
+    project.git("init", "-q")
+    shared = project.root / "shared"
+    shared.mkdir()
+    team = shared / "pre-commit"
+    team.write_text("#!/bin/sh\necho team\n", encoding="utf-8")
+    hooks = project.root / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    (hooks / "pre-commit").symlink_to("../../shared/pre-commit")
+    capsys.readouterr()
+
+    assert project.cl("hook", "--install", "--force") == 2
+    assert "outside the hooks directory" in capsys.readouterr().err
+    assert team.read_text(encoding="utf-8") == "#!/bin/sh\necho team\n"
+
+
+def test_a_working_pin_is_read_from_the_index_under_cached(project, capsys):
+    """The fifth and last of the 0.1.0 release conditions, and the one left open longest
+    because it was a design question rather than a defect: what `working` means when the
+    run was asked for the index.
+
+    It means the tree this run reads. `resolve_pointer` took the unpinned branch and read
+    `ledger.tree` before the flag was consulted, so a `working` section withdrawn, staged
+    and restored in the working tree committed unreported — through the installed hook,
+    which runs `resolve --cached`. Both directions are asserted: the bare run reads the
+    tree, which still has the section, and says so.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    assert '§ "Observation" @working' in path.read_text(encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry and the note it rests on")
+
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+    note.write_text(kept.replace("## Observation", "## Method"), encoding="utf-8")
+    project.git("add", "--", str(note))  # the index has no Observation section
+    note.write_text(kept, encoding="utf-8")  # and the working tree has it back
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged note withdrew the section"
+    assert "has no section 'Observation'" in capsys.readouterr().out
+
+
+def test_a_working_pin_over_an_untracked_file_still_resolves_under_cached(project, capsys):
+    """The fallback, and why it is the point rather than a concession: `working` is the pin
+    for evidence that is not committed yet, so reading the index and stopping there would
+    fail exactly the case the pin exists for. A path the index does not hold is read from
+    the working tree, as it always was.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    entry = project.write_full_entry(project.entry("A0001-first.md"))
+    # The ENTRY is staged and the artifact is not, which is the shape the pin is for. The
+    # entry has to be, or the cached run has no entry to read and this passes over nothing.
+    project.git("add", "--", str(entry))
+    assert (project.root / "docs" / "note-001.md").is_file()
+    capsys.readouterr()
+
+    assert project.cl("resolve", "--cached") == 0, capsys.readouterr().out
+    # The count, so this cannot go quietly vacuous: a run that read no entry at all would
+    # also exit 0, and would be asserting nothing about the fallback it is named for.
+    assert "resolve (1 entry)" in capsys.readouterr().out
+
+
+def test_a_staged_working_artifact_that_is_not_utf8_does_not_resolve(project, capsys):
+    """The asymmetry a naive read of the index would have introduced, and the reason the
+    staged blob is decoded strictly and never fallen back from.
+
+    `git_call` and `blob_text` both decode with replacement, so an artifact staged as
+    bytes that are not UTF-8 would have come back as text with replacement characters —
+    section header intact, pointer resolved — where the working-tree read reports it as a
+    pointer that does not resolve (L0033). One flag, one file, two answers. Falling back
+    to the tree would be just as wrong: the index HAS this path, so the tree's copy is not
+    what the commit carries.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    entry = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "--", str(entry))  # or the cached run reads no entry at all
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_bytes()
+    note.write_bytes(b"# note 001\n\n## Observation\n\n\xff\xfe not utf-8\n")
+    project.git("add", "--", str(note))
+    note.write_bytes(kept)  # the working tree is fine; the index is not
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1, "the staged artifact is not UTF-8 text"
+    assert "does not resolve" in capsys.readouterr().out
+
+
+def test_a_document_only_the_index_holds_is_checked_under_cached(project, capsys):
+    """Fixed: the document list was globbed off the working tree for every run, `--cached`
+    included, so a document the index holds and the tree does not was on nobody's list —
+    never read, never counted, never checked.
+
+    Measured before the fix, in a throwaway repository: `check --cached` reported
+    `1 document` and `0 failure(s)` at exit 0, and a fresh clone of the commit it was about
+    to make failed `references` at exit 1 over that very document
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry and the note it rests on")
+
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted-this, cites-as-live).\n", "utf-8")
+    capsys.readouterr()
+    assert project.cl("references") == 1, "the citation is broken while the tree holds it"
+    capsys.readouterr()
+
+    project.git("add", "--", str(bad))
+    bad.unlink()  # staged, and gone from the working tree
+
+    assert project.cl("references", "--cached") == 1, "the commit carries it, so it is read"
+    out = capsys.readouterr().out
+    assert "docs/bad.md" in out
+    assert "2 documents" in out, "and it is counted, not silently skipped"
+    # The bare run is about the working tree, which no longer holds the document at all.
+    assert project.cl("references") == 0
+
+
+def test_a_citation_of_an_entry_the_commit_drops_fails_under_cached(project, capsys):
+    """Fixed: the cached entry list was the union of the index and the working tree, so an
+    entry taken out of the index with `git rm --cached` was still on it. That does not cost
+    a spare report — it supplies the citation's target, and the run passes over a commit
+    whose citation dangles.
+
+    Measured before the fix: all five checkers reported `2 entries` and `0 failure(s)` at
+    exit 0, and a fresh clone of the commit held one entry and failed `references` at
+    exit 1 (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    first = project.write_full_entry(project.entry("A0001-first.md"))
+    assert project.cl("new", "second") == 0
+    project.write_full_entry(project.entry("A0002-second.md"))
+    citer = project.root / "docs" / "citer.md"
+    citer.write_text("# citer\n\nA sentence (A0001-first, cites-as-live).\n", encoding="utf-8")
+    # The cited entry lists the document back; below the append marker, so the seal holds.
+    first.write_text(
+        first.read_text(encoding="utf-8").rstrip("\n")
+        + "\n\n- docs/citer.md · standing · cites-as-live\n",
+        encoding="utf-8",
+    )
+    project.git("add", "-A")
+    project.git("commit", "-qm", "two entries and a document citing the first")
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 0, capsys.readouterr().out
+    capsys.readouterr()
+
+    project.git("rm", "-q", "--cached", str(first))  # dropped from the commit, kept on disk
+
+    assert project.cl("references", "--cached") == 1, "the commit will not carry A0001"
+    out = capsys.readouterr().out
+    assert "A0001-first" in out
+    assert "references (1 entry" in out, "the index holds one entry, not two"
+    # The working tree still has both, and a bare run is about the working tree.
+    assert project.cl("references") == 0
+
+
+def test_the_index_listing_selects_exactly_what_the_tree_listing_does(project):
+    """The index listing matches paths as strings, where the tree listing has `glob` do it,
+    and two matchers that can disagree are a document count that depends on which tree the
+    run was asked about. Held to `glob`'s answer over a tree built to exercise the edges:
+    a hidden file and a hidden directory, which `glob` never selects; a nested path, which
+    a single-level pattern does not reach; and a name a pattern nearly matches.
+    """
+    from claims_ledger.schema import index_documents, selects_document, tree_documents
+
+    root = project.root
+    (root / "docs" / "deep").mkdir(parents=True, exist_ok=True)
+    (root / ".hidden").mkdir(exist_ok=True)
+    for rel in (
+        "top.md",
+        "top.txt",
+        "docs/plain.md",
+        "docs/.draft.md",
+        "docs/deep/nested.md",
+        ".dotfile.md",
+        ".hidden/inside.md",
+    ):
+        (root / rel).write_text("# x\n", encoding="utf-8")
+
+    every = [
+        "top.md",
+        "top.txt",
+        "docs/plain.md",
+        "docs/.draft.md",
+        "docs/deep/nested.md",
+        ".dotfile.md",
+        ".hidden/inside.md",
+        "docs/note-001.md",
+    ]
+    # Symlinks, because the two listings answer about them by different machinery: `glob`
+    # and `os.path.isfile` follow them, and the index listing has to expand them out of the
+    # blobs to reach the same answer. A symlinked directory is how a document the commit
+    # carries went missing from the index listing entirely.
+    (root / "linked").symlink_to("docs")
+    (root / "docs" / "alias.md").symlink_to("plain.md")
+    (root / "docs" / "escape.md").symlink_to("../../outside.md")
+    every += ["linked/plain.md", "docs/alias.md", "docs/escape.md", "linked/alias.md"]
+
+    base = open_ledger(root=root).config
+    # Both shapes a `documents` pattern comes in. `**` is the one that matters most here:
+    # it is what CLAUDE.md names as the way this repository's own globs would be widened,
+    # and `glob` does not descend a hidden directory for it.
+    project.git("init", "-q")
+    project.git("add", "-A")
+    for patterns in (("*.md", "docs/*.md"), ("**/*.md",), ("linked/*.md",), ("docs/**",)):
+        config = dataclasses.replace(base, documents=patterns)
+        # The WHOLE listing, not only membership. `selects_document` decides which paths a
+        # pattern selects, but the mode decides whether a symlink is read or named and the
+        # dedup decides which of two addresses of one file is reported — both invisible to
+        # the predicate, and both diverged from the tree until an agreement test could see
+        # them. So the two listings are compared as listings.
+        globbed, tree_unreadable = tree_documents(config)
+        indexed, index_unreadable, why = index_documents(open_ledger(config=config))
+        assert why is None, why
+        assert {rel for rel, _ in indexed} == {rel for rel, _ in globbed}, (
+            f"the listings disagree for {patterns}"
+        )
+        refused, tree_refused = (
+            {rel for rel, _ in index_unreadable},
+            {rel for rel, _ in tree_unreadable},
+        )
+        assert refused <= tree_refused, f"the index refuses what the tree reads: {patterns}"
+        # What the tree names and the index does not can only be a DIRECTORY a pattern
+        # reached — `docs/**` matches `docs` itself. The index holds no directories, so it
+        # has nothing to say about one, and nothing was dropped by staying quiet.
+        assert all((root / rel).is_dir() for rel in tree_refused - refused), patterns
+        # And not vacuously equal on both sides: the edges are really in the tree.
+        assert globbed, patterns
+    single = dataclasses.replace(base, documents=("*.md", "docs/*.md"))
+    wide = dataclasses.replace(base, documents=("**/*.md",))
+    assert selects_document("docs/plain.md", single)
+    assert not selects_document("docs/.draft.md", single), "glob never selects a dotfile"
+    assert not selects_document("docs/deep/nested.md", single), "and `*` stops at a slash"
+    assert selects_document("docs/deep/nested.md", wide), "where `**` spans segments"
+    assert not selects_document(".hidden/inside.md", wide), "but not into a hidden directory"
+
+
+def test_a_staged_symlink_to_a_document_is_read_at_its_own_address(project, capsys):
+    """A symlink is an index entry like any other, and the two listings have to agree about
+    what it is. `os.path.isfile` follows it, so the tree listing counts `docs/link.md` as a
+    document and drops the target as a second address of one file; the index listing said
+    `is not a regular file` and counted the target instead. Both read the same bytes, so
+    nothing failed — which is exactly why only an agreement test finds it
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    (project.root / "docs" / "link.md").symlink_to("note-001.md")
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 0
+    out = capsys.readouterr().out
+    assert "not a regular file" not in out
+    # One document, not two: the link and its target are one file at two addresses, and
+    # the shorter address is the one reported — the rule the tree listing applies.
+    assert "1 document" in out
+
+
+def test_a_staged_symlink_that_leaves_the_tree_is_named_not_read(project, capsys):
+    """The case the mode check is really for. A link the commit carries whose target the
+    commit does not — it climbs out of the repository — resolves to nothing, so it stays a
+    symlink in the listing and is named rather than read: `cat-file` would hand back the
+    target's text as though it were the document's."""
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    (project.root / "docs" / "escape.md").symlink_to("../../elsewhere.md")
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    # A failure, not a silent skip: a document that was not checked may not be counted as
+    # one that was, and may not pass quietly — the same answer the tree listing gives.
+    assert project.cl("references", "--cached") == 1
+    out = capsys.readouterr().out
+    assert "docs/escape.md: is not a regular file in the index; it was not checked" in out
+    assert "1 document" in out, "and it is not counted as a document that was read"
+
+
+def test_a_symlinked_entries_directory_is_still_listed_under_cached(project, capsys):
+    """Fixed: the entry listing filtered `ls-files` on the literal string `ledger/entries/`
+    and git reports the path it really stores, so a symlinked entries directory matched
+    nothing and every checker reported `0 entries` at exit 0 — the report this package
+    exists to refuse, restored by the change that was meant to close it. The expansion
+    reaches it from the index's own symlink blob
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    entries = project.root / "ledger" / "entries"
+    real = project.root / "real-entries"
+    real.mkdir()
+    for path in entries.glob("*"):
+        path.rename(real / path.name)
+    entries.rmdir()
+    entries.symlink_to("../real-entries")
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    capsys.readouterr()
+
+    assert project.cl("resolve") == 0
+    assert "resolve (1 entry)" in capsys.readouterr().out, "the bare run reads it"
+    assert project.cl("resolve", "--cached") == 0
+    assert "resolve (1 entry)" in capsys.readouterr().out, "and so does the cached run"
+
+
+def test_an_entry_unmerged_in_the_index_is_loaded_once(project, capsys):
+    """Fixed: dropping the union also dropped its `set()`, and `ls-files` reports an
+    unmerged path once per stage — so one conflicted entry was parsed three times and every
+    failure in it reported three times. One path is one file whatever the conflict
+    (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the entry")
+    project.git("checkout", "-q", "-b", "other")
+    path.write_text(path.read_text("utf-8").replace("one layer", "two layers"), "utf-8")
+    project.git("commit", "-qam", "other")
+    project.git("checkout", "-q", "-")
+    path.write_text(path.read_text("utf-8").replace("one layer", "three layers"), "utf-8")
+    project.git("commit", "-qam", "mine")
+
+    # `Project.git` raises on a non-zero exit and a conflicting merge is one, so the merge
+    # and the stage count are run directly.
+    def raw(*args):
+        return subprocess.run(
+            ["git", "-C", str(project.root), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    raw("merge", "other")
+    staged = raw("ls-files", "-s", "--", str(path)).stdout.splitlines()
+    assert len(staged) == 3, staged
+    capsys.readouterr()
+
+    project.cl("validate", "--cached")
+    assert "validate (1 entry)" in capsys.readouterr().out
+
+
+def _git_whose_full_listing_fails(tmp_path):
+    """A real git that fails only the `ls-files -s` listing of every tracked path, and
+    answers everything else — `index_problem`'s own `ls-files -- .git` included. The
+    discrimination is the point: a question that prints nothing cannot fail the way a
+    listing of a whole repository can."""
+    d = tmp_path / "listing-shim-bin"
+    d.mkdir(exist_ok=True)
+    real = shutil.which("git")
+    shim = (
+        "#!/bin/sh\n"
+        'for a in "$@"; do\n'
+        '  [ "$a" = "-s" ] || continue\n'
+        '  echo "fatal: simulated pack failure" >&2\n'
+        "  exit 128\n"
+        "done\n"
+        f'exec {real} "$@"\n'
+    )
+    (d / "git").write_text(
+        shim,
+        encoding="utf-8",
+    )
+    (d / "git").chmod(0o755)
+    return d
+
+
+def test_a_listing_that_fell_back_to_the_working_tree_is_named(project, capsys, tmp_path):
+    """Fixed: both listings fell back to the working tree in silence, each claiming in its
+    own comment that `index_problem()` reported it. It cannot — it asks a question whose
+    output is empty whatever the repository holds. Measured on a document staged and then
+    removed from the tree, the fallback turned exit 1 into `0 documents` and `0 failure(s)`
+    with nothing said (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", "utf-8")
+    project.git("add", "-A")
+    bad.unlink()  # only the index can see it now
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "with a working git it is read"
+    capsys.readouterr()
+
+    shim = _git_whose_full_listing_fails(tmp_path)
+    old = os.environ["PATH"]
+    os.environ["PATH"] = f"{shim}{os.pathsep}{old}"
+    try:
+        project.cl("references", "--cached")
+    finally:
+        os.environ["PATH"] = old
+    err = capsys.readouterr().err
+    # One sentence, not one per listing: both read the same cached answer now, so a run
+    # says once that it did not read the index — and says it before any report.
+    assert err.count("fell back to the working tree") == 1
+    assert "what is staged was not checked" in err
+
+
+def test_a_staged_entry_under_a_symlinked_directory_is_read_from_the_index(project, capsys):
+    """Fixed, and it is the defect the listing fix made possible. Expanding the index's
+    symlinks put `ledger/entries/A0001.md` back on the list when the index holds it under
+    another name — and then the blob batch asked git for THAT address, git had nothing
+    there, `blob_absent` read nothing as `not staged`, and the entry was read from the
+    WORKING TREE. Measured: `grade: bogus` staged and corrected in the tree gave
+    `validate --cached` `1 entry` and `0 failure(s)` at exit 0, while a fresh clone of the
+    commit it made failed at exit 1
+    (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+    """
+    entries = project.root / "ledger" / "entries"
+    real = project.root / "real-entries"
+    real.mkdir()
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    path = project.write_full_entry(project.entry("A0001-first.md"))
+    path.rename(real / path.name)
+    entries.rmdir()
+    entries.symlink_to("../real-entries")
+    moved = real / path.name
+    capsys.readouterr()
+    assert project.cl("validate") == 0, capsys.readouterr().out
+
+    kept = moved.read_text(encoding="utf-8")
+    moved.write_text(kept.replace("grade: measured", "grade: bogus"), encoding="utf-8")
+    project.git("add", "-A")
+    moved.write_text(kept, encoding="utf-8")  # the index is broken; the tree is not
+    capsys.readouterr()
+
+    assert project.cl("validate", "--cached") == 1, "the commit carries `grade: bogus`"
+    assert "bogus" in capsys.readouterr().out
+    assert project.cl("validate") == 0, "and the working tree is still fine"
+
+
+def test_a_staged_document_reached_through_a_symlink_is_read_from_the_index(project, capsys):
+    """The same defect on the document side: the body came from the working tree at an
+    address git has no blob for, so a citation staged broken and corrected in the tree
+    passed the hook. For a symlink to a FILE it was worse — git answers at that address
+    with the link's own blob, whose bytes are the target's NAME, so the document's text was
+    the string `note-001.md` (L0232-an-index-read-names-the-path-the-index-holds,
+    cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    real = project.root / "real-docs"
+    real.mkdir()
+    (real / "note.md").write_text("# note\n\nA sentence, citing nothing.\n", encoding="utf-8")
+    (project.root / "docs" / "via.md").symlink_to("../real-docs/note.md")
+    project.git("add", "-A")
+    # Staged with a broken citation, corrected in the working tree.
+    (real / "note.md").write_text(
+        "# note\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", encoding="utf-8"
+    )
+    project.git("add", "-A")
+    (real / "note.md").write_text("# note\n\nA sentence, citing nothing.\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, "the working tree is clean"
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1, "the commit carries the broken one"
+    assert "A9999-nothing-minted" in capsys.readouterr().out
+
+
+def test_the_expansion_cap_counts_what_it_adds_and_says_when_it_bites(project, monkeypatch):
+    """Fixed: the cap compared `len(reach) + len(added)` — the whole listing — against a
+    limit meant for paths ADDED, so every repository with more tracked files than the limit
+    got no expansion at all, silently. This repository's own file count sat under it, so
+    nothing said otherwise (qe ticket f868273f36b448ab). And reaching the cap is a narrower
+    universe than the commit has, which is the one thing a cached run may not be quiet
+    about (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    from claims_ledger import schema
+
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    real = project.root / "real-docs"
+    real.mkdir()
+    (real / "note.md").write_text("# n\n\nnothing cited\n", encoding="utf-8")
+    (project.root / "linked").symlink_to("real-docs")
+    for i in range(12):  # plenty of tracked files, and only ONE reachable by symlink
+        (project.root / f"filler-{i}.txt").write_text("x\n", encoding="utf-8")
+    project.git("add", "-A")
+    ledger = open_ledger(root=project.root)
+
+    monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 8)
+    reach, why, truncated = schema.index_tree(ledger.config)
+    assert why is None, "more tracked files than the cap is not more ADDED than the cap"
+    assert truncated is None
+    assert "linked/note.md" in reach, "and the expansion still happened"
+
+    monkeypatch.setattr(schema, "MAX_SYMLINK_EXPANSIONS", 0)
+    reach, why, truncated = schema.index_tree(ledger.config)
+    assert truncated and "reachable only through symlinks" in truncated, "never silent"
+    # A TRUNCATION IS NOT A FAILURE: `why` is what sends the whole listing to the working
+    # tree, and a narrower universe than the commit has is not a wrong one. What was
+    # reached is kept and reported on.
+    assert why is None
+    assert reach, "the direct paths are still listed"
+
+
+def test_a_symlink_cycle_does_not_send_the_listing_to_the_working_tree(project, capsys):
+    """Fixed, and it was a regression of the bound I had just added. `ln -s . here` reaches
+    one segment further every pass and never runs out, so the depth branch fired on an
+    ORDINARY self-referential link nested none deep — and it answered with a `why`, which
+    sends the whole cached listing to the working tree. Measured: a staged-only document
+    carrying a broken citation went unchecked at exit 0 where the commit before it exited 1
+    (qe ticket 7b317b5ea95e4670, F1). The listing keeps what it reached
+    (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    (project.root / "sub").mkdir()
+    (project.root / "sub" / "here").symlink_to(".")
+    bad = project.root / "docs" / "bad.md"
+    bad.write_text("# bad\n\nA sentence (A9999-nothing-minted, cites-as-live).\n", "utf-8")
+    project.git("add", "-A")
+    bad.unlink()  # staged only: the working tree cannot see it
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 1, "the commit carries the broken citation"
+    out, err = capsys.readouterr()
+    assert "docs/bad.md" in out
+    assert "2 documents" in out, "the note the fixture already had, plus the staged one"
+    # And the run still says what it could not reach, rather than going quiet about it.
+    assert "still reach further" in err
+
+
+def _git_whose_cat_file_fails(tmp_path, only_for=None):
+    """A real git that fails `cat-file` — for every batch, or only for one whose input
+    names `only_for`. The batch's specs arrive on stdin, so the discriminating shim reads
+    them there and passes them on when it delegates."""
+    d = tmp_path / "shim-bin"
+    d.mkdir(exist_ok=True)
+    real = shutil.which("git")
+    if only_for is None:
+        body = f'for a in "$@"; do [ "$a" = cat-file ] && exit 128; done\nexec {real} "$@"\n'
+    else:
+        body = (
+            'for a in "$@"; do\n'
+            '  if [ "$a" = cat-file ]; then\n'
+            "    input=$(cat)\n"
+            f'    case "$input" in *{only_for}*) exit 128;; esac\n'
+            f'    printf \'%s\\n\' "$input" | {real} "$@"\n'
+            "    exit $?\n"
+            "  fi\n"
+            "done\n"
+            f'exec {real} "$@"\n'
+        )
+    (d / "git").write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    (d / "git").chmod(0o755)
+    return d
+
+
+def _staged_withdrawal(project):
+    """A project whose `@working` ground the index no longer satisfies and the tree does:
+    the shape a cached run must report, so that a run which fails to read the index cannot
+    be mistaken for a run that read it and found nothing wrong."""
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_text(encoding="utf-8")
+    note.write_text(kept.replace("## Observation", "## Method"), encoding="utf-8")
+    project.git("add", "-A")
+    note.write_text(kept, encoding="utf-8")
+    return project
+
+
+def test_an_entry_the_index_could_not_be_read_for_stops_the_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """A `cat-file` that could not answer is not the index saying it does not have the
+    path. Every staged read folded the two together, so a git broken only in `cat-file` —
+    a timeout, a pack it cannot open, a kill — took the whole ledger back to the working
+    tree and reported a clean run: measured, `resolve --cached` went from exit 1 naming a
+    staged withdrawal to `0 failure(s)` with nothing said.
+
+    It stops the run the way an unlistable entries directory does, because the entry has
+    not been parsed and there is no per-entry line to say it on.
+
+    The message is asserted and not only the exit code, and that is what makes this hold
+    the site: the registry read raises the same error at the same exit code a moment later,
+    so a test that asked for 2 alone passed with this stop deleted.
+    """
+    _staged_withdrawal(project)
+    assert project.cl("resolve", "--cached") == 1, "the fixture's withdrawal must be reported"
+    monkeypatch.setenv(
+        "PATH", f"{_git_whose_cat_file_fails(tmp_path)}{os.pathsep}{os.environ['PATH']}"
+    )
+    assert project.cl("resolve", "--cached") == 2
+    said = capsys.readouterr().err
+    assert "A0001-first.md" in said, said
+    assert "could not be read from the index" in said
+
+
+def test_an_artifact_the_index_could_not_be_read_for_is_a_pointer_that_fails(
+    project, tmp_path, monkeypatch, capsys
+):
+    """The same rule one layer in, at the pointer rather than at the entry list. Here the
+    entries load and only the artifact's blob is unreadable, so the run has a line to say
+    it on and says it there rather than reading the working tree's copy of the artifact.
+    """
+    _staged_withdrawal(project)
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="docs/note-001.md")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 1
+    assert "could not be read from the index" in capsys.readouterr().out
+
+
+def test_a_staged_document_that_is_not_utf8_is_reported_as_it_is_in_the_tree(project, capsys):
+    """`document_bodies` decoded staged documents with `blob_text`, which replaces what it
+    cannot decode — so a document the index holds as bytes nobody can read came back as
+    text with the real thing's shape, and `references --cached` reported a clean run where
+    the landed commit fails. L0047's rule is that an unreadable document is a failure and
+    not a clean run; the flag was deciding whether it applied.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    note = project.root / "docs" / "note-001.md"
+    kept = note.read_bytes()
+    note.write_bytes(kept + b"\n\xff\xfe tail\n")
+    project.git("add", "-A")
+    note.write_bytes(kept)
+    capsys.readouterr()
+
+    assert project.cl("references") == 0, capsys.readouterr().out
+    capsys.readouterr()
+    assert project.cl("references", "--cached") == 1
+    assert "is not UTF-8 text" in capsys.readouterr().out
+
+
+def test_a_registry_the_index_could_not_be_read_for_stops_the_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """Every `source:` ground in a ledger rests on the registry, so a registry git could
+    not hand over is not an empty registry and is not the working tree's either. The shim
+    fails only the batch naming the registry, so the entries load and this is the one read
+    under test.
+    """
+    _staged_withdrawal(project)
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="sources.jsonl")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+    assert project.cl("resolve", "--cached") == 2
+    said = capsys.readouterr().err
+    assert "sources.jsonl" in said, said
+    assert "could not be read from the index" in said
+
+
+def test_a_document_the_index_could_not_be_read_for_is_a_failure_not_a_clean_run(
+    project, tmp_path, monkeypatch, capsys
+):
+    """The same rule for the documents a citation is read out of. Reading the working
+    tree's copy because git would not answer for the index's is a verdict about prose no
+    commit contains, reported as a clean run — which is what L0047 refuses for a document
+    that cannot be opened, arrived at through the flag instead of through the filesystem.
+    """
+    project.git("init", "-q")
+    assert project.cl("new", "first") == 0
+    project.write_full_entry(project.entry("A0001-first.md"))
+    project.git("add", "-A")
+    shim = _git_whose_cat_file_fails(tmp_path, only_for="note-001.md")
+    monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
+    capsys.readouterr()
+
+    assert project.cl("references", "--cached") == 1
+    out = capsys.readouterr().out
+    assert "could not be read from the index" in out, out

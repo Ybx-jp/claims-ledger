@@ -35,5 +35,8 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:41:17-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0222-a-combined-run-parses-the-entries-once-into-one-list · supersedes
+  note: the assertion claimed two lists, and the second one has no reader now. It was true when written: the reference and propagation checkers had no cached mode, so under the flag they had to be handed the working tree while the other three read the index. Both take the flag, so a combined run makes one list and gives it to all five. The successor claims the count alone and leaves which tree to the flag's own claim
+
 ## References
-- src/claims_ledger/cli.py · standing · cites-as-live

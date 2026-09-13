@@ -43,6 +43,14 @@ none
   evidence: code: src/claims_ledger/propagate.py § "run" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" =sha256:8fa19789e9badc1682afa37198032a2207b9e89ef81a5b34d8ec9cfeccb3aa67
+  note: re-read after the same commit, which gives this checker a cached mode: it takes the flag and passes it to the entry load. The walk and every rule in it are unchanged.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/propagate.py § "run" =sha256:41d276552f5f6f4ff4d4c194a4fcb58c2ca9d002bffa7d081767f36be10289ea
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). This checker now takes its entries through `entries_for`, so a run that will append decides from the tree it appends to. Every rule this claim is about is untouched; what moved is which tree the list came from when `--write` is on.
+
 ## References
 
 - src/claims_ledger/propagate.py · standing · cites-as-live

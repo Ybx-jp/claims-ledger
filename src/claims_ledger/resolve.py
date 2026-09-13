@@ -19,10 +19,11 @@ import re
 from .authoring import is_committed
 from .freshness import effective_pointer, literal
 from .schema import (
-    NULL_OBJECT_ID,
+    NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
     UNPINNED,
+    LedgerError,
     Report,
     blob_text,
     by_id,
@@ -32,6 +33,7 @@ from .schema import (
     git_call,
     git_env,
     git_problem,
+    index_spec,
     load_entries,
     load_registry,
     normalize,
@@ -41,6 +43,8 @@ from .schema import (
     section_span,
     section_text,
     source_bytes,
+    staged_blob,
+    staged_text,
 )
 
 SENTENCE_END = ".!?"
@@ -54,9 +58,20 @@ class Sources:
     (L0035-a-registry-miss-fails-rather-than-passing, cites-as-live).
     """
 
-    def __init__(self, ledger):
+    def __init__(self, ledger, cached=False):
         self.ledger = ledger
-        self.rows = load_registry(ledger.registry)
+        # Under `--cached` the registry is read from the index, because it is the registry
+        # the commit will carry and every `source:` ground in the ledger rests on it.
+        # Read from the working tree whatever the flag said, an emptied registry staged and
+        # restored in the tree took all five checkers to a clean run over a commit that
+        # lands with every source pointer unresolvable
+        # (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
+        text, problem = staged_text(ledger, ledger.registry) if cached else (None, None)
+        if problem is not None:
+            # Every `source:` ground rests on these rows, so a registry git could not hand
+            # over is not an empty registry and is not the working tree's either.
+            raise LedgerError(f"{ledger.registry}: {problem}")
+        self.rows = load_registry(ledger.registry, text=text)
         self._texts = {}
 
     def text(self, source_id):
@@ -172,7 +187,7 @@ def why_not(ledger, p):
     )
 
 
-def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
+def resolve_pointer(p, e, part, index, sources, ledger, unasked=None, cached=False):
     """Reports for one typed pointer; empty when it resolves. `unasked` is why git could
     not be asked at all, in which case a pinned pointer is left unjudged: `run()` has
     already said so once, for the ledger
@@ -191,10 +206,38 @@ def resolve_pointer(p, e, part, index, sources, ledger, unasked=None):
     fail = lambda msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
     if p.type in ledger.config.evidence_types:
         if p.pin in UNPINNED:
-            path = ledger.tree / p.target
-            # read_document, not read_text: an evidence file that is unreadable or not
-            # UTF-8 is a pointer that does not resolve, reported below, never a crash.
-            text = read_document(path)[0] if path.is_file() else None
+            # `working` names the tree this run reads, and under `--cached` that is the
+            # index: the installed hook runs `resolve --cached`, and reading the working
+            # tree there answered about text no commit contains — a `working` section
+            # withdrawn, staged and restored in the tree committed unreported.
+            # (L0225-a-working-pin-names-the-tree-this-run-reads, cites-as-live)
+            #
+            # A path the index does not hold falls back to the working tree, and that is
+            # the point rather than a concession: `working` is the pin for evidence that is
+            # not committed yet, so index-only would fail the case the pin exists for.
+            text, staged, unread = None, None, None
+            if cached:
+                staged, unread = staged_blob(ledger, ledger.tree / p.target)
+            if unread is not None:
+                # git was asked and did not answer. Reading the working tree here would be
+                # a clean run over a question nobody answered.
+                fail(f"{p.type}: {p.target} @{p.pin} {unread}")
+                return out
+            if staged is not None:
+                # Decoded strictly, unlike `blob_text`, and not fallen back from: the index
+                # HAS this path, so the working tree's copy is not what the commit carries.
+                # Decoding with replacement here would resolve a staged artifact that is
+                # not UTF-8, where the working-tree read reports it as a pointer that does
+                # not resolve — the same file answered two ways by one flag.
+                try:
+                    text = staged.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+                except UnicodeDecodeError:
+                    text = None
+            else:
+                path = ledger.tree / p.target
+                # read_document, not read_text: an evidence file that is unreadable or not
+                # UTF-8 is a pointer that does not resolve, reported below, never a crash.
+                text = read_document(path)[0] if path.is_file() else None
         elif unasked:
             return out
         else:
@@ -234,7 +277,14 @@ def digest_in_tree(ledger, p, cached=False):
     where = "the index" if cached else "the working tree"
     if cached:
         answer = git_call(
-            ledger.repo or ledger.tree, "show", f":{p.target}", env=git_env(index=True)
+            ledger.repo or ledger.tree,
+            "show",
+            # Through the chokepoint, like the other six: a target reached by a symlinked
+            # directory is held by the index under another name, and asking for the address
+            # git does not have made this the one read that still answered about the wrong
+            # tree (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+            index_spec(ledger, p.target),
+            env=git_env(index=True),
         )
         if not answer.ok:
             return None, f"{p.target} could not be read from the index ({answer.why})"
@@ -285,8 +335,14 @@ def digest_in_history(ledger, p):
     ids = set()
     for line in log.out.splitlines():
         if line.startswith(":"):
+            # A raw log line names its blobs by object id, and how wide one of those is
+            # belongs to the repository: sixty-four hex characters where it was created
+            # with `--object-format=sha256`. A forty-wide pattern discarded every id
+            # there, leaving the search with nothing to read and this function reporting
+            # text that is perfectly well in history as held by no version at all
+            # (L0220-an-object-id-is-as-wide-as-the-repository-makes-it, cites-as-live).
             ids |= {tok for tok in line.split() if OBJECT_ID_RE.match(tok)}
-    ids.discard(NULL_OBJECT_ID)
+    ids -= NULL_OBJECT_IDS
     blobs, failures = git_blobs(repo, sorted(ids))
     for data in blobs.values():
         text = blob_text(data)
@@ -559,9 +615,9 @@ def check_retraction(e, sources):
 
 
 def run(ledger, entries=None, cached=False):
-    entries = load_entries(ledger) if entries is None else entries
+    entries = load_entries(ledger, cached=cached) if entries is None else entries
     index = by_id(entries)
-    sources = Sources(ledger)
+    sources = Sources(ledger, cached=cached)
     reports = []
     # A pinned pointer is read out of git, and `git()` answers None both for a pin that
     # is not there and for a git that could not be asked. Read as the first, a git that
@@ -601,7 +657,9 @@ def run(ledger, entries=None, cached=False):
                     q, e, f"Grounds {i}", ledger, committed, unasked, cached=cached
                 )
                 continue
-            reports += resolve_pointer(p, e, "Grounds", index, sources, ledger, unasked)
+            reports += resolve_pointer(
+                p, e, "Grounds", index, sources, ledger, unasked, cached=cached
+            )
         for v in e.verdicts:
             p = v.pointer
             if p is None or p.type == "defect":
@@ -611,7 +669,9 @@ def run(ledger, entries=None, cached=False):
                 # stated in full; `validate` holds it to a shape and `freshness` compares
                 # the latest one, so there is nothing here to read it out of.
                 continue
-            reports += resolve_pointer(p, e, f"verdict {v.index}", index, sources, ledger, unasked)
+            reports += resolve_pointer(
+                p, e, f"verdict {v.index}", index, sources, ledger, unasked, cached=cached
+            )
         if e.status() == "retracted":
             reports += check_retraction(e, sources)
         else:

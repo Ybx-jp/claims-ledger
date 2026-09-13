@@ -44,6 +44,10 @@ none
   evidence: code: src/claims_ledger/__init__.py § "__version__" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
   note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed; the value and the single place it is written are unchanged
 
+- 2026-09-11T20:00:14-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:c5e6333c3c95aec5c7511db44651c1c8fa1a0b9c0d2ee0b93e931c4fda05930f
+  note: re-read after the commit that moves the first release's number from 0.1.0 down to 0.0.1, which this package has never published either of. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; the one place is unchanged and still the only one.
+
 ## References
 
 - src/claims_ledger/__init__.py · standing · cites-as-live

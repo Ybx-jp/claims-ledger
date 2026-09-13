@@ -43,6 +43,10 @@ none
   evidence: code: src/claims_ledger/freshness.py § "in_this_run" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "in_this_run" =sha256:c687a611796f7a4bcc756ad3413e64db1b22c72db84c3568fe8a235e10c77ca4
+  note: acknowledged: presence under the flag is asked of the path the index holds rather than of the address, so an artifact the commit carries is not called withdrawn. This claim's subject is unchanged (L0232).
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

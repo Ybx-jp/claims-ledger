@@ -51,6 +51,14 @@ none
   evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:2cc50a11f18089b10ca35b6968d534962c348565f1c4911bc74d46621f6af10b
   note: read against the working tree after the restatement rule in check_verdicts began exempting a corroboration stated by value, which may name the ground's own digest: the artifact line is still checked for shape on every verdict, in every state, before git is asked; the assertion holds as written.
 
+- 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:f8796b71748ad58d2b45f5f7749e3349ba49334a4427967152e4797b09aaed46
+  note: re-read after the same commit. The artifact line is still checked on every verdict and in every state, and still before git is asked anything — what widened is which strings count as a bare object id, not when or whether the check runs.
+
+- 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "OBJECT_ID_RE" =sha256:839f612a1927030849314c6a1fc1edeac16800b4e55ae033fb73889b32521948
+  note: re-read after the same commit. This pattern now admits sixty-four hex characters as well as forty, because a hash width belongs to the repository and not to the ledger. The claim is about the artifact line being held to a shape, and it is still held to one.
+
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live

@@ -30,12 +30,14 @@ from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
     entries_dir_listing_error,
+    entries_for,
     exit_code,
     file_problem,
     git_available,
     git_call,
     git_problem,
     index_problem,
+    index_reach,
     list_entry_files,
     load_entries,
     load_registry,
@@ -69,15 +71,22 @@ HOOK_TEMPLATE = """#!/bin/sh
 # tree in another otherwise commits an entry whose anchor no version of the path holds —
 # the anchor matched the tree, and the commit carried the index.
 #
-# `references` and `propagate` have no `--cached` of their own yet, so this hook still
-# reads the working tree for those two; and `resolve` reads it for a ground pinned at
-# `working`, which names the working tree by its own name and which `freshness` passes
-# over entirely. So this hook narrows what can commit unseen; it does not close it.
+# `references` and `propagate` ask for it too, and all five lines now carry it. For
+# `references` that means the documents as well as the entries: a citation staged against
+# one status and corrected in the tree alone otherwise passed here, because the checker
+# read prose no commit contains.
+#
+# A ground pinned at `working` is read from the index here too: `working` names the tree
+# the run reads, and under this flag that is the index. A path the index does not hold
+# falls back to the working tree, which is the case the pin exists for. `freshness` passes
+# such grounds over, and that is not a gap in this list — a ground with no pin has nothing
+# to have moved from, and what can be asked of it, that its section is still there, is
+# asked above.
 set -e
 {python} -m claims_ledger validate --cached
 {python} -m claims_ledger resolve --cached
-{python} -m claims_ledger references
-{python} -m claims_ledger propagate
+{python} -m claims_ledger references --cached
+{python} -m claims_ledger propagate --cached
 {python} -m claims_ledger freshness --cached
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
@@ -86,6 +95,28 @@ set -e
 # each of those checkers then does with it is that checker's own claim; the template says
 # only which lines carry the flag, and the lines that do not say so beside them
 # (L0217-the-hook-carries-the-cached-flag-on-every-line-that-takes-one, cites-as-live).
+
+
+HOOK_MARKER = HOOK_TEMPLATE.splitlines()[1]
+# The template's own second line, taken from it rather than written out again, so a hook
+# this package wrote is recognised by a string that cannot drift from what it writes.
+
+
+def is_our_hook(path):
+    """Whether what is at `path` is a pre-commit hook this package wrote.
+
+    The marker line, not the whole text: `{python}` is interpolated at install time, so
+    two installs of the same version differ wherever the interpreter does. Anything that
+    cannot be read — a dangling link, a directory, bytes that are not UTF-8 — is not ours,
+    which is the answer that asks the reader to decide rather than the one that offers to
+    overwrite.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            head = fh.read(len(HOOK_MARKER) + 512)
+    except (OSError, UnicodeDecodeError):
+        return False
+    return HOOK_MARKER in head.splitlines()[:4]
 
 
 def hook_text(python=None):
@@ -155,10 +186,14 @@ def build_parser():
 
     r = sub.add_parser("resolve", help="pointers resolve and quotations are spans of their sources")
     r.add_argument("--cached", action="store_true", help="read staged entries from the git index")
-    sub.add_parser("references", help="citation acts agree with statuses, both directions")
+    rf = sub.add_parser("references", help="citation acts agree with statuses, both directions")
+    rf.add_argument(
+        "--cached", action="store_true", help="read staged entries and documents from the git index"
+    )
 
     pr = sub.add_parser("propagate", help="dependents of fallen entries carry the contested flag")
     pr.add_argument("--write", action="store_true", help="append the missing verdicts")
+    pr.add_argument("--cached", action="store_true", help="read staged entries from the git index")
 
     fr = sub.add_parser(
         "freshness", help="pinned grounds still name the artifact they were established on"
@@ -260,6 +295,9 @@ def build_parser():
 
     h = sub.add_parser("hook", help="the pre-commit hook that runs the checkers")
     h.add_argument("--install", action="store_true", help="write it to .git/hooks/pre-commit")
+    h.add_argument(
+        "--force", action="store_true", help="replace a pre-commit hook that is already there"
+    )
 
     hs = sub.add_parser("harness", help="the coding-agent hooks and skills this package ships")
     hs_sub = hs.add_subparsers(dest="harness_command", required=True)
@@ -291,7 +329,13 @@ def build_parser():
 
 
 def ledger_for(args):
-    return open_ledger(root=args.root, config_path=args.config)
+    # `cached` is asked of `args` rather than passed by each command, because the document
+    # list it decides is built once when the ledger is opened and every checker reads it
+    # from there. The commands that do not take the flag do not have the attribute
+    # (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    return open_ledger(
+        root=args.root, config_path=args.config, cached=getattr(args, "cached", False)
+    )
 
 
 def plural(n, one, many):
@@ -338,6 +382,22 @@ def skipped_checks(ledger, cached=False):
             f"the git index cannot be read ({index}), so --cached fell back to the "
             "working tree; what is staged was not checked"
         )
+    # What the `--cached` open could not ask, in its own words. `index_problem()` above
+    # asks a question whose output is empty whatever the repository holds, so it cannot
+    # fail the way a listing of every tracked path can; a listing that fell back says so
+    # here or nowhere (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live).
+    notes += [note for note in ledger.index_notes if note not in notes]
+    if cached and ledger.repo and not problem:
+        # The SAME listing the loader will read, not a second call: a note printed from an
+        # independent call says nothing about the call that actually runs, and the one that
+        # failed silently was the loader's (qe ticket f868273f36b448ab, F3).
+        _reach, why = index_reach(ledger)
+        note = (
+            f"the index could not be listed ({why}), so --cached fell back to the "
+            "working tree; what is staged was not checked"
+        )
+        if why and note not in notes:
+            notes.append(note)
     for name, problem in ledger.unreadable_docs:
         notes.append(f"{name} {problem}")
     return notes
@@ -406,9 +466,15 @@ def cmd_resolve(args, ledger):
     # All three take the flag, and that is the claim: the guard so a fallback is named, the
     # load so the entries are the ones being committed, the run so a by-value anchor is held
     # to the artifact the commit will carry. Leaving one bare is the shape that survives a
-    # suite — two of the three then answer about a state no commit contains and answer it
-    # with a pass, and the third keeps its verdict, losing only the notice that the index
-    # went unread
+    # suite: two of the three then answer about a state no commit contains — the working
+    # entry against the index's artifact, or the staged entry against the working tree's —
+    # and both shapes of wrong answer were measured from a bare call. A bare load passed a
+    # staged entry whose anchor named nothing, at exit 0. A bare run passed an anchor the
+    # index does not hold, at exit 0, in one disagreement; in the other it did fail, but
+    # against the working tree, telling the author to restamp an anchor that was right. So
+    # what the flag buys is that the answer is about the state being committed at all, and
+    # a pass is one of the two ways it is not. The third keeps its verdict and loses only
+    # the notice that the index went unread
     # (L0215-cmd-resolve-puts-the-cached-flag-to-each-of-its-three-calls, cites-as-live).
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
@@ -419,11 +485,11 @@ def cmd_resolve(args, ledger):
 
 
 def cmd_references(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = references.run(ledger, entries=entries)
+    entries = load_entries(ledger, cached=args.cached)
+    reports = references.run(ledger, entries=entries, cached=args.cached)
     print_reports(
         reports,
         f"references ({plural(len(entries), 'entry', 'entries')}, "
@@ -433,11 +499,11 @@ def cmd_references(args, ledger):
 
 
 def cmd_propagate(args, ledger):
-    stop = guard(ledger)
+    stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger)
-    reports = propagate.run(ledger, write=args.write, entries=entries)
+    entries = entries_for(ledger, cached=args.cached, write=args.write)
+    reports = propagate.run(ledger, write=args.write, entries=entries, cached=args.cached)
     return report_command("propagate", reports, entries, ledger)
 
 
@@ -445,7 +511,7 @@ def cmd_freshness(args, ledger):
     stop = guard(ledger, cached=args.cached)
     if stop is not None:
         return stop
-    entries = load_entries(ledger, cached=args.cached)
+    entries = entries_for(ledger, cached=args.cached, write=args.write)
     reports = freshness.run(ledger, write=args.write, cached=args.cached, entries=entries)
     return report_command("freshness", reports, entries, ledger)
 
@@ -455,28 +521,27 @@ def cmd_check(args, ledger):
     if stop is not None:
         return stop
     worst = 0
-    # The entries are parsed once for the five checkers rather than once each. Two lists
-    # and not one: under `--cached` `validate`, `resolve` and `freshness` read what is
-    # staged and the other two read the working tree, which is the difference `--cached`
-    # exists to make. (docs/audits/ARCH-AUDIT.md, finding 4.)
-    # (L0213-a-combined-run-parses-the-entries-once-into-two-lists, cites-as-live)
-    working = load_entries(ledger)
-    staged = load_entries(ledger, cached=True) if args.cached else working
+    # The entries are parsed once for the five checkers rather than once each. All five
+    # now take `--cached`, so under the flag they are given one list — the staged one —
+    # rather than the two this held while `references` and `propagate` had no cached mode
+    # of their own. (docs/audits/ARCH-AUDIT.md, finding 4.)
+    # (L0222-a-combined-run-parses-the-entries-once-into-one-list, cites-as-live)
+    entries = load_entries(ledger, cached=args.cached)
     for name in CHECKERS:
         if name == "validate":
-            reports = validate.run(ledger, cached=args.cached, entries=staged)
+            reports = validate.run(ledger, cached=args.cached, entries=entries)
         elif name == "resolve":
             # The staged entries against the index's artifacts, the pair the commit will
             # carry. Handed the working entries instead, an entry staged with one anchor
             # and edited to another in the tree had the tree's anchor held to the index's
             # artifact — a pair no commit contains — and landed unresolved either way.
-            reports = resolve.run(ledger, entries=staged, cached=args.cached)
+            reports = resolve.run(ledger, entries=entries, cached=args.cached)
         elif name == "references":
-            reports = references.run(ledger, entries=working)
+            reports = references.run(ledger, entries=entries, cached=args.cached)
         elif name == "propagate":
-            reports = propagate.run(ledger, write=False, entries=working)
+            reports = propagate.run(ledger, write=False, entries=entries, cached=args.cached)
         else:
-            reports = freshness.run(ledger, write=False, cached=args.cached, entries=staged)
+            reports = freshness.run(ledger, write=False, cached=args.cached, entries=entries)
         print_reports(reports, name)
         worst = max(worst, exit_code(reports))
     return worst
@@ -782,16 +847,35 @@ def cmd_hook(args, ledger):
         # containment guard so that a deliberate `pre-commit -> ../../shared/pre-commit`
         # — a team sharing one hook — is met with "leaving it alone" and the hook text,
         # which is what it was always met with, rather than with an accusation.
-        # (L0129-an-existing-hook-is-left-alone-and-the-text-is-printed, cites-as-live)
-        if os.path.lexists(path):
-            print(f"{path} exists; leaving it alone. Its contents would be:\n", file=sys.stderr)
+        #
+        # `--force` is the way past it, and without one this was the only installer here a
+        # project could not update: a checkout that ran `--install` once kept that hook
+        # forever, however far the shipped one moved on. The refusal says which of the two
+        # cases it is, because they want different things of the reader — an older copy of
+        # this hook wants `--force`, and somebody's own hook wants a decision. A marker
+        # line rather than a comparison of the whole text, which cannot be made: the
+        # interpreter is interpolated, so no two installs need match byte for byte.
+        # (L0224-an-existing-hook-is-left-alone-unless-the-install-is-forced, cites-as-live)
+        if os.path.lexists(path) and not args.force:
+            ours = (
+                " It is an older copy of this hook; `--force` replaces it."
+                if is_our_hook(path)
+                else " It is not a copy of this hook, so replacing it is a decision to make."
+            )
+            print(
+                f"{path} exists; leaving it alone.{ours} Its contents would be:\n",
+                file=sys.stderr,
+            )
             print(hook_text(), end="")
             return 1
-        # Nothing is there, so anything the write lands on is reached through a link the
-        # repository does not control — the hooks directory itself being one. A dangling
-        # `pre-commit -> /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming
-        # the in-root path it had not written to; a `hooks -> /tmp` does the same one
-        # level up, and `lexists` above cannot see that one.
+        # Whatever the write lands on may be reached through a link the repository does not
+        # control — the hooks directory itself being one. A dangling `pre-commit ->
+        # /tmp/x.sh` took a mode-755 shell script outside, exit 0, naming the in-root path
+        # it had not written to; a `hooks -> /tmp` does the same one level up, and
+        # `lexists` above cannot see that one. Asked under `--force` as well, and that is
+        # what keeps a shared hook shared: the write resolves a symlink before it replaces,
+        # so forcing over `pre-commit -> ../../shared/pre-commit` would rewrite the team's
+        # file rather than this repository's link to it. Refused, with the link named.
         # (L0130-the-hook-is-not-installed-through-an-escaping-link, cites-as-live)
         outside = leaves_root(hooks, path)
         if outside is not None:

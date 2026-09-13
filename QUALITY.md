@@ -59,8 +59,11 @@ fix; it goes in `CHANGELOG.md` with the seed named.
 
 ## The audit trail
 
-`docs/audits/` holds the adversarial passes, one file per released version. For 0.1.0
-that is six passes plus a fix-review gate that runs between the fixer and the merge —
+`docs/audits/` holds the adversarial passes, one file per released version. The first
+release is `0.0.1`; its audit file is named `0.1.0.md`, for the number this work was done
+under before it was moved down, and it is left named that way rather than renamed under a
+file every commit in it cites. It holds six passes plus a fix-review gate that runs
+between the fixer and the merge —
 findings, repro commands, the interpreter matrix, the packaging and filesystem edge
 cases, and the disposition of each finding including the ones that were not defects.
 

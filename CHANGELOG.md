@@ -11,18 +11,21 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
-## [0.1.0] — 2026-09-06
+## [0.0.1] — 2026-09-11
 
-First public release. Extracted from the claims ledger built for a research project on
-dynamic graph embedding refresh, where the schema, the checkers and the corpus were
-developed together. All 62 corpus seeds passed unchanged from the ledger it came out of;
-the release ships 79.
+First release, and a deliberately small number: this goes to a few people who asked for
+it, not to an announcement. `0.1.0` is kept back for the public one, and nothing about
+this version claims that one's stability. Extracted from the claims ledger built for a
+research project on dynamic graph embedding refresh, where the schema, the checkers and
+the corpus were developed together. All 62 corpus seeds passed unchanged from the ledger
+it came out of; the release ships 95.
 
 **Everything below is in this release, and this file has one version heading rather than
-several on purpose.** The five adversarial passes recorded in `docs/audits/0.1.0.md`, the fifth
+several on purpose.** The adversarial passes recorded in `docs/audits/0.1.0.md` — named
+for the version they were run against, before the number was moved down — the fifth
 checker and section scoping all landed before anything was tagged or uploaded, so there
 was no earlier release for any of them to be a change to. Splitting them across versions
-would have put a `0.1.0` on the record that nobody could ever install.
+would have put numbers on the record that nobody could ever install.
 
 ### The schema and the checkers
 
@@ -32,7 +35,7 @@ would have put a `0.1.0` on the record that nobody could ever install.
 - Five checkers — `validate`, `resolve`, `references`, `propagate`, `freshness` — and
   `check`, which runs all five. The first four are described here; `freshness` has its own
   section below, because it was written after this one.
-- A red-team corpus, 62 seeds at extraction and 79 at release, with committed expected
+- A red-team corpus, 62 seeds at extraction and 95 at release, with committed expected
   outcomes, shipped inside the package and runnable from an installed copy as
   `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
   the seed or the checker, never a bonus, and one row is satisfied by one report.
@@ -1075,4 +1078,4 @@ they are *near* each other, and near is not inconsistent.
   which is what lets the same file run from inside the package and from `.claude/hooks/`.
   They still need `jq` when they run, which the package does not.
 
-[0.1.0]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.1.0
+[0.0.1]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.1

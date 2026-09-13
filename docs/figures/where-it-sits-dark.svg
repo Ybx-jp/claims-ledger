@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" width="960" height="620" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">A promise in prose, pinned to what keeps it true</title>
+<desc id="d">Three panels in a row, joined by arrows labelled cites and pins: the sentence in README.md that promises no runtime dependencies, carrying a citation of entry L0011; the entry file, whose Grounds name one key of pyproject.toml at a commit and whose Verdicts hold a corroborated row; and pyproject.toml itself, with the line dependencies = [] highlighted as the span the claim rests on. Below, the three are gathered into one bar, claims-ledger check, which runs in a shell, in the pre-commit hook, in CI and from a coding agent's hooks. Below that, what happens when the span changes: freshness flags the ground as moved, references fails the sentence that still cites the entry as live, and git commit is refused until a person re-judges the claim.</desc>
+<style>
+svg { --paper: #161513; --ink: #ECE8DF; --muted: #9C968B; --rule: #3A3732; --panel: #201E1B; --mark: #2E2B26; --accent: #F0855A; --accent-soft: #41251A; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--muted);fill:none;stroke-width:1}
+.ilead{stroke:var(--ink);fill:none;stroke-width:1.25}
+.alead{stroke:var(--accent);fill:none;stroke-width:1.25}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<rect class="paper" width="960" height="620"/>
+
+<text class="serif ink title" x="40" y="46">A promise in prose, pinned to what keeps it true.</text>
+<text class="serif muted sub" x="40" y="70">The sentence cites an entry; the entry names a span of a file; the checkers hold all three together at every commit.</text>
+
+<text class="serif muted h" x="40" y="112">ONE COMMITMENT, IN THREE PLACES</text>
+
+<!-- ===== PANEL 1: the sentence ===== -->
+<rect class="rule" x="40.5" y="124.5" width="269" height="189" rx="3"/>
+<text class="mono muted code11" x="52" y="144">README.md</text>
+<rect class="soft" x="91" y="230" width="205" height="15" rx="2"/>
+<rect class="soft" x="52" y="245" width="99" height="15" rx="2"/>
+<g class="mono ink code11">
+  <text x="52" y="166">Nothing is installed alongside it:</text>
+  <text x="52" y="181">the checkers use the standard</text>
+  <text x="52" y="196">library only, so python3 -m</text>
+  <text x="52" y="211">claims_ledger check runs from a</text>
+  <text x="52" y="226">plain interpreter … Python 3.11 or</text>
+  <text x="52" y="241">newer <tspan class="accent">(L0011-no-runtime-dependencies,</tspan></text>
+  <text x="52" y="256" class="accent">cites-as-live).</text>
+</g>
+<text class="serif muted small" x="52" y="300">the sentence that promises, citing the entry</text>
+
+<!-- arrow: cites -->
+<path class="ilead" d="M312 219 H340"/>
+<path class="ink" d="M338 214 L346 219 L338 224 z"/>
+<text class="serif muted small" x="327" y="207" text-anchor="middle">cites</text>
+
+<!-- ===== PANEL 2: the entry ===== -->
+<rect class="rule" x="345.5" y="124.5" width="269" height="189" rx="3"/>
+<text class="mono muted code11" x="357" y="144">ledger/entries/L0011-no-runtime-….md</text>
+<rect class="soft" x="357" y="230" width="172" height="15" rx="2"/>
+<rect class="soft" x="357" y="245" width="185" height="15" rx="2"/>
+<g class="mono ink code11">
+  <text x="357" y="166" class="muted">## Assertion</text>
+  <text x="357" y="181">The package declares no runtime</text>
+  <text x="357" y="196">dependencies and a floor of 3.11 …</text>
+  <text x="357" y="226" class="muted">## Grounds</text>
+  <text x="357" y="241">- toml-key: pyproject.toml</text>
+  <text x="357" y="256">    § "dependencies" @d1474db…</text>
+  <text x="357" y="286" class="muted">## Verdicts</text>
+  <text x="357" y="301">- corroborated · author: main</text>
+</g>
+
+<!-- arrow: pins -->
+<path class="ilead" d="M617 219 H645"/>
+<path class="ink" d="M643 214 L651 219 L643 224 z"/>
+<text class="serif muted small" x="632" y="207" text-anchor="middle">pins</text>
+
+<!-- ===== PANEL 3: the artifact ===== -->
+<rect class="rule" x="650.5" y="124.5" width="269" height="189" rx="3"/>
+<text class="mono muted code11" x="662" y="144">pyproject.toml</text>
+<rect class="soft" x="662" y="200" width="113" height="15" rx="2"/>
+<g class="mono ink code11">
+  <text x="662" y="166">[project]</text>
+  <text x="662" y="181">name = "claims-ledger"</text>
+  <text x="662" y="196">requires-python = "&gt;=3.11"</text>
+  <text x="662" y="211">dependencies = []</text>
+  <text x="662" y="226" class="muted"># No runtime dependencies,</text>
+  <text x="662" y="241" class="muted"># deliberately. …</text>
+  <text x="662" y="271">[project.optional-dependencies]</text>
+</g>
+<text class="serif muted small" x="662" y="300">the span the claim rests on, at its digest</text>
+
+<!-- ===== the gather: three leads into one bar ===== -->
+<path class="lead" d="M175 314 V336 H785 V314"/>
+<path class="lead" d="M480 314 V336"/>
+<path class="lead" d="M480 336 V352"/>
+<path class="muted" d="M475 350 L480 358 L485 350 z"/>
+
+<rect class="panel" x="40" y="358" width="880" height="46" rx="3"/>
+<rect class="rule" x="40.5" y="358.5" width="879" height="45" rx="3"/>
+<text class="mono ink code" x="56" y="386">claims-ledger check</text>
+<text class="serif muted body" x="206" y="386">reads all three — in your shell, in the pre-commit hook, in CI, from a coding agent's hooks — and never reports a pass over what it did not read.</text>
+
+<!-- ===== when the span changes ===== -->
+<text class="serif muted h" x="40" y="446">WHEN THE SPAN CHANGES</text>
+
+<!-- freshness -->
+<rect class="alead" x="40.5" y="460.5" width="72" height="20" rx="10"/>
+<text class="mono accent code11" x="76.5" y="474" text-anchor="middle">freshness</text>
+<g class="serif ink body">
+  <text x="40" y="504">The key's digest no longer matches</text>
+  <text x="40" y="522">the anchor: the ground has <tspan class="accent">moved</tspan>.</text>
+</g>
+<text class="serif muted small" x="40" y="542">a flag — visible, for a person to judge</text>
+
+<!-- references -->
+<rect class="alead" x="345.5" y="460.5" width="80" height="20" rx="10"/>
+<text class="mono accent code11" x="385.5" y="474" text-anchor="middle">references</text>
+<g class="serif ink body">
+  <text x="345" y="504">The sentence still cites the entry</text>
+  <text x="345" y="522">as live, and the entry is now <tspan class="accent">contested</tspan>.</text>
+</g>
+<text class="serif muted small" x="345" y="542">a failure — exit ≠ 0</text>
+
+<!-- git commit -->
+<rect class="alead" x="650.5" y="460.5" width="80" height="20" rx="10"/>
+<text class="mono accent code11" x="690.5" y="474" text-anchor="middle">git commit</text>
+<g class="serif ink body">
+  <text x="650" y="504"><tspan class="accent">Refused</tspan> by the hook, until a person</text>
+  <text x="650" y="522">re-judges the claim and says so.</text>
+</g>
+<text class="serif muted small" x="650" y="542">a new entry with a new pin, or a fallen verdict</text>
+
+<g class="serif muted body">
+  <text x="40" y="584">No checker decides whether the claim still holds. That is a verdict a person appends to the entry;</text>
+  <text x="40" y="602">the checkers only refuse to let the prose and the code disagree silently.</text>
+</g>
+</svg>

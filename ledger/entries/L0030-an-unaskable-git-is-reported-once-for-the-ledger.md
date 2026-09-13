@@ -65,6 +65,22 @@ none
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:46ff53ce04ef51ab0c8664adc2690f80426a469e4d4df265094310a9c67f133b
   note: read against the working tree after run began passing --cached through to resolve_by_value, so a by-value anchor is held to the index under the hook: the unasked gate is still asked once for the ledger and honoured by both paths; the assertion holds as written.
 
+- 2026-09-11T19:50:54-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:1afa6db071f8945b7597ec1f0a6e820cb7c492a0ceb8f12a824bd26f1c9b7352
+  note: re-read after the same commit, which passes the cached flag to the registry reader and to the entry load this function falls back on. Every rule this claim is about is untouched.
+
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:b990e60091c0928d78bbb6d5733fe0354c6f242962eab2644ca770fc0cd96eba
+  note: re-read after the same commit, which passes the cached flag on to the pointer reader at both of this function's call sites. Every rule this claim is about is untouched.
+
+- 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:fc0a18fb75dbff09becb8ca4c1722262b0bde177a4bc084884ee11dcf75a8f5c
+  note: re-read after the commit that has a ground pinned at working read from the tree the run reads — the index under the flag, the working tree for a path the index does not hold, and the staged bytes decoded strictly so that an artifact which is not UTF-8 is not resolved where the working-tree read would refuse it. The rule this claim states is untouched and is the one that decided the strict decode.
+
+- 2026-09-11T22:04:31-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_pointer" =sha256:19bcb888815f2f87524700a5797837a53eecd7d27c0e9462981a29caee410876
+  note: re-read after the commit answering the fix-review gate on this branch (qe ticket e9b7d35601214a1b). An artifact git was asked for and did not answer is reported on the pointer's own line instead of being read from the working tree. The `working` rule, the strict decode and the section rule are unchanged.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

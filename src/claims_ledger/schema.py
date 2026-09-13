@@ -121,8 +121,25 @@ ABSENT = "absent"
 # which writes the line, because `validate` is the checker that holds it to a shape and a
 # rule enforced only by the code that writes the value is a rule a hand-edit walks past
 # (L0151-the-artifact-shape-is-defined-where-it-is-checked, cites-as-live).
-OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
+OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+# Forty hex characters or sixty-four: a hash width is the repository's business and not the
+# ledger's, and one created with `--object-format=sha256` names every object in the wider
+# one. `_COMMIT_RE` in the history walk has admitted both since it was written, which is
+# the tell that the narrow version here was an oversight rather than a decision. Measured,
+# it bit one caller and not the one it was predicted to: `digest_in_history` filters
+# `git log --raw`'s output through this pattern, so in a sha256 repository every blob id
+# was discarded, the set came back empty, and a ground stated by value whose text had left
+# the tree was reported as held by no version of the file the repository has — blaming a
+# rewritten history that had not happened. The immutability check, `sha --write`'s refusal
+# on a committed entry and a plain `check` over a clean ledger were each measured to work
+# there before this widening, so what it repairs is that one false report and not a package
+# that does not run.
+
 NULL_OBJECT_ID = "0" * 40
+NULL_OBJECT_IDS = frozenset({NULL_OBJECT_ID, "0" * 64})
+# Both widths, because a ledger is read in whichever repository holds it and the null id is
+# all zeros at either. Derived from the one above rather than written out twice, so the two
+# cannot drift apart.
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 PENDING_ANCHOR = "?"
@@ -206,6 +223,15 @@ class Ledger:
     # [(display name, problem)]. They are not in `docs`, because a document that was not
     # read was not checked and must not be counted as though it had been.
     unreadable_docs: list = dataclasses.field(default_factory=list)
+    # What a `--cached` open could not ask the index, as plain sentences for the guard to
+    # print. A listing that fell back to the working tree says so there or nowhere.
+    index_notes: list = dataclasses.field(default_factory=list)
+    # `{address: (mode, the path it finally names)}` for the index this run was opened
+    # against, or None where nothing has asked yet. Computed ONCE and kept, because three
+    # listings and four readers want it and a `ls-files` apiece is three too many in a
+    # pre-commit hook.
+    index_reach: dict | None = None
+    index_why: str | None = None
 
     @property
     def tree(self):
@@ -340,6 +366,294 @@ def tree_documents(config):
     return docs, unreadable
 
 
+def _glob_matches(parts, segments):
+    """`_segments_match`, plus the one rule it is documented never to need: `glob` selects
+    a name beginning with `.` only through a pattern segment that begins with one, and
+    never descends into a hidden directory for `**`.
+
+    The tree listing gets that rule from `glob` itself. The index listing is a list of
+    strings, so it has to apply the rule here or `docs/*.md` — which has never selected
+    `docs/.draft.md` from the working tree — would start selecting it under the flag, and
+    the document count would depend on which tree the run was asked about.
+    """
+    if not segments:
+        return not parts
+    if segments[0] == "**":
+        return any(
+            not any(part.startswith(".") for part in parts[:i])
+            and _glob_matches(parts[i:], segments[1:])
+            for i in range(len(parts) + 1)
+        )
+    return (
+        bool(parts)
+        and not (parts[0].startswith(".") and not segments[0].startswith("."))
+        # fnmatchcase for the reason `_segments_match` gives: a document count that
+        # depends on the machine's case rules is not a count.
+        and fnmatch.fnmatchcase(parts[0], segments[0])
+        and _glob_matches(parts[1:], segments[1:])
+    )
+
+
+def selects_document(rel, config):
+    """Whether the `documents` patterns select `rel` — a path from the project root,
+    `/`-separated — once the excludes and the ledger's own directory are taken off.
+
+    The membership half of what `tree_documents` does, asked of a path rather than of the
+    filesystem, so that the index can be asked the same question the working tree is
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+    """
+    parts = rel.split("/")
+    if not any(_glob_matches(parts, _pattern_segments(p)) for p in config.documents):
+        return False
+    if excluded_document(rel, config.document_excludes):
+        return False
+    # The ledger does not cite itself, the same exclusion the tree listing makes.
+    ledger_rel = os.path.relpath(config.ledger_dir, config.root).replace(os.sep, "/")
+    inside = ledger_rel != ".." and not ledger_rel.startswith("../")
+    return not (inside and (rel == ledger_rel or rel.startswith(ledger_rel + "/")))
+
+
+MAX_SYMLINK_EXPANSIONS = 4096
+SYMLINK_DEPTH = 16
+
+
+def index_tree(config):
+    """({rel: mode}, why) — every path a checkout of the index would make reachable, or
+    `({}, why)` when the index could not be asked. `rel` is `/`-separated from the project
+    root; `mode` is the mode of the regular file finally reached, so a path reached through
+    a symlink carries the mode of its target.
+
+    THE INDEX IS NOT THE SET OF PATHS THE COMMIT MAKES REACHABLE, and the difference is a
+    committed symlinked directory. `ls-files` reports the symlink as one blob and its
+    target's files as others; a checkout restores the link, and `docs/bad.md` is then a
+    real path that `ls-files` never named. Measured before this: with `docs -> real` and
+    `real/bad.md` carrying a broken citation, `references --cached` reports `0 documents`
+    and `0 failure(s)` at exit 0 while a fresh clone of that very commit fails at exit 1 —
+    the cached-clean/committed-fails contrast that the listing exists to close, pointed the
+    wrong way (qe ticket 45909368c43c4379, F3). The entry list had the same hole through
+    the same door: a symlinked `ledger/entries` made every checker report `0 entries` at
+    exit 0 (F1).
+
+    The expansion needs nothing from the working tree, which is what keeps the answer the
+    index's own: a symlink's blob IS its target, so the whole shape is readable from the
+    commit being built (L0230-a-cached-listing-expands-the-index-symlinks, cites-as-live).
+
+    Bounded on both axes, because a symlink graph is arbitrary: `SYMLINK_DEPTH` passes, so
+    a cycle stops rather than growing paths forever, and `MAX_SYMLINK_EXPANSIONS` added
+    paths, so a wide fan-out cannot make the listing the slow part of a commit. A target
+    that is absolute, or that climbs out of the repository, is no part of this tree and is
+    not followed.
+    """
+    answer = git_call(config.root, "ls-files", "--cached", "-z", "-s", env=git_env(index=True))
+    if not answer.ok:
+        return {}, answer.why, None
+    modes, links = {}, {}
+    for record in answer.out.split("\0"):
+        # `<mode> SP <object> SP <stage> TAB <path>`; `-z` ends the record at the NUL, so
+        # `partition` on the first tab leaves a path holding a tab intact.
+        meta, tab, rel = record.partition("\t")
+        if not tab or not rel:
+            continue
+        mode = meta.split(" ", 1)[0]
+        # An unmerged path arrives once per stage. One path is one file whatever the
+        # conflict, and reading it three times reported every failure three times
+        # (qe ticket 45909368c43c4379, F4); the first stage wins, as a dict does.
+        modes.setdefault(rel, mode)
+        if mode == "120000":
+            links[rel] = None
+    if links:
+        blobs, _failures = git_blobs(
+            config.root, (f":{rel}" for rel in links), env=git_env(index=True)
+        )
+        for rel in list(links):
+            data = blobs.get(f":{rel}")
+            # A link git did not answer for is simply not followed: it stays a symlink in
+            # the listing, which the mode check then names as not a regular file.
+            target = None if data is None else _link_target(rel, data)
+            if target is None:
+                del links[rel]
+            else:
+                links[rel] = target
+    # `{address: (mode, the path it finally names)}`. The second half is what
+    # `os.path.realpath` answers for the working tree, and it is free here: an address only
+    # exists because this pass built it from the path it reaches.
+    reach = {rel: (mode, rel) for rel, mode in modes.items()}
+    room, truncated = MAX_SYMLINK_EXPANSIONS, None
+    for _ in range(SYMLINK_DEPTH):
+        added = {}
+        for link, target in links.items():
+            for rel, (mode, real) in reach.items():
+                if rel != target and not rel.startswith(target + "/"):
+                    continue
+                through = link + rel[len(target) :]
+                # A link to a regular FILE is that file at this address, which is what
+                # `os.path.isfile` answers for the working tree and therefore what the
+                # tree listing counts. So a resolved link takes its target's mode rather
+                # than staying `120000` and being named unreadable — the two listings
+                # disagreed about `docs/link.md -> note.md` until this, one reporting the
+                # link and one the target.
+                was = added.get(through, reach.get(through))
+                if was is None or (was[0] == "120000" and mode != "120000"):
+                    added[through] = (mode, real)
+        if not added:
+            break
+        if len(added) > room:
+            # The cap counts paths ADDED, not paths held: counting the whole listing meant
+            # any repository above the cap got no expansion at all, silently, and this
+            # repository's 784 tracked files were under it so nothing said otherwise
+            # (qe ticket f868273f36b448ab, F2).
+            truncated = (
+                f"more than {MAX_SYMLINK_EXPANSIONS} paths are reachable only through "
+                "symlinks; the listing holds what was reached and not the rest"
+            )
+            break
+        room -= len(added)
+        reach.update(added)
+        links = {rel: t for rel, t in links.items() if reach[rel][0] == "120000"}
+    else:
+        if links:
+            # A CYCLE, usually, rather than a deep chain: `ln -s . here` reaches one
+            # segment further every pass and never runs out. The first wording said
+            # "nested more than N deep", which is false of a link nested none deep.
+            truncated = (
+                f"symlinks were followed {SYMLINK_DEPTH} times and still reach further — a "
+                "cycle, or a chain longer than that; the listing holds what was reached "
+                "and not the rest"
+            )
+    return reach, None, truncated
+
+
+def _link_target(rel, data):
+    """Where a symlink blob points, as a path from the project root, or None when it points
+    outside the tree the commit carries.
+
+    A target is read relative to the link's own directory, the way the filesystem reads it.
+    Absolute, or climbing past the root: the commit does not carry what is there, so the
+    listing says nothing about it rather than guessing (a dangling link simply reaches no
+    path in the map, which needs no case of its own).
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if not text or text.startswith("/"):
+        return None
+    target = posixpath.normpath(posixpath.join(posixpath.dirname(rel), text))
+    if target == ".." or target.startswith("../") or target == ".":
+        return None
+    return target
+
+
+def index_reach(ledger):
+    """({address: (mode, real path)}, why) for `ledger`'s index, asked once and kept.
+
+    Every reader of the index goes through `index_spec` below, and every one of them needs
+    this map, so it is computed here rather than at each — three `ls-files` per command,
+    fifteen per hook run, was the cost of not doing so.
+    """
+    if ledger.index_reach is None:
+        if not ledger.repo:
+            ledger.index_reach, ledger.index_why = {}, "the ledger has no repository of its own"
+        else:
+            reach, why, truncated = index_tree(ledger.config)
+            ledger.index_reach, ledger.index_why = reach, why
+            if truncated:
+                # A TRUNCATION IS NOT A FAILURE, and answering it with one was a false pass
+                # of its own: a `why` sends the whole listing to the working tree, so an
+                # ordinary `ln -s . here` took a staged-only document off the list entirely
+                # and the run reported clean at exit 0 where the commit before it exited 1.
+                # A narrower universe than the commit has is not a wrong one; the listing
+                # keeps what it reached, and the guard says what it did not.
+                ledger.index_notes.append(f"{truncated}; some staged paths were not checked")
+    return ledger.index_reach, ledger.index_why
+
+
+def index_spec(ledger, rel):
+    """The `:<path>` git will answer for, given `rel` from the project root.
+
+    THE ONE PLACE A PATH BECOMES AN INDEX READ, and it exists because the listings learned
+    to name paths git does not. Expanding the index's symlinks puts `docs/bad.md` on the
+    list when the index holds `docs -> real` and `real/bad.md`; git has no blob at that
+    address, `cat-file` says missing, `blob_absent` reads missing as "not staged", and the
+    reader falls back to the WORKING TREE at exactly the paths the expansion existed to
+    add. Measured: an entry staged with `grade: bogus` under a symlinked entries directory
+    and corrected in the tree gave `validate --cached` `1 entry` and `0 failure(s)` at
+    exit 0, while a fresh clone of the commit it made failed at exit 1 — the listing
+    repaired and the read left pointing at the wrong tree
+    (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+
+    A path the expansion does not know is asked for as itself, which is every path in a
+    repository holding no symlinks and is what this always did.
+    """
+    reach, _why = index_reach(ledger)
+    known = reach.get(rel)
+    return f":{known[1] if known else rel}"
+
+
+def index_specs(ledger, rels):
+    """`{rel: spec}` for several paths, so a caller batching `cat-file` asks the reach once
+    rather than once per path."""
+    reach, _why = index_reach(ledger)
+    return {rel: f":{reach[rel][1] if rel in reach else rel}" for rel in rels}
+
+
+def index_documents(ledger):
+    """(documents, unreadable, why) — the configured documents the index holds, in the
+    shape `tree_documents` returns them, or `(None, None, why)` when the index could not
+    be asked. Asked only where `open_ledger` found a `.git` at the project root, which is
+    the only place a `Ledger` ever has a repository.
+
+    Which documents exist is a question about a tree, and under `--cached` the tree is the
+    index. Globbing the working tree there was a false pass with the shape this package
+    exists to refuse, and it was not even a `--cached` defect: `tree_documents` is the
+    document universe for every run, so a document the index holds and the tree does not —
+    `git add docs/bad.md && rm docs/bad.md` — was on nobody's list. Measured, with a
+    document staged that way carrying a citation of an id nothing minted: `check --cached`
+    reports `1 document` and `0 failure(s)` at exit 0, and a fresh clone of the commit it
+    was about to make fails `references` at exit 1 naming that document
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live).
+
+    The listing is the index's alone rather than added to the tree's, which is the answer
+    the entry list gives too and for the same reason: `ls-files` lists every tracked path,
+    not what changed, so with the symlinks expanded it is what the commit will carry.
+    Adding the tree's matches back would put a document the commit does not carry on the
+    list, and a run that reads a file no commit contains is the report this tool must never
+    produce, whichever direction it points.
+
+    One root, not two: `ls-files` answers paths relative to the repository it is run in,
+    and everything downstream — the patterns, the excludes, the display name, the path a
+    document is finally read at — is relative to the project root. Taking the repository
+    as a second argument would let those come apart silently the day a ledger sits below
+    its repository's root, and every path here would be counted from the wrong place.
+
+    Two things `tree_documents` gets from the filesystem and this gets from the mode and
+    the expansion. A path that is not a regular file is named rather than read, because
+    `cat-file` hands back a symlink's target as though it were the document's text. And one
+    document reached at two addresses is reported at one, the shorter, which is the
+    realpath dedup `tree_documents` makes — here the expansion already says which addresses
+    reach the same file.
+    """
+    config = ledger.config
+    reach, why = index_reach(ledger)
+    if why:
+        return None, None, why
+    unreadable, by_target = [], {}
+    for rel, (mode, real) in sorted(reach.items()):
+        if not selects_document(rel, config):
+            continue
+        if mode not in ("100644", "100755"):
+            unreadable.append((rel, "is not a regular file in the index; it was not checked"))
+            continue
+        # Keyed by the path finally named, so one document addressed twice is reported at
+        # one address — the shorter, which is the rule `tree_documents` applies to the
+        # realpaths it resolves.
+        if real in by_target and len(by_target[real]) <= len(rel):
+            continue
+        by_target[real] = rel
+    docs = [(rel, Path(config.root) / rel) for rel in sorted(by_target.values())]
+    return docs, unreadable, None
+
+
 def unreadable_document(path):
     """Why `path` cannot be read as UTF-8 text, or None.
 
@@ -402,13 +716,43 @@ def unlistable_document_dirs(config):
     return problems
 
 
-def open_ledger(root=None, config_path=None, config=None):
+def open_ledger(root=None, config_path=None, config=None, cached=False):
     """The project's ledger: its configuration, the documents that may cite it, and the
-    git repository its history checks read."""
+    git repository its history checks read.
+
+    `cached` decides which tree the documents are listed from, and it is settled here
+    rather than at each reader because the list is also what the run counts and reports
+    (L0228-documents-under-cached-are-the-ones-the-index-holds, cites-as-live). An
+    index that cannot be answered for falls back to the working tree's listing, and the
+    `why` is not carried out of here: it is the fallback `index_problem()` already reports
+    through the guard, on the line that says what was not checked.
+    """
     config = config or load_config(root=root, config_path=config_path)
     repo = config.root if (config.root / ".git").exists() else None
     docs, unreadable = tree_documents(config)
-    return Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
+    notes = []
+    ledger = Ledger(config=config, docs=docs, repo=repo, unreadable_docs=unreadable)
+    if cached and repo:
+        indexed, index_unreadable, why = index_documents(ledger)
+        if indexed is None:
+            # NOT silence. `index_problem()` asks `ls-files -- .git`, which prints nothing
+            # whatever the repository holds, so it cannot fail the way a listing of every
+            # tracked path can — a timeout, a pack it cannot open. Measured with a git that
+            # fails only this call: `references --cached` went from exit 1 naming a staged
+            # document to `0 documents` and `0 failure(s)` with nothing said, which is
+            # L0227's finding one listing over (qe ticket 45909368c43c4379, F2).
+            notes.append(
+                f"the index could not be listed ({why}), so --cached fell back to the "
+                "working tree; what is staged was not checked"
+                # (L0231-a-listing-that-fell-back-is-named-by-the-guard, cites-as-live)
+            )
+        else:
+            ledger.docs, ledger.unreadable_docs = indexed, index_unreadable
+    # Extended, not replaced: the expansion appends its own note during the listing above,
+    # and assigning here dropped it on the floor — the truncation went unsaid, which is the
+    # whole point of having it.
+    ledger.index_notes.extend(note for note in notes if note not in ledger.index_notes)
+    return ledger
 
 
 def default_ledger(tree=None):
@@ -1247,6 +1591,27 @@ GIT_REPOSITORY_ENV = (
 # never wants
 # (L0141-the-repository-location-environment-is-scrubbed-on-every-call, cites-as-live).
 
+GIT_PATHSPEC_ENV = (
+    # A path written as a literal is asked about as the path it names, so none of these
+    # is consulted on any call
+    # (L0218-a-pathspec-means-the-path-it-names, cites-as-live).
+    "GIT_LITERAL_PATHSPECS",
+    "GIT_GLOB_PATHSPECS",
+    "GIT_NOGLOB_PATHSPECS",
+    "GIT_ICASE_PATHSPECS",
+)
+# A pathspec this package writes says which path it means, and these four rewrite that
+# sentence after it is written. `GIT_LITERAL_PATHSPECS=1` is the one measured to bite: it
+# takes `:(literal)` for the *name of a file* rather than for git's own way of saying "the
+# text is a filename", so the two calls that use it — the enclosing-repository walk and
+# freshness's history question — ask about a path nothing has ever been at and are
+# answered, cleanly and at exit 0, that no commit touched it. Measured on git 2.43.0: with
+# the variable exported, `validate` over a ledger an enclosing repository has committed
+# went from exit 1 naming an immutable region to exit 0 with nothing said. The other three
+# are dropped on the same account as the repository list above rather than because each was
+# measured — a variable that decides what a pathspec means is a false pass waiting for a
+# git version that reads it, and no caller here wants one.
+
 GIT_NOISE_ENV = (
     "GIT_TRACE",
     "GIT_TRACE2",
@@ -1271,14 +1636,14 @@ def git_env(index=False):
     for a partial commit that is not `.git/index`: measured on git 2.43.0, a plain
     `git commit` gives the hook `GIT_INDEX_FILE=.git/index` and `git commit -- <path>`
     gives it `.git/next-index-<pid>.lock`, holding HEAD plus the named paths. Scrubbing it
-    there would take the three checkers the hook runs with `--cached` — `validate`,
-    `resolve` and `freshness` — off the content being committed and onto content that is
-    not, the same false pass as the rest of this list, pointed the other way. So the one
+    there would take the checkers the hook runs with `--cached` — all five of them — off
+    the content being committed and onto content that is not, the same false pass as the
+    rest of this list, pointed the other way. So the one
     question this package does ask of the environment is asked — by the callers whose
     subject is the index, under `--cached`, and by no others
     (L0142-the-index-variable-is-kept-only-where-the-index-is-the-subject, cites-as-live).
     """
-    drop = set(GIT_REPOSITORY_ENV) | set(GIT_NOISE_ENV)
+    drop = set(GIT_REPOSITORY_ENV) | set(GIT_PATHSPEC_ENV) | set(GIT_NOISE_ENV)
     if index:
         drop.discard("GIT_INDEX_FILE")
     # `LC_ALL=C` last, over whatever the caller had. Everything this package learns from
@@ -1636,47 +2001,164 @@ def list_entry_files(entries_dir):
         ) from exc
 
 
+def index_entry_files(ledger):
+    """(paths, why) for the `*.md` entries the index holds under `entries_dir`: the list a
+    commit being built would carry, as absolute paths, or `(None, why)` when the index
+    could not be asked.
+
+    Which entries exist is a question about a tree, and under `--cached` the tree is the
+    index. Globbing the working tree there was a false pass with the shape this package
+    exists to refuse: an entry staged and then deleted from the tree is in the commit and
+    was in no checker's list, so all five reported `0 failure(s)` over a ledger that was
+    about to gain a broken entry — and with the only entry staged that way, `0 entries`
+    (L0219-the-entries-under-cached-are-the-ones-the-index-holds, cites-as-fallen).
+
+    What the caller does with this is use it INSTEAD OF the working tree's listing, not
+    added to it. The union this replaced was justified here on the ground that checking an
+    entry the commit will not carry "can only cost a report nobody needed", and that is
+    measurably false: the union does not add a spare report, it supplies a citation
+    target. Measured, with `docs/citer.md` citing entry X `cites-as-live` and X taken out
+    of the index with `git rm --cached` and left in the tree — all five checkers report
+    `2 entries` and `0 failure(s)` at exit 0, and a fresh clone of the commit that made
+    holds one entry and fails `references` at exit 1 naming the citation
+    (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+
+    The listing is `index_tree`'s, not a pathspec's, because the entries directory itself
+    can be a symlink. A pathspec filtered on the literal `ledger/entries` and git reports
+    the real path, so every entry fell off the list: measured, a symlinked entries
+    directory gave `resolve --cached` `0 entries` and `0 failure(s)` at exit 0 where the
+    bare run read one, which is the report this whole package exists to refuse, restored by
+    the very change that was meant to close it (qe ticket 45909368c43c4379, F1). What the
+    expansion costs is a listing of the repository rather than of the ledger; what stays
+    flat is the number of git processes, which is one, whatever either holds.
+
+    Single-level and no dotfile, to match what the directory listing matches.
+    """
+    if not ledger.repo:
+        return None, "the ledger has no repository of its own"
+    rel = os.path.relpath(ledger.entries_dir, ledger.repo).replace(os.sep, "/")
+    if rel == ".." or rel.startswith("../"):
+        return None, f"{rel} is outside the repository at {ledger.repo}"
+    reach, why = index_reach(ledger)
+    if why:
+        return None, why
+    prefix = "" if rel == "." else rel + "/"
+    # Keyed by the path, which is what `list_entry_files` lists: an alias inside the
+    # directory is a second entry file to the bare run, and a cached run that silently
+    # folded it into one would disagree with the run beside it about what the ledger holds.
+    # Deduplication that IS owed happens a step earlier, where an unmerged path arrives once
+    # per stage and one path is one file whatever the conflict — dropping that loaded a
+    # conflicted entry three times and reported every failure in it three times
+    # (qe ticket 45909368c43c4379, F4).
+    paths = set()
+    for name in reach:
+        if not name.startswith(prefix):
+            continue
+        tail = name[len(prefix) :]
+        if "/" in tail or not tail.endswith(".md") or tail.startswith("."):
+            continue
+        paths.add(Path(ledger.repo) / name)
+    return sorted(paths), None
+
+
 def load_entries(ledger, cached=False):
-    """Every entry under entries_dir, sorted by filename. With `cached`, an entry that is
-    in the git index is read from the index instead of the working tree, which is what a
-    pre-commit hook wants to check."""
+    """Every entry under entries_dir, sorted by filename. With `cached`, the entries are
+    the ones the index holds — both which of them there are and what each one says — which
+    is what a pre-commit hook wants to check."""
     entries = []
+    indexed = None
+    if cached:
+        indexed, _why = index_entry_files(ledger)
+        # A `why` here is the fallback `index_problem()` already reports through the guard,
+        # so it is not reported a second time: the listing falls back to the working tree
+        # so that a run whose index cannot be read still checks something, having said so.
+    in_tree = []
     if isinstance(
         entries_dir_listing_error(ledger.entries_dir), (FileNotFoundError, NotADirectoryError)
     ):
-        return entries  # a ledger not created yet; `guard()` is what refuses to report
-    paths = sorted(list_entry_files(ledger.entries_dir))
+        if indexed is None:
+            return entries  # a ledger not created yet; `guard()` is what refuses to report
+    else:
+        in_tree = list_entry_files(ledger.entries_dir)
+    # The index's listing alone, not added to the working tree's: the index is not a delta,
+    # it holds every tracked path, so it is what the commit will carry
+    # (L0229-a-cached-run-checks-the-index-alone, cites-as-live).
+    paths = sorted(in_tree) if indexed is None else sorted(indexed)
     staged = {}
     if cached and ledger.repo:
         # One `cat-file --batch` for every entry rather than one `git show` each: the
         # pre-commit hook runs this over the whole ledger on every commit. A path that is
         # not in the index gets no blob and is read from the working tree, as before.
         rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
-        blobs, _ = git_blobs(
-            ledger.repo, (f":{rel}" for rel in rels.values()), env=git_env(index=True)
-        )
-        staged = {path: blobs.get(f":{rel}") for path, rel in rels.items()}
+        specs = index_specs(ledger, rels.values())
+        blobs, failures = git_blobs(ledger.repo, specs.values(), env=git_env(index=True))
+        for path, rel in rels.items():
+            spec = specs[rel]
+            if spec in blobs:
+                staged[path] = blobs[spec]
+                continue
+            why = failures.get(spec, ABSENT_FROM_INDEX)
+            if not blob_absent(why):
+                # An entry git was asked about and did not answer for. Read from the tree
+                # instead, this is a checker reporting on content no commit contains at
+                # exit 0 — the report this whole package exists to refuse. There is no
+                # per-entry channel to say it on, because the entry has not been parsed,
+                # so it stops the run the way an unlistable entries directory does.
+                raise LedgerError(f"{path}: could not be read from the index ({why})")
     for path in paths:
         data = staged.get(path)
         entries.append(parse_entry(path, None if data is None else blob_text(data)))
     return entries
 
 
+def entries_for(ledger, *, cached, write):
+    """The entries a checker run should hold, given what it was asked and whether it will
+    write.
+
+    `--write` appends to the working tree, so a run that will write decides from the
+    working tree even when the comparison it makes is asked of the index. Deciding from the
+    index means deciding from a tree that does not hold what the last run just appended:
+    measured on both writers before this, three runs of `--write --cached` with no
+    `git add` between them left three copies of one verdict, each run re-reading an index
+    that never gained the verdict the run before had written. What the flag still decides
+    is the artifact a verdict RECORDS, which is read where the comparison is made and is
+    the whole reason to ask for the index
+    (L0226-a-write-decides-from-the-tree-it-appends-to, cites-as-live).
+
+    One function because the rule has four call sites — the two commands and the two
+    writers' own fallbacks — and a rule written out four times is a rule three of them can
+    drift from.
+    """
+    return load_entries(ledger, cached=cached and not write)
+
+
 def by_id(entries):
     return {e.id: e for e in entries if e.id}
 
 
-def load_registry(path):
+def load_registry(path, text=None):
     """sources.jsonl as {id: row}. A missing file is an empty registry; a malformed row
-    is reported by resolve when something points at it."""
+    is reported by resolve when something points at it.
+
+    `text` is the registry as some other tree has it — the index, under `--cached` — and is
+    read in place of the file when given."""
     rows = {}
     path = Path(path)
+    if text is not None:
+        return _registry_rows(text, path)
     if not os.path.lexists(path):
         return rows  # a ledger with no sources registered yet
     problem = file_problem(path, "the source registry")
     if problem is not None:
         raise LedgerError(f"{path}: {problem}")
-    for lineno, ln in enumerate(read_text_or_raise(path, "the source registry").splitlines(), 1):
+    return _registry_rows(read_text_or_raise(path, "the source registry"), path)
+
+
+def _registry_rows(text, path):
+    """The rows of a registry's text, wherever the text came from. `path` names the file
+    only so that a malformed line can be reported at a place a person can open."""
+    rows = {}
+    for lineno, ln in enumerate(text.splitlines(), 1):
         if not ln.strip():
             continue
         try:
@@ -1756,6 +2238,106 @@ def unreachable_artifact(path):
     except OSError as exc:
         return f"cannot be read ({exc.strerror or exc})"
     return None
+
+
+def staged_documents(ledger, paths):
+    """{path: (text, problem)} for those of `paths` the git index has something to say
+    about, read through one `cat-file --batch`. A path the index simply does not hold is
+    absent from the answer and the caller reads it from the tree; a path git could not be
+    asked about is present, with the problem, so that it is reported rather than read from
+    the wrong tree.
+
+    The documents a citation is read out of, as the commit will carry them. `references`
+    checked the working tree whatever it was asked, so a citation staged against one status
+    and corrected in the tree alone passed the hook and committed broken — the checker
+    reported on text no commit contains
+    (L0221-the-documents-a-cached-run-reads-are-the-staged-ones, cites-as-live).
+
+    A path the index does not hold is absent from the answer and the caller reads it from
+    the tree, which is the same fallback the entry loader makes: a document that is not
+    staged is not being changed by this commit, and the tree's copy is what the commit will
+    leave behind.
+    """
+    paths = list(paths)
+    if not paths or not ledger.repo:
+        return {}
+    rels = {path: os.path.relpath(path, ledger.repo) for path in paths}
+    specs = index_specs(ledger, rels.values())
+    blobs, failures = git_blobs(ledger.repo, specs.values(), env=git_env(index=True))
+    out = {}
+    for path, rel in rels.items():
+        spec = specs[rel]
+        if spec in blobs:
+            # Strictly, and reported the way the working-tree read reports it: a document
+            # the index holds as bytes nobody can decode is an unreadable document there
+            # too, and `blob_text` would hand back text with the real thing's shape.
+            out[path] = _strict_text(blobs[spec])
+            continue
+        why = failures.get(spec, ABSENT_FROM_INDEX)
+        if not blob_absent(why):
+            out[path] = (None, f"could not be read from the index ({why})")
+    return out
+
+
+ABSENT_FROM_INDEX = "git says it is missing"
+
+
+def blob_absent(why):
+    """Whether `git_blobs` is saying the index does not hold this path, as against saying
+    it could not answer.
+
+    The difference is the whole of a `--cached` read's honesty and it was folded away: a
+    caller that treats every failure as absence reads a `cat-file` that timed out, died on
+    a pack it could not open, or was killed, as "not staged" — and then reads the working
+    tree instead and reports a clean run. Measured with a git whose `cat-file` exits 128,
+    `resolve --cached` went from exit 1 naming a staged withdrawal to `0 failure(s)` with
+    nothing said. A question git did not answer is not a no
+    (L0227-an-unanswered-index-read-is-not-an-absent-path, cites-as-live).
+    """
+    return why == ABSENT_FROM_INDEX
+
+
+def _strict_text(data):
+    """(text, problem) for blob bytes, decoded strictly and with the endings `read_text`
+    would give. `blob_text` decodes with replacement, which is right where the subject is a
+    comparison of two trees and wrong where the subject is whether a file is readable at
+    all: it turns bytes no reader can read into text with the shape of the real thing."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return None, f"is not UTF-8 text (byte {exc.start}: {exc.reason})"
+    return text.replace("\r\n", "\n").replace("\r", "\n"), None
+
+
+def staged_blob(ledger, path):
+    """(bytes, problem) for what the index holds at `path`. `(None, None)` when the index
+    simply does not hold it.
+
+    Bytes, not text, for the caller that has to tell "the index does not have this" from
+    "the index has it and it is not UTF-8" — two answers `blob_text` folds into one,
+    because it decodes with replacement.
+    """
+    if not ledger.repo:
+        return None, None
+    spec = index_spec(ledger, os.path.relpath(path, ledger.repo))
+    blobs, failures = git_blobs(ledger.repo, [spec], env=git_env(index=True))
+    if spec in blobs:
+        return blobs[spec], None
+    why = failures.get(spec, ABSENT_FROM_INDEX)
+    return (None, None) if blob_absent(why) else (None, f"could not be read from the index ({why})")
+
+
+def staged_text(ledger, path):
+    """(text, problem) for what the index holds at `path`, decoded strictly.
+
+    One path rather than a batch, for the reader whose subject is a single file the whole
+    ledger rests on: the source registry
+    (L0223-a-cached-run-reads-the-registry-the-commit-will-carry, cites-as-live).
+    """
+    data, problem = staged_blob(ledger, path)
+    if problem is not None or data is None:
+        return None, problem
+    return _strict_text(data)
 
 
 def read_document(path):

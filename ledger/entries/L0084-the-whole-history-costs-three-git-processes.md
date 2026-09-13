@@ -52,6 +52,10 @@ none
   evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:a0f5460dc7e6805f42f37f08c07a994eaac5dd9d160914c883daecf28f17db9b
   note: read against the working tree after the only edit to check_history since the reading at 2a76453, a comment naming the audit file by its path docs/audits/ARCH-AUDIT.md instead of by its bare name: re-counted against the code rather than the diff, since this claim once went false unnoticed — on a ledger with its own repository the section runs rev-parse --verify HEAD once, git_history once over the entries directory and git_blobs once over every wanted blob, and enclosing_repository is asked only when no repository is recorded, which is outside this claim's cohort; three processes, and the assertion holds as written.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:2936b88e568080efefbb408f73a1b80f72321109bdf1d06ab1ad5dee9130b4e5
+  note: acknowledged: the frozen-region comparison now asks for the staged blob through `index_spec`, so that under a symlinked entries directory it names the path the index holds rather than the address the listing invented. The comparison, and this claim about it, are unchanged (L0232).
+
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live

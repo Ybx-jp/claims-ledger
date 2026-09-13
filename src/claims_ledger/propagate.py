@@ -22,7 +22,7 @@ from .schema import (
     LedgerError,
     Report,
     by_id,
-    load_entries,
+    entries_for,
     read_text_exact,
     write_text_atomically,
 )
@@ -165,7 +165,7 @@ def append_verdict(entry, block, *, root):
         ) from exc
 
 
-def run(ledger, write=False, entries=None):
+def run(ledger, write=False, entries=None, cached=False):
     """The walk, and every rule it holds.
 
     When an entry cited `cites-as-live` has fallen (refuted, superseded, retracted), the
@@ -198,7 +198,7 @@ def run(ledger, write=False, entries=None):
     distinguished itself from it
     (L0161-a-distinguishing-ground-propagates-nothing, cites-as-live).
     """
-    entries = load_entries(ledger) if entries is None else entries
+    entries = entries_for(ledger, cached=cached, write=write) if entries is None else entries
     index = by_id(entries)
     status = {e.id: e.status() for e in entries}
     author = ledger.config.propagation_author

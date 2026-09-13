@@ -49,6 +49,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:166a79c96b6b68db961e4aeb6e8a271e668650a3181d75583405ee4478808d6f
+  note: re-read after the commit that gives this checker a cached mode: it takes the flag, loads the entries with it, and reads each configured document from the index where the index holds it. Every rule this claim is about is unchanged — what moved is which tree the text being checked was read from, and the bodies being read once for the run instead of once per loop.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

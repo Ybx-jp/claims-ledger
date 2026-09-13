@@ -35,5 +35,9 @@ none
 
 ## Verdicts
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:33c2c162d1481a0cca280d3b703aee8ae0342c09f1c287831340905d0213540e
+  note: acknowledged: `drift` threads the ledger down so its two cached reads can name the path the index holds. Nothing about what counts as drift changed (L0232).
+
 ## References
 - src/claims_ledger/freshness.py · standing · cites-as-live

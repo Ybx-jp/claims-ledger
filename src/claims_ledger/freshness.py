@@ -48,11 +48,12 @@ from .schema import (
     UNPINNED,
     Report,
     digest_of,
+    entries_for,
     git,
     git_call,
     git_env,
     git_problem,
-    load_entries,
+    index_spec,
     read_artifact,
     section_text,
 )
@@ -286,7 +287,17 @@ def verdict_block(grade, pointer, note, author, seen):
     )
 
 
-def now_text(repo, pointer, path, cached):
+def _spec(ledger, target):
+    """`index_spec` where a ledger was threaded down, and the plain spec where one was not.
+
+    `drift()` is reachable with no ledger only from a bare (non-cached) call, where no
+    index read happens at all; every cached path in this module comes through `run()`,
+    which has one.
+    """
+    return f":{target}" if ledger is None else index_spec(ledger, target)
+
+
+def now_text(repo, pointer, path, cached, ledger=None):
     """(text, unreachable) — the artifact as this run reads it: the working tree, or the
     index blob under `--cached`, matching whatever the rest of the run is reading.
 
@@ -299,14 +310,18 @@ def now_text(repo, pointer, path, cached):
     (docs/audits/ARCH-AUDIT.md, finding 2.)
     """
     if cached:
-        answer = git_call(repo, "show", f":{pointer.target}", env=git_env(index=True))
+        # Through the same chokepoint every other index read uses: a target reached via a
+        # symlinked directory is held by the index under another name, and asking for the
+        # address git does not have reads as "not staged"
+        # (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+        answer = git_call(repo, "show", _spec(ledger, pointer.target), env=git_env(index=True))
         if answer.ok:
             return answer.out, None
         return None, f"git could not read `{pointer.target}` from the index: {answer.why}"
     return read_artifact(path)
 
 
-def in_this_run(repo, pointer, path, cached):
+def in_this_run(repo, pointer, path, cached, ledger=None):
     """(whether the artifact is still there to be read, why that could not be
     established) — in the index under `--cached`, and in the working tree otherwise.
 
@@ -325,7 +340,11 @@ def in_this_run(repo, pointer, path, cached):
             "ls-files",
             "--error-unmatch",
             "--",
-            literal(pointer.target),
+            # The path the index HOLDS. Under a symlinked directory the pointer's own
+            # target is an address git has no entry for, and `--error-unmatch` then
+            # answers `withdrawn` for an artifact the commit carries
+            # (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+            literal(_spec(ledger, pointer.target)[1:]),
             env=git_env(index=True),
         )
         return answer.ok, None
@@ -385,7 +404,9 @@ class Drift:
     seen: str | None = None
 
 
-def drift(repo, pointer, tree, config, cached=False, memo=None):  # `tree` is the working tree
+def drift(
+    repo, pointer, tree, config, cached=False, memo=None, ledger=None
+):  # `tree` is the working tree
     """The finding for one pointer, and what this run read the artifact as.
 
     A pin or a path that does not resolve at all is not this checker's finding — `resolve`
@@ -452,14 +473,14 @@ def drift(repo, pointer, tree, config, cached=False, memo=None):  # `tree` is th
         )
         return (out or "").strip()
 
-    present, unreachable = in_this_run(repo, pointer, path, cached)
+    present, unreachable = in_this_run(repo, pointer, path, cached, ledger)
     if unreachable:
         return Drift("unknown", f"`{pointer.target}` {unreachable}, so it was not compared")
     if not present:
         # Deleted, or replaced by something that is not a file to read. Either way there
         # is nothing left for a person to look at and judge.
         return Drift("withdrawn", since(), ABSENT)
-    now, unreachable = now_text(repo, pointer, path, cached)
+    now, unreachable = now_text(repo, pointer, path, cached, ledger)
     if unreachable:
         return Drift("unknown", f"`{pointer.target}` {unreachable}, so it was not compared")
     if now is None:
@@ -529,7 +550,7 @@ def run(ledger, write=False, cached=False, entries=None):
     looked at before it is committed
     (L0115-a-write-that-appended-still-exits-non-zero, cites-as-live).
     """
-    entries = load_entries(ledger, cached=cached) if entries is None else entries
+    entries = entries_for(ledger, cached=cached, write=write) if entries is None else entries
     config = ledger.config
     author = config.propagation_author
     reports = []
@@ -584,7 +605,9 @@ def run(ledger, write=False, cached=False, entries=None):
         one question inside one report.
         """
         if pointer.raw not in asked:
-            asked[pointer.raw] = drift(repo, pointer, tree, config, cached=cached, memo=anchors)
+            asked[pointer.raw] = drift(
+                repo, pointer, tree, config, cached=cached, memo=anchors, ledger=ledger
+            )
         return asked[pointer.raw]
 
     for e, (i, raw, ground) in pinned:
@@ -637,7 +660,7 @@ def run(ledger, write=False, cached=False, entries=None):
             where_it_was = "the index" if cached else "the working tree"
             gone = (
                 f"section {p.section!r} is no longer in `{p.target}`"
-                if p.sectioned and in_this_run(repo, p, tree / p.target, cached)[0]
+                if p.sectioned and in_this_run(repo, p, tree / p.target, cached, ledger)[0]
                 else f"`{raw}` is not in {where_it_was}"
             )
             reports.append(

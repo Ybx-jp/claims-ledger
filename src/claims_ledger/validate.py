@@ -29,7 +29,7 @@ from .schema import (
     ID_RE,
     KINDS,
     MEASURED_AND_ABOVE,
-    NULL_OBJECT_ID,
+    NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
     SCOPE_KEYS,
@@ -48,6 +48,7 @@ from .schema import (
     git_call,
     git_env,
     git_history,
+    index_spec,
     load_entries,
     normalize,
     parse_entry,
@@ -527,18 +528,20 @@ def check_verdicts(e, entries, config):
                 and not DIGEST_RE.match(v.artifact)
                 and not OBJECT_ID_RE.match(v.artifact)
             ):
-                # A 40-character object id is the shape verdicts recorded before anchors
-                # could be stated by value; it is still well-formed, and `freshness` holds
-                # it to nothing, since a whole file's id cannot be compared with a section.
+                # A bare object id is the shape verdicts recorded before anchors could be
+                # stated by value; it is still well-formed, and `freshness` holds it to
+                # nothing, since a whole file's id cannot be compared with a section. Its
+                # width is the repository's — forty hex characters, or sixty-four where the
+                # repository was created with `--object-format=sha256`.
                 fail(
                     part,
                     f"artifact `{v.artifact}` is neither a section digest `sha256:<64 hex>`, "
-                    f"a 40-character object id nor `{ABSENT}`",
+                    f"a bare object id nor `{ABSENT}`",
                 )
-            elif v.artifact == NULL_OBJECT_ID:
-                # Well-formed and naming nothing. Git's null object id is forty hex
-                # characters no artifact has ever hashed to, so it passes the shape while
-                # recording no artifact at all.
+            elif v.artifact in NULL_OBJECT_IDS:
+                # Well-formed and naming nothing. Git's null object id is all zeros at
+                # either width, and no artifact has ever hashed to it, so it passes the
+                # shape while recording no artifact at all.
                 fail(part, "artifact is the null object id, which names no artifact")
         elif v.artifact is not None:
             # The other direction, and the one a person reaches for: `artifact:` on a
@@ -792,7 +795,11 @@ def check_history(ledger, entries, cached=False):
         if revisions[rel]:
             wanted.append(f"HEAD:{rel}")
             if cached:
-                wanted.append(f":{rel}")
+                # The path the index HOLDS, which under a symlinked entries directory is
+                # not the address the listing named. Asking for the address got `missing`,
+                # and the byte comparison then had nothing to compare and said nothing
+                # (L0232-an-index-read-names-the-path-the-index-holds, cites-as-live).
+                wanted.append(index_spec(ledger, rel))
     # `git_env(index=cached)`: this batch asks for `:{rel}` — the staged blob — only when
     # `--cached` was passed, and that is the one spec whose answer depends on which index
     # git is looking at. Every other spec names a commit and is unaffected.
@@ -853,7 +860,9 @@ def check_history(ledger, entries, cached=False):
         # rewritten from CRLF to LF compared equal to itself while every byte of it had
         # changed. "Immutable" means the bytes.
         then_bytes = _frozen_bytes(original_bytes)
-        now_bytes = _frozen_bytes(blobs.get(f":{rel}") if cached else _read_bytes(e.path))
+        now_bytes = _frozen_bytes(
+            blobs.get(index_spec(ledger, rel)) if cached else _read_bytes(e.path)
+        )
         if not named and None not in (then_bytes, now_bytes) and then_bytes != now_bytes:
             out.append(
                 Report(

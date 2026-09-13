@@ -35,6 +35,10 @@ none
 
 ## Verdicts
 
+- 2026-09-11T19:42:18-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "check_roster" =sha256:a824578b2f79bff579eee2cea7772432ca7a48498a4e7af3e6f6d7ac29d1554b
+  note: re-read after the commit that gives the reference checker a cached mode. This function is handed the document bodies the run already read, instead of reading the roster document itself; the roster rule it holds — one row per non-terminal hypothesis, each row held to the entry its opening cell cites — is untouched.
+
 ## References
 
 - src/claims_ledger/references.py · standing · cites-as-live

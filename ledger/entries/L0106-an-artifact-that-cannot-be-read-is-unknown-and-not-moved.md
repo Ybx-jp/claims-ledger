@@ -61,6 +61,18 @@ none
   evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:ec78ecef0788830e1fe16fe77e34d9d23292efbc3622b7af29e1defa9a216ff6
   note: read against the working tree after freshness began comparing by digest on both sides: drift keeps its unknown branches for a path that cannot be reached and a file that cannot be read, in front of the digest comparison that replaced git's diff; the assertion holds as written.
 
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "now_text" =sha256:d8a1b26f18a9faca0b1969b21b4b62d948b0df4306f2b43e972f756883fbba41
+  note: acknowledged: a cached read of the artifact goes through `index_spec` now, so an evidence target reached via a symlinked directory names the path the index holds. What this claim is about — the reason a failed read is reported rather than guessed at — is untouched (L0232).
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "in_this_run" =sha256:c687a611796f7a4bcc756ad3413e64db1b22c72db84c3568fe8a235e10c77ca4
+  note: acknowledged: presence under the flag is asked of the path the index holds rather than of the address, so an artifact the commit carries is not called withdrawn. This claim's subject is unchanged (L0232).
+
+- 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "drift" =sha256:33c2c162d1481a0cca280d3b703aee8ae0342c09f1c287831340905d0213540e
+  note: acknowledged: `drift` threads the ledger down so its two cached reads can name the path the index holds. Nothing about what counts as drift changed (L0232).
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live
