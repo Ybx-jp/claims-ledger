@@ -3,7 +3,16 @@
 A checked ledger of claims, in plain Markdown files, for a project that wants its
 written record to be verifiable rather than merely earnest.
 
-<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="docs/videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
+Every project writes down what it believes about itself: a README that promises no
+runtime dependencies, a docstring that says a function refuses bad input, a lab note that
+reports a number, a runbook that says which step is safe to repeat. Nothing holds those
+sentences to the code, the data or the source they rest on, so they drift, and they drift
+silently. `claims-ledger` gives each such sentence an *entry* — a small Markdown file that
+separates what is claimed from what it rests on — pins the entry to the exact span of the
+file or source that keeps it true, and fails the commit when the two stop agreeing. The
+film below shows one claim being refuted, and everything that rested on it saying so.
+
+<img alt="A 70-second film of the research-repo example. A claim file is shown with its Grounds; claims-ledger status reports it open and check is clean. A new claim, R0013, is written; a refuted verdict naming it is appended to R0001, and status now reports refuted. check fails for the two entries and two documents that cite R0001 as live; propagate --write appends their contested rows; git commit is refused by the pre-commit hook. Nothing falls silently." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/videos/nothing-falls-silently/nothing-falls-silently.gif" width="960">
 
 An entry separates the four roles a sentence in a research note usually fuses — the
 claim, the data it rests on, the rule that gets you from one to the other, and the
@@ -33,14 +42,33 @@ Backing that holds the verbatim quotations — each one resolved, at check time,
 the stored bytes of its registered source.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/four-roles-dark.svg">
-  <img alt="A single frozen statement, where a faithful quotation runs seamlessly into unsourced inference, against an entry whose Assertion, Grounds, Warrant and Backing each sit on their own line and whose quotation is resolved against the stored source bytes." src="docs/figures/four-roles.svg" width="960">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/four-roles-dark.svg">
+  <img alt="A single frozen statement, where a faithful quotation runs seamlessly into unsourced inference, against an entry whose Assertion, Grounds, Warrant and Backing each sit on their own line and whose quotation is resolved against the stored source bytes." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/four-roles.svg" width="960">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/nothing-falls-silently-dark.svg">
-  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying every document citation to a claim, every claim to a document that cites it, and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="docs/figures/nothing-falls-silently.svg" width="960">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/nothing-falls-silently-dark.svg">
+  <img alt="Three layers: two documents on top, five claims in the middle, three sources at the bottom, with lines tying every document citation to a claim, every claim to a document that cites it, and each claim's quotation to a span of a source. One claim in the middle row carries a refuted verdict. From it, a highlighted path runs to the claim that cited it, now marked contested; to the document citation that named the refuted claim; and to the document citation that named the contested one. Every other line, claim and source is unmarked." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/nothing-falls-silently.svg" width="960">
 </picture>
+
+## Where it sits
+
+Three files in your repository, held together by one command. A sentence in a document
+you already write cites an entry; the entry names the span of a file the claim rests on —
+a function, a configuration key, a section of a note, the stored bytes of a paper; and
+`claims-ledger check` reads all three and never reports a pass over anything it did not
+read. The example is this repository's own README: the sentence under the install line
+above cites an entry that is pinned to one key of `pyproject.toml`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/where-it-sits-dark.svg">
+  <img alt="Three panels in a row, joined by arrows labelled cites and pins: the sentence in README.md that promises no runtime dependencies, carrying a citation of entry L0011; the entry file, whose Grounds name one key of pyproject.toml at a commit and whose Verdicts hold a corroborated row; and pyproject.toml itself, with the line dependencies = [] highlighted as the span the claim rests on. Below, the three are gathered into one bar, claims-ledger check, which runs in a shell, in the pre-commit hook, in CI and from a coding agent's hooks. Below that, what happens when the span changes: freshness flags the ground as moved, references fails the sentence that still cites the entry as live, and git commit is refused until a person re-judges the claim." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/where-it-sits.svg" width="960">
+</picture>
+
+Nothing here decides whether a claim is true. When the pinned span changes, the checkers
+report that the ground *moved*, fail every sentence that still cites the entry as live,
+and refuse the commit until a person re-judges the claim and records the judgement as a
+verdict.
 
 ## Quickstart
 
@@ -169,8 +197,8 @@ supports the assertion over this cohort.
 ```
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/entry-anatomy-dark.svg">
-  <img alt="An entry file annotated part by part: frontmatter, then Assertion, Scope, Grounds, Warrant and Backing in a region that is frozen once committed; the APPEND marker as a seam; then Verdicts and References, which only ever grow." src="docs/figures/entry-anatomy.svg" width="960">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/entry-anatomy-dark.svg">
+  <img alt="An entry file annotated part by part: frontmatter, then Assertion, Scope, Grounds, Warrant and Backing in a region that is frozen once committed; the APPEND marker as a seam; then Verdicts and References, which only ever grow." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/entry-anatomy.svg" width="960">
 </picture>
 
 The schema in full — every field, every rule, and what each heuristic is known to miss —
@@ -189,8 +217,8 @@ rebased history costs, and how a drifted claim is repaired — is in
 | `claims-ledger freshness` | every pinned ground still names the artifact the claim was established on: the path is in the tree and the digest of its section matches the anchor — stated by value, or read out of the commit a by-reference anchor names — and a by-reference anchor is a commit rather than a name that moves (`--write` appends the missing `contested` verdicts) |
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/five-checks-dark.svg">
-  <img alt="A matrix of the five checkers against what each reads: entries, git history, the source registry and cache, the documents, and the working tree or index; with what each holds, and the two, propagate and freshness, that write a contested verdict under --write." src="docs/figures/five-checks.svg" width="960">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/five-checks-dark.svg">
+  <img alt="A matrix of the five checkers against what each reads: entries, git history, the source registry and cache, the documents, and the working tree or index; with what each holds, and the two, propagate and freshness, that write a contested verdict under --write." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/five-checks.svg" width="960">
 </picture>
 
 `claims-ledger check` runs all five. Each exits non-zero on a failure and zero on a
@@ -235,12 +263,30 @@ that matches none — exits non-zero rather than reporting a clean run over noth
 the machinery only makes a defect visible and a human has to judge it.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/corpus-contract-dark.svg">
-  <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="docs/figures/corpus-contract.svg" width="960">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/corpus-contract-dark.svg">
+  <img alt="Top, a defect seed run: on the left its expected.json with two rows, validate pass at all and resolve fail at A0001 Backing quote 1; on the right the run's five checker reports, with resolve's failure at that place matched to its row, and references, propagate and freshness bracketed as checkers no row names, which must exit clean. Bottom, three ways the runner fails: a report no row names, a row two reports satisfy, and a run that checked nothing." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/corpus-contract.svg" width="960">
 </picture>
 
 The corpus is one of four things holding the checkers; `QUALITY.md` is the short account
 of all four, and of what happens to a defect once it is found.
+
+## One schema, your names
+
+What an entry is does not change between projects. Everything around it is
+configuration: where the ledger sits, which documents may cite it, what an evidence
+pointer is called and how its section is found, who may write a verdict. And the checks
+run wherever a plain `python3` does — a shell, the pre-commit hook, CI, a coding agent's
+hooks, or your own code through the library.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/one-schema-your-names-dark.svg">
+  <img alt="A strip at the top lists what the schema fixes: kind, grade, status, citation act, the verbatim fingerprint, the frozen region and the append-only tail. Below it, three columns. What may cite an entry: README.md, docs/*.md, reports/*.md and ROSTER.md, src/**/*.py, pyproject.toml — any glob from the project root. What a ground may name: two fixed types, source and entry; then four the project names itself — lab, a Markdown heading; code, a def or class or export function by pattern; toml-key, one key of a table; experiment, a whole file — each anchored by value as a digest or by reference as a commit. Where the checks run: a shell, the pre-commit hook, CI, the Python library, and a coding agent's hooks for Claude Code, Codex, Cursor or any other. At the bottom, the four example repositories — a TypeScript UI, a Python service, a study, a handbook — each with the evidence names it chose, under the caption: same entries, same five checks, same corpus; only the names differ." src="https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/docs/figures/one-schema-your-names.svg" width="960">
+</picture>
+
+The [example portfolio](examples/) is the proof: a TypeScript UI whose `code:` section is
+an `export function`, a Python service whose section is a `def`, a research repository
+that pins lab notes by heading and experiments by file, and an operator handbook — four
+ledgers, one schema, all five checks passing in each.
 
 ## Configuration
 
@@ -517,6 +563,19 @@ Cutting a release is `RELEASING.md`'s job to describe, not this one's — it nam
 exact PyPI and GitHub setup a first publish needs and the steps every release after it
 repeats.
 
+## Where to read next
+
+| you want to | read |
+|---|---|
+| try it on a project this afternoon | *Quickstart* above, then *Landing an entry takes one commit* |
+| know exactly what an entry is and what each rule misses | [docs/SCHEMA.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/SCHEMA.md) |
+| run one for months — rewrites, branches, repairing a drifted claim | [docs/OPERATING.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/OPERATING.md) |
+| understand the fifth checker and what a pin is | [docs/FRESHNESS.md](https://github.com/Ybx-jp/claims-ledger/blob/main/docs/FRESHNESS.md) |
+| decide whether to trust the checkers | [QUALITY.md](https://github.com/Ybx-jp/claims-ledger/blob/main/QUALITY.md), then the corpus [README](https://github.com/Ybx-jp/claims-ledger/blob/main/src/claims_ledger/corpus/README.md) |
+| see every capability exercised, with excerpts | [examples/FEATURES.md](https://github.com/Ybx-jp/claims-ledger/blob/main/examples/FEATURES.md) |
+| wire it into a coding agent | *In a coding agent* above; the installed skills under `.claude/skills/` |
+| the record: what changed, what was audited | [CHANGELOG.md](https://github.com/Ybx-jp/claims-ledger/blob/main/CHANGELOG.md), [docs/audits/](https://github.com/Ybx-jp/claims-ledger/tree/main/docs/audits) |
+
 ## Provenance
 
 Extracted from the claims ledger built for a research project on dynamic graph embedding
@@ -524,7 +583,7 @@ refresh, where the schema, the checkers and the corpus were developed together. 
 extraction changed what was project-specific into configuration — where the ledger sits,
 which documents may cite it, what an evidence pointer is called, who may write a verdict
 — and changed nothing about the schema or the checks. Every one of the sixty-two seeds
-the corpus held at extraction still passes unchanged; it has since grown to 90.
+the corpus held at extraction still passes unchanged; it has since grown to 95.
 
 MIT licensed.
 

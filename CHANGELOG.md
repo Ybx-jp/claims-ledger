@@ -35,7 +35,7 @@ would have put numbers on the record that nobody could ever install.
 - Five checkers — `validate`, `resolve`, `references`, `propagate`, `freshness` — and
   `check`, which runs all five. The first four are described here; `freshness` has its own
   section below, because it was written after this one.
-- A red-team corpus, 62 seeds at extraction and 79 at release, with committed expected
+- A red-team corpus, 62 seeds at extraction and 95 at release, with committed expected
   outcomes, shipped inside the package and runnable from an installed copy as
   `claims-ledger corpus`. The contract is symmetric: an unlisted catch is a finding about
   the seed or the checker, never a bonus, and one row is satisfied by one report.

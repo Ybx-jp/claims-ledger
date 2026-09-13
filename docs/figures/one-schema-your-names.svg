@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-size="13" role="img" aria-labelledby="t d">
+<title id="t">The schema is fixed; the names around it are yours</title>
+<desc id="d">A strip at the top lists what the schema fixes: kind, grade, status, citation act, the verbatim fingerprint, the frozen region and the append-only tail. Below it, three columns. What may cite an entry: README.md, docs/*.md, reports/*.md and ROSTER.md, src/**/*.py, pyproject.toml — any glob from the project root. What a ground may name: two fixed types, source and entry; then four the project names itself — lab, a Markdown heading; code, a def or class or export function by pattern; toml-key, one key of a table; experiment, a whole file — each anchored by value as a digest or by reference as a commit. Where the checks run: a shell, the pre-commit hook, CI, the Python library, and a coding agent's hooks for Claude Code, Codex, Cursor or any other. At the bottom, the four example repositories — a TypeScript UI, a Python service, a study, a handbook — each with the evidence names it chose, under the caption: same entries, same five checks, same corpus; only the names differ.</desc>
+<style>
+svg { --paper: #FAF8F3; --ink: #1C1B18; --muted: #77726A; --rule: #D9D4C7; --panel: #F0ECE2; --mark: #E6E0D2; --accent: #B8451F; --accent-soft: #F7DED2; }
+.paper{fill:var(--paper)} .ink{fill:var(--ink)} .muted{fill:var(--muted)} .accent{fill:var(--accent)}
+.panel{fill:var(--panel)} .mark{fill:var(--mark)} .soft{fill:var(--accent-soft)}
+.rule{stroke:var(--rule);fill:none;stroke-width:1} .lead{stroke:var(--muted);fill:none;stroke-width:1}
+.alead{stroke:var(--accent);fill:none;stroke-width:1.25}
+.serif{font-family:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace}
+.title{font-size:22px} .sub{font-size:14px} .h{font-size:11px;letter-spacing:.14em} .body{font-size:12.5px} .small{font-size:11px}
+.code{font-size:12px} .code11{font-size:11px}
+</style>
+<rect class="paper" width="960" height="640"/>
+
+<text class="serif ink title" x="40" y="46">The schema is fixed. The names around it are yours.</text>
+<text class="serif muted sub" x="40" y="70">What an entry is never changes between projects; where it sits, what may cite it, what a ground is called and where the checks run do.</text>
+
+<!-- ===== fixed strip ===== -->
+<rect class="panel" x="40" y="92" width="880" height="30" rx="3"/>
+<rect class="rule" x="40.5" y="92.5" width="879" height="29" rx="3"/>
+<text class="serif ink body" x="56" y="111">Fixed by the schema</text>
+<text class="mono muted code11" x="190" y="111">kind · grade · status · citation act · the verbatim fingerprint · the frozen region · the append-only tail</text>
+
+<!-- ===== column headers ===== -->
+<text class="serif muted h" x="40" y="160">WHAT MAY CITE AN ENTRY</text>
+<text class="serif muted h" x="345" y="160">WHAT A GROUND MAY NAME</text>
+<text class="serif muted h" x="650" y="160">WHERE THE CHECKS RUN</text>
+<path class="rule" d="M40 170 H310 M345 170 H615 M650 170 H920"/>
+
+<!-- ===== column 1: documents ===== -->
+<g class="mono ink code11">
+  <text x="40" y="194">README.md</text>
+  <text x="40" y="234">docs/*.md</text>
+  <text x="40" y="274">reports/*.md, ROSTER.md</text>
+  <text x="40" y="314">src/**/*.py</text>
+  <text x="40" y="354">pyproject.toml</text>
+</g>
+<g class="serif muted small">
+  <text x="40" y="210">a commitment the project makes to its readers</text>
+  <text x="40" y="250">a handbook, a runbook, a design note</text>
+  <text x="40" y="290">a research note, a roster of open hypotheses</text>
+  <text x="40" y="330">a docstring or a comment beside the code</text>
+  <text x="40" y="370">a comment beside a setting</text>
+</g>
+<path class="rule" d="M40 390 H310"/>
+<text class="mono ink code11" x="40" y="410">documents = [ … ]</text>
+<text class="serif muted small" x="40" y="426">any glob from the project root</text>
+
+<!-- ===== column 2: ground types ===== -->
+<rect class="panel" x="345" y="180" width="270" height="72" rx="3"/>
+<g class="mono ink code11">
+  <text x="357" y="198">source: fx-paper · summary</text>
+  <text x="357" y="234">entry: R0003-threshold-holds</text>
+</g>
+<g class="serif muted small">
+  <text x="357" y="214">registered bytes: a paper, an API contract, a snapshot</text>
+  <text x="357" y="246">another entry in this ledger</text>
+</g>
+<text class="serif muted small" x="615" y="266" text-anchor="end">fixed types, above; the project's own names, below</text>
+
+<g class="mono ink code11">
+  <text x="345" y="290"><tspan class="accent">lab:</tspan> notes/001.md § "Observation"</text>
+  <text x="345" y="326"><tspan class="accent">code:</tspan> src/risk.py § "score"</text>
+  <text x="345" y="362"><tspan class="accent">toml-key:</tspan> pyproject.toml § "name"</text>
+  <text x="345" y="398"><tspan class="accent">experiment:</tspan> runs/007.json</text>
+</g>
+<g class="serif muted small">
+  <text x="345" y="306">a Markdown heading — the default section</text>
+  <text x="345" y="342">a def, a class, an export function — by pattern</text>
+  <text x="345" y="378">one key of a table, not the table around it</text>
+  <text x="345" y="414">a whole file</text>
+</g>
+<path class="rule" d="M345 430 H615"/>
+<text class="mono ink code11" x="345" y="450">=sha256:&lt;digest&gt;</text>
+<text class="serif muted small" x="345" y="466">by value: the section's digest</text>
+<text class="mono ink code11" x="490" y="450">@&lt;commit&gt;</text>
+<text class="serif muted small" x="490" y="466">by reference: as it stood there</text>
+
+<!-- ===== column 3: where ===== -->
+<g class="mono ink code11">
+  <text x="650" y="194">$ claims-ledger check</text>
+  <text x="650" y="234">.git/hooks/pre-commit</text>
+  <text x="650" y="274">ci.yml</text>
+  <text x="650" y="314">from claims_ledger import validate</text>
+  <text x="650" y="354">.claude/  .codex/  .cursor/  .agent/</text>
+</g>
+<g class="serif muted small">
+  <text x="650" y="210">your shell, five checkers, one exit code</text>
+  <text x="650" y="250">written by hook --install; refuses a commit</text>
+  <text x="650" y="290">the same commands, on every push</text>
+  <text x="650" y="330">the library, with its reports as values</text>
+  <text x="650" y="370">a coding agent's hooks: drift reported at edit time</text>
+</g>
+<path class="rule" d="M650 390 H920"/>
+<text class="mono ink code11" x="650" y="410">claims-ledger harness install --agent …</text>
+<text class="serif muted small" x="650" y="426">the same skills and scripts, wired where each agent reads</text>
+
+<!-- ===== bottom strip: the four example repositories ===== -->
+<text class="serif muted h" x="40" y="506">FOUR REPOSITORIES, ONE SCHEMA · examples/</text>
+
+<rect class="rule" x="40.5" y="518.5" width="207" height="84" rx="3"/>
+<text class="serif ink body" x="52" y="540">ui-webapp</text>
+<text class="serif muted small" x="52" y="556">a TypeScript UI</text>
+<text class="mono ink code11" x="52" y="578"><tspan class="accent">code:</tspan> an export function</text>
+
+<rect class="rule" x="264.5" y="518.5" width="207" height="84" rx="3"/>
+<text class="serif ink body" x="276" y="540">backend-service</text>
+<text class="serif muted small" x="276" y="556">a Python service</text>
+<text class="mono ink code11" x="276" y="578"><tspan class="accent">code:</tspan> a def</text>
+
+<rect class="rule" x="488.5" y="518.5" width="207" height="84" rx="3"/>
+<text class="serif ink body" x="500" y="540">research-repo</text>
+<text class="serif muted small" x="500" y="556">a study and its roster</text>
+<text class="mono ink code11" x="500" y="578"><tspan class="accent">lab:</tspan> a heading</text>
+<text class="mono ink code11" x="500" y="593"><tspan class="accent">experiment:</tspan> a file</text>
+
+<rect class="rule" x="712.5" y="518.5" width="207" height="84" rx="3"/>
+<text class="serif ink body" x="724" y="540">documentation-repo</text>
+<text class="serif muted small" x="724" y="556">an operator handbook</text>
+<text class="mono ink code11" x="724" y="578"><tspan class="accent">note:</tspan> a heading</text>
+<text class="mono ink code11" x="724" y="593"><tspan class="accent">run:</tspan> a file</text>
+
+<text class="serif muted body" x="40" y="628">Same entries, same five checks, same corpus. Only the names differ — and a name the project chose is set in the accent above.</text>
+</svg>

@@ -575,7 +575,7 @@ The workflow itself exercises:
 
 The package also provides `init`, `new`, individual checker commands, and
 `claims-ledger corpus`. The templates are richer than an `init` or `new` scaffold,
-while the package-level test run proves all 76 adversarial corpus seeds.
+while the package-level test run proves all 95 corpus seeds.
 
 ### Pre-commit enforcement
 

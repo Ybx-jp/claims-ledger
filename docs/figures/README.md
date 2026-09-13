@@ -26,6 +26,8 @@ The light file is the source of truth. Edit it, run the build, commit both.
 | `references.svg` | A document's inline citation and the entry's References line, checked against each other; the four acts against the statuses each is legal for | SCHEMA.md *The entry*, after the References bullet; examples/FEATURES.md §5 |
 | `portfolio.svg` | One cross-repository bridge end to end — origin, byte-identical snapshot, registry row, ground — and the matrix of all seven origin/snapshot pairs | examples/README.md *The repository boundary*; examples/FEATURES.md §3 |
 | `corpus-contract.svg` | A defect seed's expected rows matched one-to-one to the run's reports, the unnamed checkers that must exit clean, and the three ways a run fails the runner | README *Proving the checkers*; `src/claims_ledger/corpus/README.md` after the contract |
+| `where-it-sits.svg` | The value proposition on the repository's own case: the README sentence, the entry it cites, the `pyproject.toml` key the entry pins, gathered into `check`; and the three things that happen when the span changes | README *Where it sits* |
+| `one-schema-your-names.svg` | What the schema fixes against what a project names: the documents that may cite, the ground types and their anchors, the five places the checks run, and the four example repositories as proof | README *One schema, your names* |
 | `nothing-falls-silently.svg` | The second hero: documents on claims on sources; one claim refuted, and the accent traces exactly what rested on it | README, end of *Why* |
 
 ## Embedding
@@ -40,13 +42,19 @@ Markdown renderer that ignores the `<source>` falls back to the light file.
 </picture>
 ```
 
-Paths are relative to the document, so from inside `docs/` they are `figures/…` and from `examples/` they are `../docs/figures/…`. Each
+Paths are relative to the document, so from inside `docs/` they are `figures/…` and from
+`examples/` they are `../docs/figures/…` — except in `README.md`, where every `src` and
+`srcset` is the absolute `https://raw.githubusercontent.com/Ybx-jp/claims-ledger/main/…`
+form. The README is also the PyPI project page, and PyPI's renderer keeps the `<img>` but
+cannot resolve a repository-relative path, so a relative figure there is a broken image
+for anyone who arrived by `pip`; it also drops the `<source>`, so PyPI shows the light
+variant regardless of theme. GitHub renders the absolute form identically. Each
 SVG carries its own `<title>` and `<desc>`; the `alt` above repeats the description
 because an `<img>` does not expose the SVG's own text to a screen reader.
 
 ## The system
 
-One family, so the figures read as one document rather than twelve. The hero carries a title and a handful of
+One family, so the figures read as one document rather than fourteen. The hero carries a title and a handful of
 labels and nothing else: it is meant to be read at a glance, and the prose after it does
 the explaining. The README's top slot is a film, not a figure: `docs/videos/` holds its Remotion
 source, and the GIF beside it is the render the README embeds.
