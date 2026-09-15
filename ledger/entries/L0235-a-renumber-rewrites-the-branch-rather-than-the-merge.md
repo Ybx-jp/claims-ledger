@@ -42,6 +42,14 @@ none
 - 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:127c4df381a2225c36ff4f40bb433ec9d6913eff56dccff33ee216a6bce3dcd9
   note: re-read after the commit that fixes what the pre-merge gate found. The section now carries an anchor decision across commits rather than taking it per commit. What this claim asserts is untouched: every commit is still rebuilt from its own tree with the entries renamed, so each renumbered entry is still added at the path it ends under and no commit in the rewritten history renames it.
+- 2026-09-14T21:05:00-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:127c4df381a2225c36ff4f40bb433ec9d6913eff56dccff33ee216a6bce3dcd9
+  artifact: sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  note: propagated from a moved ground
+
+- 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  note: re-read after the commit that answers the gate's second round. The section now reads each commit's tree through a shared reader and takes the anchor decisions from a map computed before the loop. What this claim asserts is untouched: every commit is still rebuilt from its own tree with the entries renamed, so each renumbered entry is still added at the path it ends under.
 
 ## References
 

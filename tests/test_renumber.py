@@ -36,7 +36,7 @@ SECTIONS = {
 }
 
 
-def entry(project, ident, slug, section, pin="=?"):
+def entry(project, ident, slug, section, pin="=?", cite=True):
     """An entry resting on one section of the note, cited from inside that section.
 
     Inside it, because that is where this project's own citations sit and because it is
@@ -65,13 +65,14 @@ def entry(project, ident, slug, section, pin="=?"):
     text = text.rstrip("\n") + "\n\n- docs/note-001.md · standing · cites-as-live\n"
     path.write_text(text, encoding="utf-8")
 
-    note = project.root / "docs" / "note-001.md"
-    body = note.read_text(encoding="utf-8")
-    line = SECTIONS[section]
-    note.write_text(
-        body.replace(line, f"{line}\nStated as a claim here ({ident}-{slug}, cites-as-live)."),
-        encoding="utf-8",
-    )
+    if cite:
+        note = project.root / "docs" / "note-001.md"
+        body = note.read_text(encoding="utf-8")
+        line = SECTIONS[section]
+        note.write_text(
+            body.replace(line, f"{line}\nStated as a claim here ({ident}-{slug}, cites-as-live)."),
+            encoding="utf-8",
+        )
     assert project.cl("sha", "--write", str(path)) == 0
     return path
 
@@ -312,14 +313,19 @@ def test_a_detached_head_is_refused(collision):
     --symbolic-full-name` answers `HEAD`. Moving that moves the detached head: the
     rewritten commits end up reachable from nothing a branch names, the branch still
     holds the originals, and the working tree keeps the old content with the rewrite
-    staged against it — reported, before this, as a rewrite that had succeeded."""
+    staged against it — reported, before this, as a rewrite that had succeeded.
+
+    The branch is deleted after detaching, so no other ref contains these commits and the
+    shared-ref refusal cannot stand in for the one being tested. Without that, this passes
+    against a `branch_ref` that has been removed entirely.
+    """
     collision.git("checkout", "-q", "--detach")
+    collision.git("branch", "-q", "-D", "side")
     at = head(collision, "rev-parse", "HEAD")
 
     assert collision.cl("renumber", "--onto", "main", "--write") == 2
     assert head(collision, "rev-parse", "HEAD") == at
     assert (collision.entries / "A0002-beta-claim.md").exists()
-    assert head(collision, "rev-parse", "side") == at
 
 
 def test_a_merge_is_not_allowed_over_a_repository_that_could_not_be_read(collision):
@@ -336,30 +342,37 @@ def test_a_merge_is_not_allowed_over_a_repository_that_could_not_be_read(collisi
 def test_a_number_the_branch_holds_twice_is_moved_and_a_prefix_id_is_not_touched(project):
     """Two sessions that both minted into one branch. `check_numbers` names this command
     for that too, so it answers for it — and the pair is the shape that catches a
-    substitution written with `\\b` on the right: `A0002-beta` is a prefix of
-    `A0002-beta-claim`, and a boundary that accepts the following hyphen renumbers the
-    wrong entry."""
-    collision = make_collision(project)
-    collision.git("checkout", "-q", "side")
-    entry(collision, "A0002", "beta", "Observation Beta")
-    collision.git("add", "-A")
-    collision.git("commit", "-m", "a second session mints into the same branch")
+    substitution written with `\\b` on the right: `A0009-beta` is a prefix of
+    `A0009-beta-claim`, and a boundary that accepts the following hyphen renumbers the
+    wrong entry.
 
-    assert collision.cl("validate") == 1  # two entries carry A0002 on the branch
-    # The second citation landed in a span the first entry already rested on, so that
-    # entry is flagged before the renumber runs. What the renumber must not do is add to
-    # that — the drift is the co-location's, not the rewrite's.
-    before = len([r for r in _freshness_reports(collision) if "has moved" in r.message])
+    The doubled number is one the receiving side does NOT hold, so the collision can only
+    be found by looking at the branch against itself. With a number `main` also holds,
+    this passes against a `plan()` that never learned to.
+    """
+    (project.root / "docs" / "note-001.md").write_text(NOTE, encoding="utf-8")
+    project.git("init")
+    project.git("add", "-A")
+    project.git("commit", "-m", "base")
+    project.git("branch", "-M", "main")
+    project.git("checkout", "-q", "-b", "side")
+    entry(project, "A0009", "beta-claim", "Observation Beta")
+    entry(project, "A0009", "beta", "Observation Alpha")
+    project.git("add", "-A")
+    project.git("commit", "-m", "two sessions minted into one branch")
 
-    assert collision.cl("renumber", "--onto", "main", "--write") == 0
-    assert collision.cl("validate") == 0
-    after = len([r for r in _freshness_reports(collision) if "has moved" in r.message])
+    assert project.cl("validate") == 1  # two entries carry A0009, and main holds neither
+    before = len([r for r in _freshness_reports(project) if "has moved" in r.message])
+
+    assert project.cl("renumber", "--onto", "main", "--write") == 0
+    assert project.cl("validate") == 0
+    after = len([r for r in _freshness_reports(project) if "has moved" in r.message])
     assert after == before, "the renumber flagged a ground the collision had not"
 
-    ids = sorted(p.stem for p in collision.entries.glob("*.md"))
+    ids = sorted(p.stem for p in project.entries.glob("*.md"))
     assert len(ids) == len({i.split("-", 1)[0] for i in ids}), ids
     assert sorted(i.split("-", 1)[1] for i in ids) == ["beta", "beta-claim"]
-    for path in collision.entries.glob("*.md"):
+    for path in project.entries.glob("*.md"):
         assert f"id: {path.stem}\n" in path.read_text(encoding="utf-8")
 
 
@@ -402,3 +415,143 @@ def test_a_detached_sibling_worktree_on_the_commits_is_refused(collision, tmp_pa
 
     assert collision.cl("renumber", "--onto", "main", "--write") == 2
     assert (collision.entries / "A0002-beta-claim.md").exists()
+
+
+SECOND_NOTE = """# note 002
+
+## Observation Late
+
+At a stale fraction of 0.5 the measured error was 0.20.
+Stated as a claim here (A0002-late-claim, cites-as-live).
+"""
+
+
+def test_an_anchor_is_decided_from_the_tip_not_from_where_it_first_could_be(project):
+    """The entry is committed in one commit and the artifact its ground names arrives in
+    the next — so at the commit that creates the entry there is no section to compare and
+    no answer to be had.
+
+    Asked per commit, that commit records nothing, the next one decides and re-pins, and
+    the entry ends up carrying one frozen region where it is created and another after
+    it: `validate` refuses that with `differs from the blob at the creating commit`.
+    Asked once from the tip, there is one answer and every commit gets it.
+    """
+    project.git("init")
+    project.git("add", "-A")
+    project.git("commit", "-m", "base")
+    project.git("branch", "-M", "main")
+    project.git("checkout", "-q", "-b", "side")
+
+    note = project.root / "docs" / "note-002.md"
+    note.write_text(SECOND_NOTE, encoding="utf-8")
+    assert project.cl("new", "late-claim", "--id", "A0002") == 0
+    path = project.entry("A0002-late-claim.md")
+    text = path.read_text(encoding="utf-8")
+    text = text.replace(
+        "TODO: the claim, in this project's words. No quotation marks.",
+        "The late reading is recorded.",
+    )
+    text = re.sub(
+        r"- TODO: one typed pointer[^\n]*\n",
+        '- lab: docs/note-002.md § "Observation Late" =?\n',
+        text,
+    )
+    text = text.replace(
+        "TODO: the rule by which the grounds support the assertion.",
+        "The section states the reading.",
+    )
+    text = text.replace("metric: TODO", "metric: the recorded reading")
+    text = text.replace("cohort: TODO", "cohort: observation late")
+    text = text.replace("condition: TODO", "condition: as written")
+    text = text.rstrip("\n") + "\n\n- docs/note-002.md · standing · cites-as-live\n"
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+
+    # the entry lands first, anchored to a section the branch does not carry yet
+    note.unlink()
+    project.git("add", "-A")
+    project.git("commit", "-m", "the late claim, before the note it rests on")
+    note.write_text(SECOND_NOTE, encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-m", "and the note, a commit later")
+    assert project.cl("check") == 0, "the branch is green before the renumber"
+
+    project.git("checkout", "-q", "main")
+    assert project.cl("new", "other-claim", "--id", "A0002", "--grade", "asserted") == 0
+    other = project.entry("A0002-other-claim.md")
+    body = other.read_text(encoding="utf-8")
+    body = body.replace(
+        "TODO: the claim, in this project's words. No quotation marks.", "Something else entirely."
+    )
+    body = re.sub(
+        r"- TODO: one typed pointer[^\n]*\n", "- entry: A0002-late-claim · distinguishes\n", body
+    )
+    body = body.replace(
+        "TODO: the rule by which the grounds support the assertion.", "It is a different claim."
+    )
+    body = body.replace("metric: TODO", "metric: nothing").replace("cohort: TODO", "cohort: none")
+    body = body.replace("condition: TODO", "condition: as written")
+    other.write_text(body, encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-m", "main takes A0002 as well")
+    project.git("checkout", "-q", "side")
+
+    assert project.cl("renumber", "--onto", "main", "--write") == 0
+    assert project.cl("validate") == 0, "the frozen region differs across the rewritten commits"
+    assert not [r for r in _freshness_reports(project) if "has moved" in r.message]
+
+
+def test_a_bare_number_another_entry_still_answers_to_is_left_alone(project):
+    """Under an intra-branch double one id keeps the number and the other moves. A bare
+    number in prose then means the entry that kept it, so rewriting it would point every
+    such sentence at the entry that left — silently, since no checker reads a bare
+    number."""
+    (project.root / "docs" / "note-001.md").write_text(NOTE, encoding="utf-8")
+    project.git("init")
+    project.git("add", "-A")
+    project.git("commit", "-m", "base")
+    project.git("branch", "-M", "main")
+    project.git("checkout", "-q", "-b", "side")
+    entry(project, "A0009", "alpha-claim", "Observation Alpha")
+    entry(project, "A0009", "beta-claim", "Observation Beta")
+    note = project.root / "docs" / "note-001.md"
+    note.write_text(
+        note.read_text(encoding="utf-8").replace(
+            "## Observation Base", "The base reading is recorded in A0009.\n\n## Observation Base"
+        ),
+        encoding="utf-8",
+    )
+    project.git("add", "-A")
+    project.git("commit", "-m", "two entries under one number, and prose naming it")
+
+    assert project.cl("renumber", "--onto", "main", "--write") == 0
+    kept = sorted(p.stem for p in project.entries.glob("A0009-*.md"))
+    assert len(kept) == 1, kept
+    assert "recorded in A0009." in note.read_text(encoding="utf-8")
+
+
+def test_a_merge_is_not_allowed_when_the_commit_walk_is_the_question_git_declined(collision):
+    """The other half of the same rule. Round 1 named two paths on which git declines and
+    only one was converted; this is the walk, and it has to refuse the merge too."""
+    ghost = Path(collision.root) / ".git" / "refs" / "heads" / "ghost"
+    ghost.write_text("0000000000000000000000000000000000000001\n", encoding="utf-8")
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 1
+
+
+def test_a_declined_commit_walk_refuses_the_merge_too(collision):
+    """Round 1 named two paths on which git declines and the first fix converted one.
+    This is the walk: an object the history needs, removed from the store, so `rev-list`
+    exits non-zero while the branch tips still resolve. Produced by removing an object
+    rather than by patching git."""
+    collision.git("checkout", "-q", "side")
+    (collision.root / "docs" / "note-001.md").write_text(
+        NOTE + "\nA later edit.\n", encoding="utf-8"
+    )
+    collision.git("commit", "-a", "-m", "a second commit on the branch")
+    middle = head(collision, "rev-parse", "HEAD~1")
+    loose = Path(collision.root) / ".git" / "objects" / middle[:2] / middle[2:]
+    if not loose.exists():  # packed; the test needs a loose object to remove
+        pytest.skip("the intermediate commit is packed, so there is no loose object to remove")
+    loose.unlink()
+
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 1

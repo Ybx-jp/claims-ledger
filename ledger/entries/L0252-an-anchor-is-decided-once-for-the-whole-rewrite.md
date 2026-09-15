@@ -34,6 +34,8 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-14T21:04:31-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0253-an-anchor-is-decided-once-from-the-branch-tip · supersedes
+  note: the decision point moved from the commit that creates the entry to the branch tip. Deciding at the creating commit is not enough: the artifact a ground names may arrive in a later commit of the same branch, and there is then no answer to be had at the earlier one, so the anchor was decided later and the frozen region differed between two commits of one rewrite. What is unchanged is that each anchor is decided once and the same answer goes into every commit.
 
-- src/claims_ledger/renumber.py · standing · cites-as-live
+## References

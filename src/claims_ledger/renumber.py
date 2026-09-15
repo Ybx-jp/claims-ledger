@@ -74,6 +74,7 @@ class Renumbering:
     base: str
     commits: tuple
     mapping: dict
+    retained: frozenset = frozenset()
 
     @property
     def empty(self):
@@ -102,7 +103,7 @@ def entry_ids_at(repo, commit, rel_entries):
         repo, "ls-tree", "-r", "--name-only", commit, "--", f":(literal){rel_entries}"
     )
     if not answer.ok:
-        raise RenumberError(f"git could not list the entries at {commit[:7]} ({answer.why})")
+        raise RepositoryUnreadable(f"git could not list the entries at {commit[:7]} ({answer.why})")
     return {Path(line).stem for line in _lines(answer)}
 
 
@@ -110,7 +111,7 @@ def tree_files(repo, commit):
     """[(mode, object id, path)] for every file in the tree at `commit`."""
     answer = git_call(repo, "ls-tree", "-r", "--full-tree", commit)
     if not answer.ok:
-        raise RenumberError(f"git could not list the tree at {commit[:7]} ({answer.why})")
+        raise RepositoryUnreadable(f"git could not list the tree at {commit[:7]} ({answer.why})")
     out = []
     for line in _lines(answer):
         meta, _, path = line.partition("\t")
@@ -120,7 +121,12 @@ def tree_files(repo, commit):
     return out
 
 
-def substitutions(mapping):
+def retained(renumbering):
+    """The numbers some entry still answers to after this renumber."""
+    return renumbering.retained
+
+
+def substitutions(mapping, keeps=()):
     """[(pattern, replacement, whole id only)] for the ids that move.
 
     Two shapes, because a citation may name either. The whole id is distinctive enough to
@@ -141,6 +147,15 @@ def substitutions(mapping):
         # (L0246-an-id-is-substituted-only-where-it-is-the-whole-id, cites-as-live).
         out.append((re.compile(rf"\b{re.escape(old)}(?![\w-])"), new, False))
         old_number, new_number = old.split("-", 1)[0], new.split("-", 1)[0]
+        if old_number in keeps:
+            # Another entry still answers to this number — the intra-branch double, where
+            # one id keeps it and the other moves. A bare `A0002` in prose then means the
+            # entry that kept it, and rewriting it would silently point every such
+            # sentence at the entry that left. Only the whole id can be moved here
+            # A citation fits on one line or it is not one: the `#` of a wrapped comment
+            # lands inside the parenthesis and the match fails.
+            # (L0254-a-bare-number-is-not-moved-while-an-entry-still-answers-to-it, cites-as-live)
+            continue
         out.append((re.compile(rf"\b{re.escape(old_number)}(?![\w-])"), new_number, True))
     return out
 
@@ -172,7 +187,7 @@ def anchored_pointers(entry):
     return out
 
 
-def reanchor(text, before, after, config, decided=None):
+def reanchor(text, before, after, config, decided, decide=False):
     """An entry's text with every by-value anchor re-pinned that moved by the renumber
     alone, and no other.
 
@@ -189,30 +204,33 @@ def reanchor(text, before, after, config, decided=None):
     `before` and `after` are `{path: text}` for the artifacts this entry may rest on, as
     the tree held them and as the rewrite leaves them.
 
-    `decided` carries the answer across commits, and it is not an optimisation. The
-    rewrite visits each commit with that commit's own tree, and the same entry's span can
-    be one thing where the entry is created and another two commits later — a second
-    citation landing in it, say. Deciding per commit then writes one frozen region at the
-    creating commit and a different one after it, which is exactly what `validate`
-    refuses; measured before this, a branch that renumbered two entries citing one
-    section came out of its own rewrite with `differs from the blob at the creating
-    commit`. So each anchor is decided once, at the first commit that carries it, and
-    every later commit is given the same answer — which is also what the original history
-    did, since a frozen anchor never moved on its own
-    (L0252-an-anchor-is-decided-once-for-the-whole-rewrite, cites-as-live).
+    `decided` is where the answers live, and this function does not take them unless it
+    is asked to: `decide_anchors` fills the map once from the branch tip, and every
+    commit of the rewrite is then given the same answers. An entry's frozen region has to
+    be byte-identical in every commit that holds it, and the span an anchor names is not
+    the same at every commit — a citation landing in it is one of the commits being
+    rewritten — so a per-commit answer writes one frozen region at the creating commit
+    and another after it, which is what `validate` refuses.
     """
     entry = parse_entry(Path("in-memory.md"), text)
     out = text
     for raw, pointer in anchored_pointers(entry):
         if pointer is None or not pointer.by_value or not pointer.section:
             continue
-        if not config.is_sectioned(pointer.type) or pointer.target not in after:
-            continue
+        # The recorded answer is applied before anything else is asked, including whether
+        # this commit's tree even holds the artifact. A decision skipped because the
+        # artifact arrives later is the defect this memo exists to prevent, seen from the
+        # other side: the entry would carry one frozen region where it is created and
+        # another once the artifact turns up.
         key = (entry.id, raw)
-        if decided is not None and key in decided:
+        if key in decided:
             settled = decided[key]
             if settled is not None:
                 out = out.replace(raw, settled, 1)
+            continue
+        if not decide:
+            continue
+        if not config.is_sectioned(pointer.type) or pointer.target not in after:
             continue
         anchored = pointer.anchor.lstrip("=")
         now = section_digest(after[pointer.target], config, pointer.type, pointer.section)
@@ -223,9 +241,56 @@ def reanchor(text, before, after, config, decided=None):
             # text the anchor already names: the id was the whole of the change
             settled = raw.replace(pointer.anchor, f"={now}")
             out = out.replace(raw, settled, 1)
-        if decided is not None:
-            decided[key] = settled
+        decided[key] = settled
     return out
+
+
+def commit_texts(repo, commit, subs, rel_entries, config):
+    """(modes, before, after) for every file of `commit` this rewrite can read as text.
+
+    `before` is the tree as the commit holds it and `after` is that tree with the ids
+    substituted; a file that is not UTF-8 is in neither, because an id is not in it and
+    nothing here can rewrite it.
+    """
+    files = tree_files(repo, commit)
+    blobs, failed = git_blobs(repo, [f"{commit}:{p}" for _m, _o, p in files], env=git_env())
+    if failed:
+        raise RenumberError(
+            f"git did not answer for {len(failed)} object(s) at {commit[:7]}: "
+            + "; ".join(f"{spec} ({why})" for spec, why in sorted(failed.items())[:3])
+        )
+    modes, before, after = {}, {}, {}
+    for mode, _oid, path in files:
+        try:
+            text = blobs[f"{commit}:{path}"].decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        modes[path] = mode
+        before[path] = text
+        after[path] = substitute(
+            text, subs, path.startswith(rel_entries) or selects_document(path, config)
+        )
+    return modes, before, after
+
+
+def decide_anchors(repo, renumbering, subs, rel_entries, config):
+    """Every anchor decision this rewrite will make, taken once, from the branch tip.
+
+    From the tip rather than from each commit in turn, and that is the whole of it. An
+    entry's frozen region has to be byte-identical in every commit that holds it, so the
+    answer cannot depend on which commit is being rebuilt — and the span an anchor names
+    is not the same at every commit, because a citation landing in it is itself one of the
+    commits being rewritten. Deciding per commit wrote one frozen region at the creating
+    commit and another later, which is what `validate` refuses; deciding at the tip asks
+    the question once, of the state the branch will actually merge in
+    (L0253-an-anchor-is-decided-once-from-the-branch-tip, cites-as-live).
+    """
+    _modes, before, after = commit_texts(repo, renumbering.branch, subs, rel_entries, config)
+    decided = {}
+    for path, text in sorted(after.items()):
+        if path.startswith(rel_entries):
+            reanchor(text, before, after, config, decided, decide=True)
+    return decided
 
 
 def _commit_meta(repo, commit):
@@ -266,6 +331,18 @@ def plan(ledger, onto, branch="HEAD"):
     if not repo:
         raise RenumberError("not a git repository; there is no branch to rewrite")
     onto_commit, tip = _resolve(repo, onto), _resolve(repo, branch)
+    # The walk first, because it is the call that answers unambiguously. `merge-base`
+    # exits 1 both for "no common ancestor" and for a repository it could not walk —
+    # measured on git 2.43.0 with an intermediate commit object removed, `merge-base`
+    # exits 1 and `rev-list` exits 128 — so asking merge-base first reads a broken object
+    # store as an answer about history
+    # (L0255-the-walk-answers-before-the-merge-base-is-read, cites-as-live).
+    listed = git_call(repo, "rev-list", "--reverse", "--topo-order", f"{onto_commit}..{tip}")
+    if not listed.ok:
+        raise RepositoryUnreadable(f"git could not list the commits to rewrite ({listed.why})")
+    commits = tuple(_lines(listed))
+    if not commits:
+        raise RenumberError(f"`{branch}` has no commits `{onto}` does not")
     merge_base = git_call(repo, "merge-base", onto_commit, tip)
     if not merge_base.ok or not merge_base.out.strip():
         raise RenumberError(f"`{branch}` and `{onto}` share no history")
@@ -275,12 +352,6 @@ def plan(ledger, onto, branch="HEAD"):
             f"`{branch}` is already an ancestor of `{onto}`; these commits are merged, and "
             "rewriting merged history is what this repository forbids"
         )
-    listed = git_call(repo, "rev-list", "--reverse", "--topo-order", f"{onto_commit}..{tip}")
-    if not listed.ok:
-        raise RenumberError(f"git could not list the commits to rewrite ({listed.why})")
-    commits = tuple(_lines(listed))
-    if not commits:
-        raise RenumberError(f"`{branch}` has no commits `{onto}` does not")
 
     rel_entries = os.path.relpath(ledger.entries_dir, repo)
     at_tip = entry_ids_at(repo, tip, rel_entries)
@@ -317,7 +388,13 @@ def plan(ledger, onto, branch="HEAD"):
             mapping[old] = f"{fresh}-{old.split('-', 1)[1]}"
             taken.append(_Stem(mapping[old]))
     return Renumbering(
-        onto=onto_commit, ref=branch, branch=tip, base=base, commits=commits, mapping=mapping
+        onto=onto_commit,
+        ref=branch,
+        branch=tip,
+        base=base,
+        commits=commits,
+        mapping=mapping,
+        retained=frozenset(i.split("-", 1)[0] for i in at_tip if i not in mapping),
     )
 
 
@@ -416,30 +493,13 @@ def rewrite(ledger, renumbering, index_path):
     (L0240-a-rewrite-builds-every-commit-before-it-moves-the-branch, cites-as-live).
     """
     repo, config = ledger.repo, ledger.config
-    subs = substitutions(renumbering.mapping)
+    subs = substitutions(renumbering.mapping, retained(renumbering))
     rel_entries = os.path.relpath(ledger.entries_dir, repo)
-    replaced, decided = {}, {}
+    replaced = {}
+    decided = decide_anchors(repo, renumbering, subs, rel_entries, config)
 
     for commit in renumbering.commits:
-        files = tree_files(repo, commit)
-        blobs, failed = git_blobs(repo, [f"{commit}:{p}" for _m, _o, p in files], env=git_env())
-        if failed:
-            raise RenumberError(
-                f"git did not answer for {len(failed)} object(s) at {commit[:7]}: "
-                + "; ".join(f"{spec} ({why})" for spec, why in sorted(failed.items())[:3])
-            )
-        before, after, modes = {}, {}, {}
-        for mode, _oid, path in files:
-            data = blobs[f"{commit}:{path}"]
-            try:
-                text = data.decode("utf-8")
-            except UnicodeDecodeError:
-                continue  # not text; an id is not in it and nothing here can rewrite it
-            modes[path] = mode
-            before[path] = text
-            read_here = path.startswith(rel_entries) or selects_document(path, config)
-            after[path] = substitute(text, subs, read_here)
-
+        modes, before, after = commit_texts(repo, commit, subs, rel_entries, config)
         for path, text in list(after.items()):
             if path.startswith(rel_entries):
                 after[path] = reanchor(text, before, after, config, decided)

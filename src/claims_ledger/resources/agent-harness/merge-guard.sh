@@ -85,9 +85,23 @@ fi
 # `git merge <branch>` only. `gh pr merge` merges on the server, where nothing local can
 # rewrite the branch first and the branch has been pushed by then anyway.
 if printf '%s' "$cmd" | grep -qE "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b"; then
+  # The FIRST thing after `merge` that is not an option and is not an option's value.
+  # Taking the last one reads `git merge topic -m "a message"` as a merge of `msg`, and a
+  # branch nobody has is answered with an allow — so the guard went quiet on exactly the
+  # merges that carry a message.
   incoming=$(printf '%s' "$cmd" \
     | sed -E 's/.*[[:space:]]merge[[:space:]]+//; s/[|;&].*//' \
-    | tr ' \t' '\n\n' | grep -vE '^-|^$' | tail -1)
+    | tr ' \t' '\n\n' \
+    | awk '
+        skip { skip = 0; next }
+        $0 == "" { next }
+        /^-/ {
+          if ($0 == "-m" || $0 == "-s" || $0 == "-X" || $0 == "-F" || $0 == "--message" ||
+              $0 == "--strategy" || $0 == "--strategy-option" || $0 == "--file" ||
+              $0 == "--into-name") { skip = 1 }
+          next
+        }
+        { print; exit }')
 
   # Derived from this script's own location rather than from `cwd`, so a copy living in a
   # scratch worktree guards that worktree.

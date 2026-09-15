@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T21:05:00-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:e131100d1b0f8424d513f2f299f7d58bd6fdc8f5db8b0a87d5cfa45e45a58254
+  artifact: sha256:6441d5a08eff4d46321df05ea98f1c6758ffb830f2bb2919338b9fc80a4bc7cc
+  note: propagated from a moved ground
+
+- 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:6441d5a08eff4d46321df05ea98f1c6758ffb830f2bb2919338b9fc80a4bc7cc
+  note: re-read after the commit that answers the gate's second round. The branch's own repeats are still collected and the earliest id in sort order still keeps the number; the section gained the retained-number set and the reordered git calls around that rule.
+
 ## References
 
 - src/claims_ledger/renumber.py · standing · cites-as-live

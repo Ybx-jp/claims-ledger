@@ -42,6 +42,14 @@ none
 - 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:127c4df381a2225c36ff4f40bb433ec9d6913eff56dccff33ee216a6bce3dcd9
   note: re-read after the commit that fixes what the pre-merge gate found. The section still returns the new tip and moves nothing; move_branch is still the only caller that touches a ref, so a rewrite that fails part way still leaves unreferenced objects and a branch where it was.
+- 2026-09-14T21:05:00-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:127c4df381a2225c36ff4f40bb433ec9d6913eff56dccff33ee216a6bce3dcd9
+  artifact: sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  note: propagated from a moved ground
+
+- 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  note: re-read after the commit that answers the gate's second round. The section still returns the new tip and still moves nothing; move_branch remains the only caller that touches a ref.
 
 ## References
 

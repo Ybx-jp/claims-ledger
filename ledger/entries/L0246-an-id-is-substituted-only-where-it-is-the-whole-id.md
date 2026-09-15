@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T21:05:00-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "substitutions" =sha256:ddc3911328bdba06f06757f9da961532883243b380d953fcb183d6352299b001
+  artifact: sha256:6d042a2d299faf997279cd899b9db94e502a9445cd477a6a774362dd6d1a2d1d
+  note: propagated from a moved ground
+
+- 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "substitutions" =sha256:377ea26f88e1e1b4f955807b740ed0cbef6ea1a7c06a36732a0c4b5261a6ae55
+  note: re-read after the commit that answers the gate's second round. The lookahead this claim rests on is unchanged on both patterns; what moved is that the bare-number pattern is now sometimes not emitted at all, which cannot make a prefix match where the lookahead refuses one.
+
 ## References
 
 - src/claims_ledger/renumber.py · standing · cites-as-live

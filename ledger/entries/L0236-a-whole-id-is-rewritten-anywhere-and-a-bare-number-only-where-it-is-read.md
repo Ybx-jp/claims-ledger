@@ -42,6 +42,14 @@ none
 - 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/renumber.py § "substitutions" =sha256:ddc3911328bdba06f06757f9da961532883243b380d953fcb183d6352299b001
   note: re-read after the commit that fixes what the pre-merge gate found. The right-hand boundary of both patterns changed from a word boundary to a lookahead refusing a word character or a hyphen, which is a correction to where an id is recognised and not to which files each pattern reaches: the whole id still goes everywhere and the bare number still only where a number is read as an id.
+- 2026-09-14T21:05:00-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "substitutions" =sha256:ddc3911328bdba06f06757f9da961532883243b380d953fcb183d6352299b001
+  artifact: sha256:6d042a2d299faf997279cd899b9db94e502a9445cd477a6a774362dd6d1a2d1d
+  note: propagated from a moved ground
+
+- 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "substitutions" =sha256:377ea26f88e1e1b4f955807b740ed0cbef6ea1a7c06a36732a0c4b5261a6ae55
+  note: re-read after the commit that answers the gate's second round. The section gained one condition — a bare number is not moved while another entry answers to it. Which files each pattern reaches is untouched, which is what this claim states: the whole id still goes everywhere, and the bare number still only where a number is read as an id.
 
 ## References
 
