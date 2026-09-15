@@ -135,6 +135,9 @@ allow-multiline = true
 documents = [
     "README.md",
     "CHANGELOG.md",
+    # States the release process in the same voice, and now makes a claim about what gates
+    # a publication, so a citation written there is checked rather than silently ignored.
+    "RELEASING.md",
     # The working instructions state commitments about the code in the same voice the
     # README does, so a citation written there is checked rather than silently ignored.
     "CLAUDE.md",

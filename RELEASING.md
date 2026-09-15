@@ -66,8 +66,9 @@ environment to run the corpus and `--version` from outside the checkout — prov
 artifact rather than the source tree. If any of that fails, nothing is published.
 
 That list is every gate `ci.yml` runs, and it is held to that by containment rather than by
-being kept in step by hand: a tag matches neither of `ci.yml`'s triggers, so a gate that
-runs there and not here would be one a release never applies.
+being kept in step by hand (L0259-publication-runs-every-gate-ci-runs, cites-as-live): a
+tag matches neither of `ci.yml`'s triggers, so a gate that runs there and not here would be
+one a release never applies.
 
 `publish` then uploads both distributions to PyPI over Trusted Publishing — no token
 ever touches this repository. It runs only when the ref is a tag (`workflow_dispatch`
