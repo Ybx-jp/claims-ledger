@@ -183,6 +183,23 @@ def test_only_a_tag_reaches_the_publish_job():
     assert "environment: pypi" in publish
 
 
+def release_yml_build():
+    """The text of release.yml's `build` job."""
+    text = release_yml()
+    return text[text.index("\n  build:") : text.index("\n  publish:")]
+
+
+def commands_only(text):
+    """`text` with its comment lines dropped.
+
+    Containment against the raw job text is satisfied by a mention, and a mention is not a
+    gate: `claims-ledger check` written in a `# TODO` in the same job passed this file's
+    whole suite. The thing being asserted is that the command runs, so the comments — where
+    this repository does most of its explaining — must not be part of what is searched.
+    """
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
 def ci_gate_commands():
     """Every command ci.yml's `test` job runs as a gate, installation excluded. Derived
     from the file rather than listed here: a gate added to CI and not mirrored into
@@ -190,16 +207,30 @@ def ci_gate_commands():
     cannot see it."""
     text = project_file(".github", "workflows", "ci.yml").read_text(encoding="utf-8")
     job = text[text.index("\n  test:") : text.index("\n  wheel:")]
+    lines = job.splitlines()
     commands = []
-    for line in job.splitlines():
-        match = re.match(r"\s*(?:- )?run: (?!\|)(.+)", line)
-        if match is None:
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+        block = re.match(r"(\s*)(?:- )?run: \|", line)
+        if block is not None:
+            # A gate moved into a block scalar is still a gate. Reading only `run: <cmd>`
+            # made a new CI check added this way invisible here, which is the drift this
+            # derivation exists to catch, arriving in the shape it cannot see.
+            indent = len(block.group(1)) + 2
+            while index < len(lines):
+                nested = lines[index]
+                if nested.strip() and len(nested) - len(nested.lstrip()) < indent:
+                    break
+                index += 1
+                if nested.strip():
+                    commands.append(nested.strip())
             continue
-        command = match.group(1).strip()
-        if "pip install" in command:
-            continue
-        commands.append(command)
-    return commands
+        match = re.match(r"\s*(?:- )?run: (.+)", line)
+        if match is not None:
+            commands.append(match.group(1).strip())
+    return [command for command in commands if "pip install" not in command]
 
 
 def test_a_tag_runs_the_whole_suite_before_anything_is_built():
@@ -211,14 +242,13 @@ def test_a_tag_runs_the_whole_suite_before_anything_is_built():
     therefore publish over a ledger no release gate had read. A regression that enumerates
     part of what it guards cannot report what is absent from it, so the list is derived
     from ci.yml now and the assertion is containment, not a spot check."""
-    text = release_yml()
-    build = text[text.index("\n  build:") : text.index("\n  publish:")]
+    build = commands_only(release_yml_build())
     gates = ci_gate_commands()
     assert "claims-ledger check" in gates, "ci.yml no longer runs the ledger check"
     missing = [command for command in gates if command not in build]
     assert not missing, f"release.yml's build job does not run {missing}, which CI runs"
     assert build.index("pytest -q") < build.index("python -m build")
-    assert "needs: build" in text
+    assert "needs: build" in release_yml()
 
 
 def test_the_sdist_is_proven_from_a_clean_environment_too():

@@ -555,9 +555,15 @@ repository.
 <!-- snippet: materialize.py -->
 ```python
         ledger(repo, "hook", "--install")
-        ledger(repo, "check")
+        check_clean(repo)
 ```
 <!-- /snippet -->
+
+`check_clean` rather than `check`, because a status code is not the oracle here: `check`
+exits 0 on a flag, since a flag is a review finding rather than a failure. Nor is
+`"0 failure(s), 0 flag(s)" in report`, which is a substring test over a five-line report
+and is satisfied by one clean checker while four others flag. The materializer holds all
+five lines.
 
 Flags are review findings and normally exit zero. Failures gate. A write command reports
 what it appended and exits nonzero for that run, requiring a clean rerun before commit.

@@ -45,7 +45,10 @@ def test_materialized_portfolio_is_four_independent_checked_repositories(tmp_pat
         assert len(git(repo, "rev-list", "--all").splitlines()) == 2
         hook = repo / ".git" / "hooks" / "pre-commit"
         assert hook.is_file() and "claims_ledger" in hook.read_text(encoding="utf-8")
-        assert "0 failure(s), 0 flag(s)" in materializer.ledger(repo, "check")
+        # Not a substring test: `check` prints five lines and exits 0 on a flag, so
+        # `"0 failure(s), 0 flag(s)" in report` passes with one clean checker and four
+        # flagged. check_clean refuses anything but five clean lines.
+        materializer.check_clean(repo)
         assert "bytes present" in materializer.ledger(repo, "source", "list")
 
     for origin, snapshot in materializer.SPEC["snapshots"]:
@@ -94,7 +97,7 @@ def test_concurrent_ids_are_repaired_on_the_branch_before_the_merge(tmp_path):
     note = (repo / "docs" / "observations.md").read_text(encoding="utf-8")
     assert f"({landed}, cites-as-live)" in note
     assert minted_twice not in note
-    assert "0 failure(s), 0 flag(s)" in materializer.ledger(repo, "check")
+    materializer.check_clean(repo)
 
 
 def test_code_section_pin_ignores_an_unrelated_function_but_flags_its_own(tmp_path):

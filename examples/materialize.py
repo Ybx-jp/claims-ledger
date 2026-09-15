@@ -132,6 +132,26 @@ def ledger(repo: Path, *args: str) -> str:
     return run(sys.executable, "-m", "claims_ledger", *args, cwd=repo, env=ledger_env())
 
 
+def check_clean(repo: Path) -> str:
+    """Run the five checkers and refuse anything short of a clean sweep on all five.
+
+    Two things make the obvious assertion useless here. `check` exits 0 on a flag — a flag
+    is a review finding, not a failure — so the status code says nothing; and
+    `"0 failure(s), 0 flag(s)" in report` is a substring test over a five-line report, so
+    one clean checker satisfies it while four others flag. Reporting success over a ledger
+    that is not clean is the one report this package exists to refuse, and a demonstration
+    of the package may not produce it either.
+    """
+    report = ledger(repo, "check")
+    counted = [line for line in report.splitlines() if "failure(s)" in line]
+    unclean = [line for line in counted if "0 failure(s), 0 flag(s)" not in line]
+    if len(counted) != 5 or unclean:
+        raise RuntimeError(
+            f"the five checkers did not all come back clean in {repo.name}:\n{report}"
+        )
+    return report
+
+
 def ledger_exiting(repo: Path, expected: int, *args: str) -> str:
     """Run a command that is supposed to refuse, and hold it to the refusal.
 
@@ -161,6 +181,20 @@ def initialize(repo: Path) -> None:
     run("git", "init", "-q", cwd=repo)
     run("git", "config", "user.name", "Claims Ledger Example", cwd=repo)
     run("git", "config", "user.email", "examples@claims-ledger.invalid", cwd=repo)
+    # Written into the generated repository's own configuration, where it overrides whatever
+    # the person running this has set globally — and where `claims-ledger` reads it too,
+    # which is the half a `-c` on our own git calls would not reach. Each of these makes a
+    # contributor's ordinary preference break a repository they did not write:
+    #   commit.gpgsign  a signing default with no key fails every commit here, and with a
+    #                   key `renumber` refuses outright, because it builds commits with
+    #                   `commit-tree`, which does not sign.
+    #   core.autocrlf   the frozen region is compared as bytes, and rewritten line endings
+    #                   are different bytes.
+    #   core.hooksPath  a global hooks directory would run instead of the pre-commit hook
+    #                   these examples install and then demonstrate.
+    run("git", "config", "commit.gpgsign", "false", cwd=repo)
+    run("git", "config", "core.autocrlf", "false", cwd=repo)
+    run("git", "config", "core.hooksPath", ".git/hooks", cwd=repo)
 
 
 def register_sources(name: str, repo: Path) -> None:
@@ -224,7 +258,7 @@ def materialize(destination: Path) -> list[Path]:
         run("git", "add", "ledger/entries", cwd=repo)
         run("git", "commit", "-q", "-m", "Add checked claims ledger", cwd=repo)
         ledger(repo, "hook", "--install")
-        ledger(repo, "check")
+        check_clean(repo)
 
     for origin, snapshot in SPEC["snapshots"]:
         if (destination / origin).read_bytes() != (destination / snapshot).read_bytes():
@@ -241,19 +275,35 @@ def fill_scaffold(path: Path, assertion: str, metric: str, section: str) -> None
     a supersession rather than a re-read.
     """
     text = path.read_text(encoding="utf-8")
-    text = text.replace("TODO: the claim, in this project's words. No quotation marks.", assertion)
-    text = text.replace("metric: TODO", f"metric: {metric}")
-    text = text.replace("cohort: TODO", "cohort: the demonstration cohort")
-    text = text.replace("condition: TODO", "condition: the demonstration run, as recorded")
-    text = re.sub(
+
+    def substitute(haystack: str, needle: str, value: str) -> str:
+        """`str.replace` against a placeholder that is not there is a silent no-op, and the
+        entry then states a TODO as its assertion and still passes every check. One changed
+        character in the scaffold would do it, so each substitution is held to happening."""
+        if needle not in haystack:
+            raise RuntimeError(f"{path.name}: the scaffold has no `{needle}` to fill in")
+        return haystack.replace(needle, value)
+
+    text = substitute(
+        text, "TODO: the claim, in this project's words. No quotation marks.", assertion
+    )
+    text = substitute(text, "metric: TODO", f"metric: {metric}")
+    text = substitute(text, "cohort: TODO", "cohort: the demonstration cohort")
+    text = substitute(text, "condition: TODO", "condition: the demonstration run, as recorded")
+    text, filled = re.subn(
         r"- TODO: one typed pointer[^\n]*\n",
         f'- lab: docs/observations.md \u00a7 "{section}" =?\n',
         text,
     )
-    text = text.replace(
+    if filled != 1:
+        raise RuntimeError(f"{path.name}: expected one grounds placeholder, filled {filled}")
+    text = substitute(
+        text,
         "TODO: the rule by which the grounds support the assertion.",
         "The section records the reading the assertion states, and nothing wider.",
     )
+    if "TODO" in text:
+        raise RuntimeError(f"{path.name}: a scaffold placeholder survived:\n{text}")
     text = text.rstrip("\n") + "\n\n- docs/observations.md \u00b7 standing \u00b7 cites-as-live\n"
     path.write_text(text, encoding="utf-8")
 
@@ -332,7 +382,7 @@ def demonstrate_concurrent_ids(destination: Path) -> tuple[Path, str, str]:
     branch, slug, section, assertion, metric = CONCURRENT_CLAIMS[0]
     run("git", "checkout", "-q", "-b", branch, cwd=repo)
     moved = mint(repo, slug, section, assertion, metric, None)
-    ledger(repo, "check")  # green on its own, which is the premise
+    check_clean(repo)  # green on its own, which is the premise
 
     # The second line of work allocates the same number. `--id` is what makes that possible:
     # `new` with no id asks the whole repository, refs included, and would have stepped past
@@ -340,7 +390,7 @@ def demonstrate_concurrent_ids(destination: Path) -> tuple[Path, str, str]:
     _, slug, section, assertion, metric = CONCURRENT_CLAIMS[1]
     run("git", "checkout", "-q", "main", cwd=repo)
     held = mint(repo, slug, section, assertion, metric, moved.split("-", 1)[0])
-    ledger(repo, "check")  # green on its own too: nothing but the number is wrong
+    check_clean(repo)  # green on its own too: nothing but the number is wrong
 
     # What the merge guard asks, from the receiving checkout. The policy is `refuse`, so it
     # denies the merge and names the repair rather than performing it.
@@ -365,7 +415,7 @@ def demonstrate_concurrent_ids(destination: Path) -> tuple[Path, str, str]:
     ledger(repo, "renumber", "--onto", "main", "--branch", branch, "--write")
     ledger_exiting(repo, 0, "renumber", "--onto", "main", "--branch", branch, "--on-merge")
     run("git", "merge", "-q", "--no-ff", "--no-edit", branch, cwd=repo)
-    ledger(repo, "check")
+    check_clean(repo)
 
     entries = sorted(path.stem for path in (repo / "ledger" / "entries").glob("*.md"))
     if len(entries) != 2 or len({name.split("-", 1)[0] for name in entries}) != 2:

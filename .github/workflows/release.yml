@@ -41,6 +41,7 @@ jobs:
           ty check
           pytest -q
           claims-ledger check
+          claims-ledger corpus
       - run: python -m build
       - run: twine check --strict dist/*
       - name: The tag and the package agree on the version
