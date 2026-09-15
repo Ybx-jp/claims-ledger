@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T20:21:10-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:e030be0a73304cfe39ba7ff91c0fece383cbc63fa210fca24fba4ef453e1def7
+  artifact: sha256:e131100d1b0f8424d513f2f299f7d58bd6fdc8f5db8b0a87d5cfa45e45a58254
+  note: propagated from a moved ground
+
+- 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:e131100d1b0f8424d513f2f299f7d58bd6fdc8f5db8b0a87d5cfa45e45a58254
+  note: re-read after the commit that fixes what the pre-merge gate found. The section now also collects the numbers the branch repeats by itself. Which side moves is untouched: the receiving commit's numbers are still taken as fixed and only ids the branch introduces are ever mapped.
+
 ## References
 
 - src/claims_ledger/renumber.py · standing · cites-as-live

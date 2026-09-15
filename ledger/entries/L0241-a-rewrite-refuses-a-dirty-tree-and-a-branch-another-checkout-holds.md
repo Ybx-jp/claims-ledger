@@ -37,6 +37,14 @@ none
 - 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "cmd_renumber" =sha256:635481e3694e064746e0075e2e2711ffdb752ade52dd0d85b127cdd775b7852e
   note: re-read after the commit that adds `--on-merge` and the exit-code contract. Both guards this claim is about are untouched and still run before anything is written: checkout_holding is still asked first and working_tree_changes second, and each still raises rather than writing. What moved around them is which paths reach the write at all.
+- 2026-09-14T20:21:10-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_renumber" =sha256:635481e3694e064746e0075e2e2711ffdb752ade52dd0d85b127cdd775b7852e
+  artifact: sha256:f20c3f47342e895f7954d6cf9f1e4c0827e057c7bbf481c0b93d40e71ef55ddc
+  note: propagated from a moved ground
+
+- 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_renumber" =sha256:ec5f0e891c15fe6919ab2825976b488dc830b60974ef6cf38b6f859435750916
+  note: re-read after the commit that fixes what the pre-merge gate found. Both guards this claim is about are untouched and still run before anything is written; branch_ref now runs beside them, which is a third refusal on the same path rather than a change to those two.
 
 ## References
 

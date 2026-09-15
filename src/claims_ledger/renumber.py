@@ -46,6 +46,18 @@ class RenumberError(Exception):
     """Something about the branch that has to be settled before it can be rewritten."""
 
 
+class RepositoryUnreadable(RenumberError):
+    """A question git declined, so what the repository holds is unknown.
+
+    Told apart from every other refusal because a merge guard has to answer differently:
+    a branch this checkout cannot plan is not the guard's business and the merge proceeds,
+    while a repository that could not be read is the one state in which the guard knows
+    nothing — and allowing a merge out of ignorance is the false pass this package exists
+    to refuse (L0249-a-guard-that-could-not-read-the-repository-does-not-allow-the-merge,
+    cites-as-live).
+    """
+
+
 @dataclass(frozen=True)
 class Renumbering:
     """What a renumber would do, decided before anything is written.
@@ -120,9 +132,16 @@ def substitutions(mapping):
     """
     out = []
     for old, new in sorted(mapping.items()):
-        out.append((re.compile(rf"\b{re.escape(old)}\b"), new, False))
+        # `\b` is the wrong right-hand boundary for an id: a slug ends in a word
+        # character and a hyphen is not one, so `\bA0002-beta\b` matches the front of
+        # `A0002-beta-claim` and renumbers a different entry. Measured: substituting
+        # A0002-beta for A0003-beta over `id: A0002-beta-claim` produced
+        # `id: A0003-beta-claim`. The right-hand side has to refuse a hyphen as well as a
+        # word character, because either one means the id runs on
+        # (L0246-an-id-is-substituted-only-where-it-is-the-whole-id, cites-as-live).
+        out.append((re.compile(rf"\b{re.escape(old)}(?![\w-])"), new, False))
         old_number, new_number = old.split("-", 1)[0], new.split("-", 1)[0]
-        out.append((re.compile(rf"\b{re.escape(old_number)}\b(?!-)"), new_number, True))
+        out.append((re.compile(rf"\b{re.escape(old_number)}(?![\w-])"), new_number, True))
     return out
 
 
@@ -136,7 +155,24 @@ def substitute(text, subs, ids_are_read_here):
     return text
 
 
-def reanchor(text, before, after, config):
+def anchored_pointers(entry):
+    """[(the text carrying it, pointer)] for every by-value anchor an entry holds.
+
+    The Grounds *and* each verdict's evidence. `freshness` compares a ground from the
+    latest corroborating verdict that names its section once one exists, and from the
+    ground's own pin only until then
+    (L0195-the-latest-corroboration-is-where-a-ground-was-last-read, cites-as-live), so
+    re-pinning the Grounds alone would leave the pointer the checker actually compares
+    against naming text the rewrite replaced — and the entry would come out of its own
+    renumber flagged (L0247-a-renumber-re-pins-every-anchor-freshness-may-compare-from,
+    cites-as-live).
+    """
+    out = [(raw, pointer) for raw, pointer in entry.grounds]
+    out += [(v.evidence, v.pointer) for v in entry.verdicts if v.evidence]
+    return out
+
+
+def reanchor(text, before, after, config, decided=None):
     """An entry's text with every by-value anchor re-pinned that moved by the renumber
     alone, and no other.
 
@@ -152,22 +188,43 @@ def reanchor(text, before, after, config):
 
     `before` and `after` are `{path: text}` for the artifacts this entry may rest on, as
     the tree held them and as the rewrite leaves them.
+
+    `decided` carries the answer across commits, and it is not an optimisation. The
+    rewrite visits each commit with that commit's own tree, and the same entry's span can
+    be one thing where the entry is created and another two commits later — a second
+    citation landing in it, say. Deciding per commit then writes one frozen region at the
+    creating commit and a different one after it, which is exactly what `validate`
+    refuses; measured before this, a branch that renumbered two entries citing one
+    section came out of its own rewrite with `differs from the blob at the creating
+    commit`. So each anchor is decided once, at the first commit that carries it, and
+    every later commit is given the same answer — which is also what the original history
+    did, since a frozen anchor never moved on its own
+    (L0252-an-anchor-is-decided-once-for-the-whole-rewrite, cites-as-live).
     """
     entry = parse_entry(Path("in-memory.md"), text)
     out = text
-    for raw, pointer in entry.grounds:
+    for raw, pointer in anchored_pointers(entry):
         if pointer is None or not pointer.by_value or not pointer.section:
             continue
         if not config.is_sectioned(pointer.type) or pointer.target not in after:
             continue
+        key = (entry.id, raw)
+        if decided is not None and key in decided:
+            settled = decided[key]
+            if settled is not None:
+                out = out.replace(raw, settled, 1)
+            continue
         anchored = pointer.anchor.lstrip("=")
         now = section_digest(after[pointer.target], config, pointer.type, pointer.section)
-        if now is None or now == anchored:
-            continue
         was = section_digest(before[pointer.target], config, pointer.type, pointer.section)
-        if was != anchored:
-            continue  # the ground was already adrift of its own tree; not this rewrite's to move
-        out = out.replace(raw, raw.replace(pointer.anchor, f"={now}"), 1)
+        settled = None
+        if now is not None and now != anchored and was == anchored:
+            # the section as the rewrite leaves it, with the substitution undone, is the
+            # text the anchor already names: the id was the whole of the change
+            settled = raw.replace(pointer.anchor, f"={now}")
+            out = out.replace(raw, settled, 1)
+        if decided is not None:
+            decided[key] = settled
     return out
 
 
@@ -226,15 +283,30 @@ def plan(ledger, onto, branch="HEAD"):
         raise RenumberError(f"`{branch}` has no commits `{onto}` does not")
 
     rel_entries = os.path.relpath(ledger.entries_dir, repo)
-    introduced = entry_ids_at(repo, tip, rel_entries) - entry_ids_at(repo, base, rel_entries)
+    at_tip = entry_ids_at(repo, tip, rel_entries)
+    introduced = at_tip - entry_ids_at(repo, base, rel_entries)
     receiving = {ident.split("-", 1)[0] for ident in entry_ids_at(repo, onto_commit, rel_entries)}
-    colliding = sorted(i for i in introduced if i.split("-", 1)[0] in receiving)
+    # A number the receiving side holds, and a number the branch manages to hold twice by
+    # itself — two sessions that both minted into one branch. `check_numbers` names this
+    # command for either, so this command answers for either; the first id in sort order
+    # keeps the number and the rest move, which is the same rule as "the receiving side
+    # keeps its ids" applied where there is no other side
+    # (L0250-a-number-a-branch-holds-twice-is-a-collision-too, cites-as-live).
+    seen, doubled = set(), set()
+    for ident in sorted(at_tip):
+        number = ident.split("-", 1)[0]
+        if number in seen:
+            doubled.add(ident)
+        seen.add(number)
+    colliding = sorted(
+        {i for i in introduced if i.split("-", 1)[0] in receiving} | (doubled & introduced)
+    )
 
     mapping = {}
     if colliding:
         held, unasked = ids_in_the_repository(ledger)
         if unasked is not None:
-            raise RenumberError(
+            raise RepositoryUnreadable(
                 f"cannot ask {unasked}, so a free id cannot be chosen; a renumber that "
                 "allocates over a repository it could not read moves one collision onto "
                 "another"
@@ -346,7 +418,7 @@ def rewrite(ledger, renumbering, index_path):
     repo, config = ledger.repo, ledger.config
     subs = substitutions(renumbering.mapping)
     rel_entries = os.path.relpath(ledger.entries_dir, repo)
-    replaced = {}
+    replaced, decided = {}, {}
 
     for commit in renumbering.commits:
         files = tree_files(repo, commit)
@@ -370,7 +442,7 @@ def rewrite(ledger, renumbering, index_path):
 
         for path, text in list(after.items()):
             if path.startswith(rel_entries):
-                after[path] = reanchor(text, before, after, config)
+                after[path] = reanchor(text, before, after, config, decided)
 
         env = git_env(index=True) | {"GIT_INDEX_FILE": str(index_path)}
         read = git_call(repo, "read-tree", commit, env=env)
@@ -380,7 +452,7 @@ def rewrite(ledger, renumbering, index_path):
             renamed = _renamed(path, rel_entries, renumbering.mapping)
             if text == before[path] and renamed is None:
                 continue
-            blob = git_hash_object(repo, path, text.encode("utf-8"), env=env)
+            blob = git_hash_object(repo, text.encode("utf-8"), env=env)
             if blob is None:  # pragma: no cover - hash-object failing is git failing
                 raise RenumberError(f"git could not store the rewritten {path}")
             if renamed is not None:
@@ -436,23 +508,39 @@ def describe(renumbering, refused):
     return lines
 
 
-def checkout_holding(repo, ref):
-    """The checkout that has `ref` out, or None. A rewrite moves the ref, and a worktree
-    still sitting on the commits it replaced is a checkout on history no ref names."""
+def checkout_holding(repo, ref, commits=()):
+    """The checkout that would be stranded by this rewrite, or None.
+
+    Two ways to be stranded, and the second is the one a `branch` line cannot show. A
+    worktree with the branch checked out by name moves under it; a worktree sitting
+    *detached* on one of the commits being replaced keeps a HEAD that no ref will name
+    once the rewrite lands, and `git worktree list --porcelain` reports that one as
+    `detached` with no branch at all
+    (L0251-a-rewrite-refuses-a-checkout-it-would-strand-by-name-or-detached,
+    cites-as-live).
+    """
     listed = git_call(repo, "worktree", "list", "--porcelain")
     if not listed.ok:
         raise RenumberError(f"git could not list the checkouts of this repository ({listed.why})")
     full = git_call(repo, "rev-parse", "--symbolic-full-name", ref)
     wanted = full.out.strip() if full.ok else ref
-    here, holder = None, None
-    for line in listed.out.splitlines():
+    replaced = set(commits)
+    here, at, named, holders = None, None, False, []
+    for line in [*listed.out.splitlines(), ""]:
         if line.startswith("worktree "):
-            here = line[len("worktree ") :]
-        elif line.startswith("branch ") and line[len("branch ") :].strip() == wanted:
-            holder = here
-    if holder is None or Path(holder).resolve() == Path(repo).resolve():
-        return None  # nobody else has it; this checkout is the one being reset
-    return holder
+            here, at, named = line[len("worktree ") :], None, False
+        elif line.startswith("HEAD "):
+            at = line[len("HEAD ") :].strip()
+        elif line.startswith("branch "):
+            named = line[len("branch ") :].strip() == wanted
+        elif not line.strip() and here is not None:
+            if named or at in replaced:
+                holders.append(here)
+            here, at, named = None, None, False
+    # Every candidate, not the first: the first is this checkout, which is the one being
+    # reset rather than the one being stranded, and stopping there hid every other.
+    mine = Path(repo).resolve()
+    return next((h for h in holders if Path(h).resolve() != mine), None)
 
 
 def working_tree_changes(repo):
@@ -463,6 +551,29 @@ def working_tree_changes(repo):
     return bool(answer.out.strip())
 
 
+def branch_ref(repo, ref):
+    """The full refname `ref` names, or a RenumberError when it does not name a branch.
+
+    A detached HEAD is the case this exists for. `rev-parse --symbolic-full-name HEAD`
+    answers `HEAD` when nothing is checked out by name, and moving *that* moves the
+    detached head rather than a branch: the rewritten commits end up reachable only from
+    HEAD, the branch that was being renumbered still names the originals, and the working
+    tree is left holding the old content with the rewrite staged against it — reported, at
+    the time, as a rewrite that had succeeded. A rewrite whose result no branch would name
+    is refused before anything is written
+    (L0248-a-rewrite-moves-a-branch-or-it-is-refused, cites-as-live).
+    """
+    full = git_call(repo, "rev-parse", "--symbolic-full-name", ref)
+    name = full.out.strip() if full.ok else ""
+    if not name.startswith("refs/heads/"):
+        detached = " HEAD is detached" if name == "HEAD" or not name else ""
+        raise RenumberError(
+            f"`{ref}` does not name a branch{detached}; a rewrite has to leave its commits "
+            "on a branch, so name one with --branch"
+        )
+    return name
+
+
 def move_branch(repo, renumbering, tip):
     """Point the branch at the rewritten tip and put this checkout on it.
 
@@ -470,8 +581,7 @@ def move_branch(repo, renumbering, tip):
     the rewrite was running is not overwritten by it — the rewrite read one history and
     would be writing over another.
     """
-    full = git_call(repo, "rev-parse", "--symbolic-full-name", renumbering.ref)
-    ref = full.out.strip() if full.ok and full.out.strip() else renumbering.ref
+    ref = branch_ref(repo, renumbering.ref)
     moved = git_call(repo, "update-ref", ref, tip, renumbering.branch)
     if not moved.ok:
         raise RenumberError(f"git would not move {ref} ({moved.why})")

@@ -443,12 +443,6 @@ def from_table(table, root, source=None):
             f"merge-renumber `{merge_renumber}` is not one of {list(MERGE_RENUMBER_POLICIES)}"
         )
 
-    merge_renumber = table.get("merge-renumber", DEFAULT_MERGE_RENUMBER)
-    if merge_renumber not in MERGE_RENUMBER_POLICIES:
-        raise ConfigError(
-            f"merge-renumber `{merge_renumber}` is not one of {list(MERGE_RENUMBER_POLICIES)}"
-        )
-
     return Config(
         root=root,
         ledger_dir=ledger,

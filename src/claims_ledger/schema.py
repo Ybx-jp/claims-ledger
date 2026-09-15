@@ -1836,17 +1836,23 @@ def git_blobs(repo, specs, env=None):
     return blobs, failures
 
 
-def git_hash_object(repo, path, data, env=None):
-    """The object id git stores `data` under for `path`, written into the object store,
-    or None when git would not take it.
+def git_hash_object(repo, data, env=None):
+    """The object id git stores `data` under, written into the object store, or None when
+    git would not take it.
 
-    `--path` rather than the bytes alone: git applies the attributes of the path it is
-    told about, so a blob written here is the blob a checkout of that path would produce.
+    `--no-filters`, because every caller here already holds the bytes git stores: they
+    came out of `cat-file`, which is the clean side of a filter, and `--path` would run
+    the path's clean filter over them a second time. A filter that is not idempotent —
+    and nothing requires one to be — would rewrite content the caller meant to preserve.
+    The two flags cannot both be given, so this is a choice rather than an omission:
+    measured on git 2.43.0, `hash-object --path <p> --no-filters` exits with
+    `Can't use --path with --no-filters`.
+
     Through `_git_raw` like every other call in this module, which is what puts the
     caller's environment on it rather than this process's.
     """
     code, out, _why = _git_raw(
-        repo, ["hash-object", "-w", "--stdin", "--path", str(path)], stdin=data, env=env
+        repo, ["hash-object", "-w", "--stdin", "--no-filters"], stdin=data, env=env
     )
     return out.decode("utf-8").strip() if code == 0 else None
 

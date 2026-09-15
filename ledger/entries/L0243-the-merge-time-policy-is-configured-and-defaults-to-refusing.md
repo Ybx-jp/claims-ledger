@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T20:21:10-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  artifact: sha256:222a65392276c0cc61e35fec1bfabd395dee5590c848b57d4303b30b4f3ec738
+  note: propagated from a moved ground
+
+- 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:222a65392276c0cc61e35fec1bfabd395dee5590c848b57d4303b30b4f3ec738
+  note: re-read after the commit that fixes what the pre-merge gate found. The duplicate of this very check is gone and one copy remains, which is what this claim asserts of it: the key is read against MERGE_RENUMBER_POLICIES and a value outside the three raises ConfigError naming both.
+
 ## References
 
 - src/claims_ledger/config.py · standing · cites-as-live

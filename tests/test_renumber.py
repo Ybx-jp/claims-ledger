@@ -8,6 +8,7 @@ merges them without a conflict and every checker reads the result at exit 0.
 """
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -301,3 +302,103 @@ def test_on_merge_is_silent_about_a_branch_it_cannot_plan(collision):
     """A guard asks about every merge, including merges of branches that have nothing to
     do with this ledger; one it cannot plan is not its business to refuse."""
     assert collision.cl("renumber", "--onto", "no-such-branch", "--on-merge") == 0
+
+
+# --- what the pre-merge gate on this branch found, as regressions -------------------
+
+
+def test_a_detached_head_is_refused(collision):
+    """`--branch` defaults to HEAD, and on a detached HEAD `rev-parse
+    --symbolic-full-name` answers `HEAD`. Moving that moves the detached head: the
+    rewritten commits end up reachable from nothing a branch names, the branch still
+    holds the originals, and the working tree keeps the old content with the rewrite
+    staged against it — reported, before this, as a rewrite that had succeeded."""
+    collision.git("checkout", "-q", "--detach")
+    at = head(collision, "rev-parse", "HEAD")
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 2
+    assert head(collision, "rev-parse", "HEAD") == at
+    assert (collision.entries / "A0002-beta-claim.md").exists()
+    assert head(collision, "rev-parse", "side") == at
+
+
+def test_a_merge_is_not_allowed_over_a_repository_that_could_not_be_read(collision):
+    """The guard's one state of ignorance. A branch it cannot plan is not its business
+    and the merge proceeds; a repository it could not read is different in kind, and
+    allowing a merge out of ignorance is the false pass this package exists to refuse."""
+    ghost = Path(collision.root) / ".git" / "refs" / "heads" / "ghost"
+    ghost.write_text("0000000000000000000000000000000000000001\n", encoding="utf-8")
+
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 1
+    assert collision.cl("renumber", "--onto", "no-such-branch", "--on-merge") == 0
+
+
+def test_a_number_the_branch_holds_twice_is_moved_and_a_prefix_id_is_not_touched(project):
+    """Two sessions that both minted into one branch. `check_numbers` names this command
+    for that too, so it answers for it — and the pair is the shape that catches a
+    substitution written with `\\b` on the right: `A0002-beta` is a prefix of
+    `A0002-beta-claim`, and a boundary that accepts the following hyphen renumbers the
+    wrong entry."""
+    collision = make_collision(project)
+    collision.git("checkout", "-q", "side")
+    entry(collision, "A0002", "beta", "Observation Beta")
+    collision.git("add", "-A")
+    collision.git("commit", "-m", "a second session mints into the same branch")
+
+    assert collision.cl("validate") == 1  # two entries carry A0002 on the branch
+    # The second citation landed in a span the first entry already rested on, so that
+    # entry is flagged before the renumber runs. What the renumber must not do is add to
+    # that — the drift is the co-location's, not the rewrite's.
+    before = len([r for r in _freshness_reports(collision) if "has moved" in r.message])
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 0
+    assert collision.cl("validate") == 0
+    after = len([r for r in _freshness_reports(collision) if "has moved" in r.message])
+    assert after == before, "the renumber flagged a ground the collision had not"
+
+    ids = sorted(p.stem for p in collision.entries.glob("*.md"))
+    assert len(ids) == len({i.split("-", 1)[0] for i in ids}), ids
+    assert sorted(i.split("-", 1)[1] for i in ids) == ["beta", "beta-claim"]
+    for path in collision.entries.glob("*.md"):
+        assert f"id: {path.stem}\n" in path.read_text(encoding="utf-8")
+
+
+def test_the_anchor_freshness_compares_from_is_re_pinned(collision):
+    """A ground is compared from the latest corroborating verdict that names its section
+    once one exists, and from the ground's own pin only until then. Re-pinning the
+    Grounds alone leaves the pointer the checker actually uses naming text the rewrite
+    replaced, and the entry comes out of its own renumber flagged."""
+    path = collision.entries / "A0002-beta-claim.md"
+    digest = collision.digest("docs/note-001.md", "Observation Beta")
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        .rstrip("\n")
+        .replace(
+            "## References",
+            "- 2026-09-14T12:00:00-07:00 · corroborated · grade: measured · author: main\n"
+            '  evidence: lab: docs/note-001.md § "Observation Beta" '
+            f"={digest}\n"
+            "  note: read again against the note as it stands.\n\n## References",
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    collision.git("commit", "-a", "-m", "a reading of the beta section")
+    assert collision.cl("freshness") == 0
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 0
+    moved = (collision.entries / "A0003-beta-claim.md").read_text(encoding="utf-8")
+    assert moved.count(digest) == 0, "the verdict's anchor was left naming the old text"
+    assert not [r for r in _freshness_reports(collision) if "has moved" in r.message]
+
+
+def test_a_detached_sibling_worktree_on_the_commits_is_refused(collision, tmp_path):
+    """`git worktree list --porcelain` reports a detached checkout with no `branch` line
+    at all, so a parse that only reads branch lines cannot see the worktree a rewrite
+    would strand."""
+    doomed = tmp_path / "detached-checkout"
+    collision.git("worktree", "add", "-q", "--detach", str(doomed), "side")
+    collision.git("checkout", "-q", "side")
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 2
+    assert (collision.entries / "A0002-beta-claim.md").exists()

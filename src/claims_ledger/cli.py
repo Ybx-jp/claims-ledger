@@ -1098,6 +1098,13 @@ def cmd_renumber(args, ledger):
         return 0
     try:
         renumbering = renumber.plan(ledger, args.onto, args.branch)
+    except renumber.RepositoryUnreadable as exc:
+        # Not "not its business": this is the one refusal that means the question was
+        # never answered, and a guard that allows a merge out of ignorance is the false
+        # pass the whole package refuses.
+        # (L0249-a-guard-that-could-not-read-the-repository-does-not-allow-the-merge, cites-as-live)
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 1 if args.on_merge else 2
     except renumber.RenumberError as exc:
         if args.on_merge:
             return 0  # a guard asks about every merge; a branch it cannot plan is not its business
@@ -1132,7 +1139,8 @@ def cmd_renumber(args, ledger):
         )
         return 2
     try:
-        held = renumber.checkout_holding(ledger.repo, renumbering.ref)
+        renumber.branch_ref(ledger.repo, renumbering.ref)
+        held = renumber.checkout_holding(ledger.repo, renumbering.ref, renumbering.commits)
         if held is not None:
             raise renumber.RenumberError(
                 f"`{renumbering.ref}` is checked out at {held}; rewriting it would leave "
