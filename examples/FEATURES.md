@@ -542,7 +542,7 @@ verdict, but names the changed pinned artifact and records the observed blob ID.
 
 | Command | Property exercised by the portfolio |
 |---|---|
-| `validate` | schema, grades, verdict legality, frozen entry regions, append-only verdicts |
+| `validate` | schema, grades, verdict legality, frozen entry regions, append-only verdicts, two entries carrying one number |
 | `resolve` | typed pointers, Git objects, source registry, exact quotes and speakers |
 | `references` | entry acts, document back-references, roster, exclusions and quarantine |
 | `propagate` | challenge and fallen-dependency contested verdicts |
@@ -555,9 +555,15 @@ repository.
 <!-- snippet: materialize.py -->
 ```python
         ledger(repo, "hook", "--install")
-        ledger(repo, "check")
+        check_clean(repo)
 ```
 <!-- /snippet -->
+
+`check_clean` rather than `check`, because a status code is not the oracle here: `check`
+exits 0 on a flag, since a flag is a review finding rather than a failure. Nor is
+`"0 failure(s), 0 flag(s)" in report`, which is a substring test over a five-line report
+and is satisfied by one clean checker while four others flag. The materializer holds all
+five lines.
 
 Flags are review findings and normally exit zero. Failures gate. A write command reports
 what it appended and exits nonzero for that run, requiring a clean rerun before commit.
@@ -573,17 +579,105 @@ The workflow itself exercises:
 - `source list` and `status` in the regression tests;
 - `freshness --write` in the scoped-drift regression.
 
-The package also provides `init`, `new`, individual checker commands, and
-`claims-ledger corpus`. The templates are richer than an `init` or `new` scaffold,
-while the package-level test run proves all 95 corpus seeds.
+The concurrent-authoring demonstration below adds `init`, `new` — both with an allocated
+id and with one named — and `renumber` in three of its four shapes. What the portfolio
+still does not exercise is `neighbours`, which is advisory and decides nothing, and
+`harness`, which installs the agent hooks into a project rather than acting on a ledger.
+`claims-ledger corpus` is named here but proved at the package level, where the test run
+covers all 96 corpus seeds; the templates are richer than an `init` or `new` scaffold.
 
 ### Pre-commit enforcement
 
-The installed hook runs the staged forms of validation and freshness and the working-tree
-forms of the other three checkers. It uses the absolute Python interpreter that installed
-it, so Git does not depend on an activated virtual environment.
+The installed hook runs all five checkers against the index rather than the working tree:
+every one of its five lines carries `--cached`, so what is checked is what is about to be
+committed. The interpreter is named absolutely, so Git does not depend on an activated
+virtual environment, and the checkout being committed to is asked first — its own `.venv`
+is preferred when that interpreter can import the package, with the path recorded at
+install time as the fallback. That is what makes one shared hooks directory correct across
+linked worktrees, where the recorded path would otherwise run one checkout's package
+against another checkout's tree.
 
-## 8. What a passing example means
+## 8. Two lines of work, one number
+
+Everything above happens in one line of work. This one needs two, so it is built as a
+separate repository rather than a fifth member of the portfolio: `concurrent-ids`, which
+`materialize.py` creates after the four are verified.
+
+An id is allocated above the whole repository, refs included, so ordinary authoring does
+not collide. `--id` is what makes the collision reproducible — it names a number instead of
+asking for one.
+
+<!-- snippet: materialize.py -->
+```python
+    # The second line of work allocates the same number. `--id` is what makes that possible:
+    # `new` with no id asks the whole repository, refs included, and would have stepped past
+    # the number the branch is already holding.
+```
+<!-- /snippet -->
+
+The situation this produces is the one worth understanding: **each branch is green on its
+own.** Both entries are well formed, both grounds resolve, both citations agree with their
+entry's status. Nothing but the number is wrong, and nothing is wrong until they meet.
+
+### The merge is refused, and the refusal carries the repair
+
+`merge-renumber` decides what happens when a merge would land the collision — `off`,
+`refuse`, or `rewrite`. The demonstration configures `refuse`, the default, and the
+configuration is written before either branch is cut.
+
+<!-- snippet: materialize.py -->
+```python
+    config.write_text(text + '\nmerge-renumber = "refuse"\n', encoding="utf-8")
+```
+<!-- /snippet -->
+
+`renumber --on-merge` is what the shipped merge guard asks, from the receiving checkout. It
+exits non-zero and hands back a denial reason naming the exact command that repairs it, and
+the materializer holds it to that: a refusal an operator cannot act on is not a refusal.
+
+<!-- snippet: materialize.py -->
+```python
+    repair = f"claims-ledger renumber --onto main --branch {branch} --write"
+    if repair not in refusal:
+        raise RuntimeError(f"the refusal does not name the repair `{repair}`:\n{refusal}")
+```
+<!-- /snippet -->
+
+### The branch that has not merged is the one that moves
+
+The repair rewrites the unmerged branch, not the merge. That is what lets the moved entry
+be *created* under its final id: the frozen region is compared against the blob at the
+commit that created the entry's path, so an entry renamed in a later commit would carry one
+id in its frozen region and another in its name.
+
+A rewrite replaces every commit in the range, so a ground stated by reference into one of
+them would lose the evidence it rests on — `renumber` refuses rather than doing that. The
+demonstration's grounds are stated by value, which is the shape that survives:
+
+<!-- snippet: materialize.py -->
+```python
+    The anchor is left as `=?` for `sha --write` to fill with the digest of the section as
+    the tree has it. That is the ground shape a rewrite can carry: a ground stated by
+    reference into a commit the rewrite replaces loses the evidence it rests on, and costs
+    a supersession rather than a re-read.
+```
+<!-- /snippet -->
+
+The citing sentence sits inside the section its entry pins, so moving the id changes the
+bytes the ground is anchored to. The rewrite re-pins that digest rather than leaving it to
+go stale — and only where undoing the substitution reproduces the digest the entry already
+carried, which is the proof that nothing but the id moved.
+
+```console
+concurrent-ids: two lines of work each minted A0001; the merge was refused
+concurrent-ids: A0001-latency-is-low -> A0002-latency-is-low, rewritten before the merge
+```
+
+The merged state the repair avoids is witnessed separately, in the red-team corpus, as the
+seed `D66-two-entries-carrying-one-number`. The corpus holds the state; this holds the
+repair.
+
+## 9. What a passing example means
 
 A clean run establishes that the records are structurally valid, their pointers and
 quotes resolve, citations agree with current statuses, required propagation is present,

@@ -59,11 +59,16 @@ workflow.
 ## What the pushed tag then does, unattended
 
 `release.yml`'s `build` job runs the full suite (`ruff check`, `ruff format --check`,
-`ty check`, `pytest -q`, `claims-ledger corpus`) again from a clean checkout, builds the
-wheel and sdist, runs `twine check --strict` on both, confirms the tag and
-`__version__` agree, and installs each distribution into its own clean virtual
+`ty check`, `pytest -q`, `claims-ledger check`, `claims-ledger corpus`) again from a clean
+checkout, builds the wheel and sdist, runs `twine check --strict` on both, confirms the tag
+and `__version__` agree, and installs each distribution into its own clean virtual
 environment to run the corpus and `--version` from outside the checkout — proving the
 artifact rather than the source tree. If any of that fails, nothing is published.
+
+That list is every gate `ci.yml` runs, and it is held to that by containment rather than by
+being kept in step by hand (L0259-publication-runs-every-gate-ci-runs, cites-as-live): a
+tag matches neither of `ci.yml`'s triggers, so a gate that runs there and not here would be
+one a release never applies.
 
 `publish` then uploads both distributions to PyPI over Trusted Publishing — no token
 ever touches this repository. It runs only when the ref is a tag (`workflow_dispatch`

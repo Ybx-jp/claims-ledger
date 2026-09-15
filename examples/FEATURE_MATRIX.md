@@ -1,9 +1,15 @@
 # Checked feature matrix
 
-This matrix names a concrete witness for each public feature. The
-[feature guide](FEATURES.md) explains the same coverage by concept and includes
-repository excerpts. Generated repositories
-replace `@BASE@` with real commit IDs and compute the zero fingerprints.
+This matrix names a concrete witness for each public feature the examples cover. Two
+commands are deliberately outside them: `neighbours`, which is advisory and decides
+nothing, and `harness`, which installs the agent hooks into a project rather than acting on
+a ledger.
+
+The [feature guide](FEATURES.md) explains the same coverage by concept and includes
+repository excerpts. Generated repositories replace `@BASE@` with real commit IDs and
+compute the zero fingerprints. The last seven rows are built by `concurrent-ids`, which is
+not part of the four-repository portfolio: it needs two lines of work, and each of the four
+has one.
 
 | Feature | Witness |
 |---|---|
@@ -24,7 +30,7 @@ replace `@BASE@` with real commit IDs and compute the zero fingerprints.
 | supersession in both directions | research R0005 → R0006 |
 | absence-search rule | research R0004 |
 | archived-prefix quarantine | research `Q`; documentation `Z` |
-| `validate` and immutable Git history | two-commit materialization |
+| `validate` and immutable Git history | two-commit materialization; the rewritten branch in `concurrent-ids` |
 | `resolve` | registered sources and pinned artifacts in every repository |
 | `references` | every README; research roster |
 | `propagate` | research R0007/R0008 |
@@ -32,6 +38,13 @@ replace `@BASE@` with real commit IDs and compute the zero fingerprints.
 | `sha --write`, `source add/list`, `status`, `hook --install` | materializer and tests |
 | all five checks together | materializer calls `check` in every repository |
 | red-team corpus | the package-level `claims-ledger corpus` command |
+| repository-wide id allocation | `concurrent-ids`: `new` with no id steps past the number a branch holds |
+| two entries carrying one number | `concurrent-ids`, and corpus seed `D66-two-entries-carrying-one-number` |
+| `merge-renumber` policy | `concurrent-ids` configures `refuse` before either branch is cut |
+| `renumber --on-merge` | `concurrent-ids`: the merge is denied and the denial names the repair |
+| `renumber` dry run and `--write` | `concurrent-ids`: the plan writes nothing; the rewrite moves the branch |
+| a ground by value surviving a rewrite | `concurrent-ids`: the pinned digest is re-anchored with proof |
+| `init` and `new` | `concurrent-ids` starts from `init`, the way a new project does |
 
 Cross-repository source federation is described in `examples/README.md` and verified
 against the seven origin/snapshot pairs in `portfolio.json`. Native cross-ledger

@@ -1,6 +1,7 @@
 # Example repository portfolio
 
-This directory contains four repository templates that tell one small product story:
+This directory contains four repository templates that tell one small product story,
+and a fifth that tells none.
 
 The [concept-grouped feature guide](FEATURES.md) explains every exercised capability
 with exact excerpts from these repositories; [FEATURE_MATRIX.md](FEATURE_MATRIX.md) is
@@ -11,8 +12,15 @@ the compact index.
 - `research-repo` records the synthetic study behind the threshold.
 - `documentation-repo` publishes the operator-facing explanation.
 
+A fifth directory, `concurrent-ids`, is built after those four and is not part of the
+story. It exists because the portfolio cannot tell it: every one of the four is a single
+line of work, and the situation worth demonstrating needs two — two sessions that each
+minted the same number, the merge that is refused because of it, and the rewrite that
+repairs the branch that has not merged. `claims-ledger init` starts it, the way a project
+that has never seen this repository starts.
+
 The application code, measurements, and prose are intentionally plausible fiction. The
-claims ledgers are real. `materialize.py` turns the templates into four independent Git
+claims ledgers are real. `materialize.py` turns those four templates into independent Git
 repositories, registers the cross-repository artifacts as content-addressed sources,
 pins local evidence to real commits, computes every `verbatim_sha`, installs the real
 pre-commit hook, and runs all five checkers.
@@ -24,6 +32,8 @@ backend-service: check passed
 research-repo: check passed
 documentation-repo: check passed
 portfolio: 4 repositories and 7 cross-repository snapshots verified
+concurrent-ids: two lines of work each minted A0001; the merge was refused
+concurrent-ids: A0001-latency-is-low -> A0002-latency-is-low, rewritten before the merge
 ```
 
 The generated repositories are disposable, ordinary repositories: enter any one and run
@@ -48,6 +58,7 @@ Use an environment where this checkout is installed (`uv run` is sufficient here
 | immutable history and commit pins | the two commits made in every generated repository |
 | source registry and portable committed bytes | `ledger/sources.jsonl` plus `evidence/` or `sources/` |
 | pre-commit enforcement | installed in each generated repository |
+| concurrent id allocation, `renumber`, `merge-renumber` | the fifth repository, `concurrent-ids` |
 
 ## The repository boundary
 
