@@ -39,3 +39,4 @@ none
 
 - src/claims_ledger/config.py · standing · cites-as-live
 - src/claims_ledger/cli.py · standing · cites-as-live
+- docs/OPERATING.md · standing · cites-as-live

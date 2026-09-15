@@ -98,6 +98,84 @@ history rewrite, and permitted here only because those commits are unmerged and 
 pins them. Check that before doing it: an entry created on that same branch may pin them,
 and then the rewrite costs what the section above says it costs.
 
+## Several checkouts, and the ids they mint
+
+A single person running several agent sessions at once has one repository and several
+linked worktrees, each on its own branch. That is the ordinary shape of concurrent work
+here, and it used to collide by construction: an id was allocated above the entries
+directory of whichever checkout was asking, so two sessions that minted on the same
+afternoon were handed the same number.
+
+An id is now allocated above everything the repository holds — this checkout's entries,
+every entry filename any ref has ever carried, and the entries each sibling worktree holds
+including the ones it has not committed
+(L0233-an-id-is-allocated-above-the-whole-repository, cites-as-live). Worktrees share
+their refs, so none of that costs a fetch. **A mint over a repository git could not read
+is refused rather than allocated from the one directory it could see**; `--id` names one
+by hand when the repository is broken for other reasons.
+
+**If two entries end up carrying one number anyway, `validate` fails**
+(L0242-two-entries-may-not-carry-one-number, cites-as-live). It did not, and that is worth
+knowing about ledgers written before this: two branches that each minted a number produce
+entry files whose slugs differ, git merges them with no conflict, and every checker read
+the result at exit 0. A number names one entry, because a citation may name it without the
+slug.
+
+### Reconciling it
+
+**The receiving side keeps its ids**
+(L0239-the-receiving-side-keeps-its-ids, cites-as-live). A merge is never symmetric, so
+the branch being merged is the one that moves, three open branches are three sequential
+merges, and nothing needs an arbiter.
+
+    claims-ledger renumber --onto main            # what would move
+    claims-ledger renumber --onto main --write    # move it
+
+It rewrites the branch, not the merge, and every entry it moves is *created* in that
+branch's own history under the id it will keep
+(L0235-a-renumber-rewrites-the-branch-rather-than-the-merge, cites-as-live). That matters
+more than it sounds: `validate` compares a frozen region against the blob at the commit
+that created the entry's path, so an entry renamed after a commit holds it is compared
+against the rename commit — and whatever else that commit changed rides in unchecked. A
+branch rewritten before it merges never renames a committed file.
+
+This *is* a history rewrite, and it is the one the section above permits: the commits are
+unmerged and nothing pins them. The command holds you to that. It refuses a branch already
+merged, a branch whose own entries pin by reference a commit the rewrite would replace,
+commits another ref also holds, a configuration that changes mid-branch, a dirty working
+tree, and a branch another checkout has out. Check what it says before reaching for
+`--force`.
+
+Citations move with the ids, and an anchor is re-pinned only where undoing the
+substitution reproduces the anchor the entry already carries — a proof that the id was the
+whole of the change. Where it was not, the anchor stands and `freshness` flags it for
+someone to read.
+
+### At merge time
+
+`merge-renumber` says what a merge guard does about a collision it sees
+(L0243-the-merge-time-policy-is-configured-and-defaults-to-refusing, cites-as-live):
+
+    merge-renumber = "refuse"   # stop the merge and name the repair (the default)
+    merge-renumber = "rewrite"  # renumber the incoming branch, then let it proceed
+    merge-renumber = "off"      # say nothing
+
+The guard `claims-ledger harness install` writes asks before `git merge <branch>`, and
+before is the only useful moment: measured on git 2.43.0, a conflicted merge fires no hook
+at all, its resolution commit fires `pre-commit`, and a clean auto-merge fires
+`post-merge`. Every hook a merge has fires once the merge has already happened, by which
+point the branch to rewrite is part of the history.
+
+### The hook, in a worktree
+
+git serves one hooks directory to every linked worktree, so `.git/hooks/pre-commit` is a
+per-repository file guarding per-checkout trees. It asks git which checkout it is
+committing in and prefers that checkout's interpreter, falling back to the one recorded at
+install time (L0245-the-hook-runs-the-package-the-checkout-it-guards-resolves,
+cites-as-live). For a project that installs this package from outside its own tree the two
+are the same; for a project whose tree *is* the package, the recorded path would otherwise
+run one checkout's package against another checkout's tree.
+
 ## Adding an entry takes one commit
 
 An entry's citation usually lives *inside* the section that entry rests on — the
