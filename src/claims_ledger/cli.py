@@ -85,14 +85,57 @@ HOOK_TEMPLATE = """#!/bin/sh
 # to have moved from, and what can be asked of it, that its section is still there, is
 # asked above.
 set -e
-{python} -m claims_ledger validate --cached
-{python} -m claims_ledger resolve --cached
-{python} -m claims_ledger references --cached
-{python} -m claims_ledger propagate --cached
-{python} -m claims_ledger freshness --cached
+
+# Everything below runs inside a shell function, and that is not a style choice. This
+# template is a Python string in a file whose sections are top-level definitions and
+# assignments, and the pattern that ends a section matches any line at column 0 carrying
+# an equals sign. A shell variable assigned at the left margin therefore reads as the
+# start of the next section and cuts this one short, leaving the entries pinned here
+# resting on the comment above the script rather than on the script. Keep new shell
+# indented inside the function, and keep an equals sign out of the first column.
+run_the_checkers() {{
+  # The interpreter this hook was installed with, and then the one the checkout being
+  # committed to resolves, when that checkout has one of its own.
+  #
+  # git serves ONE hooks directory to every linked worktree — measured on git 2.43.0,
+  # `rev-parse --git-path hooks` answers with the common directory from every one of them —
+  # so this file is a per-repository singleton while the tree above it is per-checkout. In
+  # a project that installs this package from outside its own tree those come to the same
+  # thing and the recorded path is right everywhere. In a project whose tree IS the
+  # package, each worktree has an editable install of its own, and the recorded path then
+  # runs one checkout's package against another checkout's tree: the checkers that fire
+  # are not the ones being edited, and the tree that is wrong is not the tree they read.
+  #
+  # So the checkout is asked first and the recorded path is the fallback. `--show-toplevel`
+  # names the checkout git is committing in, which under a hook is the worktree that fired
+  # it. The probe is an import rather than the file merely being there, because a
+  # virtualenv without this package installed would otherwise take the hook down on every
+  # commit.
+  python={python}
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+  if [ -n "$top" ]; then
+    for candidate in "$top/.venv/bin/python" "$top/venv/bin/python"; do
+      [ -x "$candidate" ] || continue
+      if "$candidate" -c 'import claims_ledger' >/dev/null 2>&1; then python="$candidate"; break; fi
+    done
+  fi
+
+  "$python" -m claims_ledger validate --cached
+  "$python" -m claims_ledger resolve --cached
+  "$python" -m claims_ledger references --cached
+  "$python" -m claims_ledger propagate --cached
+  "$python" -m claims_ledger freshness --cached
+}}
+
+run_the_checkers
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
-# console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
+# console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live) — both the
+# path recorded at install time and the one the hook discovers are absolute, and the
+# discovery is what makes one shared hook correct in every checkout of a repository that
+# has several. git serves one hooks directory to all of them, so the recorded path would
+# otherwise run one checkout's package against another checkout's tree
+# (L0245-the-hook-runs-the-package-the-checkout-it-guards-resolves, cites-as-live). The hook
 # asks each checker for the index wherever that checker has a `--cached` of its own. What
 # each of those checkers then does with it is that checker's own claim; the template says
 # only which lines carry the flag, and the lines that do not say so beside them

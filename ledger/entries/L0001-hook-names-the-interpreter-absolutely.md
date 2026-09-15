@@ -69,7 +69,15 @@ Every checking line of the template begins with the python slot and invokes the 
 - 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:fc0eb231de2f2314361c4f1c25a188d8f14bbe5feb18335c329b355cb8f6dce7
   note: re-read after the same commit. The template's lines are unchanged — all five still carry the flag, which is what this claim requires — and what moved is the comment beside them, which said a working ground still commits unreported and no longer does.
+- 2026-09-14T19:35:33-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:fc0eb231de2f2314361c4f1c25a188d8f14bbe5feb18335c329b355cb8f6dce7
+  artifact: sha256:d0eeb70717df15bfa85709815f967568186649bdca46bba0cdf3dc567b9b29c6
+  note: propagated from a moved ground
 
+
+- 2026-09-14T19:35:35-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "HOOK_TEMPLATE" =sha256:9f3f666b4751d909dab1d1dcba787c80eb29d9c7163d84790d98a47c4600f4f7
+  note: re-read after the commit that makes the hook resolve its interpreter from the checkout it is committing in. What this claim asserts is untouched and is now true of two paths rather than one: the recorded path is still sys.executable, an absolute path, and the discovered path is built from git's own --show-toplevel, which is absolute as well. Every checking line still reaches the package with -m and none of them names the console script.
 ## References
 
 - README.md · standing · cites-as-live
