@@ -44,4 +44,5 @@ none
   note: read against the working tree after the fill of a pending anchor was narrowed to a Grounds line or a verdict's evidence line, since a Warrant sentence ending in the same text was being rewritten in the frozen region of a committed entry (qe gate, ticket c4e62619f4d5476f): every placeholder in the Grounds and in verdict evidence is still filled from the tree, a pointer whose text is not there is still refused by name before the write, and the committed refusal is still asked only for the frozen region; the assertion holds as written.
 
 ## References
+
 - src/claims_ledger/authoring.py · standing · cites-as-live

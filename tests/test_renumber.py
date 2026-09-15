@@ -75,10 +75,20 @@ def entry(project, ident, slug, section, pin="=?"):
     return path
 
 
-@pytest.fixture
-def collision(project):
-    """Two branches off one base, each holding A0002 for a different claim."""
+def make_collision(project, merge_renumber=None):
+    """Two branches off one base, each holding A0002 for a different claim.
+
+    The policy is written before the branches are cut, because a configuration that
+    changes *on* the branch is one of the things a rewrite refuses — the rewrite reads
+    one configuration for every commit it replaces.
+    """
     (project.root / "docs" / "note-001.md").write_text(NOTE, encoding="utf-8")
+    if merge_renumber is not None:
+        config = project.root / "claims-ledger.toml"
+        config.write_text(
+            config.read_text(encoding="utf-8") + f'\nmerge-renumber = "{merge_renumber}"\n',
+            encoding="utf-8",
+        )
     project.git("init")
     project.git("add", "-A")
     project.git("commit", "-m", "base")
@@ -95,6 +105,11 @@ def collision(project):
     project.git("commit", "-m", "the alpha claim")
     project.git("checkout", "-q", "side")
     return project
+
+
+@pytest.fixture
+def collision(project):
+    return make_collision(project)
 
 
 def head(project, *args):
@@ -194,7 +209,7 @@ def _freshness_reports(project):
 def test_nothing_is_written_without_the_flag(collision):
     """A dry run says what would move and leaves the branch alone."""
     at = head(collision, "rev-parse", "HEAD")
-    assert collision.cl("renumber", "--onto", "main") == 0
+    assert collision.cl("renumber", "--onto", "main") == 1
     assert head(collision, "rev-parse", "HEAD") == at
     assert (collision.entries / "A0002-beta-claim.md").exists()
 
@@ -255,3 +270,34 @@ def test_a_branch_another_checkout_holds_refuses_the_write(collision, tmp_path):
     other = tmp_path / "side-checkout"
     collision.git("worktree", "add", "-q", str(other), "side")
     assert collision.cl("renumber", "--onto", "main", "--branch", "side", "--write") == 2
+
+
+def test_on_merge_refuses_by_default(collision):
+    """What a merge guard gets when the branch would land a number the other side holds:
+    a non-zero exit and the command that repairs it."""
+    at = head(collision, "rev-parse", "HEAD")
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 1
+    assert head(collision, "rev-parse", "HEAD") == at
+
+
+def test_on_merge_rewrites_when_that_is_what_the_project_configured(project):
+    """Opt-in, because rewriting a branch is a thing to have asked for."""
+    collision = make_collision(project, merge_renumber="rewrite")
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 0
+    assert (collision.entries / "A0003-beta-claim.md").exists()
+    assert collision.cl("check") == 0
+
+
+def test_on_merge_says_nothing_when_it_is_off(project):
+    """A project that does not want the question asked at merge time is not asked it."""
+    collision = make_collision(project, merge_renumber="off")
+    at = head(collision, "rev-parse", "HEAD")
+    assert collision.cl("renumber", "--onto", "main", "--on-merge") == 0
+    assert head(collision, "rev-parse", "HEAD") == at
+    assert (collision.entries / "A0002-beta-claim.md").exists()
+
+
+def test_on_merge_is_silent_about_a_branch_it_cannot_plan(collision):
+    """A guard asks about every merge, including merges of branches that have nothing to
+    do with this ledger; one it cannot plan is not its business to refuse."""
+    assert collision.cl("renumber", "--onto", "no-such-branch", "--on-merge") == 0

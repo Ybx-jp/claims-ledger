@@ -47,6 +47,14 @@ from_table computes the keys that are not in KEYS before it reads any value, and
 - 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/config.py § "from_table" =sha256:68ac3fee3de92f6a488946f8b0d0e81b3ce87100281630f31c69300920ed40a3
   note: read against the working tree after from_table gained, since the reading at 2a76453, a check that `citation-placement` is one of its three outcomes and passes it into Config: the unknown-key set is still computed against KEYS before any value is read and raised by name; the assertion holds as written.
+- 2026-09-14T19:21:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:68ac3fee3de92f6a488946f8b0d0e81b3ce87100281630f31c69300920ed40a3
+  artifact: sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: propagated from a moved ground
+
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: re-read after the commit that adds the `merge-renumber` key. What changed in this section is one more value checked against its own list of legal values; the unknown-key refusal above it is untouched, and it still compares the table's keys with KEYS and raises naming every key it did not know.
 
 ## References
 

@@ -30,6 +30,15 @@ DEFAULT_CITATION_PLACEMENT = "off"
 # sites the day it ships is one its readers learn to scroll past
 # (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
 
+MERGE_RENUMBER_POLICIES = ("off", "refuse", "rewrite")
+DEFAULT_MERGE_RENUMBER = "refuse"
+# What a merge guard does when the branch being merged holds a number the receiving side
+# already holds. `refuse` by default: the merge would land two entries answering to one
+# number, which `validate` fails on from that commit onward, so stopping it is the answer
+# that costs the operator least. `rewrite` renumbers the incoming branch and lets the
+# merge proceed, and is opt-in because rewriting a branch is a thing to have asked for
+# (L0243-the-merge-time-policy-is-configured-and-defaults-to-refusing, cites-as-live).
+
 RESERVED_POINTER_TYPES = ("entry", "source", "search", "defect")
 # Pointer type names the schema reserves for itself; a project cannot use one of these as
 # the name of an evidence type
@@ -96,6 +105,7 @@ class Config:
     verdict_authors: tuple = DEFAULT_VERDICT_AUTHORS
     propagation_author: str = DEFAULT_PROPAGATION_AUTHOR
     citation_placement: str = DEFAULT_CITATION_PLACEMENT
+    merge_renumber: str = DEFAULT_MERGE_RENUMBER
     source: Path | None = None  # the file these values were read from, when there was one
 
     @property
@@ -206,6 +216,7 @@ KEYS = {
     "verdict-authors": list,
     "propagation-author": str,
     "citation-placement": str,
+    "merge-renumber": str,
 }
 # The whole of what a project may set, and the type each value takes. The schema itself —
 # grades, kinds, statuses, citation acts, the fingerprint, the immutability rules — is
@@ -375,7 +386,9 @@ def from_table(table, root, source=None):
     (L0055-a-quarantined-prefix-is-a-single-uppercase-letter, cites-as-live). And
     `citation-placement` is one of the three outcomes the setting has, refused here rather
     than read as `off` by a checker that then said nothing
-    (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
+    (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live), and
+    `merge-renumber` is one of the three a merge guard has, refused on the same account
+    (L0243-the-merge-time-policy-is-configured-and-defaults-to-refusing, cites-as-live).
     """
     unknown = sorted(set(table) - set(KEYS))
     if unknown:
@@ -424,6 +437,17 @@ def from_table(table, root, source=None):
         raise ConfigError(
             f"citation-placement `{placement}` is not one of {list(PLACEMENT_OUTCOMES)}"
         )
+    merge_renumber = table.get("merge-renumber", DEFAULT_MERGE_RENUMBER)
+    if merge_renumber not in MERGE_RENUMBER_POLICIES:
+        raise ConfigError(
+            f"merge-renumber `{merge_renumber}` is not one of {list(MERGE_RENUMBER_POLICIES)}"
+        )
+
+    merge_renumber = table.get("merge-renumber", DEFAULT_MERGE_RENUMBER)
+    if merge_renumber not in MERGE_RENUMBER_POLICIES:
+        raise ConfigError(
+            f"merge-renumber `{merge_renumber}` is not one of {list(MERGE_RENUMBER_POLICIES)}"
+        )
 
     return Config(
         root=root,
@@ -441,6 +465,7 @@ def from_table(table, root, source=None):
         verdict_authors=authors,
         propagation_author=propagation,
         citation_placement=placement,
+        merge_renumber=merge_renumber,
         source=Path(source) if source else None,
     )
 

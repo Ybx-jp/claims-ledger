@@ -268,6 +268,11 @@ def build_parser():
     r.add_argument("--branch", default="HEAD", help="the branch to rewrite")
     r.add_argument("--write", action="store_true", help="carry out the rewrite and move the branch")
     r.add_argument("--force", action="store_true", help="rewrite even though something was refused")
+    r.add_argument(
+        "--on-merge",
+        action="store_true",
+        help="ask as a merge guard does, and do what `merge-renumber` configures",
+    )
 
     s = sub.add_parser(
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
@@ -1028,25 +1033,55 @@ NO_LEDGER = {"init", "corpus", "harness"}
 def cmd_renumber(args, ledger):
     """Plan the rewrite, say what it would do, and carry it out only when asked.
 
-    Nothing is written without `--write`, and with it nothing is written while the working
+    A collision found and not repaired exits non-zero, because it is a finding: the two
+    branches as they stand cannot both land, and a guard or a script asking this question
+    needs the answer in the exit code rather than in the prose
+    (L0244-a-collision-found-and-not-repaired-exits-non-zero, cites-as-live).
+
+    `--on-merge` is the same question asked by a merge guard, and what it does is the
+    project's to configure: `off` says nothing, `refuse` reports and stops the merge, and
+    `rewrite` carries the renumber out and lets it proceed
+    (L0243-the-merge-time-policy-is-configured-and-defaults-to-refusing, cites-as-live).
+
+    Nothing is written without `--write` or that configured `rewrite`, and with it nothing
+    is written while the working
     tree has changes of its own or while another checkout has the branch out: the rewrite
     ends by moving a ref and resetting the checkout onto it, and both of those are ways to
     lose work that was never committed
     (L0241-a-rewrite-refuses-a-dirty-tree-and-a-branch-another-checkout-holds,
     cites-as-live).
     """
+    if args.on_merge and ledger.config.merge_renumber == "off":
+        return 0
     try:
         renumbering = renumber.plan(ledger, args.onto, args.branch)
     except renumber.RenumberError as exc:
+        if args.on_merge:
+            return 0  # a guard asks about every merge; a branch it cannot plan is not its business
         print(f"claims-ledger: {exc}", file=sys.stderr)
         return 2
-    refused = renumber.refusals(ledger, renumbering) if not renumbering.empty else []
+    if renumbering.empty:
+        for line in renumber.describe(renumbering, []):
+            print(line)
+        return 0
+    refused = renumber.refusals(ledger, renumbering)
     for line in renumber.describe(renumbering, refused):
         print(line)
-    if renumbering.empty or not args.write:
-        if not renumbering.empty and not args.write:
-            print("nothing was written; `--write` carries it out")
-        return 0
+    write = args.write
+    if args.on_merge:
+        if ledger.config.merge_renumber == "refuse":
+            print(
+                "claims-ledger: merging this branch would land two entries answering to one "
+                "number, which `validate` fails on from that commit onward. Rewrite the "
+                "branch first: `claims-ledger renumber --onto "
+                f"{args.onto} --branch {args.branch} --write`.",
+                file=sys.stderr,
+            )
+            return 1
+        write = True
+    if not write:
+        print("nothing was written; `--write` carries it out")
+        return 1
     if refused and not args.force:
         print(
             "claims-ledger: nothing was written; `--force` rewrites anyway",

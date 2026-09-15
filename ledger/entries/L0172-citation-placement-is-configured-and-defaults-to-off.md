@@ -36,6 +36,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T19:21:54-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  artifact: sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: propagated from a moved ground
+
+
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: re-read after the commit that adds the `merge-renumber` key. The citation-placement check is untouched and still refuses a value outside the three outcomes; the new check sits after it and is written the same way, which is what this claim asks of the placement setting rather than of the section.
 ## References
 
 - src/claims_ledger/config.py · standing · cites-as-live

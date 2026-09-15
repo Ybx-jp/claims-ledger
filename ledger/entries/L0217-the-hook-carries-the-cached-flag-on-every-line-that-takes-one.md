@@ -44,4 +44,5 @@ none
   note: re-read after the same commit. The template's lines are unchanged — all five still carry the flag, which is what this claim requires — and what moved is the comment beside them, which said a working ground still commits unreported and no longer does.
 
 ## References
+
 - src/claims_ledger/cli.py · standing · cites-as-live

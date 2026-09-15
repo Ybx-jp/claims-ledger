@@ -34,6 +34,10 @@ none
 
 ## Verdicts
 
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_renumber" =sha256:635481e3694e064746e0075e2e2711ffdb752ade52dd0d85b127cdd775b7852e
+  note: re-read after the commit that adds `--on-merge` and the exit-code contract. Both guards this claim is about are untouched and still run before anything is written: checkout_holding is still asked first and working_tree_changes second, and each still raises rather than writing. What moved around them is which paths reach the write at all.
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live

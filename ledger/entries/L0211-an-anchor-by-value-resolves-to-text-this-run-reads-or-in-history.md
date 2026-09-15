@@ -50,4 +50,5 @@ none
   note: acknowledged: the cached read asks for the path the index holds rather than for the pointer target as written, which under a symlinked directory are different names for one blob (L0232). Which tree the anchor is held to — what this claim is about — is unchanged.
 
 ## References
+
 - src/claims_ledger/resolve.py · standing · cites-as-live

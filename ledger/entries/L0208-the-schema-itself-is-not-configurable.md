@@ -34,5 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T19:21:54-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:338957a895fde219735f5b582fcb2096b43cb0cd4ba9f96a2bcfbfc5449b4685
+  artifact: sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
+  note: propagated from a moved ground
+
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
+  note: re-read after the commit that adds the `merge-renumber` key. The new row names a project's own merge-time policy, which is a project's naming rather than the claims model: the grades, kinds, statuses, acts, fingerprint and immutability rules are still absent from this table, which is what this claim asserts.
+
 ## References
+
 - src/claims_ledger/config.py · standing · cites-as-live

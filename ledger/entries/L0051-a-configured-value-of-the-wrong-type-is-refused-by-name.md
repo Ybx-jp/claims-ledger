@@ -74,6 +74,23 @@ none
 - 2026-09-11T03:12:12-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:338957a895fde219735f5b582fcb2096b43cb0cd4ba9f96a2bcfbfc5449b4685
   note: read against the working tree after the citing comment below the table began naming L0208 in place of L0050, which it supersedes: no row of the table changed, and every key still carries the type its value takes; the assertion holds as written.
+- 2026-09-14T19:21:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:68ac3fee3de92f6a488946f8b0d0e81b3ce87100281630f31c69300920ed40a3
+  artifact: sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: propagated from a moved ground
+
+- 2026-09-14T19:21:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:338957a895fde219735f5b582fcb2096b43cb0cd4ba9f96a2bcfbfc5449b4685
+  artifact: sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
+  note: propagated from a moved ground
+
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:d46a203a53a75db2dc9e6de29e3ccfbfa9ea1402096166bf293a295d5d09af67
+  note: re-read after the commit that adds the `merge-renumber` key. The type table is still what a value is refused against by name, and the section gained only a value check of its own, which is a different refusal made after the types have been read.
+
+- 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
+  note: re-read after the commit that adds the `merge-renumber` key. KEYS gained one row, `merge-renumber: str`, and nothing else in the table moved; a value of the wrong type under that key is refused by the same comparison that refuses one under any other.
 
 ## References
 

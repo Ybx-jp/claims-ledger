@@ -146,3 +146,35 @@ def test_the_walk_costs_one_git_process_per_question(project, monkeypatch):
     ids_in_the_repository(ledger)
     assert [c for c in calls if c[0] == "git"] == calls
     assert len(calls) == 2, calls
+
+
+def test_two_entries_carrying_one_number_are_a_failure(project):
+    """The state a merge used to produce in silence. Reported once for the number, naming
+    both entries, because the repair is one act on the pair."""
+    committed(project)
+    assert project.cl("new", "alpha", "--id", "A0002") == 0
+    assert project.cl("new", "beta", "--id", "A0002") == 0
+
+    from claims_ledger import validate
+    from claims_ledger.schema import load_entries
+
+    ledger = open_ledger(root=project.root)
+    reports = validate.check_numbers(load_entries(ledger))
+    assert len(reports) == 1
+    assert reports[0].outcome == "fail" and reports[0].entry == "A0002"
+    assert "A0002-alpha" in reports[0].message and "A0002-beta" in reports[0].message
+    assert "renumber" in reports[0].message
+    assert project.cl("validate") == 1
+
+
+def test_one_number_for_one_entry_says_nothing(project):
+    """The ordinary ledger, which is every ledger that has not had two branches merged
+    into it: the check is silent rather than merely quiet."""
+    committed(project)
+    assert project.cl("new", "alpha") == 0
+    assert project.cl("new", "beta") == 0
+
+    from claims_ledger import validate
+    from claims_ledger.schema import load_entries
+
+    assert validate.check_numbers(load_entries(open_ledger(root=project.root))) == []

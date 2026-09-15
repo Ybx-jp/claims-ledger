@@ -68,4 +68,65 @@ if printf '%s' "$cmd" | grep -qE \
   deny "$reason"
 fi
 
+# A merge that would land two entries answering to one number. Nothing reported that until
+# `validate` learned to, and the repair — rewriting the branch being merged so its entries
+# are created under the ids they will keep — has to happen BEFORE the merge: measured on
+# git 2.43.0, a conflicted merge fires no hook at all, its resolution commit fires
+# `pre-commit`, and a clean auto-merge fires `post-merge`, so every hook a merge has fires
+# once the merge has already happened.
+#
+# What to do about it is the project's to configure rather than this script's to decide.
+# `--on-merge` is the package reading `merge-renumber`: `off` says nothing, `refuse` exits
+# non-zero with the repair named, and `rewrite` renumbers the branch and lets the merge
+# proceed. A branch this checkout cannot plan — a merge of something that is not a branch
+# here, a project with no ledger — exits zero, because a guard is asked about every merge
+# and most of them are not its business.
+#
+# `git merge <branch>` only. `gh pr merge` merges on the server, where nothing local can
+# rewrite the branch first and the branch has been pushed by then anyway.
+if printf '%s' "$cmd" | grep -qE "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b"; then
+  incoming=$(printf '%s' "$cmd" \
+    | sed -E 's/.*[[:space:]]merge[[:space:]]+//; s/[|;&].*//' \
+    | tr ' \t' '\n\n' | grep -vE '^-|^$' | tail -1)
+
+  # Derived from this script's own location rather than from `cwd`, so a copy living in a
+  # scratch worktree guards that worktree.
+  here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 0
+
+  # The project root, asked rather than counted: an installed copy of this script and the
+  # one inside the package sit at different depths, so a fixed number of `..` would guard
+  # the wrong tree from one of them.
+  project_root() {
+    local dir=$1
+    for named in "${CLAIMS_LEDGER_PROJECT_DIR:-}" "${CLAUDE_PROJECT_DIR:-}"; do
+      if [ -n "$named" ] && [ -d "$named" ]; then (cd -- "$named" && pwd) && return 0; fi
+    done
+    while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+      for marker in claims-ledger.toml pyproject.toml .git; do
+        [ -e "$dir/$marker" ] && { printf '%s\n' "$dir"; return 0; }
+      done
+      dir=$(dirname -- "$dir")
+    done
+    (cd -- "$1/../.." && pwd)
+  }
+  root=$(project_root "$here") || exit 0
+
+  # An interpreter plus `-m`, never the `claims-ledger` console script: a console script in
+  # a virtualenv that is not active is not on PATH, and the hook would fail on every firing.
+  python=""
+  for candidate in "$root/.venv/bin/python" "$root/venv/bin/python" "$(command -v python3 2>/dev/null)"; do
+    [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+    if "$candidate" -c 'import claims_ledger' >/dev/null 2>&1; then python="$candidate"; break; fi
+  done
+
+  if [ -n "$incoming" ] && [ -n "$python" ]; then
+    receiving=$(cd "$root" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$receiving" ] && [ "$receiving" != "HEAD" ]; then
+      finding=$(cd "$root" && timeout 20 "$python" -m claims_ledger renumber \
+        --onto "$receiving" --branch "$incoming" --on-merge 2>&1)
+      [ $? -eq 0 ] || deny "$finding"
+    fi
+  fi
+fi
+
 exit 0

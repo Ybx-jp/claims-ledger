@@ -91,3 +91,33 @@ def test_an_archived_prefix_is_one_uppercase_letter(tmp_path):
 def test_a_missing_named_configuration_file_is_an_error(tmp_path):
     with pytest.raises(ConfigError, match="no configuration file"):
         load_config(config_path=tmp_path / "absent.toml")
+
+
+def test_a_merge_renumber_outside_the_three_policies_is_refused(tmp_path):
+    """Refused by name rather than read as one of them: a misspelled policy that fell back
+    to `off` would be a merge guard that silently stopped guarding."""
+    from claims_ledger.config import ConfigError, load_config
+
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "claims-ledger.toml").write_text(
+        '[tool.claims-ledger]\nledger = "ledger"\nmerge-renumber = "renumber"\n', encoding="utf-8"
+    )
+    with pytest.raises(ConfigError) as caught:
+        load_config(root=root)
+    assert "merge-renumber" in str(caught.value)
+    assert "'off', 'refuse', 'rewrite'" in str(caught.value).replace('"', "'")
+
+
+def test_merge_renumber_defaults_to_refusing(tmp_path):
+    """A project that has said nothing gets the policy that costs it least: the merge it
+    would have made is one `validate` fails on from that commit onward."""
+    from claims_ledger.config import default_config, load_config
+
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "claims-ledger.toml").write_text(
+        '[tool.claims-ledger]\nledger = "ledger"\n', encoding="utf-8"
+    )
+    assert load_config(root=root).merge_renumber == "refuse"
+    assert default_config(root).merge_renumber == "refuse"

@@ -42,4 +42,3 @@ The project table carries an empty dependencies array and requires-python at 3.1
   note: the ground was the whole project table; the successor pins the two keys the claim is about
 
 ## References
-

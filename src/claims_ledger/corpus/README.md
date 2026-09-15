@@ -368,6 +368,7 @@ the record of what else there is still to check.
 | a by-value ground moved after the claim rested on it | D65 | flag — D45 by value; the claim may or may not survive it, and a human decides |
 | a document a pattern reached and nothing could read | D50 | catch — a document nobody read is not a document with no citations |
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
+| two entries carrying one number | D66 | catch — a number names one entry, and two branches that each minted it merge with no conflict when the slugs differ |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
 | a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
 | a verdict block inserted above one an earlier commit held | D61 | fail — the verdicts of a commit's parent are a prefix of its own, so a block slipped in above one of them reads as that verdict changed; the seed is linear, which is the only history a seed can build, so the merge side of that rule is held from `tests/test_history_batch.py` and not from here |
