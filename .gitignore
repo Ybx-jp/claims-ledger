@@ -19,7 +19,10 @@ docs/design/
 # in particular would be worse than that — hatchling follows one out of `.claude/` into
 # `src/`, counts the file as seen at a path no distribution includes, and drops it from
 # the wheel and the sdist without saying so.
-.claude/skills/
+.claude/skills/*
+# …except a skill this project wrote, which is not generated from anything and would
+# otherwise be lost on a fresh clone. The rule above still covers every installed skill.
+!.claude/skills/track-open-work/
 
 # A Remotion project and its vendored `node_modules`, 664 MB in this checkout. It was
 # committed once by a `git add -A` that took the untracked directory with it, and in a
