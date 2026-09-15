@@ -42,4 +42,3 @@ scoped extracts the named section from both texts through the project's section 
   note: the pinned section gained an unknown finding for a side it cannot read; Assertion, Scope and Backing otherwise unchanged
 
 ## References
-

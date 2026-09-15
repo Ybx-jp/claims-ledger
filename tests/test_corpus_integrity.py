@@ -474,7 +474,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 95
+    assert len(SEEDS) == 96
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -586,7 +586,12 @@ REPORT_SITE_COUNTS = {
     # 78 + 2: an anchor stated by value that is the `=?` placeholder, and one that is not
     # a digest. Swept — deleting the first reddens the corpus at D62-anchor-left-pending
     # and tests/test_anchors.py; deleting the second reddens tests/test_anchors.py alone.
-    "validate.py": 80,
+    # 80 + 1: two entries carrying one number. Swept — deleting it reddens the corpus at
+    # D66-two-entries-carrying-one-number and
+    # test_two_entries_carrying_one_number_are_a_failure, and nothing else: nothing
+    # reported a duplicated number before this site, which is why a merge could land one
+    # in silence.
+    "validate.py": 81,
     # 16 + 4: a ground anchored by value, resolved from the tree or from history. Swept
     # (2026-09-11) — the uncommitted anchor that does not digest to the tree and the flag
     # for text no version of the path holds redden the corpus (D63, D64) and

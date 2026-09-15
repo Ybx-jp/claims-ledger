@@ -104,13 +104,92 @@ class AuthoringError(Exception):
     """Something an author has to fix before the file can be written."""
 
 
-def next_id(entries, archived_prefixes=()):
+def ids_in_the_repository(ledger):
+    """(every entry id this repository holds anywhere, what could not be asked).
+
+    Allocation used to be max+1 over the entries directory of one checkout, and two
+    branches off one base were therefore allocated the same number. Measured on git
+    2.43.0: when the slugs differ the two files merge without a conflict, and all five
+    checkers then read the merged tree at exit 0 and say nothing, so the duplicate is
+    permanent and silent. The question asked here is the repository's rather than the
+    checkout's — every entry filename any ref has ever carried, and every entry file a
+    sibling worktree holds right now, including the mints it has not committed
+    (L0233-an-id-is-allocated-above-the-whole-repository, cites-as-live).
+
+    Both halves are answered out of what a repository already shares, so neither costs a
+    fetch or a network. Worktrees of one repository share their refs, so a branch another
+    session committed on is readable from here with nothing exchanged; what no ref can
+    show is a mint a sibling checkout has written and not committed, and `git worktree
+    list` is what names the checkouts to look in. That is the topology concurrent sessions
+    actually have — one repository, several worktrees, each on its own branch.
+
+    A question git declined comes back as a `why` rather than as an empty set. An id
+    allocated over a repository that could not be read is exactly the collision this
+    exists to prevent, and a caller that cannot ask has to say so rather than mint on the
+    strength of the one directory it could see.
+    """
+    ids, unasked = set(), []
+    if not ledger.repo:
+        return ids, None  # nothing to ask: the tree is the whole of what there is
+    rel = os.path.relpath(ledger.entries_dir, ledger.repo)
+    ever = git_call(
+        ledger.repo,
+        "log",
+        "--all",
+        # `-m`, because git prints no diff for a merge commit without it and an entry
+        # written while a conflict was being settled is created by one. Measured: an entry
+        # added in a merge and later removed is invisible to the walk without this and
+        # found with it. Over-inclusion is free here — a name that appears is a number not
+        # handed out again — so the wider reading is the safe one.
+        "-m",
+        "--diff-filter=A",
+        "--name-only",
+        "--pretty=format:",
+        "--",
+        f":(literal){rel}",
+    )
+    if ever.ok:
+        ids |= {Path(line).stem for line in ever.out.splitlines() if line.strip()}
+    else:
+        unasked.append(f"which ids the refs of this repository carry ({ever.why})")
+    listed = git_call(ledger.repo, "worktree", "list", "--porcelain")
+    if listed.ok:
+        here = Path(ledger.entries_dir).resolve()
+        for line in listed.out.splitlines():
+            if not line.startswith("worktree "):
+                continue
+            directory = Path(line[len("worktree ") :]) / rel
+            try:
+                if directory.resolve() == here:
+                    continue  # this checkout, whose entries the caller already has
+                ids |= {p.stem for p in directory.iterdir() if p.suffix == ".md"}
+            except (FileNotFoundError, NotADirectoryError):
+                continue  # a checkout that does not hold the ledger: nothing to report
+            except OSError as exc:
+                # A directory that is there and would not be read is the state this
+                # function exists to refuse minting in, and collapsing it into the case
+                # above minted over a sibling's entries exactly as if none of this were
+                # here.
+                # (L0256-a-checkout-that-would-not-be-listed-is-a-question-not-asked, cites-as-live)
+                unasked.append(f"what {directory} holds ({exc.strerror or exc})")
+    else:
+        unasked.append(f"which entries the sibling worktrees hold ({listed.why})")
+    return ids, ("; ".join(unasked) or None)
+
+
+def next_id(entries, archived_prefixes=(), reserved=()):
     """The next free id in the highest series in use, rolling over to the next letter
     when a series is exhausted and skipping any quarantined prefix
-    (L0065-the-next-id-rolls-over-and-skips-a-quarantine, cites-as-live)."""
+    (L0065-the-next-id-rolls-over-and-skips-a-quarantine, cites-as-live).
+
+    `reserved` is every other id the repository holds, which is what keeps two checkouts
+    from minting one number; it is read exactly as an entry's own id is, so a number is
+    taken whether it is in this tree, on a ref, or in a sibling worktree that has not
+    committed it yet.
+    """
     used = {}
-    for e in entries:
-        m = PREFIX_RE.match(e.id or e.path.stem)
+    for name in [e.id or e.path.stem for e in entries] + list(reserved):
+        m = PREFIX_RE.match(name)
         if m:
             letter, digits = m.group(1)[0], m.group(1)[1:]
             used.setdefault(letter, set()).add(int(digits))
@@ -197,7 +276,20 @@ def create_entry(ledger, slug, **kwargs):
     if not SLUG_RE.match(slug or ""):
         raise AuthoringError(f"`{slug}` is not a lowercase-and-hyphens slug")
     entries = load_entries(ledger)
-    ident = kwargs.pop("ident", None) or next_id(entries, ledger.config.archived_prefixes)
+    ident = kwargs.pop("ident", None)
+    if ident is None:
+        reserved, unasked = ids_in_the_repository(ledger)
+        if unasked is not None:
+            # Minting over a repository that could not be read is how two checkouts come
+            # to hold one number, and this is the one moment the number is chosen. An id
+            # named by hand is the way past it, because then nothing was allocated
+            # (L0234-a-mint-over-an-unread-repository-is-refused, cites-as-live).
+            raise AuthoringError(
+                f"cannot ask {unasked}, so a free id cannot be chosen: an id allocated "
+                "over a repository that could not be read is the collision this asks the "
+                "question to prevent. Pass --id to name one yourself."
+            )
+        ident = next_id(entries, ledger.config.archived_prefixes, reserved)
     name = f"{ident}-{slug}"
     if not ID_RE.match(name):
         raise AuthoringError(f"`{name}` is not <letter><four digits>-<slug>")

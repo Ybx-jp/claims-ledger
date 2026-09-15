@@ -39,4 +39,5 @@ none
   note: re-read after the commit that widens an object id to the repository's own hash width, and the reading records that this claim did not hold everywhere before it. The search reads every version of the path by collecting blob ids out of `git log --raw --no-abbrev`, and it filtered them through a forty-wide pattern: in a repository created with `--object-format=sha256` every id was discarded and no version was read at all, so a ground whose text had left the tree was reported as held by no version the repository has — the shallow-clone sentence's own failure mode, arrived at with the history intact. Measured in both formats before and after. The claim as written needs no change; the code now does what it says in either repository.
 
 ## References
+
 - src/claims_ledger/resolve.py · standing · cites-as-live

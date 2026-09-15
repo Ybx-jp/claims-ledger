@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T19:02:18-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" @c9f052af09e01b65a2adde51e941ebf24671dcaa
+  artifact: sha256:e43b711ae517deee9e308d1c2e74c575cc6983bf83a0db9ccdf2c88ff194216a
+  note: propagated from a moved ground
+
+- 2026-09-14T19:02:42-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
+  note: re-read after the commit that allocates above the whole repository. The guards this claim is about are untouched: the write is still funnelled through the same try, `path.exists()` still refuses an entry that is already there, and refuse_to_write_outside_the_root is still asked before the write so a dangling link the exists() check cannot see does not carry the entry out of the root.
+
 ## References
 
 - src/claims_ledger/authoring.py · standing · cites-as-live

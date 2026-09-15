@@ -1,0 +1,14 @@
+{
+  "class": "two entries carrying one number",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "A0001 filename and id",
+      "why": "a number names one entry, and a citation may name it without the slug; two branches that each minted A0001 merge without a conflict when the slugs differ, and every other rule in the schema is satisfied by both files",
+      "message": "2 entries carry the number A0001"
+    }
+  ],
+  "note": "The state a merge used to produce in silence. Both entries are well-formed on their own — same shape, same ground, different Scope — so nothing but the number is wrong, which is the point: `by_id` keys on the whole id, so the two do not collide anywhere downstream and no other checker has anything to say. Reported once for the number rather than once for each file, because the repair is one act on the pair."
+}

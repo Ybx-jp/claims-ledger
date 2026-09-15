@@ -43,4 +43,3 @@ guard asks for the listing error of the entries directory before any checker run
   note: cmd_validate now passes the entries it parsed to the checker rather than parsing them twice; the rule and its warrant are unchanged
 
 ## References
-

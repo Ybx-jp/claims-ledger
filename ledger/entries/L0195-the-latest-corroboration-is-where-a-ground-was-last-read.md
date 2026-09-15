@@ -50,4 +50,6 @@ none
   note: read against commit 54aa2e4, which passes the ancestry memo through to readings and still takes the last reading; the Ground is still compared from its pin until one exists; the assertion holds as written.
 
 ## References
+
 - src/claims_ledger/freshness.py · standing · cites-as-live
+- src/claims_ledger/renumber.py · standing · cites-as-live

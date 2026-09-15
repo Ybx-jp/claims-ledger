@@ -36,6 +36,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T19:02:18-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" @c9f052af09e01b65a2adde51e941ebf24671dcaa
+  artifact: sha256:e43b711ae517deee9e308d1c2e74c575cc6983bf83a0db9ccdf2c88ff194216a
+  note: propagated from a moved ground
+
+- 2026-09-14T19:02:42-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
+  note: re-read after the commit that allocates above the whole repository. What changed in this section is how the id is chosen when none was given; both slug refusals are untouched — a slug that is not lowercase-and-hyphens is still refused by SLUG_RE before anything is read, and a filename that would overrun NAME_MAX is still refused by its byte length with the name it would have had.
+
 ## References
 
 - src/claims_ledger/authoring.py · standing · cites-as-live

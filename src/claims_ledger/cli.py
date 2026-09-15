@@ -13,6 +13,7 @@ import os
 import shlex
 import statistics
 import sys
+import tempfile
 from pathlib import Path
 
 from . import (
@@ -23,6 +24,7 @@ from . import (
     neighbours,
     propagate,
     references,
+    renumber,
     resolve,
     validate,
 )
@@ -83,14 +85,57 @@ HOOK_TEMPLATE = """#!/bin/sh
 # to have moved from, and what can be asked of it, that its section is still there, is
 # asked above.
 set -e
-{python} -m claims_ledger validate --cached
-{python} -m claims_ledger resolve --cached
-{python} -m claims_ledger references --cached
-{python} -m claims_ledger propagate --cached
-{python} -m claims_ledger freshness --cached
+
+# Everything below runs inside a shell function, and that is not a style choice. This
+# template is a Python string in a file whose sections are top-level definitions and
+# assignments, and the pattern that ends a section matches any line at column 0 carrying
+# an equals sign. A shell variable assigned at the left margin therefore reads as the
+# start of the next section and cuts this one short, leaving the entries pinned here
+# resting on the comment above the script rather than on the script. Keep new shell
+# indented inside the function, and keep an equals sign out of the first column.
+run_the_checkers() {{
+  # The interpreter this hook was installed with, and then the one the checkout being
+  # committed to resolves, when that checkout has one of its own.
+  #
+  # git serves ONE hooks directory to every linked worktree — measured on git 2.43.0,
+  # `rev-parse --git-path hooks` answers with the common directory from every one of them —
+  # so this file is a per-repository singleton while the tree above it is per-checkout. In
+  # a project that installs this package from outside its own tree those come to the same
+  # thing and the recorded path is right everywhere. In a project whose tree IS the
+  # package, each worktree has an editable install of its own, and the recorded path then
+  # runs one checkout's package against another checkout's tree: the checkers that fire
+  # are not the ones being edited, and the tree that is wrong is not the tree they read.
+  #
+  # So the checkout is asked first and the recorded path is the fallback. `--show-toplevel`
+  # names the checkout git is committing in, which under a hook is the worktree that fired
+  # it. The probe is an import rather than the file merely being there, because a
+  # virtualenv without this package installed would otherwise take the hook down on every
+  # commit.
+  python={python}
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+  if [ -n "$top" ]; then
+    for candidate in "$top/.venv/bin/python" "$top/venv/bin/python"; do
+      [ -x "$candidate" ] || continue
+      if "$candidate" -c 'import claims_ledger' >/dev/null 2>&1; then python="$candidate"; break; fi
+    done
+  fi
+
+  "$python" -m claims_ledger validate --cached
+  "$python" -m claims_ledger resolve --cached
+  "$python" -m claims_ledger references --cached
+  "$python" -m claims_ledger propagate --cached
+  "$python" -m claims_ledger freshness --cached
+}}
+
+run_the_checkers
 """
 # The interpreter is named absolutely and reached with `-m`, never as the `claims-ledger`
-# console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live). The hook
+# console script (L0001-hook-names-the-interpreter-absolutely, cites-as-live) — both the
+# path recorded at install time and the one the hook discovers are absolute, and the
+# discovery is what makes one shared hook correct in every checkout of a repository that
+# has several. git serves one hooks directory to all of them, so the recorded path would
+# otherwise run one checkout's package against another checkout's tree
+# (L0245-the-hook-runs-the-package-the-checkout-it-guards-resolves, cites-as-live). The hook
 # asks each checker for the index wherever that checker has a `--cached` of its own. What
 # each of those checkers then does with it is that checker's own claim; the template says
 # only which lines carry the flag, and the lines that do not say so beside them
@@ -253,6 +298,24 @@ def build_parser():
     n.add_argument("--supersedes", default="none", help="the id this entry replaces, or `none`")
     n.add_argument("--credence", type=float, help="0-1; predictions carry one")
     n.add_argument("--resolves-when", help="the observation that would settle a prediction")
+
+    r = sub.add_parser(
+        "renumber",
+        help="rewrite an unmerged branch so the ids it mints do not collide with another",
+        description="The receiving side keeps its ids, so the branch that has not merged "
+        "yet is the one that moves. Every commit on it is replaced with one that carries "
+        "the new ids, so each entry is created with the id it will keep and nothing is "
+        "renamed after it is committed.",
+    )
+    r.add_argument("--onto", default="main", help="the branch this one would merge into")
+    r.add_argument("--branch", default="HEAD", help="the branch to rewrite")
+    r.add_argument("--write", action="store_true", help="carry out the rewrite and move the branch")
+    r.add_argument("--force", action="store_true", help="rewrite even though something was refused")
+    r.add_argument(
+        "--on-merge",
+        action="store_true",
+        help="ask as a merge guard does, and do what `merge-renumber` configures",
+    )
 
     s = sub.add_parser(
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
@@ -1009,6 +1072,96 @@ def cmd_corpus(args, _ledger):
 # configuration that is not there.
 NO_LEDGER = {"init", "corpus", "harness"}
 
+
+def cmd_renumber(args, ledger):
+    """Plan the rewrite, say what it would do, and carry it out only when asked.
+
+    A collision found and not repaired exits non-zero, because it is a finding: the two
+    branches as they stand cannot both land, and a guard or a script asking this question
+    needs the answer in the exit code rather than in the prose
+    (L0244-a-collision-found-and-not-repaired-exits-non-zero, cites-as-live).
+
+    `--on-merge` is the same question asked by a merge guard, and what it does is the
+    project's to configure: `off` says nothing, `refuse` reports and stops the merge, and
+    `rewrite` carries the renumber out and lets it proceed
+    (L0243-the-merge-time-policy-is-configured-and-defaults-to-refusing, cites-as-live).
+
+    Nothing is written without `--write` or that configured `rewrite`, and with it nothing
+    is written while the working
+    tree has changes of its own or while another checkout has the branch out: the rewrite
+    ends by moving a ref and resetting the checkout onto it, and both of those are ways to
+    lose work that was never committed
+    (L0241-a-rewrite-refuses-a-dirty-tree-and-a-branch-another-checkout-holds,
+    cites-as-live).
+    """
+    if args.on_merge and ledger.config.merge_renumber == "off":
+        return 0
+    try:
+        renumbering = renumber.plan(ledger, args.onto, args.branch)
+    except renumber.RepositoryUnreadable as exc:
+        # Not "not its business": this is the one refusal that means the question was
+        # never answered, and a guard that allows a merge out of ignorance is the false
+        # pass the whole package refuses.
+        # (L0249-a-guard-that-could-not-read-the-repository-does-not-allow-the-merge, cites-as-live)
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 1 if args.on_merge else 2
+    except renumber.RenumberError as exc:
+        if args.on_merge:
+            return 0  # a guard asks about every merge; a branch it cannot plan is not its business
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    if renumbering.empty:
+        for line in renumber.describe(renumbering, []):
+            print(line)
+        return 0
+    refused = renumber.refusals(ledger, renumbering)
+    for line in renumber.describe(renumbering, refused):
+        print(line)
+    write = args.write
+    if args.on_merge:
+        if ledger.config.merge_renumber == "refuse":
+            print(
+                "claims-ledger: merging this branch would land two entries answering to one "
+                "number, which `validate` fails on from that commit onward. Rewrite the "
+                "branch first: `claims-ledger renumber --onto "
+                f"{args.onto} --branch {args.branch} --write`.",
+                file=sys.stderr,
+            )
+            return 1
+        write = True
+    if not write:
+        print("nothing was written; `--write` carries it out")
+        return 1
+    if refused and not args.force:
+        print(
+            "claims-ledger: nothing was written; `--force` rewrites anyway",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        renumber.branch_ref(ledger.repo, renumbering.ref)
+        held = renumber.checkout_holding(ledger.repo, renumbering.ref, renumbering.commits)
+        if held is not None:
+            raise renumber.RenumberError(
+                f"`{renumbering.ref}` is checked out at {held}; rewriting it would leave "
+                "that checkout on commits no ref names"
+            )
+        if renumber.working_tree_changes(ledger.repo):
+            raise renumber.RenumberError(
+                "the working tree has changes that are not committed, and the rewrite ends "
+                "by resetting this checkout onto the commits it wrote; commit or stash them"
+            )
+        with tempfile.TemporaryDirectory() as scratch:
+            tip = renumber.rewrite(ledger, renumbering, Path(scratch) / "index")
+        renumber.move_branch(ledger.repo, renumbering, tip)
+    except renumber.RenumberError as exc:
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    print(f"{renumbering.ref} now names {tip[:7]}; {len(renumbering.commits)} commit(s) rewritten")
+    print("The ids moved, so run `claims-ledger check` before merging.")
+    return 0
+
+
 COMMANDS = {
     "validate": cmd_validate,
     "resolve": cmd_resolve,
@@ -1022,6 +1175,7 @@ COMMANDS = {
     "sha": cmd_sha,
     "source": cmd_source,
     "init": cmd_init,
+    "renumber": cmd_renumber,
     "hook": cmd_hook,
     "harness": cmd_harness,
     "corpus": cmd_corpus,

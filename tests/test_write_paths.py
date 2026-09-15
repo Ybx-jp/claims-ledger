@@ -40,7 +40,7 @@ import pytest
 from conftest import QUOTE, Project
 from test_invariants import append_verdict_text, fill_entry, set_stated
 
-from claims_ledger import propagate
+from claims_ledger import cli, propagate
 from claims_ledger.authoring import PLACEHOLDER_GROUNDS
 from claims_ledger.schema import APPEND, open_ledger
 
@@ -847,3 +847,91 @@ def test_the_write_flag_names_what_propagate_appended(project):
         and "by propagation" in r.message
         for r in flags
     ), flags
+
+
+def _stub_interpreter(directory, says, importable=True):
+    """An executable standing in for a checkout's interpreter.
+
+    It answers the hook's two questions: `-c 'import claims_ledger'`, which decides
+    whether it is used at all, and the checking lines, whose output names which
+    interpreter ran.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    stub = directory / "python"
+    stub.write_text(
+        "#!/bin/sh\n"
+        f'case "$1" in -c) exit {0 if importable else 1} ;; esac\n'
+        f'echo "{says}"\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+    return stub
+
+
+def _fire_hook(hook, cwd):
+    """The installed hook, run the way git runs it: from inside a checkout."""
+    out = subprocess.run(
+        ["sh", str(hook)], cwd=str(cwd), capture_output=True, text=True, check=False
+    )
+    assert out.returncode == 0, out.stderr
+    return out.stdout
+
+
+def test_the_hook_runs_the_interpreter_of_the_checkout_it_is_committing_in(project, tmp_path):
+    """git serves one hooks directory to every linked worktree — `--git-path hooks`
+    answers with the common directory from all of them — so the hook is a per-repository
+    file while the tree above it is per-checkout. Where the tree IS the package, the
+    recorded path would run one checkout's package against another checkout's tree."""
+    project.git("init", "-q")
+    (Path(project.root) / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the project")
+    recorded = _stub_interpreter(tmp_path / "recorded", "the interpreter the install recorded")
+    hooks = Path(project.root) / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text(cli.hook_text(str(recorded)), encoding="utf-8")
+
+    linked = tmp_path / "linked"
+    project.git("worktree", "add", "-q", str(linked))
+    _stub_interpreter(Path(project.root) / ".venv" / "bin", "the main checkout")
+    _stub_interpreter(linked / ".venv" / "bin", "the linked worktree")
+
+    assert "the main checkout" in _fire_hook(hook, project.root)
+    assert "the linked worktree" in _fire_hook(hook, linked)
+
+
+def test_the_hook_falls_back_to_the_recorded_interpreter(project, tmp_path):
+    """A checkout with no interpreter of its own, and a project that installs this package
+    from outside its tree, are the same case: there is nothing to discover and the path the
+    install recorded is the right one."""
+    project.git("init", "-q")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the project")
+    recorded = _stub_interpreter(tmp_path / "recorded", "the interpreter the install recorded")
+    hooks = Path(project.root) / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text(cli.hook_text(str(recorded)), encoding="utf-8")
+
+    assert "the install recorded" in _fire_hook(hook, project.root)
+
+
+def test_a_checkout_interpreter_without_the_package_is_not_used(project, tmp_path):
+    """The probe is an import rather than the file being there: a virtualenv that does not
+    have this package installed would otherwise take the hook down on every commit."""
+    project.git("init", "-q")
+    (Path(project.root) / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "-qm", "the project")
+    recorded = _stub_interpreter(tmp_path / "recorded", "the interpreter the install recorded")
+    hooks = Path(project.root) / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text(cli.hook_text(str(recorded)), encoding="utf-8")
+    _stub_interpreter(
+        Path(project.root) / ".venv" / "bin", "a virtualenv without the package", importable=False
+    )
+
+    assert "the install recorded" in _fire_hook(hook, project.root)

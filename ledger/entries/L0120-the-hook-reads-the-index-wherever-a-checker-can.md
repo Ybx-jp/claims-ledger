@@ -52,4 +52,3 @@ none
   note: the assertion is carried across unchanged; the condition fixed the count of checkers with a cached mode of their own, and resolve gaining one made three where it said two, so the successor names the rule and leaves the counting to the template
 
 ## References
-

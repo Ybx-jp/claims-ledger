@@ -36,5 +36,6 @@ none
 ## Verdicts
 
 ## References
+
 - src/claims_ledger/freshness.py · standing · cites-as-live
 - docs/FRESHNESS.md · standing · cites-as-live

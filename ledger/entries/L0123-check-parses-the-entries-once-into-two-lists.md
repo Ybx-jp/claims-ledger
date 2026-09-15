@@ -59,4 +59,3 @@ none
   note: two lists parsed once is unchanged; the assertion said which checkers took which by counting them, and resolve gaining a cached mode inverted the counts, so the successor names the lists by what decides membership
 
 ## References
-

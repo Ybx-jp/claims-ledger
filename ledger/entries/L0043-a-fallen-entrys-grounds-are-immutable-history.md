@@ -40,4 +40,3 @@ none
   note: the exemption was written against FALLEN; the successor states it against TERMINAL, which is where the checker now draws it, because a non-comparable entry is as unrepairable as a fallen one
 
 ## References
-

@@ -39,4 +39,3 @@ none
   note: the cohort was the fallen statuses; the successor states it over the terminal ones, which is the set the checker now tests, and which closes the case where propagate wrote a verdict validate refuses
 
 ## References
-

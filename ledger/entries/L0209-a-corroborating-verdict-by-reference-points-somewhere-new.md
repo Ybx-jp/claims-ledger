@@ -40,4 +40,5 @@ none
   note: re-read after the same commit. The rule on a corroborating verdict's evidence — refused by reference when it names a ground the entry already cites, admitted by value when it names the ground's own digest — is untouched; this section moved where the artifact shape is reported.
 
 ## References
+
 - src/claims_ledger/validate.py · standing · cites-as-live

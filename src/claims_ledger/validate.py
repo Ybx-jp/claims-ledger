@@ -32,6 +32,7 @@ from .schema import (
     NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
+    PREFIX_RE,
     SCOPE_KEYS,
     SECTIONS,
     SHA_RE,
@@ -922,6 +923,51 @@ def check_history(ledger, entries, cached=False):
     return out
 
 
+def check_numbers(entries):
+    """A number names one entry, and two that carry it are a failure.
+
+    Nothing reported this before, and the measurement is why it is here rather than in a
+    checker that flags: two branches that each minted the same number produce two entry
+    files whose slugs differ, git merges them with no conflict at all, and all five
+    checkers then read the merged tree at exit 0 — `by_id` keys on the whole id, so the
+    two ids differ and nothing downstream notices. The duplicate is permanent and silent,
+    which is the one thing this package exists not to be
+    (L0242-two-entries-may-not-carry-one-number, cites-as-live).
+
+    The number rather than the whole id, because the number is what a citation may name
+    by itself and what a reader uses to find an entry; two entries that answer to `A0002`
+    make every bare citation of it ambiguous, whatever their slugs say.
+
+    Reported once for the number, naming every entry that carries it: the repair is one
+    act on the whole set, and asking for it once per entry would ask for it twice.
+    """
+    carried = {}
+    for e in entries:
+        if not PREFIX_RE.match(e.id or e.path.stem):
+            # An id that is not `<letter><digits>-<slug>` has no number to share, and
+            # `check_frontmatter` already names it. Grouped here it produced "2 entries
+            # carry the number foo: foo, foo" and prescribed a renumber, which allocates
+            # by number and has none to work with.
+            continue
+        carried.setdefault(e.prefix, []).append(e.id or e.path.stem)
+    out = []
+    for number, ids in sorted(carried.items()):
+        if len(ids) < 2:
+            continue
+        out.append(
+            Report(
+                "fail",
+                number,
+                "filename and id",
+                f"{len(ids)} entries carry the number {number}: {', '.join(sorted(ids))}. A "
+                "number names one entry, and a citation may name it without the slug. Two "
+                "branches that each minted it are reconciled before the merge lands, by "
+                "rewriting the one that has not merged: `claims-ledger renumber`.",
+            )
+        )
+    return out
+
+
 def run(ledger, cached=False, entries=None):
     entries = load_entries(ledger, cached=cached) if entries is None else entries
     index = by_id(entries)
@@ -933,5 +979,6 @@ def run(ledger, cached=False, entries=None):
         reports += check_anchors(e, config)
         reports += check_verdicts(e, index, config)
         reports += check_supersession(e, index)
+    reports += check_numbers(entries)
     reports += check_history(ledger, entries, cached=cached)
     return reports

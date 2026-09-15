@@ -40,5 +40,6 @@ none
   note: acknowledged: `drift` threads the ledger down so its two cached reads can name the path the index holds. Nothing about what counts as drift changed (L0232).
 
 ## References
+
 - docs/FRESHNESS.md · standing · cites-as-live
 - src/claims_ledger/freshness.py · standing · cites-as-live
