@@ -241,10 +241,11 @@ def test_a_ground_pinning_a_branch_commit_by_reference_is_refused(collision):
     pinned = head(collision, "rev-parse", "HEAD")
     path = collision.entries / "A0002-beta-claim.md"
     path.write_text(
-        path.read_text(encoding="utf-8").replace(
-            'lab: docs/note-001.md § "Observation Beta" =sha256:',
-            f'lab: docs/note-001.md § "Observation Beta" @{pinned} =sha256:',
-            1,
+        re.sub(
+            r'(lab: docs/note-001\.md § "Observation Beta" )=sha256:[0-9a-f]{64}',
+            rf"\1@{pinned}",
+            path.read_text(encoding="utf-8"),
+            count=1,
         ),
         encoding="utf-8",
     )
@@ -555,3 +556,39 @@ def test_a_declined_commit_walk_refuses_the_merge_too(collision):
     loose.unlink()
 
     assert collision.cl("renumber", "--onto", "main", "--on-merge") == 1
+
+
+def test_an_abbreviated_pin_is_recognised(collision):
+    """A ground stated by reference may name the commit the way `git log --abbrev` prints
+    it. Found by pattern-matching for forty hex characters, that pin is invisible and the
+    rewrite drops the commit it rests on without a word; asked of git, it resolves."""
+    pinned = head(collision, "rev-parse", "--short", "HEAD")
+    assert len(pinned) < 40
+    path = collision.entries / "A0002-beta-claim.md"
+    path.write_text(
+        re.sub(
+            r'(lab: docs/note-001\.md § "Observation Beta" )=sha256:[0-9a-f]{64}',
+            rf"\1@{pinned}",
+            path.read_text(encoding="utf-8"),
+            count=1,
+        ),
+        encoding="utf-8",
+    )
+    collision.git("commit", "-a", "-m", "a ground pinned at an abbreviated commit")
+
+    ledger = open_ledger(root=collision.root)
+    refused = renumber.refusals(ledger, renumber.plan(ledger, "main", "HEAD"))
+    assert any("by reference" in r for r in refused), refused
+    assert collision.cl("renumber", "--onto", "main", "--write") == 2
+
+
+def test_a_repository_that_signs_its_commits_is_refused(collision):
+    """`commit-tree` does not honour `commit.gpgsign` — measured, it writes an unsigned
+    commit at exit 0 and says nothing — so a signing project would find every rewritten
+    commit unsigned, with no second rewrite available to repair it."""
+    collision.git("config", "commit.gpgsign", "true")
+    ledger = open_ledger(root=collision.root)
+    refused = renumber.refusals(ledger, renumber.plan(ledger, "main", "HEAD"))
+    assert any("unsigned" in r for r in refused), refused
+    assert collision.cl("renumber", "--onto", "main", "--write") == 2
+    assert (collision.entries / "A0002-beta-claim.md").exists()

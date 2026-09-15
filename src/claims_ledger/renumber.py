@@ -39,7 +39,33 @@ from .schema import (
     selects_document,
 )
 
-OBJECT_RE = re.compile(r"\b[0-9a-f]{40}\b")
+ABBREVIATED_RE = re.compile(r"^[0-9a-f]{4,}$")
+
+
+def pinned_commit(repo, pointer, rewritten):
+    """The commit in `rewritten` this pointer names by reference, or None.
+
+    Asked of git rather than matched as a pattern. A regex over the entry's text finds a
+    full sha1 and nothing else: it misses `@4023af40`, the shape `git log --abbrev`
+    prints, and it misses every id in a sha256 repository, because a word boundary never
+    falls inside a 64-hex run — measured, `\\b[0-9a-f]{40}\\b` finds nothing at all in a
+    64-hex id. A ground stated by reference that the refusal cannot see is a commit the
+    rewrite drops in silence
+    (L0258-a-pinned-commit-is-recognised-by-git-rather-than-by-its-width, cites-as-live).
+
+    The cheap comparison first, so the common case — a full id, already in hand — costs no
+    process at all, and git is asked only about an abbreviation.
+    """
+    if pointer is None or pointer.by_value or not pointer.anchor:
+        return None
+    name = pointer.anchor.lstrip("@")
+    if name in rewritten:
+        return name
+    if not ABBREVIATED_RE.match(name) or len(name) >= 40:
+        return None  # not an object name, or a full one this rewrite does not replace
+    answer = git_call(repo, "rev-parse", "--verify", "--quiet", f"{name}^{{commit}}")
+    resolved = answer.out.strip() if answer.ok else ""
+    return resolved if resolved in rewritten else None
 
 
 class RenumberError(Exception):
@@ -446,14 +472,30 @@ def refusals(ledger, renumbering):
     blobs, _failed = git_blobs(repo, [f"{renumbering.branch}:{p}" for p in files], env=git_env())
     pinned = set()
     for spec, data in blobs.items():
-        for found in OBJECT_RE.findall(blob_text(data)):
-            if found in rewritten:
+        entry = parse_entry(Path("in-memory.md"), blob_text(data))
+        for _raw, pointer in anchored_pointers(entry):
+            found = pinned_commit(repo, pointer, rewritten)
+            if found is not None:
                 pinned.add((spec.split(":", 1)[1], found))
     for path, commit in sorted(pinned):
         out.append(
             f"{path} names commit {commit[:7]} by reference, and this rewrite replaces it; "
             "a ground stated by reference into a commit the rewrite drops loses the evidence "
             "it rests on, and that costs a supersession rather than a re-read"
+        )
+
+    # A rewritten commit is a new commit, and `commit-tree` does not sign one: measured on
+    # git 2.43.0, with `commit.gpgsign=true` and a `gpg.program` that cannot run, it wrote
+    # an unsigned commit at exit 0 and said nothing. A project that signs would find every
+    # rewritten commit unsigned, with no second rewrite available to repair it, so the
+    # rewrite is refused rather than quietly stripping the signatures
+    # (L0257-a-rewrite-is-refused-where-the-commits-would-lose-their-signatures, cites-as-live)
+    signing = git_call(repo, "config", "--get", "commit.gpgsign")
+    if signing.ok and signing.out.strip().lower() in ("true", "1", "yes", "on"):
+        out.append(
+            "this repository signs its commits (commit.gpgsign), and the rewrite builds each "
+            "one with `commit-tree`, which does not sign; every rewritten commit would come "
+            "back unsigned and no second rewrite is available to repair it"
         )
 
     config_file = ledger.config.source

@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T21:14:18-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_numbers" =sha256:84d50e9438dca8fb72303e43c671ccafeb9ee4876612807a9d12d67c75d581d3
+  artifact: sha256:ffca3242d3dd75caff51d924db3880def8f3ad3520e76d86f39026b197da9f0a
+  note: propagated from a moved ground
+
+- 2026-09-14T21:14:19-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_numbers" =sha256:ffca3242d3dd75caff51d924db3880def8f3ad3520e76d86f39026b197da9f0a
+  note: re-read after the commit that answers the gate's remaining findings. The section skips an id that does not parse as a number, which is the one input on which its report could not be true. Every entry with a well-formed id is grouped and reported exactly as before, which is what this claim is about.
+
 ## References
 
 - src/claims_ledger/validate.py · standing · cites-as-live

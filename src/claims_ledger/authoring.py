@@ -136,6 +136,12 @@ def ids_in_the_repository(ledger):
         ledger.repo,
         "log",
         "--all",
+        # `-m`, because git prints no diff for a merge commit without it and an entry
+        # written while a conflict was being settled is created by one. Measured: an entry
+        # added in a merge and later removed is invisible to the walk without this and
+        # found with it. Over-inclusion is free here — a name that appears is a number not
+        # handed out again — so the wider reading is the safe one.
+        "-m",
         "--diff-filter=A",
         "--name-only",
         "--pretty=format:",
@@ -157,8 +163,15 @@ def ids_in_the_repository(ledger):
                 if directory.resolve() == here:
                     continue  # this checkout, whose entries the caller already has
                 ids |= {p.stem for p in directory.iterdir() if p.suffix == ".md"}
-            except OSError:
-                continue  # a checkout that does not hold the ledger, or cannot be listed
+            except (FileNotFoundError, NotADirectoryError):
+                continue  # a checkout that does not hold the ledger: nothing to report
+            except OSError as exc:
+                # A directory that is there and would not be read is the state this
+                # function exists to refuse minting in, and collapsing it into the case
+                # above minted over a sibling's entries exactly as if none of this were
+                # here.
+                # (L0256-a-checkout-that-would-not-be-listed-is-a-question-not-asked, cites-as-live)
+                unasked.append(f"what {directory} holds ({exc.strerror or exc})")
     else:
         unasked.append(f"which entries the sibling worktrees hold ({listed.why})")
     return ids, ("; ".join(unasked) or None)

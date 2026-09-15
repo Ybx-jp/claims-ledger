@@ -32,6 +32,7 @@ from .schema import (
     NULL_OBJECT_IDS,
     OBJECT_ID_RE,
     PENDING_ANCHOR,
+    PREFIX_RE,
     SCOPE_KEYS,
     SECTIONS,
     SHA_RE,
@@ -942,6 +943,12 @@ def check_numbers(entries):
     """
     carried = {}
     for e in entries:
+        if not PREFIX_RE.match(e.id or e.path.stem):
+            # An id that is not `<letter><digits>-<slug>` has no number to share, and
+            # `check_frontmatter` already names it. Grouped here it produced "2 entries
+            # carry the number foo: foo, foo" and prescribed a renumber, which allocates
+            # by number and has none to work with.
+            continue
         carried.setdefault(e.prefix, []).append(e.id or e.path.stem)
     out = []
     for number, ids in sorted(carried.items()):

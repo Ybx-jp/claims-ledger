@@ -14,6 +14,8 @@ costs a fetch.
 
 import subprocess
 
+import pytest
+
 from claims_ledger import cli
 from claims_ledger.authoring import AuthoringError, create_entry, ids_in_the_repository
 from claims_ledger.schema import open_ledger
@@ -178,3 +180,83 @@ def test_one_number_for_one_entry_says_nothing(project):
     from claims_ledger.schema import load_entries
 
     assert validate.check_numbers(load_entries(open_ledger(root=project.root))) == []
+
+
+def test_a_sibling_directory_that_would_not_be_listed_refuses_the_mint(project, tmp_path):
+    """The filesystem half has to answer the way the git halves do. A directory that is
+    there and will not be read is the state this question exists to refuse minting in;
+    collapsed into "this checkout has no ledger", it minted over the sibling's entries
+    exactly as if none of this were here."""
+    committed(project)
+    other = worktree(project, "side", "side")
+    assert cli.main(["--root", str(other), "new", "sibling-claim"]) == 0
+    entries = other / "ledger" / "entries"
+    entries.chmod(0o000)
+    try:
+        try:
+            list(entries.iterdir())
+            pytest.skip("this user can read the directory anyway")
+        except PermissionError:
+            pass
+        ledger = open_ledger(root=project.root)
+        _ids, unasked = ids_in_the_repository(ledger)
+        assert unasked is not None and "ledger/entries" in unasked
+        with pytest.raises(AuthoringError):
+            create_entry(ledger, "alpha")
+    finally:
+        entries.chmod(0o755)
+
+
+def test_a_missing_ledger_in_a_sibling_is_not_a_question_that_failed(project, tmp_path):
+    """The other half of the same distinction: a checkout that simply does not carry the
+    ledger has nothing to report, and reporting it would refuse every mint in a repository
+    whose branches predate the ledger."""
+    committed(project)
+    other = worktree(project, "side", "side")
+    import shutil
+
+    shutil.rmtree(other / "ledger")
+    ledger = open_ledger(root=project.root)
+    _ids, unasked = ids_in_the_repository(ledger)
+    assert unasked is None
+    assert mint(project.root, "alpha")
+
+
+def test_a_number_an_entry_born_in_a_merge_once_held_is_not_minted_again(project):
+    """git prints no diff for a merge commit unless asked, so an entry written while a
+    conflict was being settled — and later removed — is invisible to a walk that does not
+    ask."""
+    committed(project)
+    project.git("checkout", "-q", "-b", "side")
+    assert project.cl("new", "on-the-branch") == 0
+    project.git("add", "-A")
+    project.git("commit", "-m", "the branch mints")
+    project.git("checkout", "-q", "-")
+    project.git("merge", "--no-ff", "--no-edit", "-q", "side")
+
+    born = project.entries / "A0042-born-in-the-merge.md"
+    born.write_text("id: A0042-born-in-the-merge\n", encoding="utf-8")
+    project.git("add", "-A")
+    project.git("commit", "--amend", "--no-edit", "-q")
+    born.unlink()
+    project.git("commit", "-a", "-m", "and gone again")
+
+    ids, unasked = ids_in_the_repository(open_ledger(root=project.root))
+    assert unasked is None
+    assert "A0042-born-in-the-merge" in ids
+
+
+def test_an_unparseable_id_is_not_reported_as_a_shared_number(project):
+    """`check_frontmatter` already names a malformed id. Grouped by the fallback, two of
+    them read as "2 entries carry the number foo: foo, foo" and prescribed a renumber,
+    which allocates by number and has none to work with."""
+    committed(project)
+    from claims_ledger import validate
+    from claims_ledger.schema import load_entries
+
+    for name in ("first", "second"):
+        path = project.entries / f"{name}.md"
+        path.write_text("---\nid: foo\nkind: claim\n---\n\n## Assertion\n\nx\n", encoding="utf-8")
+
+    reports = validate.check_numbers(load_entries(open_ledger(root=project.root)))
+    assert reports == []

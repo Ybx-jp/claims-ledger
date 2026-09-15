@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-14T21:14:18-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "refusals" =sha256:a706795921d4b54437bbea58e2e29e246a7e6c349a50ca6842c8d0c021039dff
+  artifact: sha256:6c7b6808a17b8f2d175b6b889b17e1ca965f91ed3b8873562d27b8287b964781
+  note: propagated from a moved ground
+
+- 2026-09-14T21:14:19-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "refusals" =sha256:6c7b6808a17b8f2d175b6b889b17e1ca965f91ed3b8873562d27b8287b964781
+  note: re-read after the commit that answers the gate's remaining findings. The section now recognises a pin by asking git rather than by matching forty hex characters, and gained a refusal for a repository that signs. What this claim asserts is unchanged and now holds over pins it did not reach before: an abbreviated pin, and any pin in a sha256 repository.
+
 ## References
 
 - src/claims_ledger/renumber.py · standing · cites-as-live
