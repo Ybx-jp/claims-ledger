@@ -594,5 +594,11 @@ UI, a Python backend, a research repository, and an operator-handbook repository
 content is synthetic, but materialization creates real Git histories, real commit pins,
 registered cross-repository source snapshots, installed hooks, and four ledgers that pass
 all five checks.
+
+A fifth repository, `concurrent-ids`, is built alongside them and tells no part of that
+story. It demonstrates the one situation four single-threaded repositories cannot: two
+lines of work that each minted the same number, the merge refused because of it, and
+`renumber` rewriting the branch that has not merged so that the entry is created under its
+final id.
 The [concept-grouped feature guide](examples/FEATURES.md) documents every exercised
 capability with exact repository excerpts.

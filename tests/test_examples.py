@@ -33,6 +33,13 @@ def test_materialized_portfolio_is_four_independent_checked_repositories(tmp_pat
     repos = materializer.materialize(destination)
 
     assert [repo.name for repo in repos] == materializer.SPEC["repositories"]
+    # No template is orphaned: every directory under templates/ is either one of the four
+    # the portfolio builds or the concurrent-authoring demonstration. A template nothing
+    # materializes is documentation that is never run.
+    templates = sorted(
+        path.name for path in (PROJECT / "examples" / "templates").iterdir() if path.is_dir()
+    )
+    assert templates == sorted([*materializer.SPEC["repositories"], materializer.CONCURRENT_IDS])
     for repo in repos:
         assert (repo / ".git").is_dir()
         assert len(git(repo, "rev-list", "--all").splitlines()) == 2
@@ -43,6 +50,51 @@ def test_materialized_portfolio_is_four_independent_checked_repositories(tmp_pat
 
     for origin, snapshot in materializer.SPEC["snapshots"]:
         assert (destination / origin).read_bytes() == (destination / snapshot).read_bytes()
+
+
+def test_concurrent_ids_are_repaired_on_the_branch_before_the_merge(tmp_path):
+    """The one situation four single-threaded repositories cannot show.
+
+    `materialize.py` raises if any step of it misbehaves, so this holds the result rather
+    than the run: that both numbers survive under different ids, that the branch really was
+    merged rather than fast-forwarded, and that the moved entry's frozen region names the
+    new id *at the commit that created it* — which is the whole reason the repair is done to
+    the branch that has not merged instead of to the merge.
+    """
+    materializer = load_materializer()
+    destination = tmp_path / "portfolio"
+    repo, minted_twice, landed = materializer.demonstrate_concurrent_ids(destination)
+
+    assert repo.name == materializer.CONCURRENT_IDS
+    assert minted_twice != landed, "nothing moved, so nothing was demonstrated"
+    assert minted_twice.split("-", 1)[1] == landed.split("-", 1)[1], "the slug should not change"
+
+    entries = sorted(path.stem for path in (repo / "ledger" / "entries").glob("*.md"))
+    assert len(entries) == 2, entries
+    assert landed in entries and minted_twice not in entries
+    assert len({name.split("-", 1)[0] for name in entries}) == 2, f"one number twice: {entries}"
+
+    # The merge is a merge: a fast-forward would have proved nothing about two lines of work.
+    head = git(repo, "rev-parse", "HEAD").strip()
+    assert len(git(repo, "rev-list", "--parents", "-n", "1", head).split()) == 3
+
+    # The rewritten entry was created under its final id. Were it renamed in a later commit,
+    # validate would compare the frozen region against a blob that carries the old id.
+    created = git(
+        repo, "log", "--diff-filter=A", "--format=%H", "--", f"ledger/entries/{landed}.md"
+    )
+    assert len(created.split()) == 1, f"{landed}.md is added more than once: {created}"
+
+    # The policy sits in the base commit, not on the branch: a configuration that changes on
+    # the branch is refused, because one configuration is read for every commit replaced.
+    base = git(repo, "rev-list", "--max-parents=0", "HEAD").strip()
+    assert 'merge-renumber = "refuse"' in git(repo, "show", f"{base}:claims-ledger.toml")
+
+    # And the citation moved with the id, inside the section whose digest the ground pins.
+    note = (repo / "docs" / "observations.md").read_text(encoding="utf-8")
+    assert f"({landed}, cites-as-live)" in note
+    assert minted_twice not in note
+    assert "0 failure(s), 0 flag(s)" in materializer.ledger(repo, "check")
 
 
 def test_code_section_pin_ignores_an_unrelated_function_but_flags_its_own(tmp_path):

@@ -53,6 +53,28 @@ def test_the_readme_states_the_seed_count_correctly_wherever_it_states_it():
     assert not wrong, f"README claims {wrong} seeds; there are {n}"
 
 
+def test_every_shipped_document_states_the_seed_count_correctly():
+    """`examples/FEATURES.md` said `all 95 corpus seeds` while the corpus held 96, and
+    three separate things that look like they would hold it did not. MEDIUM-48's regression
+    above reads README.md and nothing else; `examples/` is outside the configured document
+    globs on purpose, so no checker reads the guide; and `tests/test_examples.py` holds its
+    snippets to the files they came from without ever looking at its prose. The guide ships
+    in the sdist, so the wrong number was published.
+
+    CHANGELOG.md is exempt, and not by oversight: it records what each release shipped, so
+    `the release ships 95` goes on being true after the corpus grows. A count in a
+    changelog is a historical fact; a count in a guide is a claim about now.
+    """
+    from claims_ledger.corpus.run import CORPUS
+
+    n = len([p for p in (Path(CORPUS) / "seeds").iterdir() if p.is_dir()])
+    pattern = r"\b(\d+)(?:[ /]\d*)?(?:\s+\w+){0,2}\s+seeds?\b"
+    for parts in (("README.md",), ("QUALITY.md",), ("examples", "FEATURES.md")):
+        text = project_file(*parts).read_text(encoding="utf-8")
+        wrong = sorted({m.group(1) for m in re.finditer(pattern, text)} - {str(n)})
+        assert not wrong, f"{'/'.join(parts)} claims {wrong} seeds; there are {n}"
+
+
 def test_the_readme_names_every_interpreter_ci_runs():
     """Fixed. The defect, as this pass wrote it: README.md says CI runs `Python 3.11, 3.12 and
     3.13`; ci.yml's matrix is 3.11, 3.12, 3.13 and 3.14, and 3.14 is in the package's own
@@ -161,13 +183,40 @@ def test_only_a_tag_reaches_the_publish_job():
     assert "environment: pypi" in publish
 
 
+def ci_gate_commands():
+    """Every command ci.yml's `test` job runs as a gate, installation excluded. Derived
+    from the file rather than listed here: a gate added to CI and not mirrored into
+    release.yml is precisely the drift this is here to catch, and a hand-written list
+    cannot see it."""
+    text = project_file(".github", "workflows", "ci.yml").read_text(encoding="utf-8")
+    job = text[text.index("\n  test:") : text.index("\n  wheel:")]
+    commands = []
+    for line in job.splitlines():
+        match = re.match(r"\s*(?:- )?run: (?!\|)(.+)", line)
+        if match is None:
+            continue
+        command = match.group(1).strip()
+        if "pip install" in command:
+            continue
+        commands.append(command)
+    return commands
+
+
 def test_a_tag_runs_the_whole_suite_before_anything_is_built():
-    """The second half of the thread. It holds: ruff, ty and pytest run unconditionally in
-    `build`, and `publish` needs `build`."""
+    """The second half of the thread, and the defect that sheltered behind its own
+    regression. `release.yml` promises in a comment that publication is gated on every
+    check CI runs, `not on a subset of them`; the test written to hold that promise listed
+    four commands, and `claims-ledger check` — the one command that holds this package's
+    own ledger to its code — ran in ci.yml and nowhere in release.yml. A tag could
+    therefore publish over a ledger no release gate had read. A regression that enumerates
+    part of what it guards cannot report what is absent from it, so the list is derived
+    from ci.yml now and the assertion is containment, not a spot check."""
     text = release_yml()
     build = text[text.index("\n  build:") : text.index("\n  publish:")]
-    for command in ("ruff check .", "ruff format --check .", "ty check", "pytest -q"):
-        assert command in build, command
+    gates = ci_gate_commands()
+    assert "claims-ledger check" in gates, "ci.yml no longer runs the ledger check"
+    missing = [command for command in gates if command not in build]
+    assert not missing, f"release.yml's build job does not run {missing}, which CI runs"
     assert build.index("pytest -q") < build.index("python -m build")
     assert "needs: build" in text
 
