@@ -68,8 +68,14 @@ wrote no skills and reported success. So `.claude/skills/` is a local install no
     claims-ledger harness install --agent claude --no-hooks
 
 after a fresh clone, and with `--force` after editing a shipped skill — without it a file
-that is there and differs is left alone, named on stderr, and the command exits 1. No symlink here reaches into
-the package and a test walks the tree to say so
+that is there and differs is left alone, named on stderr, and the command exits 1.
+
+One skill in that directory is not installed and *is* tracked: `track-open-work`, which
+this project wrote and no package carries, so the ignore rule names the installed skills
+rather than the directory. It says where a thing goes — an issue, an entry, a verdict, a
+supersession — and what reproduction a filed defect is owed.
+
+No symlink here reaches into the package and a test walks the tree to say so
 (L0188-no-symlink-in-the-repository-reaches-into-the-package, cites-as-live); what a built
 wheel carries of the harness is counted against the tree rather than assumed
 (L0190-a-built-distribution-carries-every-shipped-resource, cites-as-live).
