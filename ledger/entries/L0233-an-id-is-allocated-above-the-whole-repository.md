@@ -38,3 +38,4 @@ none
 ## References
 
 - src/claims_ledger/authoring.py · standing · cites-as-live
+- src/claims_ledger/renumber.py · standing · cites-as-live

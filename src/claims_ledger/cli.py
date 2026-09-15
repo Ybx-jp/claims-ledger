@@ -13,6 +13,7 @@ import os
 import shlex
 import statistics
 import sys
+import tempfile
 from pathlib import Path
 
 from . import (
@@ -23,6 +24,7 @@ from . import (
     neighbours,
     propagate,
     references,
+    renumber,
     resolve,
     validate,
 )
@@ -253,6 +255,19 @@ def build_parser():
     n.add_argument("--supersedes", default="none", help="the id this entry replaces, or `none`")
     n.add_argument("--credence", type=float, help="0-1; predictions carry one")
     n.add_argument("--resolves-when", help="the observation that would settle a prediction")
+
+    r = sub.add_parser(
+        "renumber",
+        help="rewrite an unmerged branch so the ids it mints do not collide with another",
+        description="The receiving side keeps its ids, so the branch that has not merged "
+        "yet is the one that moves. Every commit on it is replaced with one that carries "
+        "the new ids, so each entry is created with the id it will keep and nothing is "
+        "renamed after it is committed.",
+    )
+    r.add_argument("--onto", default="main", help="the branch this one would merge into")
+    r.add_argument("--branch", default="HEAD", help="the branch to rewrite")
+    r.add_argument("--write", action="store_true", help="carry out the rewrite and move the branch")
+    r.add_argument("--force", action="store_true", help="rewrite even though something was refused")
 
     s = sub.add_parser(
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
@@ -1009,6 +1024,58 @@ def cmd_corpus(args, _ledger):
 # configuration that is not there.
 NO_LEDGER = {"init", "corpus", "harness"}
 
+
+def cmd_renumber(args, ledger):
+    """Plan the rewrite, say what it would do, and carry it out only when asked.
+
+    Nothing is written without `--write`, and with it nothing is written while the working
+    tree has changes of its own or while another checkout has the branch out: the rewrite
+    ends by moving a ref and resetting the checkout onto it, and both of those are ways to
+    lose work that was never committed
+    (L0241-a-rewrite-refuses-a-dirty-tree-and-a-branch-another-checkout-holds,
+    cites-as-live).
+    """
+    try:
+        renumbering = renumber.plan(ledger, args.onto, args.branch)
+    except renumber.RenumberError as exc:
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    refused = renumber.refusals(ledger, renumbering) if not renumbering.empty else []
+    for line in renumber.describe(renumbering, refused):
+        print(line)
+    if renumbering.empty or not args.write:
+        if not renumbering.empty and not args.write:
+            print("nothing was written; `--write` carries it out")
+        return 0
+    if refused and not args.force:
+        print(
+            "claims-ledger: nothing was written; `--force` rewrites anyway",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        held = renumber.checkout_holding(ledger.repo, renumbering.ref)
+        if held is not None:
+            raise renumber.RenumberError(
+                f"`{renumbering.ref}` is checked out at {held}; rewriting it would leave "
+                "that checkout on commits no ref names"
+            )
+        if renumber.working_tree_changes(ledger.repo):
+            raise renumber.RenumberError(
+                "the working tree has changes that are not committed, and the rewrite ends "
+                "by resetting this checkout onto the commits it wrote; commit or stash them"
+            )
+        with tempfile.TemporaryDirectory() as scratch:
+            tip = renumber.rewrite(ledger, renumbering, Path(scratch) / "index")
+        renumber.move_branch(ledger.repo, renumbering, tip)
+    except renumber.RenumberError as exc:
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    print(f"{renumbering.ref} now names {tip[:7]}; {len(renumbering.commits)} commit(s) rewritten")
+    print("The ids moved, so run `claims-ledger check` before merging.")
+    return 0
+
+
 COMMANDS = {
     "validate": cmd_validate,
     "resolve": cmd_resolve,
@@ -1022,6 +1089,7 @@ COMMANDS = {
     "sha": cmd_sha,
     "source": cmd_source,
     "init": cmd_init,
+    "renumber": cmd_renumber,
     "hook": cmd_hook,
     "harness": cmd_harness,
     "corpus": cmd_corpus,
