@@ -43,6 +43,14 @@ none
 - 2026-09-08T12:05:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_sections" @aadceb0aba82a85fe71b15394896c43977751709
   note: read against the change in commit aadceb0, which partitioned the grounds into the supporting and the distinguishing ones earlier in the same section; the flag block this claim names is unchanged
+- 2026-09-15T17:25:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_sections" @aadceb0aba82a85fe71b15394896c43977751709
+  artifact: sha256:5cd3ff2f7254e6cf8752f53073814d200186d4ed05ff60f17b5dfddb8544043c
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_sections" =sha256:5cd3ff2f7254e6cf8752f53073814d200186d4ed05ff60f17b5dfddb8544043c
+  note: re-read after the section-order check learned that a section may be optional, which is what let `## Passages` be registered without failing every entry that predates it. The rules this claim is about are unchanged: the required sections are still required, in the same order, and what each section may contain is decided where it was before.
 
 ## References
 

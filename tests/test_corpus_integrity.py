@@ -591,7 +591,15 @@ REPORT_SITE_COUNTS = {
     # test_two_entries_carrying_one_number_are_a_failure, and nothing else: nothing
     # reported a duplicated number before this site, which is why a merge could land one
     # in silence.
-    "validate.py": 81,
+    # 81 + 11: the eleven things a `## Passages` block can be wrong about — a malformed
+    # block, a timestamp that is not ISO 8601, one before the entry was stated, one out of
+    # order, an author who may not write, a witness that is not an evidence pointer, one
+    # written for the wrong sectionedness, one stated by reference, one still pending, one
+    # that is not a digest, and a block holding no prose. Swept (2026-09-15) against a
+    # copied tree whose venv `.pth` was repointed at the copy first — without that the
+    # mutant silently tests HEAD and every site reads as unheld, which is how the first
+    # run of this sweep returned 0 of 14. Deleting each reddens tests/test_passages.py.
+    "validate.py": 92,
     # 16 + 4: a ground anchored by value, resolved from the tree or from history. Swept
     # (2026-09-11) — the uncommitted anchor that does not digest to the tree and the flag
     # for text no version of the path holds redden the corpus (D63, D64) and
@@ -599,6 +607,11 @@ REPORT_SITE_COUNTS = {
     # there; and a git that could not say whether the entry is committed was held by
     # nothing, so test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure
     # was written for it.
+    # 24 + 3: a passage whose witness git could not be asked about, one no version of the
+    # path digests to, and one whose prose is not a contiguous run of the version the
+    # witness found. Swept (2026-09-15) the same way; the third is the site the whole
+    # mechanism exists for, and deleting it reddens
+    # test_a_passage_the_artifact_never_held_fails alone.
     # 20 + 1: the artifact of a `working` ground that git could not read out of the index,
     # which is not the index saying it does not hold the path. Swept (2026-09-11) —
     # deleting it reddens
@@ -607,7 +620,7 @@ REPORT_SITE_COUNTS = {
     # counted here, but each was swept the same way and each was held by nothing until the
     # test named in its own commit was written: the entry list, the source registry, and
     # the configured documents.
-    "resolve.py": 21,
+    "resolve.py": 24,
     # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
     # Swept — deleting it reddens the corpus at
     # D59-document-cites-with-an-act-that-is-not-one, and nothing else.

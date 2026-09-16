@@ -49,6 +49,14 @@ none
 - 2026-09-11T03:10:33-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_sections" =sha256:c0769a66c50f5c4553287e21260b05a456a756669f8783622ff6a5f7b6179afc
   note: read against the working tree after check_sections began collecting ground types from the supporting grounds only, with distinguishes acts set aside, since the reading at f8b21e9: a distinction is an entry pointer and never an evidence type, so the evidence set is the same as before and both directions — measured or better without evidence, asserted with it — are still reported; the assertion holds as written.
+- 2026-09-15T17:25:45-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_sections" =sha256:c0769a66c50f5c4553287e21260b05a456a756669f8783622ff6a5f7b6179afc
+  artifact: sha256:5cd3ff2f7254e6cf8752f53073814d200186d4ed05ff60f17b5dfddb8544043c
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_sections" =sha256:5cd3ff2f7254e6cf8752f53073814d200186d4ed05ff60f17b5dfddb8544043c
+  note: re-read after the section-order check learned that a section may be optional, which is what let `## Passages` be registered without failing every entry that predates it. The rules this claim is about are unchanged: the required sections are still required, in the same order, and what each section may contain is decided where it was before.
 
 ## References
 

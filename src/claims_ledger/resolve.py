@@ -302,9 +302,14 @@ def digest_in_tree(ledger, p, cached=False):
     return digest_of(found) == p.digest, None
 
 
-def digest_in_history(ledger, p):
+def digest_in_history(ledger, p, want_text=False):
     """(whether some version of the path this repository holds digests to the anchor, why
-    git could not say).
+    git could not say); with `want_text`, that version's text in place of the `True`.
+
+    One walk answers two readers. An anchor only has to know the text was there, while a
+    lifted passage has to be compared against it, and splitting the walk in two to say so
+    would move these citations out of the section their entries pin
+    (L0266-one-history-walk-answers-both-readers, cites-as-live).
 
     Every version the path has ever held, on any ref, with full history, read through one
     `cat-file --batch`; the section is found in each the way the comparison finds it, and
@@ -348,7 +353,7 @@ def digest_in_history(ledger, p):
         text = blob_text(data)
         found = section_text(text, ledger.config, p.type, p.section) if p.sectioned else text
         if found is not None and digest_of(found) == p.digest:
-            return True, None
+            return (found if want_text else True), None
     if failures:
         why = next(iter(failures.values()))
         return None, f"git could not hand over every version of {p.target} ({why})"
@@ -614,6 +619,68 @@ def check_retraction(e, sources):
     return out
 
 
+def lines_rstripped(text):
+    """`text` with the trailing whitespace taken off every line and off the whole.
+
+    Both sides of the reconstruction comparison go through this, because the lift strips
+    a lifted line the same way and `digest_of` strips the section it anchors; without it
+    a source file that carried a trailing space on one line would make a passage that is
+    exactly what was removed compare as text that never was.
+    """
+    return "\n".join(ln.rstrip() for ln in text.splitlines()).rstrip()
+
+
+def resolve_passage(e, passage, ledger):
+    """Reports for one held passage; empty when it resolves.
+
+    Two propositions, and the second is the one that matters. The witness digest names
+    the section as it stood before the lift, and the history walk shows some version of
+    the path held exactly that — but a witness that resolves says only that the section
+    existed, not that the prose on the entry is what came out of it. So the passage is
+    also compared against that version: the prose must be a contiguous run of the lines
+    the pre-lift section held. A held passage that resolves while saying something the
+    artifact never said is the one failure this whole mechanism exists to make impossible
+    (L0267-a-witness-that-resolves-is-not-yet-a-passage-that-matches, cites-as-live).
+
+    The search is history-only, and never the tree. The lift removed the prose, so the
+    tree cannot hold the pre-lift section by construction, and asking it first would
+    report a failure on every run for a passage that is perfectly well witnessed
+    (L0268-a-witness-is-resolved-against-history-and-never-the-tree, cites-as-live).
+    """
+    out = []
+    part = passage.part
+    p = passage.pointer
+    if p is None or passage.text is None:
+        return out  # `validate` says what is wrong with the block; there is nothing to read
+    found, why = digest_in_history(ledger, p, want_text=True)
+    if found is None:
+        return [Report("fail", e.prefix, part, f"`{passage.lifted}` was not resolved: {why}")]
+    if found is False:
+        return [
+            Report(
+                "fail",
+                e.prefix,
+                part,
+                f"`{passage.lifted}`: no version of {p.target} this repository holds "
+                "digests to the witness, so the prose this passage claims to have lifted "
+                "cannot be shown to have been there",
+            )
+        ]
+    before = lines_rstripped(found)
+    prose = lines_rstripped(passage.text)
+    if prose and prose not in before:
+        out.append(
+            Report(
+                "fail",
+                e.prefix,
+                part,
+                f"is not a contiguous run of {p.target} § {p.section!r} as the witness "
+                "found it; a passage states what was lifted, verbatim",
+            )
+        )
+    return out
+
+
 def run(ledger, entries=None, cached=False):
     entries = load_entries(ledger, cached=cached) if entries is None else entries
     index = by_id(entries)
@@ -672,6 +739,8 @@ def run(ledger, entries=None, cached=False):
             reports += resolve_pointer(
                 p, e, f"verdict {v.index}", index, sources, ledger, unasked, cached=cached
             )
+        for passage in e.passages:
+            reports += resolve_passage(e, passage, ledger)
         if e.status() == "retracted":
             reports += check_retraction(e, sources)
         else:
