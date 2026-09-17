@@ -18,7 +18,7 @@
       "checker": "references",
       "outcome": "pass",
       "where": "all",
-      "why": "unchanged from K31: the citing document is the digest, not the artifact"
+      "why": "unchanged from K31: the citation is in the section, and line endings are not what the placement rule is about"
     },
     {
       "checker": "freshness",

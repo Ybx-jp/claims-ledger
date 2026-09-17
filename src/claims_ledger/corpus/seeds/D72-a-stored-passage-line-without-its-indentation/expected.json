@@ -1,0 +1,21 @@
+{
+  "class": "a stored passage line without its indentation",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Passage 1",
+      "why": "the second line of the held prose sits at column zero, so the block cannot be read back as the artifact had it: six spaces are stripped from every stored line to recover the text, and a line that does not carry them is not a line this entry can claim to have lifted",
+      "message": "indented by 6 spaces"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the repair is mechanical — restore the indentation — but the seed is not here for the repair. It is here because `resolve` says nothing at all about a malformed block, by design, and if `validate` were not asking, nobody would be"
+    }
+  ],
+  "note": "the seed that holds the wiring rather than a rule. `validate.check_passages` was proved by tests that call it directly, and with its one call site in `validate.run` deleted the whole corpus still printed 105/105 and the suite was byte-identical: eleven report sites reachable only from a test that reaches past the program. A report-site mutation sweep cannot find that, because neutering a site inside an unwired function still reddens the direct-call test — so the seed is the instrument. Any malformed block would serve; this one is the indentation, because the six spaces are what let a lifted list beginning `- ` be stored at all, and because `resolve` deliberately returns nothing for a block `validate` has already refused, which is the other half of what this seed pins.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

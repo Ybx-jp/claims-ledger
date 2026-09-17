@@ -207,6 +207,15 @@ optional section; every other is required of every entry.
   that version held. A witness that resolves says only that the section existed; it does
   not say the prose came out of it.
 
+  **What is checked is that the prose was there, not that it was taken away.** Two things
+  no check can see follow from that, and both are the reader's to notice: a passage that
+  is a *shorter* run than what the lift removed resolves, because every line it holds was
+  in the section in that order and nothing on the entry says how many there should have
+  been; and a passage copied rather than moved resolves too, because the artifact still
+  holding the prose is not a thing any of the five checkers asks about. `lift` moves, and
+  refuses a file whose working tree differs from HEAD so that what it removes is already
+  in git — but a passage written by hand carries no such guarantee.
+
 - *References* lists the documents (not entries) that cite this entry:
   `- <path> · standing | record · <act>`. Entry-to-entry edges are read from Grounds and
   are not repeated here. A document cites an entry inline as `(A0007-<slug>, cites-as-live)`,

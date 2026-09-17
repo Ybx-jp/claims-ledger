@@ -38,11 +38,9 @@ none
   evidence: lab: docs/note-300.md § "Observation" =sha256:f491b27cbc5e698f9d51e23ad7b6bf91b4ad7b3af9c06c92239240ca17893c79
   note: re-read after the narrative under the measurement was lifted onto this entry; the measurement itself is untouched and the claim is unchanged.
 
-- 2026-09-11T08:00:00-07:00 · corroborated · grade: measured · author: main
-  evidence: lab: docs/note-300.md § "Observation" =sha256:274d45734e28877a5672e0e4cfc1e2348ac45e82b53d75a691645f14f30c10cd
-  note: re-read after the sentence that carried the citation was rewritten; the measurement in the section is unchanged, and what the entry holds of the section is the passage below.
-
 ## References
+
+- docs/note-300.md · standing · cites-as-live
 
 ## Passages
 
@@ -50,6 +48,6 @@ none
   lifted: lab: docs/note-300.md § "Observation" =sha256:84148bb134eb826773ed1b3975d889ef9c30a1f7754857a92115386db0c8a4e8
   passage:
       The sweep ran over star graphs of degree ten, twenty and fifty, and the error at the
-      centre node tracked the fraction rather than the count at every degree. The three runs
+centre node tracked the fraction rather than the count at every degree. The three runs
       agreed to two decimal places. The narrative is kept beside the number so that a reader
       meets the one with the other.

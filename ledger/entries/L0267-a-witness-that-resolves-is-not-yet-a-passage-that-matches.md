@@ -34,6 +34,10 @@ none
 
 ## Verdicts
 
+- 2026-09-16T23:55:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_passage" =sha256:c7d935a5e65d60a4166b889778edc094fdfdb41a621a83fa4fc9d29364a094e2
+  note: re-read after the comparison was made over lines rather than characters. The claim is what it was and the section now keeps it more nearly: a substring test passed a passage cut in the middle of a line, which is prose the artifact never held in the sense this entry means. What the section still cannot see is a passage shorter than what was removed, and it now says so where a reader will find it.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

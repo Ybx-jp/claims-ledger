@@ -257,6 +257,78 @@ def test_a_passage_the_artifact_never_held_fails(lifted):
     assert any("contiguous run" in r.message for r in reports), [r.message for r in reports]
 
 
+def test_a_passage_cut_mid_line_fails(lifted):
+    """Lines, not characters. Every character of this prose is in the section, in order,
+    and it starts and ends in the middle of a line — which is a quotation of nothing the
+    artifact said. A substring comparison passed it."""
+    witness = real_witness(lifted)
+    ledger = open_ledger(lifted.root)
+    entry = entry_of(lifted)
+    pointer = pointer_of(entry)
+    text = (lifted.root / pointer.target).read_text(encoding="utf-8")
+    _, proses, _ = plan(entry, pointer, text, ledger.config)
+    whole = proses[0]
+    cut = whole[8 : len(whole) - 8]
+    assert cut in whole and cut.splitlines()[0] not in whole.splitlines()
+    path = with_passage(
+        lifted,
+        a_block(
+            lifted_line=f'code: pkg/mod.py § "install" ={witness}',
+            prose="\n".join("      " + ln for ln in cut.splitlines()),
+        ),
+    )
+    entry = parse_entry(path)
+    reports = resolve.resolve_passage(entry, entry.passages[0], ledger)
+    assert any("contiguous run" in r.message for r in reports), [r.message for r in reports]
+
+
+def test_a_passage_shorter_than_what_was_removed_is_a_known_miss(lifted):
+    """Recorded rather than implied away: every line the entry holds was in the section,
+    in that order, and nothing on the entry says how many there should have been. A lift
+    that dropped its last line resolves, and only a reader sees it."""
+    witness = real_witness(lifted)
+    ledger = open_ledger(lifted.root)
+    entry = entry_of(lifted)
+    pointer = pointer_of(entry)
+    text = (lifted.root / pointer.target).read_text(encoding="utf-8")
+    _, proses, after = plan(entry, pointer, text, ledger.config)
+    (lifted.root / pointer.target).write_text(after, encoding="utf-8")
+    kept = proses[0].splitlines()[:-1]
+    assert kept, "the fixture's docstring body is one line; there is nothing to drop"
+    path = with_passage(
+        lifted,
+        a_block(
+            lifted_line=f'code: pkg/mod.py § "install" ={witness}',
+            prose="\n".join("      " + ln for ln in kept),
+        ),
+    )
+    entry = parse_entry(path)
+    assert resolve.resolve_passage(entry, entry.passages[0], ledger) == []
+
+
+def test_a_shallow_clone_says_so_rather_than_that_the_witness_is_unknown(lifted, tmp_path):
+    """The two failures a witness can have are not the same failure, and a downstream CI
+    is where the difference is felt: `actions/checkout` is depth 1 by default, so the
+    commit a witness names is routinely outside the graft boundary. `digest_in_history`
+    asks git whether the repository is shallow before concluding anything, so the report
+    says the history was truncated rather than that the prose was never there — which is
+    the report D69 holds, and it would be a false accusation here."""
+    import subprocess
+
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    lifted.git("add", "-A")
+    lifted.git("commit", "-qm", "the lift")
+    clone = tmp_path / "shallow"
+    subprocess.run(
+        ["git", "clone", "-q", "--depth", "1", f"file://{lifted.root}", str(clone)], check=True
+    )
+    got = [(r.part, r.message) for r in resolve.run(open_ledger(root=clone))]
+    passage = [m for part, m in got if part == "Passage 1"]
+    assert passage, got
+    assert any("shallow clone" in m for m in passage), passage
+    assert not any("digests to the witness" in m for m in passage), passage
+
+
 # --- what the lift takes, and what it refuses ---------------------------------------
 
 

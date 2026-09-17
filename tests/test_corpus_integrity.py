@@ -478,12 +478,26 @@ def test_every_seed_is_named_in_the_corpus_readme():
     assert not missing, missing
 
 
+def test_the_crlf_seed_still_has_crlf_in_it():
+    """K32 is K31 with one difference, and the difference is in bytes no rendering shows.
+    A line-ending normalization — a `.gitattributes` rule, an editor, a careless `sed -i`
+    — would turn it into a second copy of K31 that passes for the wrong reason, and
+    `test_no_two_seeds_are_the_same_case` would not catch it, because the entries still
+    differ. What the seed pins is that a witness taken over CRLF text resolves against a
+    passage stored with LF, so the CRLF has to actually be there."""
+    seed = next(s for s in SEEDS if s.name.startswith("K32"))
+    notes = sorted(seed.glob("commits/*/docs/note-*.md"))
+    assert notes, seed.name
+    for note in notes:
+        assert b"\r\n" in note.read_bytes(), note
+
+
 def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     """`hatchling` takes `packages = ["src/claims_ledger"]`, so the seeds ride along inside
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 105
+    assert len(SEEDS) == 106
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -619,8 +633,10 @@ REPORT_SITE_COUNTS = {
     # 24 + 3: a passage whose witness git could not be asked about, one no version of the
     # path digests to, and one whose prose is not a contiguous run of the version the
     # witness found. Swept (2026-09-15) the same way; the third is the site the whole
-    # mechanism exists for, and deleting it reddens
-    # test_a_passage_the_artifact_never_held_fails alone.
+    # mechanism exists for. The sweep's record that deleting it reddened
+    # test_a_passage_the_artifact_never_held_fails *alone* was true of the tree it was run
+    # against and is not true now: D67 and D70 both redden it, as do the two comparison
+    # tests written with the line rule.
     # 20 + 1: the artifact of a `working` ground that git could not read out of the index,
     # which is not the index saying it does not hold the path. Swept (2026-09-11) —
     # deleting it reddens

@@ -20,8 +20,8 @@ condition: one layer, mean aggregation, untrained weights, eval mode
 
 ## Grounds
 
-- lab: docs/note-300.md § "Observation" =sha256:4486bb1016f57db4d7511fe49238b85f9b9a38d8da870211fc3022c38d2aa492
-- lab: docs/note-300.md § "Method" =sha256:f936594fba0a648edc3afef0bbe3c0a0ecb754adc7c0b667e53d8a3da84fbc2e
+- lab: docs/note-300.md § "Observation" =sha256:bd418dc218ba9557bdc3ceec47e11119cefd9ef6d6772336c66d7cb105ffb34d
+- lab: docs/note-300.md § "Method" =sha256:de921148875341f9649d9616139952d8156f48051c7f29b5d3ab9f229a94423e
 
 ## Warrant
 
@@ -37,4 +37,4 @@ none
 
 ## References
 
-- docs/digest-300.md · standing · cites-as-live
+- docs/note-300.md · standing · cites-as-live

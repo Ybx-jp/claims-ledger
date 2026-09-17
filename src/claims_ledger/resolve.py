@@ -620,14 +620,31 @@ def check_retraction(e, sources):
 
 
 def lines_rstripped(text):
-    """`text` with the trailing whitespace taken off every line and off the whole.
+    """`text` as the list of lines a passage comparison is made over: trailing whitespace
+    off every line, and no blank line at either end.
 
     Both sides of the reconstruction comparison go through this, because the lift strips
     a lifted line the same way and `digest_of` strips the section it anchors; without it
     a source file that carried a trailing space on one line would make a passage that is
     exactly what was removed compare as text that never was.
     """
-    return "\n".join(ln.rstrip() for ln in text.splitlines()).rstrip()
+    lines = [ln.rstrip() for ln in text.splitlines()]
+    while lines and not lines[0]:
+        lines.pop(0)
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def is_a_run_of(prose, before):
+    """Whether the lines of `prose` are a contiguous run of the lines of `before`.
+
+    Lines, and not characters: `resolve_passage` says why, and it is the section that
+    answers for it.
+    """
+    if not prose:
+        return True
+    return any(before[i : i + len(prose)] == prose for i in range(len(before) - len(prose) + 1))
 
 
 def resolve_passage(e, passage, ledger):
@@ -641,6 +658,14 @@ def resolve_passage(e, passage, ledger):
     the pre-lift section held. A held passage that resolves while saying something the
     artifact never said is the one failure this whole mechanism exists to make impossible
     (L0267-a-witness-that-resolves-is-not-yet-a-passage-that-matches, cites-as-live).
+
+    **Lines, and not characters.** A substring test passes a passage that begins or ends
+    in the middle of one, and half a sentence of an artifact is a quotation of nothing the
+    artifact said; the elision rules hold a Backing quote to exactly that standard, and a
+    passage is the same kind of thing. What the comparison still cannot see is a *shorter*
+    run than the one that was removed: every line the entry holds was there, in that
+    order, and nothing on the entry says how many there should have been. A lift that
+    dropped its last line is a known miss, written here rather than implied away.
 
     The search is history-only, and never the tree. The lift removed the prose, so the
     tree cannot hold the pre-lift section by construction, and asking it first would
@@ -668,7 +693,7 @@ def resolve_passage(e, passage, ledger):
         ]
     before = lines_rstripped(found)
     prose = lines_rstripped(passage.text)
-    if prose and prose not in before:
+    if not is_a_run_of(prose, before):
         out.append(
             Report(
                 "fail",

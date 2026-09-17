@@ -18,7 +18,7 @@
       "checker": "references",
       "outcome": "pass",
       "where": "all",
-      "why": "the citing document is the digest, and neither lift touched it"
+      "why": "both lifts left their citing sentence in the section it was in — the Observation's at commit 02 and the Method's at commit 03"
     },
     {
       "checker": "freshness",

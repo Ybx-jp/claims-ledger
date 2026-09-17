@@ -20,8 +20,8 @@ condition: one layer, mean aggregation, untrained weights, eval mode
 
 ## Grounds
 
-- lab: docs/note-300.md § "Observation" =sha256:4486bb1016f57db4d7511fe49238b85f9b9a38d8da870211fc3022c38d2aa492
-- lab: docs/note-300.md § "Method" =sha256:f936594fba0a648edc3afef0bbe3c0a0ecb754adc7c0b667e53d8a3da84fbc2e
+- lab: docs/note-300.md § "Observation" =sha256:bd418dc218ba9557bdc3ceec47e11119cefd9ef6d6772336c66d7cb105ffb34d
+- lab: docs/note-300.md § "Method" =sha256:de921148875341f9649d9616139952d8156f48051c7f29b5d3ab9f229a94423e
 
 ## Warrant
 
@@ -36,17 +36,17 @@ none
 ## Verdicts
 
 - 2026-09-09T10:00:00-07:00 · corroborated · grade: measured · author: main
-  evidence: lab: docs/note-300.md § "Observation" =sha256:274d45734e28877a5672e0e4cfc1e2348ac45e82b53d75a691645f14f30c10cd
+  evidence: lab: docs/note-300.md § "Observation" =sha256:f491b27cbc5e698f9d51e23ad7b6bf91b4ad7b3af9c06c92239240ca17893c79
   note: re-read after the narrative under the measurement was lifted onto this entry; the measurement itself is untouched and the claim is unchanged.
 
 ## References
 
-- docs/digest-300.md · standing · cites-as-live
+- docs/note-300.md · standing · cites-as-live
 
 ## Passages
 
 - 2026-09-09T10:00:00-07:00 · author: main
-  lifted: lab: docs/note-300.md § "Observation" =sha256:4486bb1016f57db4d7511fe49238b85f9b9a38d8da870211fc3022c38d2aa492
+  lifted: lab: docs/note-300.md § "Observation" =sha256:bd418dc218ba9557bdc3ceec47e11119cefd9ef6d6772336c66d7cb105ffb34d
   passage:
       The sweep ran over star graphs of degree ten, twenty and fifty, and the error at the
       centre node tracked the fraction rather than the count at every degree.

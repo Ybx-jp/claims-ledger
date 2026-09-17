@@ -20,7 +20,7 @@ condition: one layer, mean aggregation
 
 ## Grounds
 
-- lab: docs/note-300.md § "Observation" =sha256:274d45734e28877a5672e0e4cfc1e2348ac45e82b53d75a691645f14f30c10cd
+- lab: docs/note-300.md § "Observation" =sha256:f491b27cbc5e698f9d51e23ad7b6bf91b4ad7b3af9c06c92239240ca17893c79
 - lab: docs/note-300.md § "Observation" =sha256:d833fce69cfd21a051146e2535d0cbf762d0fa0d36c92f7e21f8b7687531c133
 
 ## Warrant
@@ -37,7 +37,7 @@ none
 
 ## References
 
-- docs/digest-300.md · standing · cites-as-live
+- docs/note-300.md · standing · cites-as-live
 
 ## Passages
 

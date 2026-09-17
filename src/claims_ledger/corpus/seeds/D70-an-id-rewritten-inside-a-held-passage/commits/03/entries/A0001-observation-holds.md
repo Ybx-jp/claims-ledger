@@ -20,7 +20,7 @@ condition: one layer, mean aggregation
 
 ## Grounds
 
-- lab: docs/note-300.md § "Observation" =sha256:63d61ac0da1bdc2246293355d0a5e199a6a0e0f3ceb572427eadc6b0a22843ec
+- lab: docs/note-300.md § "Observation" =sha256:fa3a6f009a6ae888deafbce04c7d1207cac3832cefb2c0bc798ede7d03c7ff31
 
 ## Warrant
 
@@ -35,17 +35,17 @@ none
 ## Verdicts
 
 - 2026-09-09T10:00:00-07:00 · corroborated · grade: measured · author: main
-  evidence: lab: docs/note-300.md § "Observation" =sha256:274d45734e28877a5672e0e4cfc1e2348ac45e82b53d75a691645f14f30c10cd
+  evidence: lab: docs/note-300.md § "Observation" =sha256:f491b27cbc5e698f9d51e23ad7b6bf91b4ad7b3af9c06c92239240ca17893c79
   note: re-read after the narrative under the measurement was lifted onto this entry; the measurement itself is untouched and the claim is unchanged.
 
 ## References
 
-- docs/digest-300.md · standing · cites-as-live
+- docs/note-300.md · standing · cites-as-live
 
 ## Passages
 
 - 2026-09-09T10:00:00-07:00 · author: main
-  lifted: lab: docs/note-300.md § "Observation" =sha256:63d61ac0da1bdc2246293355d0a5e199a6a0e0f3ceb572427eadc6b0a22843ec
+  lifted: lab: docs/note-300.md § "Observation" =sha256:fa3a6f009a6ae888deafbce04c7d1207cac3832cefb2c0bc798ede7d03c7ff31
   passage:
       The sweep ran over star graphs of degree ten, twenty and fifty, and the error at the
       centre node tracked the fraction rather than the count at every degree. It replaces the
