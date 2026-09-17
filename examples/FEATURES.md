@@ -584,7 +584,7 @@ id and with one named — and `renumber` in three of its four shapes. What the p
 still does not exercise is `neighbours`, which is advisory and decides nothing, and
 `harness`, which installs the agent hooks into a project rather than acting on a ledger.
 `claims-ledger corpus` is named here but proved at the package level, where the test run
-covers all 96 corpus seeds; the templates are richer than an `init` or `new` scaffold.
+covers all 105 corpus seeds; the templates are richer than an `init` or `new` scaffold.
 
 ### Pre-commit enforcement
 

@@ -348,7 +348,8 @@ def test_a_lift_leaves_the_module_parseable(lifted):
     assert lifted.cl("lift", "A0001-first", "--write") == 0
     after = path.read_text(encoding="utf-8")
     ast.parse(after)
-    assert ast.get_docstring(ast.parse(after).body[-1]).startswith("Write the harness")
+    summary = ast.get_docstring(ast.parse(after).body[-1]) or ""
+    assert summary.startswith("Write the harness")
     assert "(A0001-first, cites-as-live)" in after
     assert "three differences are measured" not in after
     assert "one row of TARGETS per agent" not in after
