@@ -184,14 +184,7 @@ def blob_id(repo, states, state, rel, pins):
         )
     text = source.read_bytes().decode("utf-8")
     text = PIN_RE.sub(lambda m: "@" + pins.get(m.group(1), m.group(0)[1:]), text)
-    out = subprocess.run(
-        ["git", "-C", str(repo), "hash-object", "--path", rel, "--stdin"],
-        input=text.encode("utf-8"),
-        capture_output=True,
-        check=True,
-        timeout=GIT_TIMEOUT,
-    )
-    return out.stdout.decode().strip()
+    return git_out(repo, "hash-object", "--path", rel, "--stdin", stdin=text)
 
 
 def stage(src, dst, pins=None, shared=None):
@@ -282,16 +275,43 @@ def git(repo, *args):
         ) from exc
 
 
+def git_out(repo, *args, stdin=None):
+    """What a git command the corpus needs an answer from said, or `LedgerError`.
+
+    The same contract as `git()` and for the same reason, one step further on: these two
+    are asked for a value rather than for an effect — the id of a commit just made, the id
+    a blob will be stored under — and a git that timed out or refused is not an answer.
+    Left raw, `subprocess` raises `TimeoutExpired` or `CalledProcessError`, neither of
+    which any caller here expects, and the CLI's catch-all turns a loaded machine into
+    `this is a bug. Please report it` over a corpus that was building normally. Reported as
+    what it is, it names the command, the seed, and that nothing was proven
+    (L0274-a-git-the-corpus-could-not-get-an-answer-from-is-a-finding, cites-as-live).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            input=stdin.encode("utf-8") if stdin is not None else None,
+            capture_output=True,
+            check=True,
+            timeout=GIT_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise LedgerError(
+            f"`git {args[0]}` did not answer within {GIT_TIMEOUT}s while building the "
+            "corpus repository; nothing was proven"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        last = (exc.stderr or b"").decode("utf-8", "replace").strip().splitlines()
+        raise LedgerError(
+            f"`git {args[0]}` failed while building the corpus repository "
+            f"({last[-1] if last else exc}); nothing was proven"
+        ) from exc
+    return out.stdout.decode("utf-8", "replace").strip()
+
+
 def head(repo):
     """The short object id of the commit just made, as a seed's `@commitNN` resolves to."""
-    out = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=GIT_TIMEOUT,
-    )
-    return out.stdout.strip()
+    return git_out(repo, "rev-parse", "--short", "HEAD")
 
 
 def run_checkers(ledger, commit=None):
@@ -307,6 +327,37 @@ def run_checkers(ledger, commit=None):
             # checker, and the runner has to survive it to report which seed did it.
             produced[name] = exc
     return produced
+
+
+def apply_seed(seed, root, produced, crashes):
+    """Stage every state of a seed and run the checkers over each, in a temporary
+    repository that is removed afterwards. (produced, crashes)."""
+    with tempfile.TemporaryDirectory(prefix="corpus-") as tmpdir:
+        tmp = Path(tmpdir)
+        if (seed / "commits").is_dir():
+            git(tmp, "init", "-q")
+            pins = {}
+            for state in sorted(p for p in (seed / "commits").iterdir() if p.is_dir()):
+                stage(state, tmp, pins, shared=root)
+                git(tmp, "add", "-A")
+                git(tmp, "commit", "-qm", state.name)
+                pins[state.name] = head(tmp)
+                for name, result in run_checkers(
+                    seed_ledger(tmp, tmp, repo=tmp), commit=state.name
+                ).items():
+                    if isinstance(result, Exception):
+                        crashes.append((name, state.name, result))
+                    else:
+                        produced[name] += result
+        else:
+            stage(seed, tmp, shared=root)
+            for name, result in run_checkers(seed_ledger(tmp, tmp)).items():
+                if isinstance(result, Exception):
+                    crashes.append((name, None, result))
+                else:
+                    produced[name] += result
+
+    return produced, crashes
 
 
 def run_seed(seed, root):
@@ -343,31 +394,13 @@ def run_seed(seed, root):
     ]
     produced = {name: [] for name in CHECKERS}
     crashes = []
-    with tempfile.TemporaryDirectory(prefix="corpus-") as tmpdir:
-        tmp = Path(tmpdir)
-        if (seed / "commits").is_dir():
-            git(tmp, "init", "-q")
-            pins = {}
-            for state in sorted(p for p in (seed / "commits").iterdir() if p.is_dir()):
-                stage(state, tmp, pins, shared=root)
-                git(tmp, "add", "-A")
-                git(tmp, "commit", "-qm", state.name)
-                pins[state.name] = head(tmp)
-                for name, result in run_checkers(
-                    seed_ledger(tmp, tmp, repo=tmp), commit=state.name
-                ).items():
-                    if isinstance(result, Exception):
-                        crashes.append((name, state.name, result))
-                    else:
-                        produced[name] += result
-        else:
-            stage(seed, tmp, shared=root)
-            for name, result in run_checkers(seed_ledger(tmp, tmp)).items():
-                if isinstance(result, Exception):
-                    crashes.append((name, None, result))
-                else:
-                    produced[name] += result
-
+    try:
+        produced, crashes = apply_seed(seed, root, produced, crashes)
+    except LedgerError as exc:
+        # Which seed was being built is half the report and the only half the runner
+        # knows: `git_out` names the command and that nothing was proven, and a reader
+        # with 106 seeds needs to be told where to look.
+        raise LedgerError(f"{seed.name}: {exc}") from exc
     lines = []
     for name, commit, exc in crashes:
         lines.append(

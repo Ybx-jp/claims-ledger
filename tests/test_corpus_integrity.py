@@ -594,6 +594,49 @@ def test_an_empty_expected_message_does_not_match_every_report():
     )
 
 
+def test_a_git_that_will_not_answer_is_a_finding_not_a_bug_report(tmp_path, monkeypatch):
+    """The shape QE8-92 found, one command further on. `git rev-parse` and `git
+    hash-object` are asked for a value, and `subprocess.run(check=True, timeout=...)`
+    raises two exceptions no caller here expects — so a loaded machine printed `this is a
+    bug. Please report it` over a corpus that was building normally. Both are now findings
+    that name the command, and `run_seed` puts the seed in front of them."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+
+    def timed_out(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="git", timeout=30)
+
+    monkeypatch.setattr(corpus_run.subprocess, "run", timed_out)
+    with pytest.raises(LedgerError, match="did not answer within"):
+        corpus_run.head(repo)
+
+    def refused(*args, **kwargs):
+        raise subprocess.CalledProcessError(128, "git", stderr=b"fatal: not a repository")
+
+    monkeypatch.setattr(corpus_run.subprocess, "run", refused)
+    with pytest.raises(LedgerError, match="fatal: not a repository"):
+        corpus_run.head(repo)
+
+
+def test_a_seed_that_could_not_be_built_says_which_seed(tmp_path, monkeypatch):
+    """The other half: the report names the command and that nothing was proven, and a
+    reader with a hundred seeds still has to be told where to look."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    def unbuildable(*args, **kwargs):
+        raise LedgerError("`git commit` failed while building the corpus repository")
+
+    monkeypatch.setattr(corpus_run, "apply_seed", unbuildable)
+    seed = next(s for s in SEEDS if s.name.startswith("K01"))
+    with pytest.raises(LedgerError, match=r"K01-measured-claim: `git commit` failed"):
+        corpus_run.run_seed(seed, CORPUS)
+
+
 def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
     """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
     catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
