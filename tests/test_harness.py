@@ -6,6 +6,7 @@ writes into a project's own directories, and every one of these is about not dam
 something a person put there.
 """
 
+import contextlib
 import json
 import os
 import pathlib
@@ -307,3 +308,58 @@ def test_a_guard_answers_in_the_dialect_it_was_called_in():
     assert cursor["user_message"] == cursor["agent_message"]
 
     assert answer({"conversation_id": "c1", "command": "git merge --no-ff x"}) == {}
+
+
+def path_without(tool, tmp_path):
+    """A PATH that holds everything the real one does except `tool`.
+
+    Built as a farm of symlinks rather than by dropping directories, because the utility
+    this is written for lives in `/usr/bin` beside `bash`, `git` and `jq` — dropping its
+    directory takes the shell with it.
+    """
+    farm = tmp_path / "path-without" / tool
+    farm.mkdir(parents=True, exist_ok=True)
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        if not directory or not os.path.isdir(directory):
+            continue
+        for entry in os.scandir(directory):
+            if entry.name == tool or (farm / entry.name).exists():
+                continue
+            with contextlib.suppress(OSError):
+                (farm / entry.name).symlink_to(entry.path)
+    return str(farm)
+
+
+def test_the_guards_hold_their_verdicts_where_there_is_no_timeout(tmp_path):
+    """`timeout` is GNU coreutils and macOS ships none. Measured before the fix, on
+    macos-latest in CI: `merge-guard.sh: line 140: timeout: command not found`, and the
+    guard denied an ordinary merge — while the three hooks that append `|| true` swallowed
+    the same failure and reported nothing at all, which is a drift check silent on a whole
+    platform."""
+    if shutil.which("jq") is None:
+        pytest.skip("the hooks parse their payload with jq")
+    bare = path_without("timeout", tmp_path)
+    assert shutil.which("timeout", path=bare) is None
+    for needed in ("git", "jq"):
+        assert shutil.which(needed, path=bare), f"the farm lost {needed}; it proves nothing"
+    shell = shutil.which("bash", path=bare)
+    assert shell, "the farm lost bash; it proves nothing"
+
+    guard = str(harness.HOOKS / "merge-guard.sh")
+    env = {**os.environ, "PATH": bare}
+
+    def answer(payload):
+        done = subprocess.run(
+            [shell, guard],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+        )
+        return json.loads(done.stdout) if done.stdout.strip() else {}
+
+    assert answer({"conversation_id": "c1", "command": "git merge --no-ff x"}) == {}
+    assert answer({"conversation_id": "c1", "command": "git merge --squash x"})["permission"] == (
+        "deny"
+    )

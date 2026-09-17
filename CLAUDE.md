@@ -84,7 +84,10 @@ wheel carries of the harness is counted against the tree rather than assumed
 Nothing in the hooks or the skills is repository-specific — the interpreter is discovered,
 the project root is discovered, the document list is asked of the package, act legality is
 read from what `references` said, and counts are asked of `claims-ledger status` rather
-than written down — so keep it that way when editing. A path counted in `..` is the one
+than written down — so keep it that way when editing. Nothing in them is
+platform-specific either, and that is the one a reviewer will miss: a hook that wrote GNU
+`timeout` bare denied every merge on macOS and, in the three that append `|| true`, went
+silent instead (L0276-a-hook-holds-its-verdict-where-there-is-no-timeout, cites-as-live). A path counted in `..` is the one
 that would break: the same script runs from `src/claims_ledger/resources/agent-harness/`
 here and from `.claude/hooks/` where it is installed, so every script discovers its root
 instead (L0189-a-hook-script-discovers-the-project-root, cites-as-live).
