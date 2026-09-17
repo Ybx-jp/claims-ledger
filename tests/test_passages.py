@@ -7,6 +7,8 @@ yet a passage that matches — prose the artifact never held fails even where th
 it names is perfectly well in history.
 """
 
+import ast
+
 import pytest
 
 from claims_ledger import open_ledger, resolve, validate
@@ -313,6 +315,44 @@ def test_a_lift_writes_both_sides_and_every_checker_passes(lifted):
     assert "measured against the shipped CLIs" in entry.passages[0].text
     for checker in ("validate", "resolve", "references", "propagate"):
         assert lifted.cl(checker) == 0, checker
+
+
+def test_a_lift_leaves_the_module_parseable(lifted):
+    """The artifact a lift writes back is still Python, and still has its docstring.
+
+    Nothing in `liftable` looks outside a docstring body, so this cannot fail by taking a
+    statement — but it can fail by taking the wrong end of the body and carrying a
+    closing quote with it, which is a `SyntaxError` in a file the command has already
+    written. The section here has two runs of body with a citation line between them, so
+    both ends of both runs are exercised.
+    """
+    path = lifted.root / "pkg" / "mod.py"
+    path.write_text(
+        '"""A module these tests lift from."""\n'
+        "\n"
+        "\n"
+        "def install(root, agent):\n"
+        '    """Write the harness into a project.\n'
+        "\n"
+        "    They live in the wheel, and the three differences are measured.\n"
+        "\n"
+        "    (A0001-first, cites-as-live) is what keeps them honest.\n"
+        "\n"
+        "    The installer writes one row of TARGETS per agent.\n"
+        '    """\n'
+        "    return root, agent\n",
+        encoding="utf-8",
+    )
+    lifted.git("add", "-A")
+    lifted.git("commit", "-qm", "two runs")
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    after = path.read_text(encoding="utf-8")
+    ast.parse(after)
+    assert ast.get_docstring(ast.parse(after).body[-1]).startswith("Write the harness")
+    assert "(A0001-first, cites-as-live)" in after
+    assert "three differences are measured" not in after
+    assert "one row of TARGETS per agent" not in after
+    assert len(entry_of(lifted).passages) == 2
 
 
 def test_a_lift_can_hand_back_a_reverse_patch(lifted, tmp_path):

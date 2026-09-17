@@ -143,7 +143,7 @@ def test_every_expectation_row_names_the_report_place_exactly():
 def test_only_the_documented_seeds_produce_no_report_at_all():
     """A defect seed that trips nothing is review-only, and the corpus README names which
     ones those are. A new silent seed would be a defect class nobody is checking."""
-    documented = {"D11", "D13", "D33", "D40", "D41"}
+    documented = {"D11", "D13", "D33", "D40", "D41", "D68"}
     silent = {
         s.name.split("-")[0]
         for s in SEEDS
@@ -419,6 +419,14 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
 
     Five-digit and archived-prefix ids are left alone by the pattern itself: D20's
     `A10000` has a fifth digit, and `C0001` keeps its quarantined `C`.
+
+    The anchors are recomputed afterwards (`redigest`), as they are for trailing
+    whitespace, and for the same reason: an id that sits inside a span some entry anchors
+    by value is text, and renaming it is a change to that text. D70 is the seed that has
+    one — a held passage that names the entry the rename is about — and in a real project
+    it is `renumber --write` doing exactly this. Nothing about the rename is invisible to
+    the digests; what the test asserts is that with the digests re-derived, no seed's
+    verdict moves.
     """
     corpus = copy_corpus(tmp_path)
 
@@ -438,6 +446,7 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
         for path in sorted(seed.rglob("*.md"), key=lambda p: -len(p.parts)):
             if ENTRY_ID.match(path.name):
                 path.rename(path.with_name(ENTRY_ID.sub(bump, path.name, count=1)))
+        redigest(CORPUS / "seeds" / seed.name, seed)
 
     code = corpus_run.main(["--corpus", str(corpus)])
     out = capsys.readouterr().out
@@ -474,7 +483,7 @@ def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 96
+    assert len(SEEDS) == 105
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name

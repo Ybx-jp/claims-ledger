@@ -1,0 +1,32 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the `## Passages` section is last, below the APPEND marker, and its one block is well formed: an ISO 8601 timestamp no earlier than the entry, an author who may write, and a witness stated by value"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the witness digests to the Observation section as commit 01 held it, and the held prose is a contiguous run of that section"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the note the prose came out of names no entry, and the digest document that cites this one is not the document the ground pins, which is how every by-value seed here is built"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the lift moved the section the ground is anchored to, and the reading verdict at commit 02 states the digest of the section as the lift left it"
+    }
+  ],
+  "note": "the shape every other passage seed is a deformation of: prose lifted out of an artifact at commit 02, the witness naming the section as commit 01 held it, and a reading verdict discharging the drift the lift itself caused. A `## Passages` section is optional, so every other seed in this corpus is a near-negative for the optionality rule and this one is the positive: a tail section that is present is held to its place in the order. The citing sentence sits in a second document rather than in the section the ground pins, because an artifact anchored by value may carry no entry id — a consistent rename of every id in a seed is a transformation the corpus holds itself invariant under, and it would move the digest of any section with an id inside it. That a real lift leaves the citation where it was is held by `tests/test_passages.py::test_a_line_carrying_a_citation_is_never_taken`, and the rule about where a citation belongs by D60 and K28.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

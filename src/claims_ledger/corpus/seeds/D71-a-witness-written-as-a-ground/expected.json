@@ -1,0 +1,21 @@
+{
+  "class": "a witness written as a ground",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "freshness",
+      "outcome": "flag",
+      "where": "commit 02, A0001 Grounds 2",
+      "why": "the second ground is the witness: the digest of the Observation section as it stood before the lift took prose out of it. `freshness` reads grounds, compares that anchor against the tree, and finds a section that no longer digests to it — on this run and on every run after it, because the lift is what made the two differ and nothing will ever put the prose back",
+      "message": "differs from the anchor"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the flag is true and the entry is not wrong about anything: the prose is held, the witness resolves, and the measurement the claim rests on is still in the section. What is wrong is where the provenance was written. A witness belongs on the `lifted:` line of the passage, which `freshness` does not read; written as a ground it is a standing flag no reading verdict can honestly clear, since a reading anchored to the section as it stands now is a reading of text the witness was never about"
+    }
+  ],
+  "note": "the negative of the rule `check_passages` states by refusing a witness stated by reference: a witness names an artifact as it stood before the lift, and every checker that reads grounds is asking about the artifact as it stands now. Ground 1 is the same section anchored where it actually is and passes, which is what keeps the flag on ground 2 from reading as a complaint about the lift itself. That `freshness` says nothing about the `lifted:` line carrying the very same digest is the other half of the seed: a passage is not a ground, and the corpus would show it if it ever became one.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

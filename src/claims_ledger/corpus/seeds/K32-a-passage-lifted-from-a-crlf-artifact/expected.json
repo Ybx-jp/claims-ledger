@@ -1,0 +1,32 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the block is well formed; nothing in a passage is about line endings"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the witness digests to the CRLF section as commit 01 held it, and the LF prose on the entry is a contiguous run of it: both sides are read through universal newlines, so the comparison is about the text and not about the bytes"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "unchanged from K31: the citing document is the digest, not the artifact"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the reading verdict states the digest of the section as the lift left it, computed the same way"
+    }
+  ],
+  "note": "K31 with the artifact's line endings changed and nothing else, and it pins which of two readings of `verbatim` this package means. `digest_of` strips trailing whitespace and every reader — `read_text` on the working tree, `blob_text` on a blob — goes through universal newlines, so a passage lifted out of a CRLF file is digest-true against an LF copy of the same text and byte-false against the file it came out of. That is the intended reading: a project that normalizes its line endings, or a checkout on another platform, has not falsified anything any entry holds. The seed exists so that a change to any of those readers has to move this outcome before it lands.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}
