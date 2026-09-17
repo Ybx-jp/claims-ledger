@@ -37,6 +37,14 @@ none
 - 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:75047ccad1a470ef72c17a05d8453b51ab1364e869757765003a8204c2ec4efa
   note: re-read after the commit that widens an object id to the repository's own hash width, and the reading records that this claim did not hold everywhere before it. The search reads every version of the path by collecting blob ids out of `git log --raw --no-abbrev`, and it filtered them through a forty-wide pattern: in a repository created with `--object-format=sha256` every id was discarded and no version was read at all, so a ground whose text had left the tree was reported as held by no version the repository has — the shallow-clone sentence's own failure mode, arrived at with the history intact. Measured in both formats before and after. The claim as written needs no change; the code now does what it says in either repository.
+- 2026-09-15T17:25:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:75047ccad1a470ef72c17a05d8453b51ab1364e869757765003a8204c2ec4efa
+  artifact: sha256:d3c7c028c30c1c1456e5f56bbe7294b8f72ef7e901e31366fc49e700fc00b968
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:d3c7c028c30c1c1456e5f56bbe7294b8f72ef7e901e31366fc49e700fc00b968
+  note: re-read after the walk gained a `want_text` parameter, so that one pass of the history answers both the anchor that needs a yes and the held passage that needs the text. The walk itself is unchanged: the same `--all --full-history` log, the same object-id width taken from the repository, the same shallow-clone refusal.
 
 ## References
 

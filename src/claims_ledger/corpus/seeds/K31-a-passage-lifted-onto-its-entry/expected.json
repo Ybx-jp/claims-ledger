@@ -1,0 +1,32 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the `## Passages` section is last, below the APPEND marker, and its one block is well formed: an ISO 8601 timestamp no earlier than the entry, an author who may write, and a witness stated by value"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the witness digests to the Observation section as commit 01 held it, and the held prose is a contiguous run of that section"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the lift left the citing sentence in the section it was in, so the sentence that states the claim and the span the claim rests on are still one span — which is what `citation-placement` asks, and it is on in this corpus"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the lift moved the section the ground is anchored to, and the reading verdict at commit 02 states the digest of the section as the lift left it"
+    }
+  ],
+  "note": "the shape every other passage seed is a deformation of: prose lifted out of an artifact at commit 02, the citation left where it was, the witness naming the section as commit 01 held it, and a reading verdict discharging the drift the lift itself caused. Three things are held here at once and no earlier seed holds any of them: a `## Passages` section is optional, so every other seed in this corpus is a near-negative for the optionality rule and this one is the positive; the citation stays inside the span the ground pins, so `references` and the placement rule are both asked about a section prose has just been taken out of; and the ground is anchored by value over text that carries an entry id, which is only stable because the corpus re-derives anchors under a rename.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

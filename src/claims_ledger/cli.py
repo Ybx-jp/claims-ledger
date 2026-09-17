@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import datetime
+import difflib
 import os
 import shlex
 import statistics
@@ -21,6 +23,7 @@ from . import (
     authoring,
     freshness,
     harness,
+    lift,
     neighbours,
     propagate,
     references,
@@ -28,9 +31,11 @@ from . import (
     resolve,
     validate,
 )
+from .authoring import AuthoringError, refuse_to_write_outside_the_root
 from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
+    by_id,
     entries_dir_listing_error,
     entries_for,
     exit_code,
@@ -317,6 +322,22 @@ def build_parser():
         help="ask as a merge guard does, and do what `merge-renumber` configures",
     )
 
+    lifter = sub.add_parser(
+        "lift", help="move a section's narrative prose onto the entry that rests on it"
+    )
+    lifter.add_argument("entry", help="the entry id the prose belongs to")
+    lifter.add_argument(
+        "--ground",
+        type=int,
+        help="which sectioned ground to lift from, when there is more than one",
+    )
+    lifter.add_argument(
+        "--write", action="store_true", help="take the prose; without it, say what would be taken"
+    )
+    lifter.add_argument("--patch", help="write a reverse patch here, to put the prose back")
+    lifter.add_argument("--author", default="main", help="the author of the passage block")
+    shower = sub.add_parser("show", help="print the prose an entry holds")
+    shower.add_argument("entry", help="the entry id")
     s = sub.add_parser(
         "sha", help="the verbatim fingerprint of an entry, recomputed from Scope and Backing"
     )
@@ -694,6 +715,121 @@ def cmd_new(args, ledger):
         f"Once the Grounds are filled in, `claims-ledger neighbours {path.stem}` says "
         "which entries are already about the same code."
     )
+    return 0
+
+
+def cmd_lift(args, ledger):
+    """Move a section's narrative prose onto the entry that rests on it.
+
+    Dry by default. A lift deletes prose from a project's source, so the run that says
+    what it would do is the one you get without asking for the other
+    (L0272-a-lift-says-what-it-would-do-before-it-does-it, cites-as-live).
+    """
+    entries = load_entries(ledger)
+    entry = by_id(entries).get(args.entry)
+    if entry is None:
+        print(f"claims-ledger: no entry {args.entry}", file=sys.stderr)
+        return 2
+    sectioned = [
+        p for p in entry.ground_pointers if p.type in ledger.config.evidence_sectioned and p.section
+    ]
+    if not sectioned:
+        print(
+            f"claims-ledger: {entry.id} rests on no sectioned ground to lift from", file=sys.stderr
+        )
+        return 2
+    if len(sectioned) > 1 and args.ground is None:
+        print(
+            f"claims-ledger: {entry.id} rests on {len(sectioned)} sectioned grounds; "
+            "name one with --ground N",
+            file=sys.stderr,
+        )
+        for i, p in enumerate(sectioned, start=1):
+            print(f'  {i}  {p.type}: {p.target} § "{p.section}"', file=sys.stderr)
+        return 2
+    pointer = sectioned[(args.ground or 1) - 1]
+    path = ledger.config.root / pointer.target
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"claims-ledger: {pointer.target}: {exc}", file=sys.stderr)
+        return 2
+    try:
+        lift.refuse_unless_git_holds_it(ledger.repo, pointer.target, text)
+        witness, prose, after = lift.plan(entry, pointer, text, ledger.config)
+    except LedgerError as exc:
+        print(f"claims-ledger: {exc}", file=sys.stderr)
+        return 2
+    stamp = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
+    blocks = [lift.passage_block(stamp, args.author, pointer, witness, x) for x in prose]
+    lines = sum(len(x.splitlines()) for x in prose)
+    runs = f"{len(prose)} run(s), " if len(prose) > 1 else ""
+    print(f'{pointer.target} § "{pointer.section}": {runs}{lines} line(s) onto {entry.id}')
+    print(f"  witness {witness}")
+    if not args.write:
+        print("  (nothing written; pass --write to take it)")
+        shown = 0
+        for i, x in enumerate(prose, start=1):
+            if len(prose) > 1:
+                print(f"  -- run {i}")
+            for ln in x.splitlines():
+                if shown >= 8:
+                    break
+                print(f"  | {ln}")
+                shown += 1
+        if lines > shown:
+            print(f"  | … {lines - shown} more")
+        return 0
+    if args.patch:
+        Path(args.patch).write_text(reverse_patch(pointer.target, after, text), encoding="utf-8")
+        print(f"  reverse patch written to {args.patch}")
+    # Both sides of a lift are files this command is about to rewrite, and either can be a
+    # symlink out of the project; where the link leads is the caller's question
+    # (L0068-a-write-is-refused-through-an-escaping-link-and-a-read-is-not, cites-as-live).
+    for target in (path, entry.path):
+        try:
+            refuse_to_write_outside_the_root(ledger, target)
+        except AuthoringError as exc:
+            print(f"claims-ledger: {exc}", file=sys.stderr)
+            return 2
+    write_text_atomically(path, after)
+    held = entry.text
+    for block in blocks:
+        held = lift.append_passage(held, block)
+    write_text_atomically(entry.path, held)
+    print(f"  written; {ledger.config.relative(entry.path)} holds {len(blocks)} passage(s)")
+    return 0
+
+
+def reverse_patch(rel, after, before):
+    """A unified diff that puts `before` back over `after`, for a person to apply."""
+    return "".join(
+        difflib.unified_diff(
+            after.splitlines(keepends=True),
+            before.splitlines(keepends=True),
+            fromfile=f"a/{rel}",
+            tofile=f"b/{rel}",
+        )
+    )
+
+
+def cmd_show(args, ledger):
+    """Print the prose an entry holds — what an editor asks for when a marker is hovered."""
+    entries = load_entries(ledger)
+    entry = by_id(entries).get(args.entry)
+    if entry is None:
+        print(f"claims-ledger: no entry {args.entry}", file=sys.stderr)
+        return 2
+    if not entry.passages:
+        print(f"{entry.id} holds no lifted prose")
+        return 0
+    for p in entry.passages:
+        print(f"{entry.id} {p.part} · {p.timestamp} · author: {p.author}")
+        print(f"  lifted: {p.lifted}")
+        print()
+        for ln in (p.text or "").splitlines():
+            print(f"  {ln}")
+        print()
     return 0
 
 
@@ -1172,6 +1308,8 @@ COMMANDS = {
     "status": cmd_status,
     "neighbours": cmd_neighbours,
     "new": cmd_new,
+    "lift": cmd_lift,
+    "show": cmd_show,
     "sha": cmd_sha,
     "source": cmd_source,
     "init": cmd_init,

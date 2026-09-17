@@ -38,6 +38,15 @@ none
 
 ## Verdicts
 
+- 2026-09-15T17:25:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:75047ccad1a470ef72c17a05d8453b51ab1364e869757765003a8204c2ec4efa
+  artifact: sha256:d3c7c028c30c1c1456e5f56bbe7294b8f72ef7e901e31366fc49e700fc00b968
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "digest_in_history" =sha256:d3c7c028c30c1c1456e5f56bbe7294b8f72ef7e901e31366fc49e700fc00b968
+  note: re-read after the walk gained a `want_text` parameter, so that one pass of the history answers both the anchor that needs a yes and the held passage that needs the text. The walk itself is unchanged: the same `--all --full-history` log, the same object-id width taken from the repository, the same shallow-clone refusal.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

@@ -98,7 +98,9 @@ for predictions and hypotheses, omitted otherwise, never guessed), `supersedes` 
 or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
 
 **Sections**, in order: Assertion, Scope, Grounds, Warrant, Backing, then the line
-`<!-- APPEND BELOW THIS LINE ONLY -->`, then Verdicts and References.
+`<!-- APPEND BELOW THIS LINE ONLY -->`, then Verdicts, References and — where an entry
+holds prose lifted out of the artifact it rests on — Passages. Passages is the one
+optional section; every other is required of every entry.
 
 - *Assertion* is the claim in the project's words. **No quotation mark may appear in
   it.** Every fusion of quote and inference the audit found lived inside quotation marks
@@ -176,6 +178,44 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
   a block that says a thing twice does not say it once. An assertion is a
   proposition made by an agent on an occasion; `author` and `stated` are the agent and
   the occasion, and a verdict under the wrong agent is malformed whatever it says.
+- *Passages* holds prose that was lifted out of an artifact and is now held here, one
+  append-only block per revision:
+
+      - <timestamp> · author: <an allowed author>
+        lifted: <a sectioned evidence pointer, stated by value, at the section as it
+                 stood BEFORE the lift removed the prose>
+        passage:
+              <the prose, every line indented six spaces on top of its own indentation>
+
+  It is below the APPEND marker, and that is not a preference. A section added above the
+  marker on an entry that is already committed fails the frozen-region comparison outside
+  any section, so prose held there could only ever be added by superseding the entry —
+  and a project lifting prose out of code it is still writing would pay a supersession
+  for every wording fix. Held below the marker, a lift onto an existing entry touches no
+  frozen byte. The blocks are compared across every pair of revisions exactly as verdict
+  blocks are, because nothing else would hold them: the frozen comparison does not reach
+  below the marker and the entries directory is not a configured document.
+
+  **The witness is stated by value, never by reference, and is not a ground.** It names
+  text the tree no longer holds, by construction — the lift removed it — so `freshness`,
+  which compares every pinned evidence pointer against the tree, would report it `moved`
+  on every run for the rest of the ledger's life, with no verdict able to discharge a
+  finding that is true. `resolve` reads it out of the history alone, which is also what
+  lets a lift land in one commit: the pre-lift blob is in git before the lift is planned.
+  Resolution is two propositions and the second is the one that matters — some version of
+  the path digests to the witness, *and* the held prose is a contiguous run of the lines
+  that version held. A witness that resolves says only that the section existed; it does
+  not say the prose came out of it.
+
+  **What is checked is that the prose was there, not that it was taken away.** Two things
+  no check can see follow from that, and both are the reader's to notice: a passage that
+  is a *shorter* run than what the lift removed resolves, because every line it holds was
+  in the section in that order and nothing on the entry says how many there should have
+  been; and a passage copied rather than moved resolves too, because the artifact still
+  holding the prose is not a thing any of the five checkers asks about. `lift` moves, and
+  refuses a file whose working tree differs from HEAD so that what it removes is already
+  in git — but a passage written by hand carries no such guarantee.
+
 - *References* lists the documents (not entries) that cite this entry:
   `- <path> · standing | record · <act>`. Entry-to-entry edges are read from Grounds and
   are not repeated here. A document cites an entry inline as `(A0007-<slug>, cites-as-live)`,

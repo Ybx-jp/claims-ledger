@@ -30,6 +30,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
+import time
 import unicodedata
 from pathlib import Path
 
@@ -140,10 +143,26 @@ def test_every_expectation_row_names_the_report_place_exactly():
     assert not loose, sorted(set(loose))
 
 
+def test_a_row_at_a_passage_place_pins_a_message():
+    """`validate` reports at a passage's place from two rules — `check_passages` for the
+    block's shape and `check_history` for the append-only comparison — and `matches()`
+    folds case, so `Passage 1` and `passage 1` are one place. A row there that named no
+    message would be held up by whichever of the two rules still existed, which is the
+    decoration the exact-place rule exists to prevent. The ambiguity test above catches it
+    only where one seed happens to produce both reports at once; this catches the row."""
+    loose = []
+    for seed in SEEDS:
+        for row in binding_rows(seed):
+            _, _, part = corpus_run.parse_where(row["where"])
+            if re.fullmatch(r"passage \d+", part, re.IGNORECASE) and not row.get("message"):
+                loose.append((seed.name, row["checker"], row["where"]))
+    assert not loose, loose
+
+
 def test_only_the_documented_seeds_produce_no_report_at_all():
     """A defect seed that trips nothing is review-only, and the corpus README names which
     ones those are. A new silent seed would be a defect class nobody is checking."""
-    documented = {"D11", "D13", "D33", "D40", "D41"}
+    documented = {"D11", "D13", "D33", "D40", "D41", "D68"}
     silent = {
         s.name.split("-")[0]
         for s in SEEDS
@@ -419,6 +438,14 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
 
     Five-digit and archived-prefix ids are left alone by the pattern itself: D20's
     `A10000` has a fifth digit, and `C0001` keeps its quarantined `C`.
+
+    The anchors are recomputed afterwards (`redigest`), as they are for trailing
+    whitespace, and for the same reason: an id that sits inside a span some entry anchors
+    by value is text, and renaming it is a change to that text. D70 is the seed that has
+    one — a held passage that names the entry the rename is about — and in a real project
+    it is `renumber --write` doing exactly this. Nothing about the rename is invisible to
+    the digests; what the test asserts is that with the digests re-derived, no seed's
+    verdict moves.
     """
     corpus = copy_corpus(tmp_path)
 
@@ -438,6 +465,7 @@ def test_a_consistent_entry_id_rename_moves_no_verdict(capsys, tmp_path):
         for path in sorted(seed.rglob("*.md"), key=lambda p: -len(p.parts)):
             if ENTRY_ID.match(path.name):
                 path.rename(path.with_name(ENTRY_ID.sub(bump, path.name, count=1)))
+        redigest(CORPUS / "seeds" / seed.name, seed)
 
     code = corpus_run.main(["--corpus", str(corpus)])
     out = capsys.readouterr().out
@@ -469,12 +497,26 @@ def test_every_seed_is_named_in_the_corpus_readme():
     assert not missing, missing
 
 
+def test_the_crlf_seed_still_has_crlf_in_it():
+    """K32 is K31 with one difference, and the difference is in bytes no rendering shows.
+    A line-ending normalization — a `.gitattributes` rule, an editor, a careless `sed -i`
+    — would turn it into a second copy of K31 that passes for the wrong reason, and
+    `test_no_two_seeds_are_the_same_case` would not catch it, because the entries still
+    differ. What the seed pins is that a witness taken over CRLF text resolves against a
+    passage stored with LF, so the CRLF has to actually be there."""
+    seed = next(s for s in SEEDS if s.name.startswith("K32"))
+    notes = sorted(seed.glob("commits/*/docs/note-*.md"))
+    assert notes, seed.name
+    for note in notes:
+        assert b"\r\n" in note.read_bytes(), note
+
+
 def test_the_corpus_the_package_ships_is_the_corpus_the_repository_has():
     """`hatchling` takes `packages = ["src/claims_ledger"]`, so the seeds ride along inside
     the package. This is the invariant the empty-corpus gate (above) is there to protect:
     a wheel that shipped a partial corpus would still print `N/N seeds pass`."""
     assert CORPUS.parent.name == "claims_ledger"
-    assert len(SEEDS) == 96
+    assert len(SEEDS) == 106
     assert {n[0] for n in SEED_NAMES} == {"D", "K"}
     for seed in SEEDS:
         assert (seed / "expected.json").is_file(), seed.name
@@ -555,6 +597,125 @@ def test_an_empty_expected_message_does_not_match_every_report():
     )
 
 
+def test_the_scratch_directory_survives_a_removal_that_races_a_writer(tmp_path):
+    """The condition itself, staged, rather than the flag that answers it.
+
+    A thread keeps making files under a `.git` inside the directory while it is being
+    removed, which is what git does on its own schedule and what the CI failure was:
+    `OSError: [Errno 39] Directory not empty: '/tmp/corpus-hbiy3dvr/.git'`, run
+    35194363883 attempt 1, ubuntu 3.14, after 71 seeds had passed. The bare
+    `TemporaryDirectory` is the control and it has to fire, or this test showed nothing and
+    says so instead of passing.
+    """
+    from claims_ledger.corpus import run as corpus_run
+
+    def race(make):
+        stop = threading.Event()
+        holder = make()
+        git_dir = Path(holder.name) / ".git"
+        git_dir.mkdir(exist_ok=True)
+        for i in range(400):
+            (git_dir / f"o{i}").touch()
+
+        def writer():
+            i = 1000
+            while not stop.is_set():
+                try:
+                    git_dir.mkdir(exist_ok=True)
+                    (git_dir / f"w{i}").touch()
+                except OSError:
+                    pass
+                i += 1
+
+        thread = threading.Thread(target=writer, daemon=True)
+        thread.start()
+        time.sleep(0.01)
+        try:
+            holder.cleanup()
+            return None
+        except OSError as exc:
+            return exc
+        finally:
+            stop.set()
+            thread.join(timeout=2)
+            shutil.rmtree(holder.name, ignore_errors=True)
+
+    control = [race(lambda: tempfile.TemporaryDirectory(prefix="corpus-")) for _ in range(5)]
+    if not any(isinstance(e, OSError) for e in control):
+        pytest.skip("the race did not stage on this machine; the control never fired")
+    for _ in range(5):
+        assert race(corpus_run.scratch) is None
+
+
+GIT_FLAGS = ("gc.auto=0", "maintenance.auto=false")
+
+
+def test_every_git_command_the_runner_makes_carries_both_flags():
+    """Read off the syntax tree, not counted in the source. The count this replaced —
+    `source.count('"gc.auto=0"') == 2` — was loud about a third *correct* surface and
+    silent about a third *wrong* one: adding an unflagged `subprocess.run(["git", ...])`
+    left it green. A seed's repository is real, and a git command that starts a writer the
+    teardown then races is the incident this is about."""
+    source = SRC.joinpath("claims_ledger", "corpus", "run.py").read_text(encoding="utf-8")
+    unflagged = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        argv = node.args[0]
+        if not isinstance(argv, ast.List):
+            continue
+        literals = [e.value for e in argv.elts if isinstance(e, ast.Constant)]
+        if "git" not in literals[:1]:
+            continue
+        missing = [flag for flag in GIT_FLAGS if flag not in literals]
+        if missing:
+            unflagged.append((node.lineno, missing))
+    assert not unflagged, unflagged
+
+
+def test_a_git_that_will_not_answer_is_a_finding_not_a_bug_report(tmp_path, monkeypatch):
+    """The shape QE8-92 found, one command further on. `git rev-parse` and `git
+    hash-object` are asked for a value, and `subprocess.run(check=True, timeout=...)`
+    raises two exceptions no caller here expects — so a loaded machine printed `this is a
+    bug. Please report it` over a corpus that was building normally. Both are now findings
+    that name the command, and `run_seed` puts the seed in front of them."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+
+    def timed_out(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="git", timeout=30)
+
+    monkeypatch.setattr(corpus_run.subprocess, "run", timed_out)
+    with pytest.raises(LedgerError, match="did not answer within"):
+        corpus_run.head(repo)
+
+    def refused(*args, **kwargs):
+        raise subprocess.CalledProcessError(128, "git", stderr=b"fatal: not a repository")
+
+    monkeypatch.setattr(corpus_run.subprocess, "run", refused)
+    with pytest.raises(LedgerError, match="fatal: not a repository"):
+        corpus_run.head(repo)
+
+
+def test_a_seed_that_could_not_be_built_says_which_seed(tmp_path, monkeypatch):
+    """The other half: the report names the command and that nothing was proven, and a
+    reader with a hundred seeds still has to be told where to look."""
+    from claims_ledger.corpus import run as corpus_run
+    from claims_ledger.schema import LedgerError
+
+    def unbuildable(*args, **kwargs):
+        raise LedgerError("`git commit` failed while building the corpus repository")
+
+    monkeypatch.setattr(corpus_run, "apply_seed", unbuildable)
+    seed = next(s for s in SEEDS if s.name.startswith("K01"))
+    with pytest.raises(LedgerError, match=r"K01-measured-claim: `git commit` failed"):
+        corpus_run.run_seed(seed, CORPUS)
+
+
 def test_a_blob_token_naming_nothing_is_a_seed_error_not_a_bug_report(tmp_path):
     """QE8-92 — QE7-76's shape in new code. A seed-authoring mistake reached the CLI's
     catch-all as `unexpected FileNotFoundError … this is a bug. Please report it`, on the
@@ -591,7 +752,15 @@ REPORT_SITE_COUNTS = {
     # test_two_entries_carrying_one_number_are_a_failure, and nothing else: nothing
     # reported a duplicated number before this site, which is why a merge could land one
     # in silence.
-    "validate.py": 81,
+    # 81 + 11: the eleven things a `## Passages` block can be wrong about — a malformed
+    # block, a timestamp that is not ISO 8601, one before the entry was stated, one out of
+    # order, an author who may not write, a witness that is not an evidence pointer, one
+    # written for the wrong sectionedness, one stated by reference, one still pending, one
+    # that is not a digest, and a block holding no prose. Swept (2026-09-15) against a
+    # copied tree whose venv `.pth` was repointed at the copy first — without that the
+    # mutant silently tests HEAD and every site reads as unheld, which is how the first
+    # run of this sweep returned 0 of 14. Deleting each reddens tests/test_passages.py.
+    "validate.py": 92,
     # 16 + 4: a ground anchored by value, resolved from the tree or from history. Swept
     # (2026-09-11) — the uncommitted anchor that does not digest to the tree and the flag
     # for text no version of the path holds redden the corpus (D63, D64) and
@@ -599,6 +768,13 @@ REPORT_SITE_COUNTS = {
     # there; and a git that could not say whether the entry is committed was held by
     # nothing, so test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure
     # was written for it.
+    # 24 + 3: a passage whose witness git could not be asked about, one no version of the
+    # path digests to, and one whose prose is not a contiguous run of the version the
+    # witness found. Swept (2026-09-15) the same way; the third is the site the whole
+    # mechanism exists for. The sweep's record that deleting it reddened
+    # test_a_passage_the_artifact_never_held_fails *alone* was true of the tree it was run
+    # against and is not true now: D67 and D70 both redden it, as do the two comparison
+    # tests written with the line rule.
     # 20 + 1: the artifact of a `working` ground that git could not read out of the index,
     # which is not the index saying it does not hold the path. Swept (2026-09-11) —
     # deleting it reddens
@@ -607,7 +783,7 @@ REPORT_SITE_COUNTS = {
     # counted here, but each was swept the same way and each was held by nothing until the
     # test named in its own commit was written: the entry list, the source registry, and
     # the configured documents.
-    "resolve.py": 21,
+    "resolve.py": 24,
     # 15 + 1: the parenthetical shaped like a citation whose act is not a citation act.
     # Swept — deleting it reddens the corpus at
     # D59-document-cites-with-an-act-that-is-not-one, and nothing else.

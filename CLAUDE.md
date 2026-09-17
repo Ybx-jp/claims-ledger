@@ -106,3 +106,13 @@ end state the rewrite would produce.
 
 When a quality-engineering audit produces a list of fixes, the fixes are reviewed by a
 `qe` consultation before merge — not by a further audit pass over the same ground.
+
+**A round that mutates gets its own worktree.** A mutation has to be made in the tree the
+`.venv` resolves, or the mutant is never imported and the suite reports its usual green —
+so a review round mutating the checkout it was pointed at leaves live mutants in it. On
+2026-09-17 one of them, `while False:` in `lines_rstripped`, was swept into a commit by a
+`git add -A` and pushed: ruff, ruff format, ty, 1244 tests, all five checkers, 106 seeds
+and nine CI jobs passed over a function doing the opposite of its docstring. Spawn the
+round with its own `git worktree` and build a virtualenv inside it — `uv venv .venv &&
+VIRTUAL_ENV=$PWD/.venv uv pip install -e .`, then confirm `claims_ledger.__file__` is
+under that worktree — and do not commit from a tree while a round is open in it.

@@ -1,0 +1,21 @@
+{
+  "class": "a witness no version of the path digests to",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Passage 1",
+      "why": "no version of the note this repository holds digests to the witness, so the prose on the entry cannot be shown to have been in the artifact at all",
+      "message": "digests to the witness"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the entry holds prose whose provenance nothing can confirm; either the witness was mistyped and is repairable from the version the lift was taken from, or the prose was never in the artifact and the passage does not belong on the entry"
+    }
+  ],
+  "note": "a witness that names text no version of the path holds, and the only thing that produces it is a wrong digest — a mistyped one, or one taken from a file the lift never read. It is **not** what a shallow clone leaves, and the difference is worth knowing because `actions/checkout` is depth 1 by default: `digest_in_history` asks git whether the repository is shallow before it concludes anything, and answers `was not resolved: … this repository is a shallow clone` rather than this seed's accusation. That case cannot be a seed at all — the runner builds one linear, reachable history and cannot graft it — so it is held by `tests/test_passages.py::test_a_shallow_clone_says_so_rather_than_that_the_witness_is_unknown` and named in the README's list of what no seed can reach. What this seed does pin is the outcome: `fail`, not `flag`. A by-value *ground* naming text no version holds is D64 and flags, because the datum is stated in full and only the diff is lost; a witness that cannot be found proves nothing about prose that is stated somewhere else, so it fails.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

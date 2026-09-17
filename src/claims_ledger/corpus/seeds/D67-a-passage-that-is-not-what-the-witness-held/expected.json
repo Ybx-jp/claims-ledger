@@ -1,0 +1,21 @@
+{
+  "class": "a passage that is not what the witness held",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 02, A0001 Passage 1",
+      "why": "the witness resolves — commit 01 holds a section that digests to it — and the prose on the entry is still not what came out of it: one line says three decimal places where the note said two",
+      "message": "is not a contiguous run"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the repair is to restore the passage from the version the witness names, not to re-anchor the witness to the text that was written: the entry is quoting an artifact, and the artifact said two"
+    }
+  ],
+  "note": "the class the whole mechanism exists to refuse, and the one a witness alone does not catch. A witness that resolves says the section was there; it does not say the prose on the entry is what was taken out of it. The seed states the end state a careless lift leaves rather than running the command, because a seed is files on disk.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

@@ -31,6 +31,7 @@ from .schema import (
     MEASURED_AND_ABOVE,
     NULL_OBJECT_IDS,
     OBJECT_ID_RE,
+    OPTIONAL_SECTIONS,
     PENDING_ANCHOR,
     PREFIX_RE,
     SCOPE_KEYS,
@@ -236,8 +237,13 @@ def check_sections(e, config):
     flag = lambda part, msg: out.append(Report("flag", e.prefix, part, msg))  # noqa: E731
     expected = list(SECTIONS) + list(TAIL_SECTIONS)
     present = [s for s in e.section_order if s in expected]
-    if present != expected:
-        missing = [s for s in expected if s not in e.section_order]
+    # An optional section is held to its place in the order when it is there and is not
+    # missed when it is not, which is what lets a new tail section land on a ledger whose
+    # entries all predate it (L0262-an-optional-section-is-required-only-where-it-appears,
+    # cites-as-live).
+    wanted = [s for s in expected if s not in OPTIONAL_SECTIONS or s in present]
+    if present != wanted:
+        missing = [s for s in wanted if s not in e.section_order]
         for s in missing:
             fail(s, "section missing")
         if not missing:
@@ -384,6 +390,76 @@ def check_anchors(e, config):
             )
         elif not DIGEST_RE.match(p.digest):
             fail(part, f"`{raw}`: an anchor stated by value is `=sha256:<64 hex>`, or `=?`")
+    return out
+
+
+def check_passages(e, config):
+    """Every block of a `## Passages` section is well formed, and its witness is the one
+    shape that can resolve.
+
+    A witness is stated **by value** and never by reference, and the reason is not taste.
+    A witness names the artifact as it stood *before* the lift removed the prose, so the
+    tree never holds it again; `freshness.checked_pointers` takes every evidence pointer
+    carrying a real pin, so a witness written `@<commit>` would be compared against the
+    tree and reported `moved` on every run for the rest of the ledger's life, with no
+    verdict able to discharge it, because the finding is true and permanent
+    (L0263-a-witness-is-stated-by-value-so-freshness-never-reads-it, cites-as-live).
+
+    The same reason keeps the witness out of Grounds. It is not a datum the Warrant uses —
+    it is the provenance of prose the entry now holds — and a ground is what `freshness`
+    reads and what the grade rule counts, so a witness written as one would both flag
+    forever and hand an `asserted` entry an evidence ground it is forbidden
+    (L0264-a-witness-is-not-a-ground, cites-as-live).
+    """
+    out = []
+    fail = lambda part, msg: out.append(Report("fail", e.prefix, part, msg))  # noqa: E731
+    stated = parse_timestamp(e.front.get("stated"))
+    last = None
+    for p in e.passages:
+        if p.malformed:
+            fail(p.part, p.malformed)
+            continue
+        when = parse_timestamp(p.timestamp)
+        if when is None:
+            fail(p.part, f"`{p.timestamp}` is not ISO 8601 to the second with a UTC offset")
+        else:
+            if stated is not None and when < stated:
+                fail(p.part, "is timestamped before the entry was stated")
+            if last is not None and when < last:
+                fail(p.part, "passage timestamps must be non-decreasing down the file")
+            last = when
+        if p.author not in config.verdict_authors:
+            fail(p.part, f"author `{p.author}` is not one of {list(config.verdict_authors)}")
+        pointer = p.pointer
+        if pointer is None or pointer.type not in config.evidence_types:
+            fail(
+                p.part,
+                f"`lifted: {p.lifted}` is not an evidence pointer "
+                f"({'/'.join(config.evidence_types)})",
+            )
+        elif pointer.sectioned != config.is_sectioned(pointer.type):
+            want = (
+                f'{pointer.type}: <path> § "<section>" =sha256:<64 hex>'
+                if config.is_sectioned(pointer.type)
+                else f"{pointer.type}: <path> =sha256:<64 hex>"
+            )
+            fail(p.part, f"`lifted: {p.lifted}` is not written as `{want}`")
+        elif not pointer.by_value:
+            fail(
+                p.part,
+                f"`lifted: {p.lifted}` is stated by reference; a witness names text the "
+                "tree no longer holds, so a pin would be reported moved on every run and "
+                "no verdict could discharge it. State it as `=sha256:<64 hex>`",
+            )
+        elif pointer.digest == PENDING_ANCHOR:
+            fail(
+                p.part,
+                "`lifted:` has an anchor still to be computed; `claims-ledger lift` fills it",
+            )
+        elif not DIGEST_RE.match(pointer.digest):
+            fail(p.part, f"`lifted: {p.lifted}`: a witness is `=sha256:<64 hex>`")
+        if not (p.text or "").strip():
+            fail(p.part, "holds no prose; a passage that lifted nothing is not a passage")
     return out
 
 
@@ -905,21 +981,32 @@ def check_history(ledger, entries, cached=False):
             t_old, t_new = texts[h_old], texts[h_new]
             if t_old is None or t_new is None or t_old == t_new:
                 continue  # a revision that could not be read is reported above, not waived
-            old = [v.raw.rstrip() for v in parse_entry("x.md", t_old).verdicts]
-            new = [v.raw.rstrip() for v in parse_entry("x.md", t_new).verdicts]
+            was, now = parse_entry("x.md", t_old), parse_entry("x.md", t_new)
             label = h_new[:7] if h_new != "working tree" else h_new
-            for i, block in enumerate(old, start=1):
-                if i > len(new) or new[i - 1] != block:
-                    out.append(
-                        Report(
-                            "fail",
-                            e.prefix,
-                            f"verdict {i}",
-                            f"present at {h_old[:7]} and changed or removed at {label}; "
-                            "verdicts append and only append",
+            # Both append-only lists, not just the verdicts. A `## Passages` block holds
+            # prose lifted out of the artifact and the witness that proves it was there,
+            # and it sits below the marker, where the frozen-region comparison does not
+            # reach — so without this it would be held by no rule at all and a held
+            # passage could be rewritten or dropped with every checker green
+            # (L0265-a-passage-appends-and-only-appends-across-every-edge, cites-as-live).
+            for what, olds, news in (
+                ("verdict", was.verdicts, now.verdicts),
+                ("passage", was.passages, now.passages),
+            ):
+                old = [b.raw.rstrip() for b in olds]
+                new = [b.raw.rstrip() for b in news]
+                for i, block in enumerate(old, start=1):
+                    if i > len(new) or new[i - 1] != block:
+                        out.append(
+                            Report(
+                                "fail",
+                                e.prefix,
+                                f"{what} {i}",
+                                f"present at {h_old[:7]} and changed or removed at {label}; "
+                                f"{what}s append and only append",
+                            )
                         )
-                    )
-                    break
+                        break
     return out
 
 
@@ -978,6 +1065,7 @@ def run(ledger, cached=False, entries=None):
         reports += check_sections(e, config)
         reports += check_anchors(e, config)
         reports += check_verdicts(e, index, config)
+        reports += check_passages(e, config)
         reports += check_supersession(e, index)
     reports += check_numbers(entries)
     reports += check_history(ledger, entries, cached=cached)

@@ -1,0 +1,28 @@
+{
+  "class": "an id rewritten inside a held passage",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "fail",
+      "where": "commit 03, A0001 passage 1",
+      "why": "the block the entry held at commit 02 is not the block it holds at commit 03; a passage appends and only appends, and a substitution that rewrites one in place is an edit to a record like any other",
+      "message": "append and only append"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "fail",
+      "where": "commit 03, A0001 Passage 1",
+      "why": "and the rewritten prose no longer matches the version the witness names, which is the damage the append-only rule was there to stop: the entry now states as lifted a sentence the artifact never held",
+      "message": "is not a contiguous run"
+    },
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "the renumbering itself is legitimate and the entry it renamed is fine; what is not is that the substitution reached inside a held passage. The repair is to restore the passage and leave the old id standing in it, because the passage is a quotation of what the artifact said at a commit, and what it said is not renamed by a later collision"
+    }
+  ],
+  "note": "the end state `renumber --write` produces: `commit_texts` substitutes ids into entry files, and an entry file is now somewhere a quotation lives. Commit 03 renames A0002 to A0007 exactly as the command would — the entry file, its id, and every mention of it — and the mention inside A0001's held passage goes with the rest. What licenses the command elsewhere is that undoing its substitution reproduces what was there; inside a passage the substitution voids the witness instead. The note the prose came out of is untouched at commit 03, because the lift already took that prose out of it: the only copy left to rewrite was the one on the entry.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

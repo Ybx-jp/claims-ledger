@@ -1,0 +1,12 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the refutation is a verdict like any other and the passage committed before it is untouched"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "the witness still resolves: what a fallen claim once lifted out of an artifact is no less in the history for the claim having fallen"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the note cites the entry as fallen and the entry's References row says the same"},
+    {"checker": "freshness", "outcome": "pass", "where": "all", "why": "a fallen entry's grounds are history, so the edit that changed the citing sentence at commit 03 is not drift anyone is asked about"}
+  ],
+  "note": "what happens to lifted prose when the claim it was lifted for dies: nothing. The passage is still held, still resolvable, still the only copy of that paragraph outside the history — and the entry above it now says the claim is refuted. That is the arrangement working rather than a gap in it: the prose was the project's narrative about an artifact at a commit, and a refutation is news about the claim, not about what the note said. A reader who follows the fallen entry finds both the words and the verdict on them, which is more than the artifact would have told them after the lift and more than the ledger would have told them before it.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

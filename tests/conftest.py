@@ -174,8 +174,13 @@ def repository():
 # for the digest what the runner does for `@commitNN`: name the section as the transformed
 # seed holds it. A digest that named nothing in the untransformed seed (D63, D64) is left
 # as written, since it is the seed's point that it matches nothing.
+#
+# `lifted:` is here for the same reason the other two are: a passage's witness is a
+# by-value pointer at a section of an artifact, written as a literal in a seed. Left out,
+# a transformed seed kept a witness naming the untransformed text and every passage seed
+# failed to resolve under a transformation that had said nothing new.
 _POINTER_LINE = re.compile(
-    r'^(?:- |\s+evidence: )(\w+): (\S+?)(?: § "([^"]+)")? [=@]', re.MULTILINE
+    r'^(?:- |\s+evidence: |\s+lifted: )(\w+): (\S+?)(?: § "([^"]+)")? [=@]', re.MULTILINE
 )
 
 
@@ -194,22 +199,29 @@ def redigest(before, after):
         ]
     else:
         states = [(before, after)]
+    # Every section any state's entries name, asked of every state. A pointer is collected
+    # across all of them before any of them is read, because a by-value digest can name a
+    # section as an *earlier* state held it — a passage's witness always does — and a
+    # mapping built state by state would then never compute the digest it has to replace.
+    wanted = set()
+    for _, new_state in states:
+        for entry in sorted((new_state / "entries").glob("*.md")):
+            wanted.update(_POINTER_LINE.findall(entry.read_text("utf-8")))
     mapping = {}
     for old_state, new_state in states:
         config = corpus_config(Path(CORPUS), new_state / "entries")
-        for entry in sorted((new_state / "entries").glob("*.md")):
-            for type_name, rel, section in _POINTER_LINE.findall(entry.read_text("utf-8")):
-                if not (old_state / rel).is_file() or not (new_state / rel).is_file():
-                    continue
-                was = (old_state / rel).read_text(encoding="utf-8")
-                now = (new_state / rel).read_text(encoding="utf-8")
-                if section:
-                    old = section_digest(was, config, type_name, section)
-                    new = section_digest(now, config, type_name, section)
-                else:
-                    old, new = digest_of(was), digest_of(now)
-                if old and new and old != new:
-                    mapping[old] = new
+        for type_name, rel, section in sorted(wanted):
+            if not (old_state / rel).is_file() or not (new_state / rel).is_file():
+                continue
+            was = (old_state / rel).read_text(encoding="utf-8")
+            now = (new_state / rel).read_text(encoding="utf-8")
+            if section:
+                old = section_digest(was, config, type_name, section)
+                new = section_digest(now, config, type_name, section)
+            else:
+                old, new = digest_of(was), digest_of(now)
+            if old and new and old != new:
+                mapping[old] = new
     for path in after.rglob("*.md"):
         try:
             text = path.read_text(encoding="utf-8")

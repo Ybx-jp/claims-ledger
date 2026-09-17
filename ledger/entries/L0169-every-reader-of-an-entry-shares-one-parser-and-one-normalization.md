@@ -46,6 +46,14 @@ none
 - 2026-09-08T15:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "parse_entry" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
   note: read against commit 2a76453, which moved the citing comment for this claim into the section its ground names, or out of a section it did not; the code in this section is byte-identical at the pin and at that commit once comments and docstrings are set aside, so nothing the claim rests on changed
+- 2026-09-15T17:25:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "parse_entry" @2a76453ef9550e0e7ee13d7cdbcf942282507e6b
+  artifact: sha256:1f50ba6b7f7bffaba9194be5ef3a62f4b5fce4848f9769118209fbc5c212fe11
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "parse_entry" =sha256:1f50ba6b7f7bffaba9194be5ef3a62f4b5fce4848f9769118209fbc5c212fe11
+  note: re-read after `parse_entry` gained a `passages` field, parsed from the optional `## Passages` section the way verdicts are parsed from theirs. What this claim is about is untouched: the same frontmatter, the same section split, the same problems list.
 
 ## References
 

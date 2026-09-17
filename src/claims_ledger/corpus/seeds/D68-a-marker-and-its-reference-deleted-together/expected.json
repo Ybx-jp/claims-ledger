@@ -1,0 +1,14 @@
+{
+  "class": "a marker and its reference deleted together",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "review",
+      "outcome": "judge",
+      "where": "A0001",
+      "why": "every checker passes and the ledger is now wrong about the world: the note no longer says anywhere that this claim rests on it, and the entry no longer says the note cites it. A human reviewing commit 03 is the whole of the defence"
+    }
+  ],
+  "note": "the open half of a class the package already holds. Delete the marker alone and `references` fails: the entry's References row names a document that no longer cites it. Delete the row as well and the two halves agree with each other about a connection that no longer exists — there is nothing left for a two-way consistency check to disagree with. What the lift adds is motive rather than mechanism: after it, the marker is the last thing in the artifact pointing at the entry that now holds its prose, so the edit removing both is the edit that orphans the passage. The passage itself is not what this seed pins — strip the `## Passages` section and the seed is still green, because the class is about the two ends of a citation and not about what the entry holds.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

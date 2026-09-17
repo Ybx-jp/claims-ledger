@@ -57,6 +57,14 @@ none
 - 2026-09-11T21:12:37-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:b990e60091c0928d78bbb6d5733fe0354c6f242962eab2644ca770fc0cd96eba
   note: re-read after the same commit, which passes the cached flag on to the pointer reader at both of this function's call sites. Every rule this claim is about is untouched.
+- 2026-09-15T17:25:45-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:b990e60091c0928d78bbb6d5733fe0354c6f242962eab2644ca770fc0cd96eba
+  artifact: sha256:2bfa357fbe8fda54952652567afb5536943e32f65bbd43cfa63ae739b9b7caf3
+  note: propagated from a moved ground
+
+- 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:2bfa357fbe8fda54952652567afb5536943e32f65bbd43cfa63ae739b9b7caf3
+  note: re-read after the per-entry loop gained a pass over the entry's held passages, which resolves each witness and compares the prose against the version it names. The grounds, verdict-evidence and Backing passes above it are unchanged, and so is the one question asked of git before any pinned pointer is read.
 
 ## References
 

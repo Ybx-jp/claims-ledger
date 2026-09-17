@@ -72,7 +72,13 @@ mechanism is illustrative and the outcome is what binds.
 A row may also carry an optional `message`, a substring of what the report says. The
 place is where a rule fires, not which rule it is, so a row binds the message as well
 wherever the place alone does not name the rule — where two rules can fire at one place,
-or where the report would survive the rule being emptied of everything but its outcome.
+or where the report would survive the rule being emptied of everything but its outcome. Two
+*checkers* at one place is not that case — rows are matched per checker, so D70's pair is
+one row each. A passage's place is: inside `validate`, `check_passages` reports there for
+the shape of the block and `check_history` for the append-only comparison, and the place is
+compared with case folded, so `Passage 1` and `passage 1` are the same place. A row there
+pins a message, or it is holding up whichever of the two rules still exists —
+`test_a_row_at_a_passage_place_pins_a_message` refuses one that does not.
 
 The runner's contract, fixed before the runner existed and implemented by `run.py`
 (`claims-ledger corpus [-v] [SEED ...]`):
@@ -284,17 +290,25 @@ under `.qe/probe6/` in the source repository at https://github.com/Ybx-jp/claims
 This file travels inside the installed package and those scripts do not, so a reader who
 has the wheel and not the checkout has the claim above without the means to re-test it.
 
-Four rules are unreachable from a seed by construction, and no seed can ever hold them,
-for two different reasons. The `--write` reports of `propagate` and `freshness` are
+Five rules are unreachable from a seed by construction, and no seed can ever hold them,
+for three different reasons. The `--write` reports of `propagate` and `freshness` are
 unreachable because the runner binds both checkers with `write=False`, so `--write`'s own
 code path never runs inside it at all. `resolve`'s and `freshness`'s own `git_problem()`
 branches, and `references`'s re-check of a document that stopped being readable after the
 ledger already listed it, are unreachable for a different reason: what trips each of them
 is not a seed's *content* — a broken git binary, or a race between two reads of the same
-path — and a seed is files on disk, which cannot express either. Each of the four has its
-own test, verified the same way, in the file whose subject it is: the two `git_problem()`
-branches in `tests/test_git_degradation.py`, the `references` re-check in
-`tests/test_failure_paths.py`, and `propagate --write` in `tests/test_write_paths.py`. The
+path — and a seed is files on disk, which cannot express either. A fifth joined them with
+lifted prose: `resolve`'s answer for a witness whose commit is outside a **shallow**
+clone's graft boundary, which a seed cannot reach because the runner builds one linear,
+reachable history and has no way to graft it. It is held by
+`tests/test_passages.py::test_a_shallow_clone_says_so_rather_than_that_the_witness_is_unknown`,
+against a real `git clone --depth 1`, and it matters because `actions/checkout` is depth 1
+by default: without that branch every witness in a downstream project's CI would read as
+D69, which accuses the entry of holding prose the artifact never had. Each of the five has
+its own test, verified the same way, in the file whose subject it is: the two
+`git_problem()` branches in `tests/test_git_degradation.py`, the `references` re-check in
+`tests/test_failure_paths.py`, `propagate --write` in `tests/test_write_paths.py`, and the
+shallow witness in `tests/test_passages.py`. The
 corpus proves the semantic classes; `tests/` proves what is named above, and the sweep is
 the record of what else there is still to check.
 
@@ -370,8 +384,17 @@ the record of what else there is still to check.
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | two entries carrying one number | D66 | catch — a number names one entry, and two branches that each minted it merge with no conflict when the slugs differ |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
-| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
+| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together. Twelve seeds give the rule a span to ask about: these two and the ten passage seeds, where it is asked about a section prose has just been lifted out of. The other ninety-four are near-negatives, most of them because they have no checked document at all |
 | a verdict block inserted above one an earlier commit held | D61 | fail — the verdicts of a commit's parent are a prefix of its own, so a block slipped in above one of them reads as that verdict changed; the seed is linear, which is the only history a seed can build, so the merge side of that rule is held from `tests/test_history_batch.py` and not from here |
+| a passage that is not what the witness held | D67, D70, K31 | catch — a witness that resolves says the section was there, not that the prose on the entry came out of it; the second proposition is the one the mechanism exists for. The comparison is over lines and not characters, so a passage cut in the middle of one fails too, and a passage *shorter* than what was removed does not: that is a known miss, stated at `resolve_passage` and held by a test |
+| a witness no version of the path digests to | D69 | catch — `fail` and not `flag`; a by-value *ground* in that position is D64 and flags, because there the datum is stated in full and only the diff is lost. A shallow clone is **not** this: git is asked whether the repository is shallow first, and the report says the history was truncated rather than that the prose was never there |
+| a witness written as a ground | D71 | flag — and permanently: a witness names an artifact as it stood before the lift, and every checker that reads grounds is asking about the artifact as it stands now |
+| a held passage rewritten in place | D70, K33 | catch (history) — the passage list appends and only appends, as the verdict list does; D70 is the state `renumber --write` leaves when its substitution reaches inside a quotation, and K33 is the near-negative, a second passage appended beside a committed one |
+| a passage block `validate` never saw | D72 | catch — the seed that holds the *wiring*: with `check_passages`'s one call site in `validate.run` deleted, the corpus printed 105/105 and the suite did not move, because eleven report sites were reached only by tests calling the function directly. A report-site sweep cannot find that; a seed can |
+| a marker and its References row deleted together | D68 | review — delete the marker alone and `references` fails, since the entry's row names a document that no longer cites it; delete the row as well and the two halves agree with each other about a connection that no longer exists |
+| a tail section a schema makes optional | K31 | pass — `## Passages` is the first section an entry may leave out, so every other seed here is a near-negative for the rule and K31 is the positive: present, it is held to its place in the order |
+| a passage lifted from a CRLF artifact | K32 | pass — every reader goes through universal newlines, so a passage is digest-true against an LF copy of the text and byte-false against the file it came out of; the seed pins which of the two `verbatim` means |
+| an entry that falls while holding a passage | K34 | pass — a refutation is news about the claim, not about what the artifact said, and the prose stays held and resolvable under it |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
@@ -397,8 +420,12 @@ shape), K28 (a citation inside the section its entry pins, which is the shape th
 exists to produce), K29 (two parentheses carrying an act-shaped word after an id this
 ledger never minted — lint codes, which is the shape ordinary prose takes most often),
 K30 (a ground whose anchor is stated by value, the digest of its section rather than a
-commit).
-K01–K03, K09, K15–K18 and K19–K30 test the schema's own rules and encode no claim from
+commit), K31 (prose lifted out of an artifact onto the entry that rests on it, with the
+citation left in the section it was in and the drift the lift caused discharged in the
+same commit),
+K32 (the same lift from an artifact with CRLF line endings), K33 (a second passage
+appended beside a committed one), K34 (an entry refuted while holding a passage).
+K01–K03, K09, K15–K18 and K19–K34 test the schema's own rules and encode no claim from
 the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon

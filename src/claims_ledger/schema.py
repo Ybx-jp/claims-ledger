@@ -78,7 +78,17 @@ ACT_ALLOWS = {
 }
 VERDICT_ENTRY_ACTS = ("fallen", "challenges", "supersedes")
 SECTIONS = ("Assertion", "Scope", "Grounds", "Warrant", "Backing")
-TAIL_SECTIONS = ("Verdicts", "References")
+TAIL_SECTIONS = ("Verdicts", "References", "Passages")
+# `Passages` is optional and holds prose lifted out of the artifact a ground pins, one
+# append-only revision per block. It sits below the APPEND marker and not above it, and
+# that is not a preference: a section added above the marker on an entry that is already
+# committed fails the frozen-region comparison outside any section, so a passage in the
+# frozen region could only ever be added by superseding the entry
+# (L0273-a-lifted-passage-is-appended-and-never-frozen, cites-as-live).
+OPTIONAL_SECTIONS = ("Passages",)
+# The sections an entry may leave out. Every other section is required, and registering a
+# new one without this list would have failed all 258 entries that predate it
+# (L0262-an-optional-section-is-required-only-where-it-appears, cites-as-live).
 SCOPE_KEYS = ("metric", "cohort", "condition")
 APPEND = "<!-- APPEND BELOW THIS LINE ONLY -->"
 
@@ -96,6 +106,13 @@ DECIMAL_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9
 # and digit-grouping underscores as well.
 HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 VERDICT_HEAD_RE = re.compile(r"^- (\S+) · (\S+) · grade: (\S+) · author: (\S+)$")
+PASSAGE_HEAD_RE = re.compile(r"^- (\S+) · author: (\S+)$")
+PASSAGE_INDENT = "      "
+# Six spaces, stripped from every stored line to recover the prose as the artifact held
+# it. A lifted line keeps its own indentation on top of this one, so a docstring body
+# indented four spaces is stored at ten and comes back at four; an empty line is stored
+# empty rather than as six spaces, because a line of trailing whitespace is not what was
+# lifted (L0260-a-stored-passage-line-carries-its-own-indentation, cites-as-live).
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-<slug>, cites-as-live)`.
@@ -1081,6 +1098,25 @@ class Verdict:
 
 
 @dataclasses.dataclass
+class Passage:
+    index: int  # 1-based
+    raw: str  # the block as written, for the append-only comparison
+    timestamp: str = ""
+    author: str = ""
+    lifted: str | None = None  # the witness: a by-value pointer at the pre-lift section
+    text: str | None = None  # the prose as the artifact held it, indentation restored
+    malformed: str | None = None
+
+    @property
+    def pointer(self):
+        return parse_pointer(self.lifted) if self.lifted else None
+
+    @property
+    def part(self):
+        return f"Passage {self.index}"
+
+
+@dataclasses.dataclass
 class Backing:
     index: int  # 1-based
     source: str  # `<registry id> · <locator>`
@@ -1118,6 +1154,7 @@ class Entry:
     backing_none: bool
     verdicts: list  # [Verdict]
     references: list  # [(raw line, Reference | None)]
+    passages: list  # [Passage], empty on an entry that holds no lifted prose
     problems: list  # [(part, message)] structural defects found while parsing
 
     @property
@@ -1216,6 +1253,79 @@ def _parse_verdicts(text):
             setattr(v, field, fm.group(2).strip())
         verdicts.append(v)
     return verdicts
+
+
+def _parse_passages(text):
+    """[Passage] from the body of a `## Passages` section.
+
+    Blocks split the way verdicts split, on a `- ` at column zero, which is why a stored
+    prose line carries `PASSAGE_INDENT` — an unindented line beginning `- ` in a lifted
+    list would otherwise start a new block. The prose runs from the `passage:` line to
+    the end of the block and is stored last for that reason: a field after it could not
+    be told from the text (L0261-a-passages-prose-runs-to-the-end-of-its-block,
+    cites-as-live).
+    """
+    passages = []
+    blocks = re.split(r"\n(?=- )", "\n" + text.strip("\n"))
+    for raw_block in blocks:
+        block = raw_block.strip("\n")
+        if not block.strip():
+            continue
+        p = Passage(index=len(passages) + 1, raw=block.rstrip())
+        lines = block.splitlines()
+        m = PASSAGE_HEAD_RE.match(lines[0].rstrip())
+        if not m:
+            p.malformed = "header is not `- <timestamp> · author: <a>`"
+        else:
+            p.timestamp, p.author = m.groups()
+        body = None
+        for ln in lines[1:]:
+            if body is not None:
+                body.append(ln)
+                continue
+            stripped = ln.rstrip()
+            if re.match(r"^\s+passage:\s*$", stripped):
+                body = []
+                continue
+            fm = re.match(r"^\s+(lifted): (.*)$", stripped)
+            if not fm:
+                p.malformed = p.malformed or f"unrecognized line {ln.strip()!r}"
+                continue
+            if p.lifted is not None:
+                p.malformed = p.malformed or "a second `lifted:` line"
+                continue
+            p.lifted = fm.group(2).strip()
+        if p.lifted is None:
+            p.malformed = p.malformed or "no `lifted:` line; a passage names the text it came from"
+        if body is None:
+            p.malformed = p.malformed or "no `passage:` line"
+        else:
+            p.text = _passage_text(body, p)
+        passages.append(p)
+    return passages
+
+
+def _passage_text(lines, passage):
+    """The stored lines with `PASSAGE_INDENT` removed, or None when one does not carry it.
+
+    A line that is blank comes back blank whatever whitespace it was written with, because
+    the lift strips trailing whitespace from every line it takes and the comparison it is
+    held to does the same.
+    """
+    out = []
+    for ln in lines:
+        if not ln.strip():
+            out.append("")
+            continue
+        if not ln.startswith(PASSAGE_INDENT):
+            passage.malformed = passage.malformed or (
+                f"prose line {ln.strip()[:40]!r} is not indented by {len(PASSAGE_INDENT)} spaces"
+            )
+            return None
+        out.append(ln[len(PASSAGE_INDENT) :].rstrip())
+    while out and not out[-1]:
+        out.pop()
+    return "\n".join(out)
 
 
 def file_problem(path, what):
@@ -1470,6 +1580,7 @@ def parse_entry(path, text=None):
             problems.append(("Backing", "not `none` and not a list of source/speaker/quote blocks"))
 
     verdicts = _parse_verdicts(sections.get("Verdicts", ""))
+    passages = _parse_passages(sections.get("Passages", ""))
 
     references = []
     for ln in sections.get("References", "").splitlines():
@@ -1492,6 +1603,7 @@ def parse_entry(path, text=None):
         backing_none=backing_none,
         verdicts=verdicts,
         references=references,
+        passages=passages,
         problems=problems,
     )
 

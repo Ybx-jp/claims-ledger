@@ -1,0 +1,32 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the block committed at 02 is still the first block at 03, byte for byte, and the second is appended under it; passages append, and appending is what the rule permits"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "each witness digests to its own section as the commit before its own lift held it, and each held passage is a contiguous run of that section"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "both lifts left their citing sentence in the section it was in — the Observation's at commit 02 and the Method's at commit 03"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "pass",
+      "where": "all",
+      "why": "each lift moved the section it took prose out of, and each is discharged by the reading verdict written in the same commit"
+    }
+  ],
+  "note": "the near-negative of D70 and D72, and the second half of what K31 cannot show: there, the entry held no passage before the lift, so the append-only comparison had an empty list on one side and could not tell appending from anything else. Here a committed block is still there, unchanged, with a second one under it. An entry accumulates passages the way it accumulates verdicts, one per lift, and a project that lifts twice out of one artifact is the ordinary case rather than the strange one.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}
