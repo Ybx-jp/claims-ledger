@@ -594,6 +594,61 @@ def test_an_empty_expected_message_does_not_match_every_report():
     )
 
 
+def test_the_scratch_directory_is_built_to_survive_a_failed_removal(monkeypatch):
+    """Measured in CI before it was fixed: run 35194363883 attempt 1, ubuntu 3.14,
+    `unexpected OSError: [Errno 39] Directory not empty: '/tmp/corpus-hbiy3dvr/.git'`,
+    exit 2, after 71 seeds had passed and none had failed. Git writes into a seed's `.git`
+    on its own schedule, so the tree can gain a file between the walk that lists it and the
+    `rmdir` that follows, and the exit of the context manager is not a place any caller was
+    looking.
+
+    The flag is what this asserts, because the condition itself cannot be staged here:
+    `TemporaryDirectory`'s own removal resets permissions and retries, so a directory made
+    unremovable by `chmod` is removed anyway, and what actually failed in CI was a race
+    against a writer this test cannot start on demand."""
+    from claims_ledger.corpus import run as corpus_run
+
+    seen = {}
+    real = corpus_run.tempfile.TemporaryDirectory
+
+    def spy(*args, **kwargs):
+        seen.update(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(corpus_run.tempfile, "TemporaryDirectory", spy)
+    with corpus_run.scratch() as path:
+        assert Path(path).is_dir()
+    assert seen.get("ignore_cleanup_errors") is True, seen
+
+
+def test_the_runners_git_commands_leave_auto_gc_off(tmp_path):
+    """The other half of the same incident: no writer, no race. Both surfaces the runner
+    has — the one it asks for an effect and the one it asks for a value — carry it."""
+    from claims_ledger.corpus import run as corpus_run
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    corpus_run.git(repo, "init", "-q")
+    (repo / "f").write_text("x", encoding="utf-8")
+    corpus_run.git(repo, "add", "-A")
+    corpus_run.git(repo, "commit", "-qm", "one")
+    # `--get` reads the command's own `-c` overlay, so this is the value surface
+    # answering about itself: `0` because `git_out` put it there, where a command without
+    # the flag reads the repository's config and answers with nothing.
+    assert corpus_run.git_out(repo, "config", "--get", "gc.auto") == "0"
+    assert (
+        subprocess.run(
+            ["git", "-C", str(repo), "config", "--get", "gc.auto"],
+            capture_output=True,
+            text=True,
+            check=False,  # `--get` of an unset key exits 1, which is the answer here
+        ).stdout.strip()
+        == ""
+    )
+    source = SRC.joinpath("claims_ledger", "corpus", "run.py").read_text(encoding="utf-8")
+    assert source.count('"gc.auto=0"') == 2, "both git surfaces carry it"
+
+
 def test_a_git_that_will_not_answer_is_a_finding_not_a_bug_report(tmp_path, monkeypatch):
     """The shape QE8-92 found, one command further on. `git rev-parse` and `git
     hash-object` are asked for a value, and `subprocess.run(check=True, timeout=...)`

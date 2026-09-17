@@ -156,6 +156,18 @@ def test_passage_timestamps_are_non_decreasing(lifted):
     assert any("non-decreasing" in r.message for r in reports)
 
 
+def test_the_comparison_lines_drop_a_blank_at_either_end():
+    """Both ends, and this is the assert that was missing. The strip at the top was added
+    without one, and a mutant that disabled it — `while False:` — passed ruff, ty, the
+    whole suite, all five checkers and the corpus, and was committed and pushed. The rule
+    is documented three lines above the code and nothing held it."""
+    from claims_ledger.resolve import lines_rstripped
+
+    assert lines_rstripped("\n\nalpha\nbeta\n\n") == ["alpha", "beta"]
+    assert lines_rstripped("alpha  \n\nbeta\t") == ["alpha", "", "beta"]
+    assert lines_rstripped("\n \n") == []
+
+
 def test_a_stored_line_keeps_the_artifacts_own_indentation(lifted):
     with_passage(lifted, a_block(prose="          four-deep\n\n          and again"))
     passage = entry_of(lifted).passages[0]

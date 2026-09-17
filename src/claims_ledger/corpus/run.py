@@ -63,12 +63,13 @@ def corpus_config(root, entries_dir):
     rather than a cache, and the series `C` and `P` stand in for a quarantined archive.
 
     `citation-placement` is on here and off in the package's defaults, because a rule the
-    corpus does not run is a rule the corpus does not prove. Most seeds have documents
-    under `docs/` and grounds naming `fixtures/`, so the rule has no span to ask about and
-    each of them is a near-negative for it. The ones it does ask about are D60 and K28,
-    written for the rule itself, and the passage seeds D67–D72 and K31–K34, where the
-    ground names the same document the citation sits in because that is what a lift leaves
-    behind: prose taken out of a section whose citing sentence stays.
+    corpus does not run is a rule the corpus does not prove. Measured over the corpus, the
+    rule has a span to ask about in twelve seeds: D60 and K28, written for the rule itself,
+    and the passage seeds D67–D72 and K31–K34, where the ground names the same document the
+    citation sits in because that is what a lift leaves behind — prose taken out of a
+    section whose citing sentence stays. In the other ninety-four it has nothing to ask
+    about at all, most often because the seed has no document under `docs/` and its grounds
+    name `fixtures/`, and each of them is a near-negative for it.
     """
     return Config(
         root=root,
@@ -246,6 +247,8 @@ def git(repo, *args):
                 "-C",
                 str(repo),
                 "-c",
+                "gc.auto=0",
+                "-c",
                 "user.name=corpus",
                 "-c",
                 "user.email=corpus@example",
@@ -289,7 +292,7 @@ def git_out(repo, *args, stdin=None):
     """
     try:
         out = subprocess.run(
-            ["git", "-C", str(repo), *args],
+            ["git", "-C", str(repo), "-c", "gc.auto=0", *args],
             input=stdin.encode("utf-8") if stdin is not None else None,
             capture_output=True,
             check=True,
@@ -329,10 +332,28 @@ def run_checkers(ledger, commit=None):
     return produced
 
 
+def scratch():
+    """The temporary directory a seed is built in, which is not allowed to fail the run
+    when it cannot be removed.
+
+    A seed's repository is a real one, and git writes into `.git` on its own schedule —
+    an auto `gc`, a `maintenance` run, a pack being finished — so the tree can gain a file
+    between the walk that lists it and the `rmdir` that follows. Python reports that as
+    `OSError: [Errno 39] Directory not empty`, out of the context manager's exit and not
+    out of any checker, and it reached the CLI's catch-all as `this is a bug` over a run
+    in which every seed had passed. The corpus is a verdict about the checkers, and a
+    directory that outlived its deletion is not evidence about them
+    (L0275-a-scratch-directory-that-will-not-be-removed-does-not-fail-the-run,
+    cites-as-live). `gc.auto=0` on every git command the runner makes is the other half:
+    it keeps the writer from starting in the first place.
+    """
+    return tempfile.TemporaryDirectory(prefix="corpus-", ignore_cleanup_errors=True)
+
+
 def apply_seed(seed, root, produced, crashes):
     """Stage every state of a seed and run the checkers over each, in a temporary
     repository that is removed afterwards. (produced, crashes)."""
-    with tempfile.TemporaryDirectory(prefix="corpus-") as tmpdir:
+    with scratch() as tmpdir:
         tmp = Path(tmpdir)
         if (seed / "commits").is_dir():
             git(tmp, "init", "-q")

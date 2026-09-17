@@ -631,7 +631,7 @@ def lines_rstripped(text):
     that say something, and where it starts and stops is what the comparison is about.
     """
     lines = [ln.rstrip() for ln in text.splitlines()]
-    while False:
+    while lines and not lines[0]:
         lines.pop(0)
     while lines and not lines[-1]:
         lines.pop()
