@@ -37,11 +37,12 @@ and a glob that reached them would turn fixtures and examples into failures. Wid
 one is a change to run before it is committed.
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
-does, so a citation written here is checked. Neither `.claude/` nor `examples/` is, and
-`src/claims_ledger/*.py` is single-level so it does not reach the shipped skills either —
-which is why they can show citation syntax literally. A skill moved inside the document
-globs, or a glob widened to `src/claims_ledger/**`, would have those examples checked as
-real citations and fail.
+does, so a citation written here is checked. `RELEASING.md` is one for the same reason: it
+says what gates a publication, which is a claim about this package rather than a recipe for
+using it. Neither `.claude/` nor `examples/` is, and `src/claims_ledger/*.py` is
+single-level so it does not reach the shipped skills either — which is why they can show
+citation syntax literally. A skill moved inside the document globs, or a glob widened to
+`src/claims_ledger/**`, would have those examples checked as real citations and fail.
 
 ## The agent hooks and skills ship in the package
 

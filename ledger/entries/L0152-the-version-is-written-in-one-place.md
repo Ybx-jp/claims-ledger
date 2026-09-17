@@ -47,6 +47,14 @@ none
 - 2026-09-11T20:00:14-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:c5e6333c3c95aec5c7511db44651c1c8fa1a0b9c0d2ee0b93e931c4fda05930f
   note: re-read after the commit that moves the first release's number from 0.1.0 down to 0.0.1, which this package has never published either of. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; the one place is unchanged and still the only one.
+- 2026-09-16T21:20:08-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:c5e6333c3c95aec5c7511db44651c1c8fa1a0b9c0d2ee0b93e931c4fda05930f
+  artifact: sha256:8bcda8fc6a9d0d4425aff86bf8a811de5a280a33be5a7763f1ba5ad95412455c
+  note: propagated from a moved ground
+
+- 2026-09-16T21:20:33-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:8bcda8fc6a9d0d4425aff86bf8a811de5a280a33be5a7763f1ba5ad95412455c
+  note: re-read after the commit that bumps the version from 0.0.1 to 0.0.2. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; `pyproject.toml` still reads `[tool.hatch.version]` out of this file and no second copy was added, so the only thing that moved is the literal a release is supposed to move.
 
 ## References
 
