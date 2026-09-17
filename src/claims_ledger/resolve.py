@@ -626,7 +626,9 @@ def lines_rstripped(text):
     Both sides of the reconstruction comparison go through this, because the lift strips
     a lifted line the same way and `digest_of` strips the section it anchors; without it
     a source file that carried a trailing space on one line would make a passage that is
-    exactly what was removed compare as text that never was.
+    exactly what was removed compare as text that never was. A blank line at either end
+    goes with the whitespace, on both sides and for the same reason — the run is the lines
+    that say something, and where it starts and stops is what the comparison is about.
     """
     lines = [ln.rstrip() for ln in text.splitlines()]
     while lines and not lines[0]:
@@ -634,17 +636,6 @@ def lines_rstripped(text):
     while lines and not lines[-1]:
         lines.pop()
     return lines
-
-
-def is_a_run_of(prose, before):
-    """Whether the lines of `prose` are a contiguous run of the lines of `before`.
-
-    Lines, and not characters: `resolve_passage` says why, and it is the section that
-    answers for it.
-    """
-    if not prose:
-        return True
-    return any(before[i : i + len(prose)] == prose for i in range(len(before) - len(prose) + 1))
 
 
 def resolve_passage(e, passage, ledger):
@@ -659,13 +650,18 @@ def resolve_passage(e, passage, ledger):
     artifact never said is the one failure this whole mechanism exists to make impossible
     (L0267-a-witness-that-resolves-is-not-yet-a-passage-that-matches, cites-as-live).
 
-    **Lines, and not characters.** A substring test passes a passage that begins or ends
-    in the middle of one, and half a sentence of an artifact is a quotation of nothing the
-    artifact said; the elision rules hold a Backing quote to exactly that standard, and a
-    passage is the same kind of thing. What the comparison still cannot see is a *shorter*
-    run than the one that was removed: every line the entry holds was there, in that
-    order, and nothing on the entry says how many there should have been. A lift that
-    dropped its last line is a known miss, written here rather than implied away.
+    **Lines, and not characters**, and the search is written here rather than in a helper
+    beside it. A substring test passes a passage that begins or ends in the middle of one,
+    and half a sentence of an artifact is a quotation of nothing the artifact said; the
+    elision rules hold a Backing quote to exactly that standard, and a passage is the same
+    kind of thing. The comparison lives inside the section this entry's ground names
+    because a rule kept in a section no entry pins is a rule that can be undone with every
+    checker green: with the run search in a helper of its own, putting the substring test
+    back moved no digest and `claims-ledger check` went on reporting nothing. What the
+    comparison still cannot see is a *shorter* run than the one that was removed: every
+    line the entry holds was there, in that order, and nothing on the entry says how many
+    there should have been. A lift that dropped its last line is a known miss, written
+    here rather than implied away.
 
     The search is history-only, and never the tree. The lift removed the prose, so the
     tree cannot hold the pre-lift section by construction, and asking it first would
@@ -693,7 +689,10 @@ def resolve_passage(e, passage, ledger):
         ]
     before = lines_rstripped(found)
     prose = lines_rstripped(passage.text)
-    if not is_a_run_of(prose, before):
+    # An empty passage is nobody's run and is not reported here: `check_passages` refuses a
+    # block that holds no prose, and saying it twice would make one defect look like two.
+    runs = (before[i : i + len(prose)] == prose for i in range(len(before) - len(prose) + 1))
+    if prose and not any(runs):
         out.append(
             Report(
                 "fail",

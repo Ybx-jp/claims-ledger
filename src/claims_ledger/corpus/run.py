@@ -63,9 +63,12 @@ def corpus_config(root, entries_dir):
     rather than a cache, and the series `C` and `P` stand in for a quarantined archive.
 
     `citation-placement` is on here and off in the package's defaults, because a rule the
-    corpus does not run is a rule the corpus does not prove. Turning it on costs nothing:
-    every seed but D60 and K28 has documents under `docs/` and grounds naming `fixtures/`,
-    so the rule has no span to ask about and every one of them is a near-negative for it.
+    corpus does not run is a rule the corpus does not prove. Most seeds have documents
+    under `docs/` and grounds naming `fixtures/`, so the rule has no span to ask about and
+    each of them is a near-negative for it. The ones it does ask about are D60 and K28,
+    written for the rule itself, and the passage seeds D67–D72 and K31–K34, where the
+    ground names the same document the citation sits in because that is what a lift leaves
+    behind: prose taken out of a section whose citing sentence stays.
     """
     return Config(
         root=root,

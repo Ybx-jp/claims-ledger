@@ -38,6 +38,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "resolve_passage" =sha256:c7d935a5e65d60a4166b889778edc094fdfdb41a621a83fa4fc9d29364a094e2
   note: re-read after the same edit. It changed what the second proposition compares and nothing about where the first one looks: `digest_in_history` is still the only call, and the tree is still not asked.
 
+- 2026-09-17T00:25:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_passage" =sha256:fbbdc77168627cf8898412af5fc5a6488d190767dd1e1006b30bbbd58f7f4c83
+  note: re-read after the same move. Where the witness is looked for did not change: `digest_in_history` is still the only call and the tree is still not asked.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

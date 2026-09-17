@@ -38,6 +38,10 @@ none
   evidence: code: src/claims_ledger/resolve.py § "resolve_passage" =sha256:c7d935a5e65d60a4166b889778edc094fdfdb41a621a83fa4fc9d29364a094e2
   note: re-read after the comparison was made over lines rather than characters. The claim is what it was and the section now keeps it more nearly: a substring test passed a passage cut in the middle of a line, which is prose the artifact never held in the sense this entry means. What the section still cannot see is a passage shorter than what was removed, and it now says so where a reader will find it.
 
+- 2026-09-17T00:25:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "resolve_passage" =sha256:fbbdc77168627cf8898412af5fc5a6488d190767dd1e1006b30bbbd58f7f4c83
+  note: re-read after the run search was moved back inside this section from a helper beside it. The fix-review gate measured what the helper cost: with the comparison in a section no entry pins, putting the defective substring test back moved no digest and all five checkers went on reporting nothing, so one test stood between the branch and the bug it was opened to fix. The claim is unchanged and the section now holds the whole of what keeps it.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

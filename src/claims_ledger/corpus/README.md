@@ -74,9 +74,11 @@ place is where a rule fires, not which rule it is, so a row binds the message as
 wherever the place alone does not name the rule — where two rules can fire at one place,
 or where the report would survive the rule being emptied of everything but its outcome. Two
 *checkers* at one place is not that case — rows are matched per checker, so D70's pair is
-one row each — but the place is compared with case folded, and `validate` and `resolve`
-spell a passage's place differently (`passage 1` against `Passage 1`). A row there pins a
-message, or it is holding up whichever of the two still exists.
+one row each. A passage's place is: inside `validate`, `check_passages` reports there for
+the shape of the block and `check_history` for the append-only comparison, and the place is
+compared with case folded, so `Passage 1` and `passage 1` are the same place. A row there
+pins a message, or it is holding up whichever of the two rules still exists —
+`test_a_row_at_a_passage_place_pins_a_message` refuses one that does not.
 
 The runner's contract, fixed before the runner existed and implemented by `run.py`
 (`claims-ledger corpus [-v] [SEED ...]`):
@@ -382,7 +384,7 @@ the record of what else there is still to check.
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | two entries carrying one number | D66 | catch — a number names one entry, and two branches that each minted it merge with no conflict when the slugs differ |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
-| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together, and every other seed is a near-negative because its documents and its grounds name different files |
+| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together. Most seeds are near-negatives because their documents and their grounds name different files; the passage seeds are not, and are where the rule is asked about a section prose has just been lifted out of |
 | a verdict block inserted above one an earlier commit held | D61 | fail — the verdicts of a commit's parent are a prefix of its own, so a block slipped in above one of them reads as that verdict changed; the seed is linear, which is the only history a seed can build, so the merge side of that rule is held from `tests/test_history_batch.py` and not from here |
 | a passage that is not what the witness held | D67, D70, K31 | catch — a witness that resolves says the section was there, not that the prose on the entry came out of it; the second proposition is the one the mechanism exists for. The comparison is over lines and not characters, so a passage cut in the middle of one fails too, and a passage *shorter* than what was removed does not: that is a known miss, stated at `resolve_passage` and held by a test |
 | a witness no version of the path digests to | D69 | catch — `fail` and not `flag`; a by-value *ground* in that position is D64 and flags, because there the datum is stated in full and only the diff is lost. A shallow clone is **not** this: git is asked whether the repository is shallow first, and the report says the history was truncated rather than that the prose was never there |

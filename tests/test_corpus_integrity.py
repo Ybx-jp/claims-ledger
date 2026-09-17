@@ -140,6 +140,22 @@ def test_every_expectation_row_names_the_report_place_exactly():
     assert not loose, sorted(set(loose))
 
 
+def test_a_row_at_a_passage_place_pins_a_message():
+    """`validate` reports at a passage's place from two rules — `check_passages` for the
+    block's shape and `check_history` for the append-only comparison — and `matches()`
+    folds case, so `Passage 1` and `passage 1` are one place. A row there that named no
+    message would be held up by whichever of the two rules still existed, which is the
+    decoration the exact-place rule exists to prevent. The ambiguity test above catches it
+    only where one seed happens to produce both reports at once; this catches the row."""
+    loose = []
+    for seed in SEEDS:
+        for row in binding_rows(seed):
+            _, _, part = corpus_run.parse_where(row["where"])
+            if re.fullmatch(r"passage \d+", part, re.IGNORECASE) and not row.get("message"):
+                loose.append((seed.name, row["checker"], row["where"]))
+    assert not loose, loose
+
+
 def test_only_the_documented_seeds_produce_no_report_at_all():
     """A defect seed that trips nothing is review-only, and the corpus README names which
     ones those are. A new silent seed would be a defect class nobody is checking."""
