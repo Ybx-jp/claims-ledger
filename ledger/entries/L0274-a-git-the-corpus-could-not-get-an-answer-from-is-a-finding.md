@@ -42,4 +42,8 @@ none
   evidence: code: src/claims_ledger/corpus/run.py § "git_out" =sha256:8de086f0eb11bea88222a1a2fed6be9b14b6305dd503e3602ead080d9e030bbb
   note: re-read after `gc.auto=0` was added to the command line, which is about a different incident — a writer git starts on its own schedule — and changes nothing about what this entry holds: the two exceptions are still converted, still named, and the seed is still put in front of them.
 
+- 2026-09-17T01:12:30-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/corpus/run.py § "git_out" =sha256:f4d0af690196e4d00e553577705f1bf659e758b76c2cde8e5e9a2baffc7097ce
+  note: re-read after `maintenance.auto=false` joined `gc.auto=0` on the command line. Both flags are about a different incident and neither touches what this entry holds: the two exceptions are still converted, still named, and the seed is still put in front of them.
+
 ## References

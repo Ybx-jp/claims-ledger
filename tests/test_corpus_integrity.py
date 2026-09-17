@@ -30,6 +30,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
+import time
 import unicodedata
 from pathlib import Path
 
@@ -594,59 +597,80 @@ def test_an_empty_expected_message_does_not_match_every_report():
     )
 
 
-def test_the_scratch_directory_is_built_to_survive_a_failed_removal(monkeypatch):
-    """Measured in CI before it was fixed: run 35194363883 attempt 1, ubuntu 3.14,
-    `unexpected OSError: [Errno 39] Directory not empty: '/tmp/corpus-hbiy3dvr/.git'`,
-    exit 2, after 71 seeds had passed and none had failed. Git writes into a seed's `.git`
-    on its own schedule, so the tree can gain a file between the walk that lists it and the
-    `rmdir` that follows, and the exit of the context manager is not a place any caller was
-    looking.
+def test_the_scratch_directory_survives_a_removal_that_races_a_writer(tmp_path):
+    """The condition itself, staged, rather than the flag that answers it.
 
-    The flag is what this asserts, because the condition itself cannot be staged here:
-    `TemporaryDirectory`'s own removal resets permissions and retries, so a directory made
-    unremovable by `chmod` is removed anyway, and what actually failed in CI was a race
-    against a writer this test cannot start on demand."""
+    A thread keeps making files under a `.git` inside the directory while it is being
+    removed, which is what git does on its own schedule and what the CI failure was:
+    `OSError: [Errno 39] Directory not empty: '/tmp/corpus-hbiy3dvr/.git'`, run
+    35194363883 attempt 1, ubuntu 3.14, after 71 seeds had passed. The bare
+    `TemporaryDirectory` is the control and it has to fire, or this test showed nothing and
+    says so instead of passing.
+    """
     from claims_ledger.corpus import run as corpus_run
 
-    seen = {}
-    real = corpus_run.tempfile.TemporaryDirectory
+    def race(make):
+        stop = threading.Event()
+        holder = make()
+        git_dir = Path(holder.name) / ".git"
+        git_dir.mkdir(exist_ok=True)
+        for i in range(400):
+            (git_dir / f"o{i}").touch()
 
-    def spy(*args, **kwargs):
-        seen.update(kwargs)
-        return real(*args, **kwargs)
+        def writer():
+            i = 1000
+            while not stop.is_set():
+                try:
+                    git_dir.mkdir(exist_ok=True)
+                    (git_dir / f"w{i}").touch()
+                except OSError:
+                    pass
+                i += 1
 
-    monkeypatch.setattr(corpus_run.tempfile, "TemporaryDirectory", spy)
-    with corpus_run.scratch() as path:
-        assert Path(path).is_dir()
-    assert seen.get("ignore_cleanup_errors") is True, seen
+        thread = threading.Thread(target=writer, daemon=True)
+        thread.start()
+        time.sleep(0.01)
+        try:
+            holder.cleanup()
+            return None
+        except OSError as exc:
+            return exc
+        finally:
+            stop.set()
+            thread.join(timeout=2)
+            shutil.rmtree(holder.name, ignore_errors=True)
+
+    control = [race(lambda: tempfile.TemporaryDirectory(prefix="corpus-")) for _ in range(5)]
+    if not any(isinstance(e, OSError) for e in control):
+        pytest.skip("the race did not stage on this machine; the control never fired")
+    for _ in range(5):
+        assert race(corpus_run.scratch) is None
 
 
-def test_the_runners_git_commands_leave_auto_gc_off(tmp_path):
-    """The other half of the same incident: no writer, no race. Both surfaces the runner
-    has — the one it asks for an effect and the one it asks for a value — carry it."""
-    from claims_ledger.corpus import run as corpus_run
+GIT_FLAGS = ("gc.auto=0", "maintenance.auto=false")
 
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    corpus_run.git(repo, "init", "-q")
-    (repo / "f").write_text("x", encoding="utf-8")
-    corpus_run.git(repo, "add", "-A")
-    corpus_run.git(repo, "commit", "-qm", "one")
-    # `--get` reads the command's own `-c` overlay, so this is the value surface
-    # answering about itself: `0` because `git_out` put it there, where a command without
-    # the flag reads the repository's config and answers with nothing.
-    assert corpus_run.git_out(repo, "config", "--get", "gc.auto") == "0"
-    assert (
-        subprocess.run(
-            ["git", "-C", str(repo), "config", "--get", "gc.auto"],
-            capture_output=True,
-            text=True,
-            check=False,  # `--get` of an unset key exits 1, which is the answer here
-        ).stdout.strip()
-        == ""
-    )
+
+def test_every_git_command_the_runner_makes_carries_both_flags():
+    """Read off the syntax tree, not counted in the source. The count this replaced —
+    `source.count('"gc.auto=0"') == 2` — was loud about a third *correct* surface and
+    silent about a third *wrong* one: adding an unflagged `subprocess.run(["git", ...])`
+    left it green. A seed's repository is real, and a git command that starts a writer the
+    teardown then races is the incident this is about."""
     source = SRC.joinpath("claims_ledger", "corpus", "run.py").read_text(encoding="utf-8")
-    assert source.count('"gc.auto=0"') == 2, "both git surfaces carry it"
+    unflagged = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        argv = node.args[0]
+        if not isinstance(argv, ast.List):
+            continue
+        literals = [e.value for e in argv.elts if isinstance(e, ast.Constant)]
+        if "git" not in literals[:1]:
+            continue
+        missing = [flag for flag in GIT_FLAGS if flag not in literals]
+        if missing:
+            unflagged.append((node.lineno, missing))
+    assert not unflagged, unflagged
 
 
 def test_a_git_that_will_not_answer_is_a_finding_not_a_bug_report(tmp_path, monkeypatch):

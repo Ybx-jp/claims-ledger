@@ -249,6 +249,8 @@ def git(repo, *args):
                 "-c",
                 "gc.auto=0",
                 "-c",
+                "maintenance.auto=false",
+                "-c",
                 "user.name=corpus",
                 "-c",
                 "user.email=corpus@example",
@@ -292,7 +294,7 @@ def git_out(repo, *args, stdin=None):
     """
     try:
         out = subprocess.run(
-            ["git", "-C", str(repo), "-c", "gc.auto=0", *args],
+            ["git", "-C", str(repo), "-c", "gc.auto=0", "-c", "maintenance.auto=false", *args],
             input=stdin.encode("utf-8") if stdin is not None else None,
             capture_output=True,
             check=True,
@@ -344,8 +346,12 @@ def scratch():
     in which every seed had passed. The corpus is a verdict about the checkers, and a
     directory that outlived its deletion is not evidence about them
     (L0275-a-scratch-directory-that-will-not-be-removed-does-not-fail-the-run,
-    cites-as-live). `gc.auto=0` on every git command the runner makes is the other half:
-    it keeps the writer from starting in the first place.
+    cites-as-live). Two flags on every git command the runner makes are the other half,
+    and it takes both: `maintenance.auto=false` is what stops `git commit` spawning `git
+    maintenance run --auto` at all — measured on git 2.43.0, where `gc.auto=0` alone still
+    spawns it and the child opens `.git/objects/maintenance.lock` — and `gc.auto=0`
+    disarms the gc task inside a run that does start, along with the background fork
+    `gc.autoDetach` would make.
     """
     return tempfile.TemporaryDirectory(prefix="corpus-", ignore_cleanup_errors=True)
 

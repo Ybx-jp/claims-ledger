@@ -34,4 +34,8 @@ none
 
 ## Verdicts
 
+- 2026-09-17T01:12:00-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/corpus/run.py § "scratch" =sha256:4551a66cb8690bb1c7c13e0105051d8a3b52ec25cd823ed4024f3dc45db5af5d
+  note: re-read, and the Warrant's last sentence is corrected here rather than in the frozen region it sits in. Measured on git 2.43.0 under GIT_TRACE and strace: `git -c gc.auto=0 commit` still spawns `git maintenance run --auto`, a distinct child that opens `.git/objects/maintenance.lock` with the flag in force; `git -c gc.auto=0 -c maintenance.auto=false commit` spawns none and the commit still lands. So it is `maintenance.auto=false` that keeps the writer from starting, and `gc.auto=0` that disarms the gc task inside a run which does start and the background fork `gc.autoDetach` would make. Both flags are now on every git command the runner makes. What the entry asserts is unchanged and is what `ignore_cleanup_errors` holds up on its own; the misattribution was in the half that prevents, and nothing rests on it.
+
 ## References
