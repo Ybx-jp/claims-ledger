@@ -11,6 +11,200 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.2] — 2026-09-16
+
+One repository, several checkouts, each on its own branch, all minting entries. That is
+the shape a developer running several agent sessions is in every day, and it is the one
+0.0.1 had nothing to say about: two branches off one base were allocated the same entry
+number as a matter of course, the merge that brought them together produced no conflict,
+and all five checkers then read the result at exit 0 and said nothing. This release
+closes that from both ends — the allocation that hands out the number and the repair for
+a collision that got through — and fixes a release gate that published 0.0.1 while
+claiming to run more than it ran.
+
+No schema change: an entry written under 0.0.1 is read unchanged here, and nothing added
+below is required of an entry that does not use it. `0.1.0` is still kept back for the
+public release.
+
+### Concurrent checkouts
+
+- **An id is allocated above the whole repository, not above one checkout.** `next_id`
+  was max+1 over the entries directory of whichever checkout asked, and git was never
+  consulted. The question is asked of the repository now: every entry filename any ref
+  has carried, in one walk, and the entries directory of every checkout `git worktree
+  list` names — which is where a sibling's uncommitted mint lives before any ref can show
+  it. Both halves are answered out of what a repository already shares, so neither costs
+  a fetch or a network.
+- **A mint over a repository git declined to read is refused**, rather than falling back
+  to the one directory that could be read: an id allocated over a repository nobody could
+  see is the collision the question exists to prevent. `new --id` names one by hand and
+  allocates nothing, which is the way past a repository that is broken for other reasons.
+- **A duplicated number is a failure.** `validate` reports it once for the number, naming
+  every entry that carries it, because the repair is one act on the pair. It was reported
+  by nothing before — `by_id` keys on the whole id, so two entries whose slugs differ are
+  two ids and nothing downstream notices. Corpus seed `D66-two-entries-carrying-one-number`
+  holds the rule; the corpus is 96 seeds, up from the 95 this package published in 0.0.1.
+  The number a malformed `id:` would be grouped under is skipped rather than reported as
+  a collision nothing could renumber — `validate`'s frontmatter check already names those.
+
+### The repair, and which side moves
+
+- **`claims-ledger renumber` rewrites the branch that has not merged, not the merge.**
+  The branch being merged is the one that moves, which is what "merged first wins" means
+  once it is stated so that it decides something: a merge is never symmetric, so three
+  open branches are three sequential merges and no arbiter is needed. Each commit on the
+  branch is rebuilt from its own tree with the ids substituted, the entry files renamed
+  and the anchors re-pinned; parents are remapped, so a merge inside the branch is
+  rewritten as a merge. `docs/OPERATING.md` permits exactly this rewrite and no other,
+  because the commits are unmerged and nothing pins them.
+- A whole id is rewritten wherever it appears; a bare number only in the entries and in
+  configured documents, because the first is distinctive and the second is not — and a
+  bare number is left alone while an entry still answers to it. An anchor is re-pinned
+  only where undoing the substitution reproduces the anchor already written, which is a
+  proof that the id was the whole of the change; where it does not hold, the anchor stands
+  and `freshness` flags it.
+- **The rewrite refuses rather than half-doing it.** A detached HEAD (`update-ref` would
+  move the detached head and leave the branch naming the originals, at exit 0), a checkout
+  it would strand, commits also reachable from another ref, a `pyproject.toml` that changes
+  on the branch being rewritten — one configuration decides which paths are documents for
+  every commit, so a branch that moves it would be read by the wrong one — and a
+  repository that signs its commits, measured on git 2.43.0: `commit-tree` writes an
+  unsigned commit at exit 0 and says nothing, and no second rewrite is available to
+  recover.
+- **`merge-renumber`** configures what a merge guard does about a collision: `off` says
+  nothing, `refuse` stops the merge with the repair named, `rewrite` renumbers the incoming
+  branch and lets it proceed. It defaults to refusing, because the merge it would otherwise
+  allow is one `validate` fails on from that commit onward. `renumber --on-merge` is the
+  package reading that setting, so the policy is testable in Python and a shell hook stays
+  dumb. The question is asked before the merge rather than by a hook because every hook
+  fires too late — measured on git 2.43.0, a conflicted merge fires none at all, its
+  resolution commit fires `pre-commit`, and a clean auto-merge fires `post-merge`.
+
+### The hook runs the package the checkout it is guarding resolves
+
+git serves one hooks directory to every linked worktree, so the installed pre-commit hook
+is a per-repository file while the tree above it is per-checkout. It named one absolute
+interpreter, recorded at install time — right in a project that installs this package from
+outside its own tree, and wrong in a project whose tree *is* the package, where it ran one
+checkout's package against another checkout's tree. The hook asks git for
+`--show-toplevel` and prefers that checkout's `.venv` or `venv` interpreter, probing by
+import rather than by the file being there, and falls back to the recorded path when the
+checkout has none.
+
+### The release gate, and what it was overstating
+
+- **`claims-ledger check` runs in `release.yml`.** It ran in `ci.yml` and nowhere in the
+  release workflow, while that workflow's own comment promised publication was gated on
+  every check CI runs `not on a subset of them` — so a tag could publish over a ledger no
+  release gate had read. The regression written to hold that promise listed four commands
+  by hand and so could not see the fifth was missing; the list is derived from `ci.yml`
+  now, comments are dropped before it is searched, and a gate written as a block scalar is
+  read rather than skipped.
+- `RELEASING.md` is a configured document. It says what gates a publication, in the same
+  voice `CLAUDE.md` and the README state their commitments, and it was outside the
+  document globs — so the sentence making that promise was prose no checker read.
+- The build job runs `claims-ledger corpus` from the checkout as well as from each
+  installed artifact, which is what `RELEASING.md` already said it did. The bare string
+  had been satisfied accidentally by the installed-artifact run, which is a different
+  claim.
+- Three claims in `examples/FEATURES.md` were false and shipped that way in 0.0.1, since
+  `/examples` is in the sdist: the corpus was 95 rather than 96, the installed hook was
+  said to run three checkers against the working tree when all five of its lines carry
+  `--cached`, and it was said to use the interpreter that installed it, which stopped
+  being true when the hook began resolving the checkout's own. The seed count is now held
+  across every shipped document rather than in `README.md` alone.
+
+### The examples witness the new commands
+
+`examples/FEATURE_MATRIX.md` claimed a concrete witness for each public feature while
+`renumber`, `--on-merge`, `merge-renumber` and duplicate-number detection had none. They
+have one now — `concurrent-ids`, built outside `portfolio.json` because the situation needs
+two lines of work and each of the other four examples has one. It is a real collision
+rather than a staged one: each branch is green on its own, only the number is wrong, and
+nothing is wrong until they meet. It exercises `init` and `new` on the way, which nothing
+exercised before, and it writes `commit.gpgsign`, `core.autocrlf` and `core.hooksPath`
+into each generated repository's own configuration rather than taking the ambient git
+configuration as given — each of the three breaks the demonstration in a different way,
+and each was measured green under the hostile setting in turn.
+
+### Documentation
+
+- **`docs/OPERATING.md` says how several checkouts share one ledger.** Where ids come
+  from, what a duplicated number means now that `validate` reports one, which side of a
+  collision moves and why that needs no arbiter, what `renumber` refuses, what
+  `merge-renumber` selects between, and why the installed hook asks which checkout it is
+  committing in.
+
+### Fixed by the pre-merge gate
+
+The `qe` fix-review consultation this repository runs between the fixer and the merge,
+over three rounds. Everything below was a false pass — code that was wrong and a suite
+that was green — and each is a test now.
+
+- **Two regressions were passing against the mutant they were written for.** The
+  detached-HEAD test never deleted the branch, so the command returned 2 on a different
+  refusal before the code under test ran; the doubled-number fixture had the receiving
+  side holding the number too, so the term being tested was never needed. Both are rebuilt
+  to isolate what they test, and both now redden against their own mutant.
+- **`"0 failure(s), 0 flag(s)" in report` is a substring test over a five-line report**,
+  so one clean checker satisfied it while four flagged — and `check` exits 0 on a flag. The
+  assertion had always been vacuous, including in the four-repository example test. All
+  five lines are held now, at every site.
+- **Containment against a workflow's raw text was satisfied by a mention**: deleting
+  `claims-ledger check` from `release.yml` and leaving the words in a `# TODO` comment
+  passed the whole file.
+- **A by-reference pin was recognised by its width.** The refusal that keeps a rewrite off
+  pinned commits matched forty hex characters, which misses `@4023af40` — the shape
+  `git log --abbrev` prints — and every id in a sha256 repository, where no word boundary
+  falls inside a 64-hex run. It compares against the replaced commits first and asks
+  `rev-parse` about anything shorter.
+- **An unreadable sibling checkout was minted straight over**, its refusal to be read
+  collapsed into "this checkout has no ledger". The two are separated now.
+- **An entry born in a merge commit was invisible to the walk**, because git prints no
+  diff for a merge without `-m` and an entry written while a conflict is being settled is
+  created by one. The walk asks for the wider reading; over-inclusion is free here, since
+  a name that appears is a number not handed out again.
+- **`\b` is the wrong right-hand boundary for an id**: `\bA0002-beta\b` matched the front
+  of `A0002-beta-claim` and renumbered a different entry. Both patterns end in a lookahead
+  refusing a word character or a hyphen.
+- **The merge guard allowed the merge it could not assess** — a repository git declined to
+  read returned 0 — and it took the *last* non-option token as the branch, so
+  `git merge topic -m "a message"` read the message as the branch and answered with an
+  allow. Every case in `merge-guard.cases` had also been failing silently on main: the
+  runner sent a payload with no `hook_event_name`, the guard answered correctly in Cursor's
+  dialect, and the runner only knew Claude Code's and read each refusal as an allow. Every
+  case runs in both dialects now and requires the same verdict in each.
+- **The walk was read after the merge base.** With an intermediate commit object removed,
+  `merge-base` exits 1 — which is also its answer for "no common ancestor" — while
+  `rev-list` exits 128, so a broken object store was reported as two branches sharing no
+  history and `--on-merge` allowed the merge.
+- **Anchors are decided once, from the branch tip.** Deciding per commit wrote one frozen
+  region at the creating commit and a different one later, when a citation had landed in
+  the span between; the first fix skipped an entry whose artifact arrived in a later commit
+  than the entry itself, which is the original defect again, and froze a `None` where the
+  anchor could not be decided, so a branch that went in green came out flagged.
+- **An intra-branch double corrupted the entry that kept the number**, the bare-number
+  substitution firing for a number another entry still answers to — silently, since no
+  checker reads a bare number.
+- **Re-pinning covered the wrong anchors**: `freshness` compares a ground from the latest
+  corroborating verdict that names its section once one exists, so re-pinning the Grounds
+  alone left the pointer the checker actually uses naming text the rewrite had replaced.
+- **A stranded checkout was invisible twice over**: `git worktree list --porcelain`
+  reports a detached checkout with no `branch` line at all, and the scan stopped at its
+  first match, which is always the checkout being reset rather than the one being stranded.
+- Also: five lines duplicated verbatim in `config.py` that ruff, ty and the whole suite
+  passed over; `git hash-object` ran a path's clean filter over bytes that came out of
+  `cat-file` already clean; and a scaffold placeholder that had moved failed silently,
+  which would have had the examples mint entries asserting `TODO` and passing every check.
+
+### Development
+
+- `.claude/skills/track-open-work` — a project skill saying where a thing goes: an issue,
+  an entry, a verdict, a supersession, a design note or a `.qe/` finding, each row saying
+  what it is not, and what reproduction a filed defect is owed. It is tracked rather than
+  installed, unlike the three skills the package ships.
+- 1159 tests, 96 corpus seeds, 259 entries, all five checkers clean.
+
 ## [0.0.1] — 2026-09-13
 
 First release, and a deliberately small number: this goes to a few people who asked for
@@ -1078,4 +1272,5 @@ they are *near* each other, and near is not inconsistent.
   which is what lets the same file run from inside the package and from `.claude/hooks/`.
   They still need `jq` when they run, which the package does not.
 
+[0.0.2]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.2
 [0.0.1]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.1
