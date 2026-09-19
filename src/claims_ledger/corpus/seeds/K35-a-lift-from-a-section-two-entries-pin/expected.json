@@ -1,0 +1,32 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {
+      "checker": "validate",
+      "outcome": "pass",
+      "where": "all",
+      "why": "A0001's `## Passages` section is last, below the APPEND marker, and its one block is well formed; A0002 has no Passages section at all, which is what an optional section being optional means for the entry that did not lift"
+    },
+    {
+      "checker": "resolve",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the witness digests to the Observation section as commit 01 held it, and the held prose is a contiguous run of that section — the run below the two citing sentences, which the lift did not touch"
+    },
+    {
+      "checker": "references",
+      "outcome": "pass",
+      "where": "all",
+      "why": "both citations are still in the section the lift took prose out of, so both entries' References rows still name a document that cites them, and `citation-placement` finds each sentence inside the span its own entry pins. The surplus citation is the point: A0002's sentence sits in a section A0002 did not lift from, and neither its row nor its placement moves"
+    },
+    {
+      "checker": "freshness",
+      "outcome": "pass",
+      "where": "all",
+      "why": "the lift moved the one section both grounds are anchored to, so both entries are owed a reading, and both carry one at commit 02 stating the digest of the section as the lift left it"
+    }
+  ],
+  "note": "the multi-owner lift, which is the ordinary case wherever a ledger pins code and the case no other passage seed holds: one section, two entries pinning it by value, two citations in it, and the prose lifted for one of them. D70 and D71 also carry two entries, but they pin different sections of the note, so nothing before this seed asks what the checkers do when a lift lands in a span another entry is also resting on. Three things are held at once. A lift takes no line carrying a citation, of the lifting entry or of any other (L0271-a-lift-never-moves-a-citation), so the surplus citation stays where it was — a lift that took it with it would land it where no document glob reaches, and `references` would notice only from the References side, one checker away from the edit. One drift is two readings: the section moved once and both grounds are anchored to it, so A0002 is owed a verdict it would be easy to forget, and the seed fails if it is dropped. And an entry that lifted nothing holds no Passages section, which is the optional-section rule asked of the entry that did not lift rather than of a ledger that predates the section. The two entries are deliberately not related by a `distinguishes` ground: what is under test is the checkers over one span with two owners, and an edge between them would be a second thing moving.",
+  "history": "apply commits/01, commits/02, … as successive commits in a fresh repository; expectations name the commit they apply to. `@commitNN` in an entry is substituted with the real short object id of that commit before it is made, because a seed cannot know an id the runner has not created yet"
+}

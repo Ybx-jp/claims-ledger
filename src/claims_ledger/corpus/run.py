@@ -64,8 +64,8 @@ def corpus_config(root, entries_dir):
 
     `citation-placement` is on here and off in the package's defaults, because a rule the
     corpus does not run is a rule the corpus does not prove. Measured over the corpus, the
-    rule has a span to ask about in twelve seeds: D60 and K28, written for the rule itself,
-    and the passage seeds D67–D72 and K31–K34, where the ground names the same document the
+    rule has a span to ask about in thirteen seeds: D60 and K28, written for the rule itself,
+    and the passage seeds D67–D72 and K31–K35, where the ground names the same document the
     citation sits in because that is what a lift leaves behind — prose taken out of a
     section whose citing sentence stays. In the other ninety-four it has nothing to ask
     about at all, most often because the seed has no document under `docs/` and its grounds
@@ -426,7 +426,7 @@ def run_seed(seed, root):
     except LedgerError as exc:
         # Which seed was being built is half the report and the only half the runner
         # knows: `git_out` names the command and that nothing was proven, and a reader
-        # with 106 seeds needs to be told where to look.
+        # with 107 seeds needs to be told where to look.
         raise LedgerError(f"{seed.name}: {exc}") from exc
     lines = []
     for name, commit, exc in crashes:
