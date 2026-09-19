@@ -28,7 +28,7 @@ from .schema import (
     print_reports,
 )
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 # The single source of truth for the version: pyproject.toml reads it from here
 # (`[tool.hatch.version] path`), so `claims_ledger.__version__`, `pip show` and the
 # PyPI release can never disagree
