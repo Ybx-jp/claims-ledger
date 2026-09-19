@@ -45,5 +45,13 @@ none
 - 2026-09-17T01:12:30-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/corpus/run.py § "git_out" =sha256:f4d0af690196e4d00e553577705f1bf659e758b76c2cde8e5e9a2baffc7097ce
   note: re-read after `maintenance.auto=false` joined `gc.auto=0` on the command line. Both flags are about a different incident and neither touches what this entry holds: the two exceptions are still converted, still named, and the seed is still put in front of them.
+- 2026-09-19T14:24:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/corpus/run.py § "run_seed" =sha256:e706009e3b790fb43779e4e3a831711bb7d09058b6d3c1f3b8854ea0212bbe2f
+  artifact: sha256:065d4488b4b67836bc6e9b9a06915fb3b245ea4cadb538ef74e99785fd4e9b46
+  note: propagated from a moved ground
+
+- 2026-09-19T14:25:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/corpus/run.py § "run_seed" =sha256:065d4488b4b67836bc6e9b9a06915fb3b245ea4cadb538ef74e99785fd4e9b46
+  note: re-read after K35 took the corpus from 106 seeds to 107, which moved a number written into this section's comment about why the seed name is half the report. What the entry claims is that a git command the runner needs an answer from is reported as a finding naming the seed rather than raised as an unexpected exception; the `except LedgerError` arm that does it, and the name it attaches, are byte-for-byte what they were. The reason the count is in the comment at all is the claim itself — a reader with a hundred-odd seeds has to be told which one — so it is a number this section will keep paying for, and correctly.
 
 ## References
