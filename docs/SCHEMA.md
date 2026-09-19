@@ -100,7 +100,9 @@ or an id), `verbatim_sha`, and optionally `verbatim_change` with a reason.
 **Sections**, in order: Assertion, Scope, Grounds, Warrant, Backing, then the line
 `<!-- APPEND BELOW THIS LINE ONLY -->`, then Verdicts, References and — where an entry
 holds prose lifted out of the artifact it rests on — Passages. Passages is the one
-optional section; every other is required of every entry.
+optional section; every other is required of every entry, and an optional section is held
+to its place where it appears rather than reported missing where it does not
+(L0262-an-optional-section-is-required-only-where-it-appears, cites-as-live).
 
 - *Assertion* is the claim in the project's words. **No quotation mark may appear in
   it.** Every fusion of quote and inference the audit found lived inside quotation marks
@@ -192,20 +194,27 @@ optional section; every other is required of every entry.
   any section, so prose held there could only ever be added by superseding the entry —
   and a project lifting prose out of code it is still writing would pay a supersession
   for every wording fix. Held below the marker, a lift onto an existing entry touches no
-  frozen byte. The blocks are compared across every pair of revisions exactly as verdict
+  frozen byte (L0273-a-lifted-passage-is-appended-and-never-frozen, cites-as-live). The
+  blocks are compared across every pair of revisions exactly as verdict
   blocks are, because nothing else would hold them: the frozen comparison does not reach
-  below the marker and the entries directory is not a configured document.
+  below the marker and the entries directory is not a configured document
+  (L0265-a-passage-appends-and-only-appends-across-every-edge, cites-as-live).
 
   **The witness is stated by value, never by reference, and is not a ground.** It names
   text the tree no longer holds, by construction — the lift removed it — so `freshness`,
   which compares every pinned evidence pointer against the tree, would report it `moved`
   on every run for the rest of the ledger's life, with no verdict able to discharge a
-  finding that is true. `resolve` reads it out of the history alone, which is also what
-  lets a lift land in one commit: the pre-lift blob is in git before the lift is planned.
+  finding that is true (L0263-a-witness-is-stated-by-value-so-freshness-never-reads-it,
+  cites-as-live); and it is written on its own block rather than among the Grounds, so
+  nothing reads it as evidence for the claim (L0264-a-witness-is-not-a-ground,
+  cites-as-live). `resolve` reads it out of the history alone, which is also what
+  lets a lift land in one commit: the pre-lift blob is in git before the lift is planned
+  (L0268-a-witness-is-resolved-against-history-and-never-the-tree, cites-as-live).
   Resolution is two propositions and the second is the one that matters — some version of
   the path digests to the witness, *and* the held prose is a contiguous run of the lines
   that version held. A witness that resolves says only that the section existed; it does
-  not say the prose came out of it.
+  not say the prose came out of it
+  (L0267-a-witness-that-resolves-is-not-yet-a-passage-that-matches, cites-as-live).
 
   **What is checked is that the prose was there, not that it was taken away.** Two things
   no check can see follow from that, and both are the reader's to notice: a passage that

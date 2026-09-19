@@ -38,3 +38,4 @@ none
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
+- docs/SCHEMA.md · standing · cites-as-live
