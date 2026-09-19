@@ -39,3 +39,5 @@ none
 
 - src/claims_ledger/lift.py · standing · cites-as-live
 - src/claims_ledger/schema.py · standing · cites-as-live
+- docs/SCHEMA.md · standing · cites-as-live
+- README.md · standing · cites-as-live

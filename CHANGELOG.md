@@ -11,6 +11,95 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.3] — 2026-09-19
+
+Prose lifted onto the entry. An entry may now hold the narrative that was taken out of
+the artifact it rests on, leaving the marker and the citation behind — the section keeps
+the code, the docstring's summary line, and the sentence that says where the rest of it
+went. The argument for doing that ships labelled: it is an inference about the drift
+signal, cross-measured at 1.1×–1.3× precision, and the last paragraph below says so
+rather than leaving the reader to assume a measurement.
+
+No schema change that costs an existing entry anything. `Passages` is the schema's first
+*optional* section, so an entry written under 0.0.1 or 0.0.2 is read unchanged here and
+nothing added below is required of an entry that does not use it. `0.1.0` is still kept
+back for the public release.
+
+### Added — lifted prose, and the `lift` and `show` commands
+
+An entry may now hold narrative prose that was taken out of the artifact it rests on,
+leaving the citation behind. `claims-ledger lift <entry>` moves the body of a section's
+docstring onto the entry and `claims-ledger show <entry>` reads it back. The section then
+holds the code, the docstring's summary line, and the citation that says where the rest
+of it went.
+
+- **A new optional section, `Passages`**, below the APPEND marker: one append-only block
+  per revision, each carrying a witness and the prose. `docs/SCHEMA.md` has the grammar
+  and the reasons. It is the first optional section the schema has had, and the machinery
+  for that — a section required only where it appears — is what let it land on a ledger
+  whose 258 entries all predate it.
+- **The append-only comparison now covers Passages as well as Verdicts.** Without this a
+  held passage was held by nothing at all: the frozen-region comparison does not reach
+  below the marker, and the entries directory is not a configured document, so prose could
+  have been rewritten or dropped with every checker green.
+- **`resolve` checks two things about a held passage**, and the second is the point: that
+  some version of the path in the history digests to the witness, and that the held prose
+  is a contiguous run of the lines that version held. A witness that resolves says the
+  section existed, not that the prose came out of it.
+- **The lift refuses a file whose working tree differs from HEAD**, writes nothing without
+  `--write`, and will hand back a reverse patch with `--patch`. `renumber --write` already
+  rewrites a project's source, but it is licensed by an invariant a lift cannot inherit —
+  a substitution can be undone and a deletion cannot — so the lift carries its own.
+- **Ten red-team corpus seeds**, D67–D72 and K31–K34, for the two checking surfaces
+  this release adds; the corpus is 106 seeds, up from the 96 this package published in
+  0.0.2. The one the mechanism exists for is D67: a witness that resolves while the held
+  prose is not what came out of the section. The others are a witness no version of the
+  path digests to (D69, which is also what a shallow clone leaves, and it fails rather
+  than flags), an id substitution that reached inside a held passage (D70), a witness
+  written as a ground (D71, a permanent flag), a stored passage line that dropped the
+  indentation it carried in the artifact (D72, which holds the wiring rather than a rule:
+  with `check_passages`'s one call site in `validate.run` deleted, the corpus still
+  printed 105/105 and the suite was byte-identical, because eleven report sites were
+  reached only by tests calling the function directly), a marker and its References row
+  deleted together (D68, review-only), and four known-good seeds: the lift itself (K31,
+  which is also the positive for the optional section), the same lift from a CRLF
+  artifact (K32), a second passage appended beside a committed one (K33), and an entry
+  refuted while holding a passage (K34).
+- **A docstring is lifted body-only**; its summary line stays, so `help()`, pydoc and
+  Sphinx still answer with a sentence. A line carrying a citation is never lifted, of the
+  entry being lifted for or of any other, because a section is often pinned by several
+  entries and moving their citations would put them where no document glob reaches.
+
+**On what this is and is not measured to do.** The drift-signal argument for lifting —
+that prose out of the pinned span means only code edits raise a flag — is an
+**inference, not a measurement**, and should not be repeated as one. Measured on this
+repository: of 121 corroborating verdicts naming a prose-side edit, 76 involve a citation
+or citing comment, and the marker left behind *is* a citation that churns when its
+target's status moves, so that class survives the lift; 47 of 189 pinned sections carry
+two or more distinct cited ids, and for those the premise fails outright. Cross-measured
+against a second, independently developed code-pinning ledger (`thalamus`, 93 pinned
+`.py` spans over two months of history that predate any ledger discipline), and netting
+off the one-time cost of adopting the in-span citation convention, the benefit is
+**1.1×–1.3× precision and no change to recall** — narrower than §9a's `at most 1.44×`,
+which counted citation introductions as recurring churn. The feared 1.00× collapse does
+not occur: a marker repointing is rare, and on both ledgers it is the small term.
+
+### Fixed
+
+- **A shipped hook returns the same verdict on both platforms this package tests on.**
+  `timeout` is GNU coreutils and macOS ships none, so on macOS `merge-guard.sh` denied an
+  ordinary merge with `timeout: command not found`, while the three hooks that append
+  `|| true` swallowed the identical failure and reported nothing at all — a drift check
+  silent on a whole platform. Each shipped hook now discovers what is available to bound
+  its call, and holds its verdict where there is nothing to bound it with.
+- **A git command the corpus runner needs an answer from is a corpus finding, not a
+  traceback.** A failure or a timeout from git is reported against the seed that provoked
+  it, which is the difference between a corpus that says which seed it could not read and
+  one that says the package crashed.
+- **A scratch directory the corpus runner cannot remove no longer fails the run.** That is
+  the filesystem's news rather than a defect in the package, and reporting it as one made
+  a clean corpus look red wherever something else was holding a handle open.
+
 ## [0.0.2] — 2026-09-16
 
 One repository, several checkouts, each on its own branch, all minting entries. That is
@@ -1272,5 +1361,6 @@ they are *near* each other, and near is not inconsistent.
   which is what lets the same file run from inside the package and from `.claude/hooks/`.
   They still need `jq` when they run, which the package does not.
 
+[0.0.3]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.3
 [0.0.2]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.2
 [0.0.1]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.1
