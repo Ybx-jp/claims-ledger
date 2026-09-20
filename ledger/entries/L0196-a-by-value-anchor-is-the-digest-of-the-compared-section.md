@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T12:09:31-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "section_digest" =sha256:838a8d521e361f620877e237ba705f7268eeeff471a78e79a370fb6ab44b23eb
+  artifact: sha256:6a46f805ca768a3f450329b1c1364892525707c429769239a72f33fdfc0d92ec
+  note: propagated from a moved ground
+
+- 2026-09-20T12:09:32-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "section_digest" =sha256:6a46f805ca768a3f450329b1c1364892525707c429769239a72f33fdfc0d92ec
+  note: this repository adopted the decorator-aware `code` pattern it documents, so the section no longer runs on to the decorator of the definition below it; section_digest itself is unchanged
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

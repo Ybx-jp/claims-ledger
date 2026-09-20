@@ -526,7 +526,7 @@ the drift comparison called every edit anywhere in an artifact a moved ground.
     evidence-sectioned = ["lab", "code"]
 
     [tool.claims-ledger.section-patterns]
-    code = '^(?:def|class) +{name}'
+    code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
 
 `resolve` and `freshness` read a section through the same pattern, so an entry cannot
 resolve against one span and be compared against another. Omitted, a type gets the
@@ -553,6 +553,18 @@ rest of it uncompared. That is a silent miss, the worst kind for this package. T
 configuration comment, `SCHEMA.md` and `section_span`'s own docstring all say to anchor
 at the granularity the section really has. A checker cannot detect the mistake, because
 a pattern that matches less is indistinguishable from a section that is genuinely shorter.
+
+**Built — a second anchoring caveat, found the same way (2026-09-20).** Anchoring at the
+left margin is necessary and not sufficient. A pattern anchored on the line that *names* a
+definition gives away whatever the language writes in front of it: a Python decorator falls
+into the section of the definition above, where an edit to it reports a claim it has
+nothing to do with, or — carrying a keyword argument, so that the widened name slot matches
+`@dataclass(frozen` before its `=` — ends that section and falls into none, where an edit to
+it reports nothing. The recipe above is the corrected one; it takes the prefix in, which a
+pattern may do because it is matched over the whole artifact rather than line by line
+(L0281-the-documented-recipe-starts-a-section-at-the-prefix, cites-as-live). The example
+this specification carried until then was the pattern with the defect, which is how a
+sketch written before the implementation becomes the thing a project copies.
 
 **Built — and the shipped default could not take that advice.** `^#+\s*{name}\s*$`
 matches a heading at *every* depth, so `## Observation` ended at the first `### …` beneath

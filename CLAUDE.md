@@ -36,6 +36,15 @@ they carry citations of ids that live in other ledgers, or show the syntax to a 
 and a glob that reached them would turn fixtures and examples into failures. Widening
 one is a change to run before it is committed.
 
+The `code` pattern here is the recipe the package documents, character for character —
+README §Configuration, `docs/OPERATING.md`, the `tagging-prose-with-claims` skill and the
+table `claims-ledger init` writes — and a test holds all of them to one string
+(L0282-this-repository-uses-the-recipe-it-documents, cites-as-live). A ledger whose entries
+are the argument that the checkers work cannot run a pattern it tells everyone else not to
+use. Changing it is a commit of its own: it moves the span of every ground whose most recent
+reading is stated by value, and each of those needs a reading of the section as it now
+stands before `resolve` can show the text the claim was established on.
+
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
 does, so a citation written here is checked. `RELEASING.md` is one for the same reason: it
 says what gates a publication, which is a claim about this package rather than a recipe for

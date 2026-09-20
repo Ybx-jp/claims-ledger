@@ -37,3 +37,4 @@ none
 ## References
 
 - docs/OPERATING.md · standing · cites-as-live
+- docs/FRESHNESS.md · standing · cites-as-live
