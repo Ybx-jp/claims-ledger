@@ -27,6 +27,7 @@ told:
 | --- | --- |
 | prose that promises something and cites nothing | `tagging-prose-with-claims` |
 | a marker that clutters a page readers see, or a document in some other file format | `tagging-prose-with-claims` |
+| a decorator, attribute or annotation above the definition a claim rests on | `tagging-prose-with-claims` |
 | `<act> against <id>, whose status is …` | `choosing-a-citation-act` |
 | `is shaped like a citation but … is not a citation act` | `choosing-a-citation-act` |
 | `cites … from outside § "…"` | `choosing-a-citation-act`, then `repair-a-drifted-pin` for the flags moving it causes |

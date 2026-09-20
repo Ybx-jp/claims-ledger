@@ -173,6 +173,18 @@ def hook_text(python=None):
     return HOOK_TEMPLATE.format(python=shlex.quote(python or sys.executable))
 
 
+CODE_RECIPE = (
+    r"'^(?:@[^\n]*\n)*(?![ \t])"
+    r"(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'"
+)
+# The `code` pattern `init` writes out commented, and the one README.md,
+# docs/OPERATING.md and the `tagging-prose-with-claims` skill document; a test holds
+# the four identical. It is a value substituted into the template rather than a line
+# inside it because a backslash in that template is a Python escape before it is ever
+# a regex one, and the recipe is mostly backslashes. Written below the assignment so
+# the comment belongs to this name rather than to the section above it.
+
+
 CONFIG_TEMPLATE = """# The claims ledger's layout and this project's local vocabulary.
 # Every path is relative to the directory holding this file.
 [tool.claims-ledger]
@@ -201,7 +213,7 @@ evidence-plain = ["experiment"]
 # a group named `depth`: a match whose `depth` is longer than the header's is a
 # subsection of it, not the start of the next one.
 # [tool.claims-ledger.section-patterns]
-# code = '^(?:def|class) +{{name}}'
+# code = {code}
 
 # Who may write a verdict, and which of those names the machinery writes under.
 verdict-authors = ["main", "propagation"]
@@ -989,7 +1001,9 @@ def cmd_init(args, _ledger):
         write_text_atomically(ignore, CACHE_IGNORE)
         if not registry.exists():
             write_text_atomically(registry, "")
-        write_text_atomically(config_path, CONFIG_TEMPLATE.format(ledger=args.ledger))
+        write_text_atomically(
+            config_path, CONFIG_TEMPLATE.format(ledger=args.ledger, code=CODE_RECIPE)
+        )
     except OSError as exc:
         print(
             f"claims-ledger: cannot scaffold the ledger under {ledger_dir} "

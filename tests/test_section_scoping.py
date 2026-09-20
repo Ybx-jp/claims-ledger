@@ -411,3 +411,126 @@ def test_a_hash_inside_a_fenced_code_block_does_not_end_the_section():
     assert "Conclusion: the result holds." in span, (
         f"the section ended at the fence; the compared span was {span!r}"
     )
+
+
+# --- the `code` recipe the package documents -------------------------------------------
+
+DECORATED = """import dataclasses
+
+
+PLAIN = 1
+
+ANNOTATED: dict[str, int] = {"a": 1}
+
+
+def bare():
+    def nested():
+        return 1
+    return nested
+
+
+@dataclasses.dataclass(frozen=True)
+class Row:
+    a: int
+
+
+@first
+@second("x", y=1)
+async def fetch(url):
+    return url
+"""
+
+
+def documented_recipes():
+    """The `code` recipe as each place the package writes it has it, keyed by that place.
+
+    Read out of the files rather than restated here, because a second copy of the string
+    in the test is a fifth place for it to drift in. Each is parsed as the TOML it is,
+    which is what strips the `# ` a commented template line carries and the indentation a
+    fenced example carries.
+    """
+    import tomllib
+
+    from claims_ledger.cli import CODE_RECIPE, CONFIG_TEMPLATE
+
+    sources = {
+        "README.md": (PROJECT / "README.md").read_text(encoding="utf-8"),
+        "docs/OPERATING.md": (PROJECT / "docs" / "OPERATING.md").read_text(encoding="utf-8"),
+        "tagging-prose-with-claims": (
+            PROJECT / "src/claims_ledger/resources/agent-skills/tagging-prose-with-claims/SKILL.md"
+        ).read_text(encoding="utf-8"),
+        "claims-ledger init": CONFIG_TEMPLATE.format(ledger="ledger", code=CODE_RECIPE),
+    }
+    out = {}
+    for where, text in sources.items():
+        rows = [
+            ln.strip().lstrip("# ")
+            for ln in text.splitlines()
+            if ln.strip().lstrip("# ").startswith("code = ")
+        ]
+        assert len(rows) == 1, f"{where} writes {len(rows)} `code =` lines, expected 1"
+        out[where] = tomllib.loads("[x]\n" + rows[0])["x"]["code"]
+    return out
+
+
+def spans(pattern, text, name):
+    return section_text(text, configured_pattern(pattern), "code", name)
+
+
+def configured_pattern(pattern):
+    class Cfg:
+        def section_pattern(self, type_name):
+            return pattern
+
+    return Cfg()
+
+
+def test_the_documented_code_recipe_is_the_same_string_in_every_place_it_is_written():
+    """Four copies: the README's configuration example, `docs/OPERATING.md`, the shipped
+    skill, and the commented table `claims-ledger init` writes. A project copies whichever
+    one it reads first, so they are one string or they are four recipes."""
+    got = documented_recipes()
+    assert len(set(got.values())) == 1, got
+
+
+def test_what_init_writes_is_valid_toml_and_a_pattern_that_compiles():
+    """The template is an ordinary Python string, so a `\\n` in the recipe is a newline in
+    the file it writes unless it is escaped twice. That breaks the TOML before it ever
+    reaches the regex engine."""
+    import re
+
+    pattern = documented_recipes()["claims-ledger init"]
+    re.compile(pattern.replace("{name}", "Row"), re.MULTILINE)
+
+
+@pytest.mark.parametrize(
+    "name, starts, holds, excludes",
+    [
+        ("Row", "@dataclasses.dataclass(frozen=True)", "class Row:", None),
+        ("fetch", "@first", "async def fetch(url):", None),
+        ("bare", "def bare():", "def nested():", "@dataclasses.dataclass"),
+        ("PLAIN", "PLAIN = 1", "PLAIN = 1", "ANNOTATED"),
+        ("ANNOTATED", 'ANNOTATED: dict[str, int] = {"a": 1}', "ANNOTATED", "def bare"),
+    ],
+)
+def test_the_documented_recipe_puts_a_prefix_with_the_declaration_it_belongs_to(
+    name, starts, holds, excludes
+):
+    """A decorator belongs to the definition it modifies, and the section above it ends
+    before it. Both halves at once: `bare` is the section that used to swallow the
+    decorator of the class below it, and `Row` is the class whose decorator used to end
+    `bare` instead and land in no section at all."""
+    pattern = next(iter(documented_recipes().values()))
+    got = spans(pattern, DECORATED, name)
+    assert got is not None, f"{name} does not resolve under the documented recipe"
+    assert got.startswith(starts), got
+    assert holds in got, got
+    if excludes is not None:
+        assert excludes not in got, got
+
+
+def test_the_documented_recipe_does_not_make_a_nested_definition_a_section():
+    """The anchoring caveat the configuration has always carried: a nested `def` is part of
+    the function holding it, not the start of the next section."""
+    pattern = next(iter(documented_recipes().values()))
+    assert spans(pattern, DECORATED, "nested") is None
