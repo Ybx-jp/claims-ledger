@@ -57,6 +57,24 @@ none
 - 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
   note: read against the working tree after the fill of a pending anchor was narrowed to a Grounds line or a verdict's evidence line, since a Warrant sentence ending in the same text was being rewritten in the frozen region of a committed entry (qe gate, ticket c4e62619f4d5476f): an unasked git still raises before anything is written and the fingerprint is left alone; the assertion holds as written.
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  artifact: sha256:fd9312e13d08a2331bf9b6f92ef38c0968083bbc03d702926ff16ccc9b045807
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
+  artifact: sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" =sha256:fd9312e13d08a2331bf9b6f92ef38c0968083bbc03d702926ff16ccc9b045807
+  note: re-read after the commit that stops asking this question of HEAD alone. The answer now comes from a walk over every ref and every operation in progress, instead of `rev-parse --verify --quiet HEAD:<rel>`. What this claim asserts is unchanged: a git that could not be asked is still None and never a no — the walk failing is the one bit that says so.
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: re-read after the commit that widens what `is_committed` asks. This section calls it and is otherwise untouched; the call now takes the ledger rather than the repository, because the walk is kept on the ledger for the run. a git that could not be asked is still None and never a no — the walk failing is the one bit that says so.
+
 
 ## References
 

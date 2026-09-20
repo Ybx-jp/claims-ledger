@@ -53,6 +53,15 @@ none
 - 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "run" =sha256:166a79c96b6b68db961e4aeb6e8a271e668650a3181d75583405ee4478808d6f
   note: re-read after the commit that gives this checker a cached mode: it takes the flag, loads the entries with it, and reads each configured document from the index where the index holds it. Every rule this claim is about is unchanged — what moved is which tree the text being checked was read from, and the bodies being read once for the run instead of once per loop.
+- 2026-09-20T12:55:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:166a79c96b6b68db961e4aeb6e8a271e668650a3181d75583405ee4478808d6f
+  artifact: sha256:51cf8c55f336e8fd07780a8e4509a9f7645490b4096cd3531b71f499615e89d7
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:51cf8c55f336e8fd07780a8e4509a9f7645490b4096cd3531b71f499615e89d7
+  note: re-read after the commit that lets a marker name its entry by the series and number alone. The document loop in this section now resolves each marker through `cited_target` and collects the resolved id rather than the text of the marker, and the slug rule is asked after the lookup. Both directions still have to agree, and they agree on the entry: the set a document's citations are collected into holds resolved ids, so a References row is matched against the act the document really performs however the marker spelled the id.
+
 
 ## References
 

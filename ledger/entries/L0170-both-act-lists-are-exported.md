@@ -42,6 +42,15 @@ none
 - 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__all__" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
   note: read against commit ee234ed: the citing comment moved into this section from outside it, so the section now carries the sentence it always managed, into the list literal; both act lists are still named in it
+- 2026-09-20T13:22:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__all__" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  artifact: sha256:e68f195e3420d000c760257f7a0c0fa4eb15d1ac5e0414dc31274fd5e5a2117e
+  note: propagated from a moved ground
+
+- 2026-09-20T13:23:13-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__all__" =sha256:e68f195e3420d000c760257f7a0c0fa4eb15d1ac5e0414dc31274fd5e5a2117e
+  note: re-read after the commit that converts this file's markers to the short form. The only change inside the section is the citation itself, which lost the entry's slug and now names the id alone; it resolves to the same entry, under the same act, and the References row is unchanged. The list still carries both ACTS and ENTRY_ACTS.
+
 
 ## References
 

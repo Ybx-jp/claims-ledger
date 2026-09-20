@@ -42,6 +42,15 @@ none
 - 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
   note: read against the working tree after the fill of a pending anchor was narrowed to a Grounds line or a verdict's evidence line, since a Warrant sentence ending in the same text was being rewritten in the frozen region of a committed entry (qe gate, ticket c4e62619f4d5476f): every placeholder in the Grounds and in verdict evidence is still filled from the tree, a pointer whose text is not there is still refused by name before the write, and the committed refusal is still asked only for the frozen region; the assertion holds as written.
+- 2026-09-20T15:29:17-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
+  artifact: sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: re-read after the commit that widens what `is_committed` asks. This section calls it and is otherwise untouched; the call now takes the ledger rather than the repository, because the walk is kept on the ledger for the run. sha --write still fills a pending anchor from the tree.
+
 
 ## References
 

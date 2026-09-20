@@ -550,3 +550,49 @@ def test_this_repository_uses_the_code_recipe_it_documents():
     mine = table["tool"]["claims-ledger"]["section-patterns"]["code"]
     documented = documented_recipes()
     assert mine in set(documented.values()), {"pyproject.toml": mine, **documented}
+
+
+# The `toml-key` recipe README.md publishes, character for character, and the multi-line
+# value that breaks it. `code` beside it in the same table carries a `(?![ \t])` guard and
+# the comment above them says why — "the lookahead keeps an indented assignment from ending
+# a function at its first local". `toml-key` is the same failure mode without the guard.
+TOML_KEY_RECIPE = "^{name} = "
+TOML_WITH_INLINE_TABLES = """\
+before = "x"
+rules = [
+    # A comment above the first element.
+    { paths = ["a"], slug = "forbid" },
+    { paths = ["**"], slug = "require" },
+]
+after = "y"
+"""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="BUG (issue #57): `toml-key = '^{name} = '` has no `(?![ \\t])` guard, so the "
+    "pattern widened to find the next section matches the indented `{ paths = ` of the "
+    "first inline table and the section stops there",
+)
+def test_a_toml_key_section_runs_to_the_end_of_a_multi_line_value(tmp_path):
+    """A `toml-key` ground names one key of a table, and the span it names is that key's
+    value. README.md § Configuration publishes the pattern and says what it costs over a
+    multi-line value; measured, the cost is not what it says. An array of plain strings
+    gets its whole value, because the pattern finds no `=` inside it. An array of inline
+    tables gets the key's own line and whatever comment precedes the first element, and
+    none of the rules — a span that resolves, stays fresh, and holds nothing the claim is
+    about.
+
+    Strict, so that it fails the moment the recipe grows the guard its sibling already has
+    and this stops being a bug."""
+    from claims_ledger.config import from_table
+
+    config = from_table(
+        {"section-patterns": {"toml-key": TOML_KEY_RECIPE}, "evidence-sectioned": ["toml-key"]},
+        tmp_path,
+    )
+    span = section_text(TOML_WITH_INLINE_TABLES, config, "toml-key", "rules")
+    assert span is not None
+    assert 'slug = "require"' in span, (
+        f"the section stopped at the first inline table; the compared span was {span!r}"
+    )

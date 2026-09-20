@@ -42,6 +42,15 @@ none
 - 2026-09-08T19:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "is_committed" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
   note: read against commit 225f586, which moved `ARCH-AUDIT.md` into `docs/audits/` and rewrote the mentions of it in this section; the section was parsed at the pin and at that commit and compared with comments and docstrings set aside, and the two are identical, so nothing the claim rests on changed
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  artifact: sha256:fd9312e13d08a2331bf9b6f92ef38c0968083bbc03d702926ff16ccc9b045807
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "is_committed" =sha256:fd9312e13d08a2331bf9b6f92ef38c0968083bbc03d702926ff16ccc9b045807
+  note: re-read after the commit that stops asking this question of HEAD alone. The answer now comes from a walk over every ref and every operation in progress, instead of `rev-parse --verify --quiet HEAD:<rel>`. What this claim asserts is unchanged: committed still means a commit names it: measured, with the blob deleted, the walk still names the path.
+
 
 ## References
 

@@ -27,7 +27,7 @@ dependencies = []
 # No runtime dependencies, deliberately. The checkers run from a plain `python3` in a
 # pre-commit hook, on a checkout with nothing installed; tomllib is standard library
 # from 3.11, which is what sets the floor.
-# Ledger: (L0011-no-runtime-dependencies, cites-as-live). Below the key and not above it:
+# Ledger: (L0011, cites-as-live). Below the key and not above it:
 # a `toml-key` section starts at its own line, so a comment above `dependencies` belongs
 # to whatever key precedes it.
 
@@ -150,6 +150,23 @@ citation-placement = "fail"
 # span its entry pins, so a new one that does not is a mistake with a known repair and
 # no judgement to make. A project adopting the rule mid-life wants `flag` until its
 # existing citations are moved.
+citation-slug = [
+    # Three files are on the short form, one of each kind this project writes citations
+    # in: a TOML key's comment, a Python comment, and Markdown prose. They are named here
+    # so that a marker written in the long form in one of them is a regression rather than
+    # a matter of taste.
+    { paths = [
+        "pyproject.toml",
+        "src/claims_ledger/__init__.py",
+        "docs/FRESHNESS.md",
+    ], slug = "forbid" },
+    # Everywhere else names the entry in full and has to go on doing so, which is the half
+    # that makes the migration monotonic: a marker not yet converted cannot quietly become
+    # a short one, and a converted one cannot quietly go back
+    # (L0291, cites-as-live). The wide rule is written second because the earliest
+    # match decides, so a path named above is decided above.
+    { paths = ["**"], slug = "require" },
+]
 evidence-sectioned = ["code", "toml", "toml-key"]
 evidence-plain = []
 

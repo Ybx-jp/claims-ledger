@@ -37,6 +37,15 @@ none
 - 2026-09-11T19:41:48-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "misplaced_citations" =sha256:e97be4dbb7399cbd52282246e54f6fbe51f39111bd3b045d23531b2645d667c7
   note: re-read after the same commit. This function is handed the document bodies the run already read rather than reading each document again; the placement rule it holds, and what it reports, are untouched.
+- 2026-09-20T12:55:58-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "misplaced_citations" =sha256:e97be4dbb7399cbd52282246e54f6fbe51f39111bd3b045d23531b2645d667c7
+  artifact: sha256:cfe8ab180a63d08218d042819eb9180b708f09e1819e9bac7514e911872fd62c
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "misplaced_citations" =sha256:cfe8ab180a63d08218d042819eb9180b708f09e1819e9bac7514e911872fd62c
+  note: re-read after the commit that lets a marker name its entry by the series and number alone. This section now resolves the marker before narrowing to one entry, and narrows by the resolved entry rather than by the text. The rule itself — a citation of an entry that also rests on a sectioned ground in this same file belongs inside one of those spans — is untouched. What the reordering keeps is that the question goes on being asked of a marker written in the short form, at `sha --write` as well as at `references`.
+
 
 ## References
 

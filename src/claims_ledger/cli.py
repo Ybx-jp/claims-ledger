@@ -194,11 +194,20 @@ ledger = "{ledger}"
 # cache = "cache"
 
 # Documents that may cite an entry, as globs from the project root. A citation reads
-# `(A0001-<slug>, cites-as-live)` and is held to the entry's current status at every check.
+# `(A0001-<slug>, cites-as-live)` — the `-<slug>` may be left off — and is held to the
+# entry's current status at every check.
 # `document-excludes` is matched the same way, segment by segment: `*` stops at a
 # separator, `**` spans any number of them.
 documents = ["*.md", "docs/*.md"]
 # document-excludes = []                    # e.g. ["docs/draft-*.md"]
+
+# Which of the two spellings a marker may use: "either" (the default), "require" for the
+# whole id, "forbid" for the id alone. A list says it per path, first match winning:
+#   citation-slug = [
+#       {{ paths = ["src/**/*.py"], slug = "forbid" }},
+#       {{ paths = ["**"], slug = "require" }},
+#   ]
+# citation-slug = "either"
 
 # The named artifacts an entry may rest on. A `sectioned` type is written
 # `lab: <path> § "<section>" @<commit>`; a plain one `experiment: <path> @<commit>`.

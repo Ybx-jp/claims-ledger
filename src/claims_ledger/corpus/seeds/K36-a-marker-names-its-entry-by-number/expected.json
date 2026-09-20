@@ -1,0 +1,11 @@
+{
+  "class": "known-good",
+  "known_good": true,
+  "expect": [
+    {"checker": "validate", "outcome": "pass", "where": "all", "why": "the entry is well-formed"},
+    {"checker": "resolve", "outcome": "pass", "where": "all", "why": "the lab pointer resolves and names a section that is there"},
+    {"checker": "references", "outcome": "pass", "where": "all", "why": "the marker names the number alone and reaches the same entry the whole id would have: the act is legal against its status, A0001 lists the document, and the placement rule finds the marker inside the span the ground names"},
+    {"checker": "propagate", "outcome": "pass", "where": "all", "why": "nothing has fallen and nothing is challenged"}
+  ],
+  "note": "The slug is the entry's title in its filename and the number is what identifies it, so `(A0001, cites-as-live)` is the citation `(A0001-observation-holds, cites-as-live)` would have been, and every rule downstream of the marker has to reach the same entry. D73 is the near-negative that matters: the same number carrying a slug the entry does not have, which resolves to nothing rather than through the number it shares. No rule governs this note's spelling, so it is also the near-negative for D74."
+}

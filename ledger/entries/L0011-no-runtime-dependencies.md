@@ -43,6 +43,15 @@ none
 - 2026-09-08T16:10:00-07:00 · corroborated · grade: measured · author: main
   evidence: toml-key: pyproject.toml § "dependencies" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
   note: read against commit abb827e, which moved this claim's citing comment below the key rather than above it, where a toml-key section does not reach; the key is still an empty array and requires-python still names 3.11
+- 2026-09-20T13:22:52-07:00 · contested · grade: measured · author: propagation
+  evidence: toml-key: pyproject.toml § "dependencies" @abb827e3cd4a443f4cc9e90f1db52a3d5c853622
+  artifact: sha256:76d45ba378bfbc73901c10a8d07f51e3fdecea9a0d663f6a2265ba3f27adced2
+  note: propagated from a moved ground
+
+- 2026-09-20T13:23:13-07:00 · corroborated · grade: measured · author: main
+  evidence: toml-key: pyproject.toml § "dependencies" =sha256:76d45ba378bfbc73901c10a8d07f51e3fdecea9a0d663f6a2265ba3f27adced2
+  note: re-read after the commit that converts this file's markers to the short form. The only change inside the section is the citation itself, which lost the entry's slug and now names the id alone; it resolves to the same entry, under the same act, and the References row is unchanged. The value is still `[]`: this package has no runtime dependencies.
+
 
 ## References
 

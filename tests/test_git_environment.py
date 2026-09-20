@@ -139,9 +139,12 @@ def test_a_git_that_cannot_read_the_entry_at_head_is_not_a_git_saying_not_commit
     an entry HEAD does not have and for a git that could not look — so an object store
     git could not read the entry out of read as `not committed yet`.
 
-    The shim fails exactly the lookup of a path at HEAD and delegates everything else, so
-    the repository is otherwise intact and `git_problem()` has nothing to report: what is
-    under test is the one answer. Restoring `git(...) is not None` reddens it.
+    The shim fails exactly the walk that lists what the repository holds — `--all`, the
+    reach `committed_paths` asks over — and delegates everything else, so the repository is
+    otherwise intact and `git_problem()` has nothing to report: what is under test is the
+    one answer. Restoring `git(...) is not None` reddens it. It fails `--all` rather than
+    `HEAD:*` because the question stopped being asked of HEAD alone: an entry on the
+    incoming side of a merge is committed, and HEAD is where it is not.
     """
     project, path = committed
     shim = tmp_path / "shim-bin"
@@ -149,7 +152,7 @@ def test_a_git_that_cannot_read_the_entry_at_head_is_not_a_git_saying_not_commit
     real = subprocess.run(["which", "git"], capture_output=True, text=True, check=True)
     (shim / "git").write_text(
         "#!/bin/sh\n"
-        'for a in "$@"; do case "$a" in HEAD:*) exit 128;; esac; done\n'
+        'for a in "$@"; do case "$a" in --all) exit 128;; esac; done\n'
         f'exec {real.stdout.strip()} "$@"\n',
         encoding="utf-8",
     )

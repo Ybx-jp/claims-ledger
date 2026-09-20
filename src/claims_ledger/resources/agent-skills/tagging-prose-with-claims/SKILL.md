@@ -148,6 +148,20 @@ Grounds exist there is no span to be outside of. Whether a project asks at all i
 `off` does not mean the rule is wrong for that project. It usually means the project has
 citations that would fail it, and turning it on is a sweep followed by the setting.
 
+## Which spelling the marker uses is also the project's
+
+A marker names its entry in full, `(A0007-a-slug, cites-as-live)`, or by the id alone,
+`(A0007, cites-as-live)`. Both reach the same entry; a slug that is not that entry's
+reaches none. Whether a given file may use one, the other or either is `citation-slug`,
+and it can differ per path — the same file that wants the whole id in its prose may want
+the id alone in a comment that has to stay short. Ask the project rather than copying the
+nearest marker, because the nearest one may be in a file governed by a different rule:
+
+    python -c "from claims_ledger import open_ledger; print(open_ledger().config.citation_slug)"
+
+A tuple of `(paths, policy)` pairs, first match winning, with `None` paths meaning every
+document. `references` names the spelling a document wants when a marker uses the other.
+
 ## Documents and grounds are different
 
 - **Documents** are the prose scanned for citations. Ask which files those are:

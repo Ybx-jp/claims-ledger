@@ -22,6 +22,7 @@ from .schema import (
     CITATION_RE,
     PASSAGE_INDENT,
     LedgerError,
+    citation_slug_policy,
     digest_of,
     git_call,
     git_env,
@@ -135,7 +136,7 @@ def citation_act(status):
     return next(act for act in order if status in ACT_ALLOWS[act])
 
 
-def marker_for(entry, section, parts):
+def marker_for(entry, section, parts, rel, config):
     """The citation a lift leaves where the prose was, as `(at, line)`, or None when the
     section already carries one of this entry.
 
@@ -156,12 +157,26 @@ def marker_for(entry, section, parts):
     inside the same string literal the prose came out of, and a comment syntax the tool
     would have to be told per evidence type is never needed.
     """
-    if any(m.group(1) == entry.id for m in CITATION_RE.finditer(section)):
+    number = entry.id.split("-", 1)[0]
+    # Either spelling counts as the section already citing this entry. A marker naming
+    # the number alone is the same citation `references` resolves to this entry, so a
+    # lift that looked only for the whole id would write a second marker beside the one
+    # already there (L0288-a-rule-follows-the-entry-a-marker-resolves-to, cites-as-live).
+    if any(m.group(1) in (entry.id, number) for m in CITATION_RE.finditer(section)):
         return None
     at, stop = parts[0]
     first = next((ln for ln in section[at:stop].splitlines() if ln.strip()), "")
     indent = first[: len(first) - len(first.lstrip())]
-    return at, f"{indent}({entry.id}, {citation_act(entry.status())})"
+    # Written in the spelling this path's rule asks for — but only where the artifact is
+    # a document. L0236 is why: `renumber` rewrites a whole id in any file it finds one
+    # in, and a bare number only where the package knows a number is an id, which is the
+    # entries and the configured documents. A bare marker written anywhere else would
+    # stop following its entry through a renumber, silently, in a file no checker reads.
+    # That is the boundary `reference_row` asks about below, asked here for the spelling
+    # of the marker rather than for the row
+    # (L0289-a-bare-marker-goes-only-where-a-bare-number-is-rewritten, cites-as-live).
+    bare = citation_slug_policy(rel, config) == "forbid" and selects_document(rel, config)
+    return at, f"{indent}({number if bare else entry.id}, {citation_act(entry.status())})"
 
 
 def reference_row(entry, rel, config):
@@ -205,7 +220,7 @@ def plan(entry, pointer, tree_text, config):
             f"{pointer.target} § {pointer.section!r} has no docstring body to lift under its "
             "summary line, or every line of one carries a citation"
         )
-    mark = marker_for(entry, section, parts)
+    mark = marker_for(entry, section, parts, pointer.target, config)
     proses, kept, at = [], [], 0
     for lo, hi in parts:
         proses.append("\n".join(ln.rstrip() for ln in section[lo:hi].splitlines()).strip("\n"))

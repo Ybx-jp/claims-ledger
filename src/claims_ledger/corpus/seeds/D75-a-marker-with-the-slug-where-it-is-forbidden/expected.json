@@ -1,0 +1,14 @@
+{
+  "class": "a marker with the slug where the project forbids it",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/note-213.md",
+      "why": "the runner governs this note with `slug = \"forbid\"`, and the marker names the entry in full; the citation resolves, so what is wrong is its shape and nothing else",
+      "message": "with the entry's slug"
+    }
+  ],
+  "note": "The mirror of D74, and the pair is what shows the setting has two directions rather than one rule with an off switch. Every other seed writes the whole id and no rule governs it, so each is a near-negative for this one: `forbid` must fire for this note and for nothing else in the corpus."
+}

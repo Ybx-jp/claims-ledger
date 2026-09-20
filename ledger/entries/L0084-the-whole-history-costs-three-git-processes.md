@@ -64,6 +64,9 @@ none
   evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:bdbb8276dcecce0f98f63ef837c77d1fc3ce90f757a0b829d7ce222be0926459
   note: re-read after the revision-edge loop was generalised to compare `## Passages` blocks beside the verdict blocks, so that prose held below the APPEND marker appends and only appends the way a verdict does. The frozen-region half of this function is untouched, the walk still costs three git processes for the whole ledger, and what each edge compares is the same comparison applied to a second list.
 
-## References
+- 2026-09-20T15:24:39-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0296-the-whole-history-costs-four-git-processes · supersedes
+  note: the count is four. A fourth process asks git where its directory is, so that the history walk can reach the other side of an operation in progress as well as HEAD — during a merge half the ledger is on MERGE_HEAD, which is neither a ref nor on HEAD, and the walk that could not see it reported entries the incoming side had committed as uncommitted. It is asked once per run and kept, so the property this claim was really about, that the count does not grow with the ledger, is unchanged and the successor states it too. Nothing here was wrong when it was written; the number moved because the reach did.
 
-- src/claims_ledger/validate.py · standing · cites-as-live
+
+## References

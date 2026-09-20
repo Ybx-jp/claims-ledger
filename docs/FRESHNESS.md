@@ -142,7 +142,7 @@ the Ground itself otherwise:
    section no longer in a file that remains is **withdrawn**. A plain pointer digests the
    whole decoded text.
 4. Equal digests mean fresh, and the checker says nothing. Different means **moved**
-   (L0200-a-ground-is-compared-by-the-digest-of-its-section-on-both-sides, cites-as-live).
+   (L0200, cites-as-live).
    Only now, only for the message, and only for an anchor stated by reference, run
    `git rev-list --count <pin>..HEAD -- :(literal)<path>` for the commit count; an anchor
    stated by value names no commit to count from.
@@ -229,7 +229,7 @@ The evidence is written `=?` and `claims-ledger sha --write` fills it with the d
 the section as the tree has it; it sits below the marker, so the write touches nothing
 frozen. A reading stated by value needs no commit to be placed at, and so can be
 appended in the same commit as the edit it read
-(L0204-a-reading-anchored-by-value-needs-no-place-in-history, cites-as-live); one stated
+(L0204, cites-as-live); one stated
 `@<commit>` is still accepted, and has to sit in this history, after the pin.
 
 `contested` is not terminal, so the status walks past it to the corroborated verdict and
@@ -345,7 +345,7 @@ later reading cannot carry the accusation away. A record on a ground that is fre
 it is compared from, naming something this run does not see, is **unconfirmable** — a
 flag — because that is exactly what an ordinary drift that was never committed or was
 undone looks like, and failing it left a permanent red no legal edit could clear
-(L0210-a-record-before-a-later-reading-is-moved-past, cites-as-live).
+(L0210, cites-as-live).
 A record that a later reading of the ground sits after in the file is moved past, whatever
 pointer either names: a reading is a person having looked, dated, and the drift the record
 describes was looked at. This is what clears the one flow the flag would otherwise hold
@@ -562,7 +562,7 @@ nothing to do with, or — carrying a keyword argument, so that the widened name
 `@dataclass(frozen` before its `=` — ends that section and falls into none, where an edit to
 it reports nothing. The recipe above is the corrected one; it takes the prefix in, which a
 pattern may do because it is matched over the whole artifact rather than line by line
-(L0281-the-documented-recipe-starts-a-section-at-the-prefix, cites-as-live). The example
+(L0281, cites-as-live). The example
 this specification carried until then was the pattern with the defect, which is how a
 sketch written before the implementation becomes the thing a project copies.
 

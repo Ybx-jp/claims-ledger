@@ -18,7 +18,7 @@ An entry separates the four roles a sentence in a research note usually fuses �
 claim, the data it rests on, the rule that gets you from one to the other, and the
 source's own words — holds every quotation to the bytes of the source it names, and
 derives its status from a verdict list that only ever grows. Five checkers enforce that,
-and a red-team corpus of 107 seeds with committed expected outcomes proves the checkers.
+and a red-team corpus of 111 seeds with committed expected outcomes proves the checkers.
 
     pip install claims-ledger
 
@@ -241,7 +241,7 @@ and a document that still cites a refuted entry as live fails.
 ## Proving the checkers
 
 A checker nobody has tried to fool is a checker nobody should trust. The package ships
-the red-team corpus it was built against: 107 seeds, each a small ledger with committed
+the red-team corpus it was built against: 111 seeds, each a small ledger with committed
 expected outcomes, one per defect class the audit found, one per rule about not silently
 passing, plus known-good seeds every checker must leave alone. Its README says which
 rules the corpus does *not* hold up and which the unit suite holds instead — a coverage
@@ -251,7 +251,7 @@ claim nobody has tried to falsify is worth as little as an unfooled checker.
 $ claims-ledger corpus
 PASS D01-unmarked-deletion
 …
-107/107 seeds pass
+111/111 seeds pass
 ```
 
 The contract is symmetric: a seed passes when every expected failure is produced at the
@@ -361,6 +361,25 @@ archived-prefixes = []               # id series a previous ledger quarantined
 # moment the entry's grounds and the citation both exist
 # (L0174-the-placement-question-is-asked-when-the-entry-is-written, cites-as-live).
 citation-placement = "off"
+
+# What a marker carries between the id and the act. `(A0007-<slug>, cites-as-live)` names
+# the entry in full; the `-<slug>` may be left off, and the id alone reaches the same
+# entry, while a slug that is not that entry's reaches none. `require` refuses the short
+# form, `forbid` refuses the slug, and `either` — the default — asks nothing, because a
+# project that has not chosen between them should not be handed a rule it did not ask for
+# (L0285-the-slug-a-marker-carries-is-configured, cites-as-live).
+citation-slug = "either"
+
+# The rule can be per-path instead, as a list. The first rule whose paths match a document
+# governs it, so the narrow rule goes above the wide one, and a document no rule matches is
+# asked nothing — write a final `paths = ["**"]` to cover the rest
+# (L0286-a-path-rule-is-the-first-one-that-matches, cites-as-live). `paths` is matched the
+# same way `documents` is.
+#
+#   citation-slug = [
+#       { paths = ["src/**/*.py"], slug = "forbid" },   # a comment stays short
+#       { paths = ["**"],          slug = "require" },  # prose names what it cites
+#   ]
 ```
 
 The schema itself is not configurable. Grades, kinds, statuses, citation acts, the

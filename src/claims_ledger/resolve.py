@@ -742,7 +742,7 @@ def run(ledger, entries=None, cached=False):
                 # Resolved from where the ground is compared from, and only once it is
                 # known whether the entry is committed, which is asked once per entry.
                 if committed is None:
-                    committed = is_committed(ledger.repo, e.path)
+                    committed = is_committed(ledger, e.path)
                 q, _ = effective_pointer(e, p, ledger.config, ledger.repo)
                 reports += resolve_by_value(
                     q, e, f"Grounds {i}", ledger, committed, unasked, cached=cached

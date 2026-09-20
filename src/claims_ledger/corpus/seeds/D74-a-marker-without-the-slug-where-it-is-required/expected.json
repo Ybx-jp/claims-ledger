@@ -1,0 +1,14 @@
+{
+  "class": "a marker without the slug where the project requires it",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/note-212.md",
+      "why": "the runner governs this note with `slug = \"require\"`, and the marker names the number alone; the citation resolves, so what is wrong is its shape and nothing else",
+      "message": "without the entry's slug"
+    }
+  ],
+  "note": "The rule is off by default and the runner turns it on for this note and for D75's, by path and not for the corpus as a whole — which is the same partial coverage a project gets when it asks for one shape in its prose and another in its source. Every other seed is a near-negative: no rule matches its documents, so the rule must say nothing about them however their markers are spelled. K36 is the near-negative for this seed in particular — the same short marker in a note no rule governs."
+}

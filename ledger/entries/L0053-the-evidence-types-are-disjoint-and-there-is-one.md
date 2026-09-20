@@ -65,6 +65,15 @@ none
 - 2026-09-14T20:21:11-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/config.py § "from_table" =sha256:222a65392276c0cc61e35fec1bfabd395dee5590c848b57d4303b30b4f3ec738
   note: re-read after the commit that fixes what the pre-merge gate found. The section lost a verbatim duplicate of the merge-renumber check, which had been written into it twice; the disjointness of the evidence lists and the requirement that there be one are untouched.
+- 2026-09-20T12:55:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:222a65392276c0cc61e35fec1bfabd395dee5590c848b57d4303b30b4f3ec738
+  artifact: sha256:8b9600914ff906530f6bf2a48e847507f6edc4fd0eea1ebb2d9aae3f7294d2f5
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "from_table" =sha256:8b9600914ff906530f6bf2a48e847507f6edc4fd0eea1ebb2d9aae3f7294d2f5
+  note: re-read after the commit that adds the `citation-slug` key. The section gained one more check, written like the two beside it and placed after them. The disjointness and non-emptiness checks are untouched.
+
 
 ## References
 

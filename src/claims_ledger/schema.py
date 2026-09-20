@@ -32,7 +32,14 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path, PurePath
 
-from .config import ANY_NAME, NAME_SLOT, Config, default_config, load_config
+from .config import (
+    ANY_NAME,
+    DEFAULT_CITATION_SLUG,
+    NAME_SLOT,
+    Config,
+    default_config,
+    load_config,
+)
 
 
 class LedgerError(Exception):
@@ -115,7 +122,8 @@ PASSAGE_INDENT = "      "
 # lifted (L0260-a-stored-passage-line-carries-its-own-indentation, cites-as-live).
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
-# A citation in a document: `(A0007-<slug>, cites-as-live)`.
+# A citation in a document: `(A0007-<slug>, cites-as-live)`. The `-<slug>` is optional, so
+# the id alone is a marker too, and names the same entry.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
 # What surrounds the parenthesis is unconstrained, and nothing parses a document: the
 # pattern runs over the text as it was read, so a marker in a YAML comment, a JSON string
@@ -173,6 +181,19 @@ PENDING_ANCHOR = "?"
 
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
+
+
+def cited_parts(ident):
+    """(series and number, slug) for the id a marker names, the slug None where the
+    marker named none.
+
+    `partition` rather than `split`, so the slug of `A0007-` — a hyphen with nothing
+    after it, which `CITATION_RE` cannot match and a hand-written pointer can — comes
+    back as None rather than as the empty string that then compares equal to no slug at
+    all (L0284-a-marker-names-its-entry-by-id-or-by-number, cites-as-live).
+    """
+    number, _, slug = ident.partition("-")
+    return number, slug or None
 
 
 def archived_id_re(config):
@@ -249,6 +270,19 @@ class Ledger:
     # What a `--cached` open could not ask the index, as plain sentences for the guard to
     # print. A listing that fell back to the working tree says so there or nowhere.
     index_notes: list = dataclasses.field(default_factory=list)
+    # `{(repo, pathspec): (paths some commit names, why they could not be listed)}`, one
+    # walk per pathspec and kept for the run. Asked once per entry by `is_committed`, and
+    # a walk apiece would be a walk per entry — the shape that took a thousand-entry check
+    # to five minutes. Kept on the ledger rather than in a module-level cache keyed by
+    # repository: the tests run the CLI in this process and interleave commits with
+    # checks, so a cache outliving a run would answer from a history that has moved. The
+    # claim is stated at `committed_paths`, which is the section it rests on.
+    committed_paths: dict = dataclasses.field(default_factory=dict)
+    # `{repo: [pseudo-ref, ...]}`, likewise once per run. Both reaches ask it and
+    # `is_committed` asks it again for every entry no commit names, so uncached it is a
+    # process count that grows with the ledger — the shape `tests/test_history_batch.py`
+    # exists to catch.
+    heads_in_progress: dict = dataclasses.field(default_factory=dict)
     # `{address: (mode, the path it finally names)}` for the index this run was opened
     # against, or None where nothing has asked yet. Computed ONCE and kept, because three
     # listings and four readers want it and a `ls-files` apiece is three too many in a
@@ -434,6 +468,30 @@ def selects_document(rel, config):
     ledger_rel = os.path.relpath(config.ledger_dir, config.root).replace(os.sep, "/")
     inside = ledger_rel != ".." and not ledger_rel.startswith("../")
     return not (inside and (rel == ledger_rel or rel.startswith(ledger_rel + "/")))
+
+
+def citation_slug_policy(rel, config):
+    """Whether a marker in `rel` must carry the entry's slug, must not, or may either
+    way — `require`, `forbid` or `either`.
+
+    The first rule whose paths match decides, so a project reads its own configuration
+    top to bottom and the narrow rule goes above the wide one. A rule the project wrote
+    as a bare string carries no paths and governs every document; a document no rule
+    matches is asked nothing, which is what a project that configured nothing gets
+    (L0286-a-path-rule-is-the-first-one-that-matches, cites-as-live).
+
+    Asked of a path rather than of the filesystem, through `_glob_matches`, which is the
+    same matcher the document globs are read with under `--cached`: a rule whose reach
+    depended on which tree the run was asked about would be a rule that passes a commit
+    and fails the push.
+    """
+    parts = rel.split("/")
+    for paths, policy in config.citation_slug:
+        if paths is None:
+            return policy
+        if any(_glob_matches(parts, _pattern_segments(p)) for p in paths):
+            return policy
+    return DEFAULT_CITATION_SLUG
 
 
 MAX_SYMLINK_EXPANSIONS = 4096
@@ -1860,7 +1918,52 @@ class GitHistory:
     parents: dict
 
 
-def git_history(repo, pathspec):
+OPERATION_HEADS_IGNORED = ("ORIG_HEAD", "FETCH_HEAD")
+# Pseudo-refs that name where something *was*, not where it is going. `ORIG_HEAD` is the
+# position before the operation started and is already an ancestor of HEAD or of nothing;
+# `FETCH_HEAD` is a list of what a fetch brought and is not one commit. Neither is a side
+# of the commit about to be made, so neither belongs in the reach that decides whether a
+# frozen region is fixed
+# (L0294-an-operation-in-progress-is-discovered-not-enumerated, cites-as-live).
+
+
+def operation_heads(repo):
+    """The names of the pseudo-refs an operation in progress has written beside HEAD —
+    `MERGE_HEAD` during a merge, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `REBASE_HEAD` — newest
+    git first, and empty when nothing is in progress.
+
+    Discovered by listing the git directory rather than by asking about a list of names
+    this package carries: git grows operations, and a hand-written list is one that says
+    `no operation in progress` for the next one it has not heard of. That answer is the
+    dangerous direction — it is what lets a checker call an entry uncommitted while its
+    other side sits on a pseudo-ref — so the question is asked of the directory, where a
+    new operation appears without this package being taught about it.
+
+    Per worktree: `--absolute-git-dir` answers with the linked worktree's own directory,
+    which is where a merge in that worktree writes `MERGE_HEAD`, while the objects and
+    refs are shared from the common directory.
+    """
+    answer = git_call(repo, "rev-parse", "--absolute-git-dir")
+    if not answer.ok or not answer.out.strip():
+        return []
+    try:
+        candidates = sorted(Path(answer.out.strip()).glob("*HEAD"))
+    except OSError:
+        return []
+    out = []
+    for candidate in candidates:
+        name = candidate.name
+        if name == "HEAD" or name in OPERATION_HEADS_IGNORED:
+            continue
+        # Resolved rather than trusted: a file whose name ends in HEAD is not necessarily
+        # one git will read as a commit, and a rev this walk cannot name would fail the
+        # walk rather than widen it.
+        if git_call(repo, "rev-parse", "--verify", "--quiet", f"{name}^{{commit}}").ok:
+            out.append(name)
+    return out
+
+
+def git_history(repo, pathspec, revs=()):
     """(history, why): the commits that touched each path under `pathspec`, as a
     `GitHistory` — `revisions` `{path: [commit, ...]}` newest first, `parents` `{commit:
     [parent, ...]}` — from one walk of the history, or `(None, why)` when git could not
@@ -1890,9 +1993,29 @@ def git_history(repo, pathspec):
     would pair with another is listed under its own name on both sides of the pairing.
     Paths come back NUL-terminated and unquoted, decoded the way the filesystem's own
     listing was, so a name is matched byte for byte and never against git's C-quoting.
+
+    `revs` names which commits the walk reaches. Empty, it is whatever git walks by
+    default, which is HEAD — and HEAD alone is a ledger with half of itself missing while
+    a merge is being resolved. Two callers want two reaches and the difference between
+    them is load-bearing, so neither gets a default: `committed_paths` asks the widest one
+    it can, because over-reaching only ever finds more places a text can be shown; the
+    frozen-region check asks HEAD and the sides of the commit about to be made, because
+    a stale branch nobody merged would otherwise become an entry's creating commit and
+    fail it forever (L0293-two-reaches-because-the-questions-are-different, cites-as-live).
     """
     code, data, why = _git_raw(
-        repo, ["log", "-z", "--format=%H %P", "--name-only", "--no-renames", "-m", "--", pathspec]
+        repo,
+        [
+            "log",
+            "-z",
+            "--format=%H %P",
+            "--name-only",
+            "--no-renames",
+            "-m",
+            *revs,
+            "--",
+            pathspec,
+        ],
     )
     if code != 0:
         return None, why
@@ -1912,6 +2035,65 @@ def git_history(repo, pathspec):
         if not found or found[-1] != commit:  # `-m` prints a merge once per parent
             found.append(commit)
     return GitHistory(revisions, parents), ""
+
+
+def heads_in_progress(ledger, repo):
+    """`operation_heads`, asked once per repository per run and kept on the ledger."""
+    key = str(repo)
+    if key not in ledger.heads_in_progress:
+        ledger.heads_in_progress[key] = operation_heads(repo)
+    return ledger.heads_in_progress[key]
+
+
+def committed_paths(ledger, repo, pathspec):
+    """(the paths under `pathspec` that some commit in this repository names, why they
+    could not be listed) — the widest reach, computed once per run and kept on the ledger.
+
+    One walk per pathspec for the length of a run, kept on the ledger rather than in a
+    cache that outlives it: the tests drive the CLI in this process and interleave commits
+    with checks, so a cache that survived a run would answer a later question out of a
+    history that had moved, and the suite would pass on an answer that was wrong
+    (L0292-the-committed-paths-walk-is-kept-for-one-run, cites-as-live).
+
+    Widest, because of what the answer is used for: whether a file's frozen region is
+    already fixed, and so whether rewriting it is the edit this package exists to refuse.
+    A `no` is the destructive direction — it is what tells `sha --write` to go ahead and
+    an anchor to be recomputed — so the question is asked of every commit the repository
+    can reach, on any ref and on the sides of any operation in progress, rather than of
+    HEAD. Content that is on a commit anywhere has already been through the gate every
+    commit passes, and a checker that cannot see where it is says `no` about something
+    that is there (L0295-content-on-any-commit-is-content-this-run-can-see, cites-as-live).
+
+    `--all` covers every ref and HEAD, including a commit only a detached HEAD names; the
+    operation heads cover a merge, a cherry-pick, a revert and a rebase, where half of the
+    ledger is on a pseudo-ref that is not a ref. An empty repository is not a failure here
+    — `--all` over one walks nothing and exits clean, where a bare walk exits 128 and
+    cannot be told from a git that could not be read.
+    """
+    key = (str(repo), pathspec)
+    if key not in ledger.committed_paths:
+        history, why = git_history(repo, pathspec, revs=("--all", *heads_in_progress(ledger, repo)))
+        ledger.committed_paths[key] = (
+            (None, why) if history is None else (frozenset(history.revisions), None)
+        )
+    return ledger.committed_paths[key]
+
+
+def prospective_revs(ledger, repo):
+    """The commits the one about to be made will have as parents: HEAD, and the other side
+    of an operation in progress.
+
+    The narrow reach, and narrow on purpose. This one answers whether a region is fixed
+    and which commit fixed it, so the oldest commit it lists becomes an entry's creating
+    commit. Widened to every ref, a branch nobody merged — an abandoned draft of an entry,
+    still sitting on a remote-tracking ref — would become the creating commit of the entry
+    that did land, and the frozen region would be compared against a version it never had
+    and fail for as long as that ref exists. HEAD alone is what this was, and it is right
+    everywhere except inside an operation, where the incoming side is a parent of the
+    commit being made and its entries are not on HEAD yet
+    (L0293-two-reaches-because-the-questions-are-different, cites-as-live).
+    """
+    return ("HEAD", *heads_in_progress(ledger, repo))
 
 
 def git_blobs(repo, specs, env=None):
@@ -2281,6 +2463,24 @@ def entries_for(ledger, *, cached, write):
 
 def by_id(entries):
     return {e.id: e for e in entries if e.id}
+
+
+def by_number(entries):
+    """{series and number: [entry, …]} — the index a marker naming no slug resolves
+    through.
+
+    A list per number rather than one entry, because two entries answering to one number
+    is a state the ledger can be in: it is what a merge of two branches that each minted
+    the number produces, and what `renumber` exists to prevent. `validate` fails on it,
+    but `references` runs over the same ledger and has to say something better than
+    picking whichever of the two was loaded last
+    (L0284-a-marker-names-its-entry-by-id-or-by-number, cites-as-live).
+    """
+    out = {}
+    for e in entries:
+        if e.id:
+            out.setdefault(e.id.split("-", 1)[0], []).append(e)
+    return out
 
 
 def load_registry(path, text=None):

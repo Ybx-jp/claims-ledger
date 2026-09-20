@@ -53,5 +53,14 @@ none
 - 2026-09-19T14:25:06-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/corpus/run.py § "run_seed" =sha256:065d4488b4b67836bc6e9b9a06915fb3b245ea4cadb538ef74e99785fd4e9b46
   note: re-read after K35 took the corpus from 106 seeds to 107, which moved a number written into this section's comment about why the seed name is half the report. What the entry claims is that a git command the runner needs an answer from is reported as a finding naming the seed rather than raised as an unexpected exception; the `except LedgerError` arm that does it, and the name it attaches, are byte-for-byte what they were. The reason the count is in the comment at all is the claim itself — a reader with a hundred-odd seeds has to be told which one — so it is a number this section will keep paying for, and correctly.
+- 2026-09-20T13:01:48-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/corpus/run.py § "run_seed" =sha256:065d4488b4b67836bc6e9b9a06915fb3b245ea4cadb538ef74e99785fd4e9b46
+  artifact: sha256:de397f5ca110c92547690171c1064b22bddc36b3042a081fd63560d841973227
+  note: propagated from a moved ground
+
+- 2026-09-20T13:02:11-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/corpus/run.py § "run_seed" =sha256:de397f5ca110c92547690171c1064b22bddc36b3042a081fd63560d841973227
+  note: re-read after the commit that adds the four marker-spelling seeds. The only change inside the section is the seed count in the comment explaining why the seed's name is half the report, 107 to 111. What this claim asserts is untouched: a version control failure while a seed is being built is raised as an error naming that seed, rather than counted as a seed that passed.
+
 
 ## References

@@ -46,6 +46,15 @@ restamp asks is_committed before writing and raises AuthoringError both for a co
 - 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
   note: read against the working tree after the fill of a pending anchor was narrowed to a Grounds line or a verdict's evidence line, since a Warrant sentence ending in the same text was being rewritten in the frozen region of a committed entry (qe gate, ticket c4e62619f4d5476f): the committed and unasked refusals are unchanged, and --force still lifts both; the assertion holds as written.
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:240cbfdc8226c5395252e547b31e2754a27dbacca87e0fed67a4bf22bff8a774
+  artifact: sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "restamp" =sha256:dc432bfba68ca4abf7a71c020848faa150b2a34a30b9c5f0336d40c128d4accc
+  note: re-read after the commit that widens what `is_committed` asks. This section calls it and is otherwise untouched; the call now takes the ledger rather than the repository, because the walk is kept on the ledger for the run. sha --write still refuses a committed entry, and now refuses one it could not settle.
+
 
 ## References
 
