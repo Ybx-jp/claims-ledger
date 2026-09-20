@@ -723,7 +723,9 @@ def cmd_lift(args, ledger):
 
     Dry by default. A lift deletes prose from a project's source, so the run that says
     what it would do is the one you get without asking for the other
-    (L0272-a-lift-says-what-it-would-do-before-it-does-it, cites-as-live).
+    (L0272-a-lift-says-what-it-would-do-before-it-does-it, cites-as-live). What it would
+    do includes the marker and the References row, which are named in the dry run for the
+    same reason the prose is: they are writes, and this is the run that says so.
     """
     entries = load_entries(ledger)
     entry = by_id(entries).get(args.entry)
@@ -756,16 +758,21 @@ def cmd_lift(args, ledger):
         return 2
     try:
         lift.refuse_unless_git_holds_it(ledger.repo, pointer.target, text)
-        witness, prose, after = lift.plan(entry, pointer, text, ledger.config)
+        witness, prose, after, mark = lift.plan(entry, pointer, text, ledger.config)
     except LedgerError as exc:
         print(f"claims-ledger: {exc}", file=sys.stderr)
         return 2
+    row = lift.reference_row(entry, pointer.target, ledger.config) if mark else None
     stamp = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
     blocks = [lift.passage_block(stamp, args.author, pointer, witness, x) for x in prose]
     lines = sum(len(x.splitlines()) for x in prose)
     runs = f"{len(prose)} run(s), " if len(prose) > 1 else ""
     print(f'{pointer.target} § "{pointer.section}": {runs}{lines} line(s) onto {entry.id}')
     print(f"  witness {witness}")
+    if mark:
+        print(f"  marker {mark.strip()} where the prose was")
+    if row:
+        print(f"  References {row[2:]}")
     if not args.write:
         print("  (nothing written; pass --write to take it)")
         shown = 0
@@ -794,6 +801,8 @@ def cmd_lift(args, ledger):
             return 2
     write_text_atomically(path, after)
     held = entry.text
+    if row:
+        held = lift.add_reference_row(held, row)
     for block in blocks:
         held = lift.append_passage(held, block)
     write_text_atomically(entry.path, held)

@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T10:23:56-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_lift" =sha256:1ab0a161b369f62d2077a8c070b998b59e2aed2767d019dbaf3285dffd8161fb
+  artifact: sha256:2441087d63ae9b2560f370e35a965436967ae946643e9e7ab656fcfd4bc974a9
+  note: propagated from a moved ground
+
+- 2026-09-20T10:24:06-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_lift" =sha256:2441087d63ae9b2560f370e35a965436967ae946643e9e7ab656fcfd4bc974a9
+  note: cmd_lift grew the marker and the References row a lift now writes, and names both in the dry run beside the prose; the writes stay behind --write and the run without it still reports and returns, so the assertion is unaffected
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live
