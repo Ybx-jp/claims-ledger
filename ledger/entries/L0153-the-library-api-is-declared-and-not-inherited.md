@@ -49,6 +49,15 @@ none
 - 2026-09-11T03:10:01-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__all__" =sha256:0ec437883e7b9f8c693d8fae4377e96eeed176283a2060cbc712f87adf8dde74
   note: read against the working tree after two citing comments were added inside the list since the reading at 3d35a81: the five checkers are still named in the export list beside the vocabulary; the assertion holds as written.
+- 2026-09-20T13:22:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__all__" =sha256:0ec437883e7b9f8c693d8fae4377e96eeed176283a2060cbc712f87adf8dde74
+  artifact: sha256:e68f195e3420d000c760257f7a0c0fa4eb15d1ac5e0414dc31274fd5e5a2117e
+  note: propagated from a moved ground
+
+- 2026-09-20T13:23:13-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__all__" =sha256:e68f195e3420d000c760257f7a0c0fa4eb15d1ac5e0414dc31274fd5e5a2117e
+  note: re-read after the commit that converts this file's markers to the short form. The only change inside the section is the citation itself, which lost the entry's slug and now names the id alone; it resolves to the same entry, under the same act, and the References row is unchanged. The list is untouched: the five checkers are still named in it rather than left to implicit submodule import.
+
 
 ## References
 

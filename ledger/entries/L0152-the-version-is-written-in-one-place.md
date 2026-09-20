@@ -63,6 +63,15 @@ none
 - 2026-09-19T13:41:04-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:7af5920262d6d7bc948add74dbf78f1ddde83b7010479660809b68e1fd7aa5c2
   note: re-read after the commit that bumps the version from 0.0.2 to 0.0.3. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; `pyproject.toml` still reads `[tool.hatch.version]` out of this file, no second copy was added, and the only thing that moved is the literal a release is supposed to move.
+- 2026-09-20T13:22:53-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:7af5920262d6d7bc948add74dbf78f1ddde83b7010479660809b68e1fd7aa5c2
+  artifact: sha256:339493d03184eb0567c2bc98fc211c89d6ea1d3e231b75f177f6276e5e6730a5
+  note: propagated from a moved ground
+
+- 2026-09-20T13:23:13-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:339493d03184eb0567c2bc98fc211c89d6ea1d3e231b75f177f6276e5e6730a5
+  note: re-read after the commit that converts this file's markers to the short form. The only change inside the section is the citation itself, which lost the entry's slug and now names the id alone; it resolves to the same entry, under the same act, and the References row is unchanged. The assignment is untouched and pyproject.toml still reads the version from here, so it is still written in one place.
+
 
 ## References
 
