@@ -40,7 +40,7 @@ one is a change to run before it is committed.
 `citation-slug` names three files — `pyproject.toml`, `src/claims_ledger/__init__.py` and
 `docs/FRESHNESS.md`, one of each kind this project writes citations in — where a marker
 names the id alone, and a catch-all rule under them holds every other document to the whole
-id (L0290-the-marker-form-is-enforced-in-both-directions, cites-as-live). So this sentence
+id (L0291-the-marker-form-is-enforced-in-both-directions, cites-as-live). So this sentence
 names the entry in full and the comment in `pyproject.toml` that it is about does not, and
 neither is a matter of taste. Converting another file is two edits: its markers, and the
 path list. What it costs is a re-read verdict for every entry pinned to a section a marker

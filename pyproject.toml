@@ -163,7 +163,7 @@ citation-slug = [
     # Everywhere else names the entry in full and has to go on doing so, which is the half
     # that makes the migration monotonic: a marker not yet converted cannot quietly become
     # a short one, and a converted one cannot quietly go back
-    # (L0290, cites-as-live). The wide rule is written second because the earliest
+    # (L0291, cites-as-live). The wide rule is written second because the earliest
     # match decides, so a path named above is decided above.
     { paths = ["**"], slug = "require" },
 ]

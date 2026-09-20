@@ -37,7 +37,9 @@ none
 
 ## Verdicts
 
-## References
+- 2026-09-20T13:56:34-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0291-the-marker-form-is-enforced-in-both-directions · supersedes
+  note: the Assertion, Scope, Grounds and Backing are carried across unchanged, and the fingerprint is byte-identical, so nothing about the claim moved. What moved is a sentence of the Warrant that was false: it said the section of the citation-slug key is the key's own line and nothing after it. Measured, it is five lines and 312 characters — the key's line and the comment above the first rule. The conclusion drawn from it stands, since none of those five lines holds a rule, but a Warrant is not compared against anything by any checker, so the only repair for a wrong one is a successor. The commit that introduced it, e2d4947, carries the same sentence in its message and is not rewritten for it.
 
-- pyproject.toml · standing · cites-as-live
-- CLAUDE.md · standing · cites-as-live
+
+## References
