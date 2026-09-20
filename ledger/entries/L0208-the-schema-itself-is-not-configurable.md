@@ -42,6 +42,15 @@ none
 - 2026-09-14T19:22:21-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
   note: re-read after the commit that adds the `merge-renumber` key. The new row names a project's own merge-time policy, which is a project's naming rather than the claims model: the grades, kinds, statuses, acts, fingerprint and immutability rules are still absent from this table, which is what this claim asserts.
+- 2026-09-20T12:55:58-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:0f1c17e99e8abbaff42e492001acac910b9d1e41f842e5e4573c47c8c9f8f07e
+  artifact: sha256:831fb3c7cad6e8a1e3c36cb29f98cf85367268f60840b4d2cd870c1e09d97394
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/config.py § "KEYS" =sha256:831fb3c7cad6e8a1e3c36cb29f98cf85367268f60840b4d2cd870c1e09d97394
+  note: re-read after the commit that adds the `citation-slug` key. The table gained one row, `citation-slug`, whose value may be a string or a list. What it settles is unchanged: the new key names a house style for a marker, not a part of the claims model. The grades, kinds, statuses and acts are still absent from the table.
+
 
 ## References
 

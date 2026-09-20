@@ -30,6 +30,15 @@ DEFAULT_CITATION_PLACEMENT = "off"
 # sites the day it ships is one its readers learn to scroll past
 # (L0172-citation-placement-is-configured-and-defaults-to-off, cites-as-live).
 
+CITATION_SLUG_POLICIES = ("either", "require", "forbid")
+DEFAULT_CITATION_SLUG = "either"
+# What a marker carries between the id and the act. `(A0007-<slug>, cites-as-live)` states
+# the entry's slug; the `-<slug>` may be left off, and the id alone states the same entry.
+# `require` refuses the short form, `forbid` refuses the slug, and `either` — the default —
+# asks nothing, because a project that has said nothing about the shape of its markers has
+# not chosen one and both forms resolve to the same entry
+# (L0285-the-slug-a-marker-carries-is-configured, cites-as-live).
+
 MERGE_RENUMBER_POLICIES = ("off", "refuse", "rewrite")
 DEFAULT_MERGE_RENUMBER = "refuse"
 # What a merge guard does when the branch being merged holds a number the receiving side
@@ -105,6 +114,10 @@ class Config:
     verdict_authors: tuple = DEFAULT_VERDICT_AUTHORS
     propagation_author: str = DEFAULT_PROPAGATION_AUTHOR
     citation_placement: str = DEFAULT_CITATION_PLACEMENT
+    # ((paths, policy), …) in the order the project wrote them, the first rule whose
+    # paths match a document deciding it; `paths` is None for the rule a bare string
+    # makes, which is every document.
+    citation_slug: tuple = ((None, DEFAULT_CITATION_SLUG),)
     merge_renumber: str = DEFAULT_MERGE_RENUMBER
     source: Path | None = None  # the file these values were read from, when there was one
 
@@ -216,6 +229,7 @@ KEYS = {
     "verdict-authors": list,
     "propagation-author": str,
     "citation-placement": str,
+    "citation-slug": (str, list),
     "merge-renumber": str,
 }
 # The whole of what a project may set, and the type each value takes. The schema itself —
@@ -364,6 +378,58 @@ def _section_patterns(table, sectioned):
     return tuple(out)
 
 
+def _citation_slug(value, root):
+    """((paths, policy), …) for `citation-slug`, checked here rather than at the document
+    that turns out to be governed by it.
+
+    A string is the whole project's rule, and is kept as one rule whose paths are None:
+    every document, including one a glob would have to name explicitly. A list is rules
+    in the order they were written, and the first whose paths match a document decides
+    it — order the project can see, rather than the order a TOML table happens to
+    deserialize in, which is how two readers of one configuration come to disagree about
+    which rule won. A document no rule matches is asked nothing, so a project that wants
+    a rule everywhere writes a final `paths = ["**"]`
+    (L0286-a-path-rule-is-the-first-one-that-matches, cites-as-live).
+
+    The paths are confined like every other pattern a configuration names: a rule that
+    addressed outside the root could only ever govern a document the checkers do not
+    read.
+    """
+    if isinstance(value, str):
+        if value not in CITATION_SLUG_POLICIES:
+            raise ConfigError(
+                f"citation-slug `{value}` is not one of {list(CITATION_SLUG_POLICIES)}"
+            )
+        return ((None, value),)
+    out = []
+    for i, rule in enumerate(value):
+        where = f"citation-slug[{i}]"
+        if not isinstance(rule, dict):
+            raise ConfigError(
+                f"{where} is {type(rule).__name__}, expected a table with `paths` and `slug`"
+            )
+        unknown = sorted(set(rule) - {"paths", "slug"})
+        if unknown:
+            raise ConfigError(
+                f"{where} has unknown key(s) {', '.join(unknown)}; it takes paths and slug"
+            )
+        for key in ("paths", "slug"):
+            if key not in rule:
+                raise ConfigError(
+                    f"{where} has no `{key}`; a rule names the paths it governs "
+                    "and the slug it asks for"
+                )
+        if not isinstance(rule["paths"], list) or not rule["paths"]:
+            raise ConfigError(f"{where}.paths is not a non-empty list of globs")
+        if rule["slug"] not in CITATION_SLUG_POLICIES:
+            raise ConfigError(
+                f"{where}.slug `{rule['slug']}` is not one of {list(CITATION_SLUG_POLICIES)}"
+            )
+        paths = tuple(confined_pattern(root, f"{where}.paths", p) for p in rule["paths"])
+        out.append((paths, rule["slug"]))
+    return tuple(out)
+
+
 def from_table(table, root, source=None):
     """A Config from a parsed table, with every name checked here rather than at the entry
     that turns out to need it.
@@ -437,6 +503,7 @@ def from_table(table, root, source=None):
         raise ConfigError(
             f"citation-placement `{placement}` is not one of {list(PLACEMENT_OUTCOMES)}"
         )
+    citation_slug = _citation_slug(table.get("citation-slug", DEFAULT_CITATION_SLUG), root)
     merge_renumber = table.get("merge-renumber", DEFAULT_MERGE_RENUMBER)
     if merge_renumber not in MERGE_RENUMBER_POLICIES:
         raise ConfigError(
@@ -459,6 +526,7 @@ def from_table(table, root, source=None):
         verdict_authors=authors,
         propagation_author=propagation,
         citation_placement=placement,
+        citation_slug=citation_slug,
         merge_renumber=merge_renumber,
         source=Path(source) if source else None,
     )

@@ -64,12 +64,22 @@ def corpus_config(root, entries_dir):
 
     `citation-placement` is on here and off in the package's defaults, because a rule the
     corpus does not run is a rule the corpus does not prove. Measured over the corpus, the
-    rule has a span to ask about in thirteen seeds: D60 and K28, written for the rule itself,
-    and the passage seeds D67–D72 and K31–K35, where the ground names the same document the
-    citation sits in because that is what a lift leaves behind — prose taken out of a
-    section whose citing sentence stays. In the other ninety-four it has nothing to ask
+    rule has a span to ask about in seventeen seeds: D60 and K28, written for the rule
+    itself, the passage seeds D67–D72 and K31–K35, where the ground names the same document
+    the citation sits in because that is what a lift leaves behind — prose taken out of a
+    section whose citing sentence stays — and the four marker-spelling seeds D73–D75 and
+    K36, whose notes are grounds as well. In the other ninety-four it has nothing to ask
     about at all, most often because the seed has no document under `docs/` and its grounds
     name `fixtures/`, and each of them is a near-negative for it.
+
+    `citation-slug` is on here for the same reason, and in the narrow form the setting
+    offers: by path, around the two notes D74 and D75 are written on, and nothing else. A
+    rule over the whole corpus would be one every seed's markers had to satisfy, which is
+    not what the setting is for — a project names the paths it wants a shape in and leaves
+    the rest at the default. So every other seed is a near-negative twice over: no rule
+    reaches its documents, and the rule must say nothing about them whichever spelling
+    they use. What a marker resolves to is not configured at all and needs no row here;
+    K36 and D73 hold that.
     """
     return Config(
         root=root,
@@ -79,6 +89,10 @@ def corpus_config(root, entries_dir):
         cache=None,
         archived_prefixes=("C", "P"),
         citation_placement="flag",
+        citation_slug=(
+            (("docs/note-212.md",), "require"),
+            (("docs/note-213.md",), "forbid"),
+        ),
     )
 
 
@@ -426,7 +440,7 @@ def run_seed(seed, root):
     except LedgerError as exc:
         # Which seed was being built is half the report and the only half the runner
         # knows: `git_out` names the command and that nothing was proven, and a reader
-        # with 107 seeds needs to be told where to look.
+        # with 111 seeds needs to be told where to look.
         raise LedgerError(f"{seed.name}: {exc}") from exc
     lines = []
     for name, commit, exc in crashes:

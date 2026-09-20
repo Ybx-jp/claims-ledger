@@ -34,6 +34,16 @@ none
 
 ## Verdicts
 
+- 2026-09-20T12:55:58-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/lift.py § "marker_for" =sha256:18c75889ee0cef7d08663a5bc287557b9f0301de357655861b04270f42d0c989
+  artifact: sha256:cbae04449dfb73e10b0dfd920e15f6ba42d45490dfebccdbeb144e8d30231a70
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/lift.py § "marker_for" =sha256:cbae04449dfb73e10b0dfd920e15f6ba42d45490dfebccdbeb144e8d30231a70
+  note: re-read after the commit that lets a marker name its entry by the series and number alone. The section now recognises an existing marker in either spelling and chooses the spelling it writes from the project's rule and from whether the artifact is a document. What this claim asserts is untouched: a lift still leaves a citation where the prose was, and it is still an ordinary citation held to the entry's status rather than a form of its own.
+
+
 ## References
 
 - src/claims_ledger/lift.py · standing · cites-as-live

@@ -1,0 +1,21 @@
+{
+  "class": "a marker whose slug is not the entry's",
+  "known_good": false,
+  "expect": [
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "docs/note-211.md",
+      "why": "the marker names A0001-observation-held and the entry is A0001-observation-holds; a slug left behind by a rename names no entry, and is not resolved through the number it happens to share",
+      "message": "which does not exist"
+    },
+    {
+      "checker": "references",
+      "outcome": "fail",
+      "where": "A0001 References",
+      "why": "the entry lists the note as citing it, and after the slug went stale the note cites nothing; the two directions disagree, which is the second half of the same defect",
+      "message": "does not cite"
+    }
+  ],
+  "note": "K36 is the near-negative: the same number, cited with no slug at all, which does resolve. The whole id is looked up first and only a marker carrying no slug falls back to the number, so admitting the short form does not cost this detection — a wrong slug is still a dangling citation and not a silent hit."
+}

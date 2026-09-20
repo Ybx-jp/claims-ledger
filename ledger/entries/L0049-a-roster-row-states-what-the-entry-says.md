@@ -38,6 +38,15 @@ none
 - 2026-09-11T19:42:18-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/references.py § "check_roster" =sha256:a824578b2f79bff579eee2cea7772432ca7a48498a4e7af3e6f6d7ac29d1554b
   note: re-read after the commit that gives the reference checker a cached mode. This function is handed the document bodies the run already read, instead of reading the roster document itself; the roster rule it holds — one row per non-terminal hypothesis, each row held to the entry its opening cell cites — is untouched.
+- 2026-09-20T12:55:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "check_roster" =sha256:a824578b2f79bff579eee2cea7772432ca7a48498a4e7af3e6f6d7ac29d1554b
+  artifact: sha256:00e536933ead263c9da77f6c197d6cb288c28e91c1862df4e047c6d955d4b1f2
+  note: propagated from a moved ground
+
+- 2026-09-20T12:56:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "check_roster" =sha256:00e536933ead263c9da77f6c197d6cb288c28e91c1862df4e047c6d955d4b1f2
+  note: re-read after the commit that lets a marker name its entry by the series and number alone. The rows this section gathers are now keyed on the entry a marker resolves to rather than on the text of the marker. The status comparison is unchanged and is now looked up under the resolved entry, which is the only id the status map has.
+
 
 ## References
 

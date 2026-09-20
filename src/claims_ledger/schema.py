@@ -32,7 +32,14 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path, PurePath
 
-from .config import ANY_NAME, NAME_SLOT, Config, default_config, load_config
+from .config import (
+    ANY_NAME,
+    DEFAULT_CITATION_SLUG,
+    NAME_SLOT,
+    Config,
+    default_config,
+    load_config,
+)
 
 
 class LedgerError(Exception):
@@ -115,7 +122,8 @@ PASSAGE_INDENT = "      "
 # lifted (L0260-a-stored-passage-line-carries-its-own-indentation, cites-as-live).
 BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*)$", re.MULTILINE)
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
-# A citation in a document: `(A0007-<slug>, cites-as-live)`.
+# A citation in a document: `(A0007-<slug>, cites-as-live)`. The `-<slug>` is optional, so
+# the id alone is a marker too, and names the same entry.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
 MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]*)\)")
 # The same shape as CITATION_RE with any act-shaped word, so that one of them does not
@@ -167,6 +175,19 @@ PENDING_ANCHOR = "?"
 
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
+
+
+def cited_parts(ident):
+    """(series and number, slug) for the id a marker names, the slug None where the
+    marker named none.
+
+    `partition` rather than `split`, so the slug of `A0007-` — a hyphen with nothing
+    after it, which `CITATION_RE` cannot match and a hand-written pointer can — comes
+    back as None rather than as the empty string that then compares equal to no slug at
+    all (L0284-a-marker-names-its-entry-by-id-or-by-number, cites-as-live).
+    """
+    number, _, slug = ident.partition("-")
+    return number, slug or None
 
 
 def archived_id_re(config):
@@ -428,6 +449,30 @@ def selects_document(rel, config):
     ledger_rel = os.path.relpath(config.ledger_dir, config.root).replace(os.sep, "/")
     inside = ledger_rel != ".." and not ledger_rel.startswith("../")
     return not (inside and (rel == ledger_rel or rel.startswith(ledger_rel + "/")))
+
+
+def citation_slug_policy(rel, config):
+    """Whether a marker in `rel` must carry the entry's slug, must not, or may either
+    way — `require`, `forbid` or `either`.
+
+    The first rule whose paths match decides, so a project reads its own configuration
+    top to bottom and the narrow rule goes above the wide one. A rule the project wrote
+    as a bare string carries no paths and governs every document; a document no rule
+    matches is asked nothing, which is what a project that configured nothing gets
+    (L0286-a-path-rule-is-the-first-one-that-matches, cites-as-live).
+
+    Asked of a path rather than of the filesystem, through `_glob_matches`, which is the
+    same matcher the document globs are read with under `--cached`: a rule whose reach
+    depended on which tree the run was asked about would be a rule that passes a commit
+    and fails the push.
+    """
+    parts = rel.split("/")
+    for paths, policy in config.citation_slug:
+        if paths is None:
+            return policy
+        if any(_glob_matches(parts, _pattern_segments(p)) for p in paths):
+            return policy
+    return DEFAULT_CITATION_SLUG
 
 
 MAX_SYMLINK_EXPANSIONS = 4096
@@ -2267,6 +2312,24 @@ def entries_for(ledger, *, cached, write):
 
 def by_id(entries):
     return {e.id: e for e in entries if e.id}
+
+
+def by_number(entries):
+    """{series and number: [entry, …]} — the index a marker naming no slug resolves
+    through.
+
+    A list per number rather than one entry, because two entries answering to one number
+    is a state the ledger can be in: it is what a merge of two branches that each minted
+    the number produces, and what `renumber` exists to prevent. `validate` fails on it,
+    but `references` runs over the same ledger and has to say something better than
+    picking whichever of the two was loaded last
+    (L0284-a-marker-names-its-entry-by-id-or-by-number, cites-as-live).
+    """
+    out = {}
+    for e in entries:
+        if e.id:
+            out.setdefault(e.id.split("-", 1)[0], []).append(e)
+    return out
 
 
 def load_registry(path, text=None):

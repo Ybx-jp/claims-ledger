@@ -228,7 +228,12 @@ to its place where it appears rather than reported missing where it does not
 - *References* lists the documents (not entries) that cite this entry:
   `- <path> · standing | record · <act>`. Entry-to-entry edges are read from Grounds and
   are not repeated here. A document cites an entry inline as `(A0007-<slug>, cites-as-live)`,
-  and the two views are checked against each other both ways, so a status lives in
+  where the `-<slug>` may be left off: the slug is the entry's title in its filename and
+  the number is what identifies it, so both spellings name the same entry, while a slug
+  that is not that entry's names nothing. Which of the two a document may use is the
+  project's to configure under `citation-slug`; both are legal until it says otherwise.
+  The two
+  views are checked against each other both ways, so a status lives in
   exactly one place: the act a document declares is held to the entry's current status at
   every check, and a copied id cannot go stale silently.
 

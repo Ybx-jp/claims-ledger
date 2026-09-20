@@ -384,7 +384,7 @@ the record of what else there is still to check.
 | an entry whose every ground is a `distinguishes` act | D58, K26 | catch — a distinction says what an entry is not, and a Warrant needs something to rest on |
 | two entries carrying one number | D66 | catch — a number names one entry, and two branches that each minted it merge with no conflict when the slugs differ |
 | a document citation whose act is not a citation act | D59, K27, K29 | catch — the citation pattern does not match it, so before this rule it sat in a checked document as prose nothing read |
-| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together. Thirteen seeds give the rule a span to ask about: these two and the eleven passage seeds, where it is asked about a section prose has just been lifted out of — K35 twice over, since two entries pin the section it lifts from. The other ninety-four are near-negatives, most of them because they have no checked document at all |
+| a citation outside the span its entry pins | D60, K28 | flag, and only where the project configures it — the sentence that states a commitment and the span that keeps it belong together. Seventeen seeds give the rule a span to ask about: these two, the eleven passage seeds, where it is asked about a section prose has just been lifted out of — K35 twice over, since two entries pin the section it lifts from — and the four marker-spelling seeds. The other ninety-four are near-negatives, most of them because they have no checked document at all |
 | a verdict block inserted above one an earlier commit held | D61 | fail — the verdicts of a commit's parent are a prefix of its own, so a block slipped in above one of them reads as that verdict changed; the seed is linear, which is the only history a seed can build, so the merge side of that rule is held from `tests/test_history_batch.py` and not from here |
 | a passage that is not what the witness held | D67, D70, K31 | catch — a witness that resolves says the section was there, not that the prose on the entry came out of it; the second proposition is the one the mechanism exists for. The comparison is over lines and not characters, so a passage cut in the middle of one fails too, and a passage *shorter* than what was removed does not: that is a known miss, stated at `resolve_passage` and held by a test |
 | a witness no version of the path digests to | D69 | catch — `fail` and not `flag`; a by-value *ground* in that position is D64 and flags, because there the datum is stated in full and only the diff is lost. A shallow clone is **not** this: git is asked whether the repository is shallow first, and the report says the history was truncated rather than that the prose was never there |
@@ -396,6 +396,8 @@ the record of what else there is still to check.
 | a passage lifted from a CRLF artifact | K32 | pass — every reader goes through universal newlines, so a passage is digest-true against an LF copy of the text and byte-false against the file it came out of; the seed pins which of the two `verbatim` means |
 | an entry that falls while holding a passage | K34 | pass — a refutation is news about the claim, not about what the artifact said, and the prose stays held and resolvable under it |
 | a lift out of a section more than one entry pins | K35 | pass — the ordinary case wherever a ledger pins code, and the one no other passage seed holds: two entries on one section, two citations in it, the prose lifted for one. The surplus citation stays where it was, so `references` and the placement rule are both asked about a span another entry is still resting on; move it onto the entry instead and `references` fails from the second entry's References row, one checker away from the edit. One drift is two readings, and the seed fails if the second is forgotten |
+| a marker naming its entry by the number alone | K36, D73 | pass for the number, fail for a slug the entry does not have. The slug is the entry's title in its filename and the number identifies it, so both spellings reach one entry and every rule downstream of the marker has to reach it too; the whole id is looked up first, so a slug left behind by a rename is still a dangling citation rather than a silent hit on the number it shares. Not configured — this is what a marker means, and the other hundred and nine seeds write the whole id, each a near-negative for the fallback |
+| a marker in a spelling the project does not allow | D74, D75 | fail, and only for the paths the project named — `require` refuses the number alone, `forbid` refuses the slug. The runner governs one note for each and leaves the rest of the corpus unruled, which is both how the setting is meant to be used and what makes every other seed a near-negative: no rule reaches its documents, so neither spelling may be reported there |
 
 Known-good seeds: K01 (a measured claim), K02 (a prediction), K03 (a hypothesis with a
 falsifier), K04 (an absence claim with its search), K05 (a supersession chain), K06
@@ -427,8 +429,9 @@ same commit),
 K32 (the same lift from an artifact with CRLF line endings), K33 (a second passage
 appended beside a committed one), K34 (an entry refuted while holding a passage), K35 (a
 lift out of a section two entries pin, where the citation of the entry that lifted nothing
-stays in the span and the drift is read twice, once by each owner).
-K01–K03, K09, K15–K18 and K19–K35 test the schema's own rules and encode no claim from
+stays in the span and the drift is read twice, once by each owner) and K36 (a marker
+naming its entry by the number alone, which reaches the entry the whole id would have).
+K01–K03, K09, K15–K18 and K19–K36 test the schema's own rules and encode no claim from
 the canon; the others each stand for one.
 
 ## What the corpus encodes from the canon

@@ -2,11 +2,12 @@
 
 Entry to entry, at `run`: an `entry:` ground names an entry that exists, under an act
 that entry's current status allows. Document to entry, also at `run`: an inline
-`(A0007-<slug>, cites-as-live)` and the row in the entry's References section have to
-agree with each other and with the status. The hypothesis roster is checked against the
-entries at `check_roster`. Where the project asks for it, `misplaced_citations` holds a
-citation to the span its entry pins; that one is configured rather than always on, and off
-by default. Each rule is stated where it is applied.
+`(A0007-<slug>, cites-as-live)`, whose `-<slug>` may be left off, and the row in the
+entry's References section have to agree with each other and with the
+status. The hypothesis roster is checked against the entries at `check_roster`. Where the
+project asks for it, `misplaced_citations` holds a citation to the span its entry pins and
+`slug_shape` holds a marker to one of the two spellings; both are configured rather than
+always on, and both are off by default. Each rule is stated where it is applied.
 
 Run:  claims-ledger references
 Exit 1 on any failure.
@@ -26,6 +27,9 @@ from .schema import (
     Report,
     archived_id_re,
     by_id,
+    by_number,
+    citation_slug_policy,
+    cited_parts,
     load_entries,
     normalize,
     read_document,
@@ -73,7 +77,7 @@ def misplaced_citations(ledger, entries=None, only=None, bodies=None):
     callers and a second copy of the condition is how two of them come to disagree.
     """
     entries = load_entries(ledger) if entries is None else entries
-    index = by_id(entries)
+    index, numbered = by_id(entries), by_number(entries)
     config = ledger.config
     outcome = config.citation_placement
     bodies = document_bodies(ledger) if bodies is None else bodies
@@ -84,11 +88,16 @@ def misplaced_citations(ledger, entries=None, only=None, bodies=None):
             continue  # reported by run(), which is where an unreadable document is a failure
         for m in CITATION_RE.finditer(body):
             ident = m.group(1)
-            if only is not None and ident != only:
-                continue
-            target = index.get(ident)
+            target, _ = cited_target(ident, index, numbered)
             if target is None:
                 continue  # a dangling citation, reported as that
+            # Resolved before `only` is compared, and against the entry rather than
+            # against the text of the marker: a marker naming the number alone names this
+            # entry, and comparing the two strings would stop asking the placement
+            # question of exactly the markers a project configured `forbid` for
+            # (L0288-a-rule-follows-the-entry-a-marker-resolves-to, cites-as-live).
+            if only is not None and target.id != only:
+                continue
             spans = []
             for pointer in target.ground_pointers:
                 if pointer.type not in config.evidence_sectioned or pointer.target != name:
@@ -114,6 +123,81 @@ def misplaced_citations(ledger, entries=None, only=None, bodies=None):
     return out
 
 
+def cited_target(ident, index, numbered):
+    """(entry, problem) for the entry a marker names — the problem being what to print
+    when it names none.
+
+    A marker states the whole id, `A0007-a-slug`, or the series and number alone,
+    `A0007`, and both name the same entry: the slug is the entry's title in the filename
+    and the number is what identifies it. The whole id is looked up first and only a
+    marker carrying no slug falls back to the number, so a marker whose slug is wrong —
+    a typo, or a slug left behind by a rename — is still `does not exist` rather than
+    quietly resolving through the number it happens to share
+    (L0284-a-marker-names-its-entry-by-id-or-by-number, cites-as-live).
+
+    Two entries answering to one number is a state a merge can produce and `validate`
+    fails on; here it is said rather than guessed at, because picking either of them
+    would report a status the reader cannot check.
+    """
+    if ident in index:
+        return index[ident], None
+    number, slug = cited_parts(ident)
+    candidates = numbered.get(number, ())
+    if slug is not None:
+        # The slug is wrong, not the number. Saying so, and naming what the number does
+        # answer to, turns a rename that left a marker behind from a hunt into an edit;
+        # `does not exist` alone sends the reader looking for an entry that is there.
+        known = ", ".join(sorted(e.id for e in candidates))
+        return None, (
+            f"cites {ident}, which does not exist"
+            + (f"; {number} is {known}" if candidates else "")
+        )
+    if not candidates:
+        return None, f"cites {ident}, which does not exist"
+    if len(candidates) > 1:
+        names = ", ".join(sorted(e.id for e in candidates))
+        return None, (
+            f"cites {ident}, and {len(candidates)} entries answer to that number ({names}); "
+            "a marker that names no slug cannot say which"
+        )
+    return candidates[0], None
+
+
+def slug_shape(name, policy, ident, entry):
+    """The report a marker owes for carrying the entry's slug, or leaving it out, where
+    the project has said which it wants; None where it has not.
+
+    Asked only of a marker that resolved. A marker naming an entry that does not exist
+    has a failure of its own already, and a second report about the shape of an id that
+    names nothing is one the reader has to read past to find the one that matters
+    (L0287-the-slug-rule-is-asked-of-a-marker-that-resolved, cites-as-live).
+
+    The policy is handed in rather than looked up here, because it is a property of the
+    document and this is called once per marker: on this repository that is one walk of
+    the rules for each of four hundred markers where twenty-odd documents would do.
+    """
+    if policy == "either":
+        return None
+    _number, slug = cited_parts(ident)
+    if policy == "require" and slug is None:
+        return Report(
+            "fail",
+            None,
+            name,
+            f"cites {ident} without the entry's slug; a marker in this document names the "
+            f"entry in full, as `{entry.id}`",
+        )
+    if policy == "forbid" and slug is not None:
+        return Report(
+            "fail",
+            None,
+            name,
+            f"cites {ident} with the entry's slug; a marker in this document names the id "
+            f"alone, as `{entry.id.split('-', 1)[0]}`",
+        )
+    return None
+
+
 def roster_rows(body):
     """(entry id, act, cells) for each table row whose first cell cites an entry."""
     rows = []
@@ -127,7 +211,7 @@ def roster_rows(body):
     return rows
 
 
-def check_roster(entries, index, status, ledger, bodies):
+def check_roster(entries, index, numbered, status, ledger, bodies):
     """The hypothesis roster is a hand-maintained view of the entries: one row per
     hypothesis whose status is not terminal
     (L0048-every-open-hypothesis-has-exactly-one-roster-row, cites-as-live), the row's
@@ -152,8 +236,11 @@ def check_roster(entries, index, status, ledger, bodies):
         if body is None:
             continue  # reported once, by run(), rather than once per checker loop
         for ident, act, cells in roster_rows(body):
-            rows.append((name, ident, act, cells))
-            target = index.get(ident)
+            target, _ = cited_target(ident, index, numbered)
+            # Keyed by the entry the marker resolves to rather than by the marker's own
+            # text, so a row citing the number alone is the row that hypothesis has and
+            # not a second one nothing counts.
+            rows.append((name, target.id if target else ident, act, cells))
             if target is None:
                 continue  # reported as a dangling citation above
             if target.front.get("kind") != "hypothesis":
@@ -166,14 +253,14 @@ def check_roster(entries, index, status, ledger, bodies):
                         f"{target.front.get('kind')}",
                     )
                 )
-            elif cells[-1] != status[ident]:
+            elif cells[-1] != status[target.id]:
                 out.append(
                     Report(
                         "fail",
                         None,
                         name,
                         f"row for {ident} says `{cells[-1]}`; the entry's status is "
-                        f"`{status[ident]}`",
+                        f"`{status[target.id]}`",
                     )
                 )
     for e in entries:
@@ -209,7 +296,8 @@ def run(ledger, entries=None, cached=False):
     filter a reader would otherwise apply every time is applied for them here.
 
     **Document to entry.** A document cites an entry inline as
-    `(A0007-<slug>, cites-as-live)`. Every cited id exists, the act is compatible with the
+    `(A0007-<slug>, cites-as-live)`, the `-<slug>` optional. Every cited id exists,
+    the act is compatible with the
     target's status, and the entry's References section lists the citing document; every
     location an entry lists really cites it
     (L0044-a-citation-and-its-references-row-must-agree, cites-as-live). No document may
@@ -217,13 +305,15 @@ def run(ledger, entries=None, cached=False):
     (L0045-an-archived-series-is-refused-by-prefix, cites-as-live). A document that
     carries an entry's Assertion verbatim without citing it is reported too
     (L0046-an-uncited-verbatim-assertion-is-a-failure, cites-as-live): that finds copies,
-    and says nothing about restatements in other words.
+    and says nothing about restatements in other words. Which of the two spellings a
+    document may use is the project's to configure, and both are legal until it does
+    (L0285-the-slug-a-marker-carries-is-configured, cites-as-live).
     """
     entries = load_entries(ledger, cached=cached) if entries is None else entries
     bodies = document_bodies(ledger, cached=cached)
-    index = by_id(entries)
+    index, numbered = by_id(entries), by_number(entries)
     status = {e.id: e.status() for e in entries}
-    minted = {e.id.split("-", 1)[0] for e in entries}
+    minted = set(numbered)
     config = ledger.config
     archived = archived_id_re(config)
     reports = []
@@ -273,6 +363,7 @@ def run(ledger, entries=None, cached=False):
             reports.append(Report("fail", None, name, f"{problem}; its citations were not checked"))
             continue
         cited[name] = set()
+        policy = citation_slug_policy(name, config)  # a property of the document, asked once
         seen_archived = sorted({m.group(0) for m in archived.finditer(body)}) if archived else []
         if seen_archived:
             reports.append(
@@ -314,18 +405,25 @@ def run(ledger, entries=None, cached=False):
             ident, act = m.group(1), m.group(2)
             if ident[0] in config.archived_prefixes:
                 continue  # already reported by prefix
-            cited[name].add((ident, act))
-            target = index.get(ident)
+            target, why = cited_target(ident, index, numbered)
             if target is None:
-                reports.append(Report("fail", None, name, f"cites {ident}, which does not exist"))
+                reports.append(Report("fail", None, name, why))
                 continue
-            if status[ident] not in ACT_ALLOWS[act]:
+            # Keyed by the entry rather than by the text of the marker, so the References
+            # row an entry writes names the act the document really performs however the
+            # marker spelled the id, and the two directions still have to agree
+            # (L0288-a-rule-follows-the-entry-a-marker-resolves-to, cites-as-live).
+            cited[name].add((target.id, act))
+            shape = slug_shape(name, policy, ident, target)
+            if shape is not None:
+                reports.append(shape)
+            if status[target.id] not in ACT_ALLOWS[act]:
                 reports.append(
                     Report(
                         "fail",
                         None,
                         name,
-                        f"{act} against {ident}, whose status is {status[ident]}; "
+                        f"{act} against {ident}, whose status is {status[target.id]}; "
                         f"{act} needs {' or '.join(sorted(ACT_ALLOWS[act]))}",
                     )
                 )
@@ -335,7 +433,7 @@ def run(ledger, entries=None, cached=False):
                         "fail",
                         None,
                         name,
-                        f"cites {ident} {act} but {ident}'s References section does not "
+                        f"cites {ident} {act} but {target.id}'s References section does not "
                         "list this document",
                     )
                 )
@@ -356,7 +454,7 @@ def run(ledger, entries=None, cached=False):
                     )
                 )
 
-    reports += check_roster(entries, index, status, ledger, bodies)
+    reports += check_roster(entries, index, numbered, status, ledger, bodies)
     if config.citation_placement != "off":
         reports += misplaced_citations(ledger, entries=entries, bodies=bodies)
 
