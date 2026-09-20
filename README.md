@@ -400,7 +400,7 @@ to somewhere else; reads follow such a link, writes refuse it.
 | `claims-ledger status` | every entry with its kind, grade and derived status |
 | `claims-ledger neighbours <id\|path\|ground>` | the entries already about the same span or a nesting cohort; `--count` summarizes the whole ledger |
 | `claims-ledger hook` | print the pre-commit hook; `--install` writes it |
-| `claims-ledger lift <entry>` | move the body of a section's docstring onto the entry that rests on it, leaving the summary line and every citation behind (`--write`, `--ground`, `--patch`, `--author`) |
+| `claims-ledger lift <entry>` | move the body of a section's docstring onto the entry that rests on it, leaving the summary line, every citation it finds, and a citation of the entry where the prose was (`--write`, `--ground`, `--patch`, `--author`) |
 | `claims-ledger show <entry>` | print the prose an entry holds |
 | `claims-ledger --version` | the installed version |
 
@@ -417,7 +417,14 @@ working tree differs from HEAD, so what it removes is already in git
 `--write` it prints what it would take and writes nothing
 (L0272-a-lift-says-what-it-would-do-before-it-does-it, cites-as-live). A line carrying a
 citation is never taken, of the lifting entry or of any other
-(L0271-a-lift-never-moves-a-citation, cites-as-live). The prose lands in `Passages`,
+(L0271-a-lift-never-moves-a-citation, cites-as-live). Where the section cited the entry
+already, that citation is the marker and stays where its author put it; where it cited
+nothing, the lift writes one where the prose was, so a reader of the file can still tell
+which entry holds it (L0277-a-lift-leaves-a-citation-where-the-prose-was, cites-as-live).
+That marker is declared in the entry's References where the artifact is a configured
+document and a checker reads it, and nowhere else, since a row naming a file no checker
+can see is itself a failure
+(L0278-a-marker-is-declared-where-a-checker-reads-it, cites-as-live). The prose lands in `Passages`,
 below the APPEND marker, so a lift onto an entry git already has costs no supersession
 (L0273-a-lifted-passage-is-appended-and-never-frozen, cites-as-live); `docs/SCHEMA.md`
 has the grammar and `claims-ledger show` reads it back. Whether holding prose off the

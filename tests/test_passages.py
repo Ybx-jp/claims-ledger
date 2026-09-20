@@ -12,8 +12,15 @@ import ast
 import pytest
 
 from claims_ledger import open_ledger, resolve, validate
-from claims_ledger.lift import LiftError, liftable, plan, refuse_unless_git_holds_it
-from claims_ledger.schema import digest_of, parse_entry, section_span
+from claims_ledger.lift import (
+    LiftError,
+    add_reference_row,
+    citation_act,
+    liftable,
+    plan,
+    refuse_unless_git_holds_it,
+)
+from claims_ledger.schema import ACT_ALLOWS, digest_of, parse_entry, section_span
 
 MODULE = '''"""A module these tests lift from."""
 
@@ -231,7 +238,7 @@ def test_a_witness_resolves_out_of_history_after_the_prose_is_gone(lifted):
     entry = entry_of(lifted)
     pointer = pointer_of(entry)
     text = (lifted.root / pointer.target).read_text(encoding="utf-8")
-    _, proses, after = plan(entry, pointer, text, ledger.config)
+    _, proses, after, _ = plan(entry, pointer, text, ledger.config)
     (lifted.root / pointer.target).write_text(after, encoding="utf-8")
     path = with_passage(
         lifted,
@@ -278,7 +285,7 @@ def test_a_passage_cut_mid_line_fails(lifted):
     entry = entry_of(lifted)
     pointer = pointer_of(entry)
     text = (lifted.root / pointer.target).read_text(encoding="utf-8")
-    _, proses, _ = plan(entry, pointer, text, ledger.config)
+    _, proses, _, _ = plan(entry, pointer, text, ledger.config)
     whole = proses[0]
     cut = whole[8 : len(whole) - 8]
     assert cut in whole and cut.splitlines()[0] not in whole.splitlines()
@@ -303,7 +310,7 @@ def test_a_passage_shorter_than_what_was_removed_is_a_known_miss(lifted):
     entry = entry_of(lifted)
     pointer = pointer_of(entry)
     text = (lifted.root / pointer.target).read_text(encoding="utf-8")
-    _, proses, after = plan(entry, pointer, text, ledger.config)
+    _, proses, after, _ = plan(entry, pointer, text, ledger.config)
     (lifted.root / pointer.target).write_text(after, encoding="utf-8")
     kept = proses[0].splitlines()[:-1]
     assert kept, "the fixture's docstring body is one line; there is nothing to drop"
@@ -490,3 +497,106 @@ def test_a_witness_git_cannot_be_asked_about_says_so(project):
     assert any("no repository whose history" in r.message for r in reports), [
         r.message for r in reports
     ]
+
+
+# --- and what it leaves behind ------------------------------------------------------
+
+
+def test_a_lift_leaves_a_citation_where_the_prose_was(lifted):
+    """The marker half of the feature, which the file used to be left without.
+
+    Before this, a lift out of a section carrying no citation of the lifting entry was a
+    pure deletion: the prose was on the entry and nothing at the site said so, and the
+    only signal was a freshness flag that any edit produces and that names no id.
+    """
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    after = (lifted.root / "pkg" / "mod.py").read_text(encoding="utf-8")
+    assert "    (A0001-first, cites-as-live)\n" in after, after
+    ast.parse(after)
+    assert (ast.get_docstring(ast.parse(after).body[-1]) or "").startswith("Write the harness")
+
+
+def test_a_section_that_already_cites_the_entry_gets_no_second_marker(lifted):
+    """The citation the author wrote is the marker, and is left where they put it."""
+    path = lifted.root / "pkg" / "mod.py"
+    path.write_text(
+        source_with("    return root, agent\n").replace(
+            "    They live in the wheel,",
+            "    (A0001-first, cites-as-live)\n    They live in the wheel,",
+        ),
+        encoding="utf-8",
+    )
+    lifted.git("add", "-A")
+    lifted.git("commit", "-qm", "cited")
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    after = path.read_text(encoding="utf-8")
+    assert after.count("(A0001-first, cites-as-live)") == 1, after
+
+
+def test_the_dry_run_names_the_marker_it_would_write(lifted, capsys):
+    before = (lifted.root / "pkg" / "mod.py").read_text(encoding="utf-8")
+    assert lifted.cl("lift", "A0001-first") == 0
+    assert "marker (A0001-first, cites-as-live)" in capsys.readouterr().out
+    assert (lifted.root / "pkg" / "mod.py").read_text(encoding="utf-8") == before
+
+
+def test_a_marker_outside_the_documents_gets_no_references_row(lifted):
+    """`pkg/mod.py` is not a configured document here, so nothing reads the marker.
+
+    A References row naming it would be the failure — `references` reports a row naming a
+    file the checker cannot see — so the inert marker gets none.
+    """
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    assert entry_of(lifted).references == []
+    assert lifted.cl("references") == 0
+
+
+def test_a_marker_in_a_document_gets_its_references_row(lifted):
+    """Where a checker does read the marker, the row it demands is written with it."""
+    toml = lifted.root / "claims-ledger.toml"
+    toml.write_text(
+        toml.read_text(encoding="utf-8").replace(
+            'documents = ["*.md", "docs/*.md"]',
+            'documents = ["*.md", "docs/*.md", "pkg/*.py"]',
+        ),
+        encoding="utf-8",
+    )
+    assert lifted.cl("lift", "A0001-first", "--write") == 0
+    rows = [r for _, r in entry_of(lifted).references if r]
+    assert [(r.path, r.genre, r.act) for r in rows] == [("pkg/mod.py", "standing", "cites-as-live")]
+    assert lifted.cl("references") == 0, "the marker and its row disagree"
+
+
+def test_a_references_row_is_added_above_the_passages_section(lifted):
+    """The row goes in References, which is not the end of the file once a lift has run.
+
+    `## Passages` is the last section, so a row appended to the end of the text is a row
+    in another section — and `references` would then report a document citing an entry
+    that does not list it, on an entry that visibly holds the citation.
+    """
+    text = (
+        "## Verdicts\n\n## References\n\n- a.md · standing · cites-as-live\n"
+        "\n## Passages\n\n- a block\n"
+    )
+    out = add_reference_row(text, "- b.md · standing · cites-as-live")
+    assert out.index("- b.md") < out.index("## Passages")
+    assert out.index("- a.md") < out.index("- b.md")
+    assert out.endswith("## Passages\n\n- a block\n")
+
+
+@pytest.mark.parametrize(
+    "status, act",
+    [
+        ("open", "cites-as-live"),
+        ("corroborated", "cites-as-live"),
+        ("contested", "cites-as-contested"),
+        ("refuted", "cites-as-fallen"),
+        ("superseded", "cites-as-fallen"),
+        ("retracted", "cites-as-fallen"),
+        ("non-comparable", "cites-as-fallen"),
+    ],
+)
+def test_the_marker_is_written_with_an_act_the_status_allows(status, act):
+    """A marker is an ordinary citation, so it is legal at the moment it is written."""
+    assert citation_act(status) == act
+    assert status in ACT_ALLOWS[citation_act(status)]
