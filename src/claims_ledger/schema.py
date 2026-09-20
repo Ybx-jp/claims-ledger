@@ -117,6 +117,12 @@ BACKING_BLOCK_RE = re.compile(r"^- source: (.*)\n\s+speaker: (.*)\n\s+quote: (.*
 REFERENCE_RE = re.compile(r"^- (\S+) · (standing|record) · (\S+)$")
 # A citation in a document: `(A0007-<slug>, cites-as-live)`.
 CITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*(" + "|".join(ACTS) + r")\)")
+# What surrounds the parenthesis is unconstrained, and nothing parses a document: the
+# pattern runs over the text as it was read, so a marker in a YAML comment, a JSON string
+# or an HTML comment — gone from a rendered page and still inside the span its entry pins
+# — is read exactly as one in running prose is. The whitespace after the comma spans a
+# newline but not a wrapped comment leader, which is the one way to write a marker that is
+# not one (L0279-a-citation-is-read-wherever-the-text-holds-it, cites-as-live).
 MISCITATION_RE = re.compile(r"\(([A-Z][0-9]{3,}(?:-[a-z0-9-]+)?),\s*([a-z][a-z-]*)\)")
 # The same shape as CITATION_RE with any act-shaped word, so that one of them does not
 # read as prose: a mistyped `cites-as-liv`, and `distinguishes`, which is an act between
