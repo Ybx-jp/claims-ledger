@@ -25,11 +25,13 @@ from .schema import (
     ID_RE,
     PENDING_ANCHOR,
     PREFIX_RE,
+    committed_paths,
     digest_of,
     enclosing_repository,
     fingerprint,
     git_call,
     git_problem,
+    heads_in_progress,
     load_entries,
     load_registry,
     parse_entry,
@@ -341,38 +343,39 @@ def computed_sha(path):
     return parse_entry(Path(path)).computed_sha()
 
 
-def is_committed(repo, path):
-    """(whether git already holds this file at HEAD, why it could not be asked).
+def is_committed(ledger, path):
+    """(whether some commit of this repository holds this file, why it could not be asked).
 
     An entry that is committed has an immutable frozen region, and rewriting its
     fingerprint there is not an edit the checkers will forgive. `git()` answers None for
     a file git does not have and for a git that could not be run, and read as the first,
     a `sha --write` with no git on PATH rewrote the frozen region of a committed entry,
     exited 0 and said nothing. The answer is None when git could not be asked, which is
-    not a `no` (L0069-an-unaskable-git-is-not-read-as-not-committed, cites-as-live).
+    not a `no` (L0069-an-unaskable-git-is-not-read-as-not-committed, cites-as-live). One
+    bit carries that here: `committed_paths` walks, and a walk that failed comes back
+    without a set rather than with an empty one.
 
-    `git_problem()` cleared a git that cannot open the repository at all, and the last
-    question was still asked with `git()`, which has one answer for two things. It is
-    `rev-parse --verify --quiet HEAD:<rel>` now, because `cat-file -e` cannot tell them
-    apart and this can: measured on git 2.43.0, `cat-file -e HEAD:<path>` exits 128 both
-    for a path no commit holds and for a git that could not look, while `rev-parse
-    --verify --quiet` exits 1 for the first and 128 for the second. That distinction is
-    the one `resolve` is written around, and it is what turned `GIT_OBJECT_DIRECTORY` in
-    the environment — an object store git could not read the entry out of — into a
-    `sha --write` that rewrote a committed frozen region at exit 0. The scrub in
-    `git_env()` is what stops that variable arriving; this is what stops the next reason
-    git cannot read an object from being taken for `not committed yet`.
+    At HEAD, once, and that was the defect. This asked `rev-parse --verify --quiet
+    HEAD:<rel>`, which answers about one commit, while the reach that matters is every
+    commit the repository holds — during a merge, an entry the incoming side committed is
+    on `MERGE_HEAD` and not on HEAD, so it read as uncommitted, `resolve` refused the
+    merge, and `sha --write` would have rewritten the Grounds of an entry already in
+    history (issue #59). It is a membership read of `committed_paths` now, over every ref
+    and every operation in progress.
 
-    The two commands also differ where neither of them fails, and that difference is why
-    this one is right rather than merely more legible. `rev-parse --verify` resolves the
-    name through the tree and does not check that the object is *present*: with the
-    entry's own loose blob gone from the object store, `cat-file -e` exits 1 — a `no`, to
-    `git()` — and `rev-parse` exits 0. What makes the region immutable is that a commit
-    names it, not whether this checkout can still read the bytes, so `committed` is the
-    honest answer and `sha --write` refuses
-    (L0070-committed-means-a-commit-names-it-not-that-the-bytes-are-here,
-    cites-as-live). (docs/audits/ARCH-AUDIT.md, QE14-4.)
+    What `rev-parse --verify` was chosen for is kept. It resolved a name through the tree
+    without checking the object is *present*, so an entry whose loose blob is gone still
+    read as committed — what makes a region immutable is that a commit names it, not
+    whether this checkout can still read the bytes. The walk is a tree diff and answers
+    the same way: measured on git 2.43.0, with the blob deleted, `--name-only` still names
+    the path while `cat-file -e` exits 1
+    (L0070-committed-means-a-commit-names-it-not-that-the-bytes-are-here, cites-as-live).
+
+    And the negative is refused a second time while an operation is in progress, which is
+    where a walk this package has not been taught about would otherwise produce a `no`
+    about a file that is there. (docs/audits/ARCH-AUDIT.md, QE14-4.)
     """
+    repo = ledger.repo
     if not repo:
         # "No repository" is only "nothing was skipped" when there is no repository
         # anywhere. A ledger inside somebody else's repository has a history, and this
@@ -399,12 +402,28 @@ def is_committed(repo, path):
         return False, None  # outside the repository: git has nothing to say about it
     if (problem := git_problem(repo)) is not None:
         return None, problem
-    answer = git_call(repo, "rev-parse", "--verify", "--quiet", f"HEAD:{rel}")
-    if answer.code == 1:
-        return False, None  # HEAD has no such path: not committed, which is an answer
-    if not answer.ok:
-        return None, f"git could not read {rel} at HEAD ({answer.why})"
-    return True, None
+    # As git prints a path: `/`-separated from the repository root, and a string. The
+    # walk's keys are what git wrote, so a Path compared against them is never equal and
+    # every entry reads as uncommitted — which is the answer that licenses a rewrite.
+    named = rel.as_posix()
+    under = os.path.dirname(named) or "."
+    seen, why = committed_paths(ledger, repo, under)
+    if seen is None:
+        return None, f"git could not list what it holds under {under} ({why})"
+    if named in seen:
+        return True, None
+    heads = heads_in_progress(ledger, repo)
+    if heads:
+        # Nothing this run walked names the file, and a `no` here is what licenses a
+        # rewrite of the frozen region. An operation in progress is exactly the state
+        # where a walk can be incomplete for a reason this package did not anticipate —
+        # a pseudo-ref of a git newer than this code — so inside one the negative is
+        # downgraded to `could not be established` and the destructive decision is never
+        # taken on it. Both callers already act on that: `sha --write` refuses and
+        # `resolve` reports it rather than telling the author to recompute
+        # (L0294-an-operation-in-progress-is-discovered-not-enumerated, cites-as-live).
+        return None, f"{', '.join(heads)} is set, so an operation is in progress"
+    return False, None  # no commit this repository holds names it: not committed
 
 
 def anchors_to_fill(ledger, entry):
@@ -475,7 +494,7 @@ def restamp(ledger, path, write=False, force=False):
     in_grounds = {raw for raw, _ in entry.grounds}
     frozen = declared != computed or any(raw in in_grounds for raw, _ in pending)
     if frozen:
-        committed, unasked = is_committed(ledger.repo, path)
+        committed, unasked = is_committed(ledger, path)
         if unasked is not None and not force:
             raise AuthoringError(
                 f"{unasked}, so whether git already has {ledger.config.relative(path)} could "

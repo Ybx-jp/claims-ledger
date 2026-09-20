@@ -155,11 +155,16 @@ def test_the_history_checks_spawn_the_same_number_of_git_processes_for_five_entr
     counts = _count_git(monkeypatch)
     assert validate.run(open_ledger(root=project.root)) == []
     with_one = len(counts)
-    # Flat is half of what L0084 claims; the other half is the number itself, and the
-    # shapes say which three. A check that only compares one size against another stays
-    # green while a fourth process is added — measured on an abandoned branch that added
+    # Flat is half of what the claim below says; the other half is the number itself, and
+    # the shapes say which. A check that only compares one size against another stays
+    # green while another process is added — measured on an abandoned branch that added
     # one, where the entry saying three went on citing itself as live and nothing flagged.
-    assert [a[3] for a in counts] == ["rev-parse", "log", "cat-file"], counts
+    # Four now. The second `rev-parse` is `--absolute-git-dir`, asked once per run so the
+    # walk can reach the other side of an operation in progress: during a merge half the
+    # ledger is on `MERGE_HEAD`, which is neither a ref nor on HEAD. Asked once and kept
+    # on the ledger, so the count is still flat from one entry to five
+    # (L0296-the-whole-history-costs-four-git-processes, cites-as-live).
+    assert [a[3] for a in counts] == ["rev-parse", "rev-parse", "log", "cat-file"], counts
     assert validate.run(open_ledger(root=project.root), cached=True) == []
     with_one_cached = len(counts) - with_one
     # Two more under --cached, both `load_entries`' own and neither check_history's: one
@@ -169,6 +174,7 @@ def test_the_history_checks_spawn_the_same_number_of_git_processes_for_five_entr
     assert [a[3] for a in counts[with_one:]] == [
         "ls-files",
         "cat-file",
+        "rev-parse",
         "rev-parse",
         "log",
         "cat-file",

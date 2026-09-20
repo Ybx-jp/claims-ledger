@@ -56,6 +56,7 @@ from .schema import (
     parse_entry,
     parse_quote,
     parse_timestamp,
+    prospective_revs,
 )
 
 ABSENCE_WORDS = {"nobody", "neither", "first", "novel", "unique", "unprecedented"}
@@ -792,10 +793,12 @@ def check_history(ledger, entries, cached=False):
     commit that bypassed the pre-commit hook is caught by the next run anywhere
     (L0082-verdicts-append-and-only-append-across-every-edge, cites-as-live).
 
-    Three git processes for the whole ledger — one to ask whether anything is committed,
-    one walk of the history under the entries directory, one `cat-file --batch` for every
-    blob the walk named — rather than two plus one per revision for each entry
-    (L0084-the-whole-history-costs-three-git-processes, cites-as-live). The walk is the
+    Four git processes for the whole ledger — one to ask whether anything is committed,
+    one to ask where the git directory is so the walk can reach the other side of an
+    operation in progress, one walk of the history under the entries directory, one
+    `cat-file --batch` for every blob the walk named — rather than two plus one per
+    revision for each entry
+    (L0296-the-whole-history-costs-four-git-processes, cites-as-live). The walk is the
     part that scaled worst: `git log -- <path>` visits every commit however few touched
     the path, so the old per-entry loop cost the product of entries and commits.
     """
@@ -843,7 +846,14 @@ def check_history(ledger, entries, cached=False):
     # this file did not exist (corpus K18). An entry is never renamed: its id is its
     # filename.
     # (L0087-rename-detection-is-off-because-an-entry-is-never-renamed, cites-as-live)
-    history, why = git_history(repo, os.path.relpath(ledger.entries_dir, repo))
+    # The narrow reach: HEAD and the other side of an operation in progress, which are
+    # the parents the commit being made will have. Mid-merge this walk was HEAD alone,
+    # an incoming entry had no revisions, and `if not revs: continue` below turned the
+    # frozen-region and append-only checks off for it without a word
+    # (L0293-two-reaches-because-the-questions-are-different, cites-as-live).
+    history, why = git_history(
+        repo, os.path.relpath(ledger.entries_dir, repo), revs=prospective_revs(ledger, repo)
+    )
     if history is None:
         if committed_anything:
             for e, rel in rels:

@@ -61,6 +61,15 @@ none
 - 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:bdbb8276dcecce0f98f63ef837c77d1fc3ce90f757a0b829d7ce222be0926459
   note: re-read after the revision-edge loop was generalised to compare `## Passages` blocks beside the verdict blocks, so that prose held below the APPEND marker appends and only appends the way a verdict does. The frozen-region half of this function is untouched, the walk still costs three git processes for the whole ledger, and what each edge compares is the same comparison applied to a second list.
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:bdbb8276dcecce0f98f63ef837c77d1fc3ce90f757a0b829d7ce222be0926459
+  artifact: sha256:a8dc0b278ba056161297d7bfb4a6899f044b8da899aa83d7a8b9599271e9d6f6
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:a8dc0b278ba056161297d7bfb4a6899f044b8da899aa83d7a8b9599271e9d6f6
+  note: re-read after the commit that widens the reach of the history walk. The section now passes `prospective_revs` — HEAD and the other side of an operation in progress — where it passed nothing and got HEAD. With no operation under way the walk is the one it was, and the rules this section carries are untouched: a bypassed hook is still caught by the next run anywhere.
+
 
 ## References
 

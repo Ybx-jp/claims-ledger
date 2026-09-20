@@ -65,6 +65,15 @@ none
 - 2026-09-15T17:26:29-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:2bfa357fbe8fda54952652567afb5536943e32f65bbd43cfa63ae739b9b7caf3
   note: re-read after the per-entry loop gained a pass over the entry's held passages, which resolves each witness and compares the prose against the version it names. The grounds, verdict-evidence and Backing passes above it are unchanged, and so is the one question asked of git before any pinned pointer is read.
+- 2026-09-20T15:29:16-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:2bfa357fbe8fda54952652567afb5536943e32f65bbd43cfa63ae739b9b7caf3
+  artifact: sha256:6174cdacc1864c2cbb4b6e9c87ebfa0125f4553476f8b1c981269fb73e78636b
+  note: propagated from a moved ground
+
+- 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:6174cdacc1864c2cbb4b6e9c87ebfa0125f4553476f8b1c981269fb73e78636b
+  note: re-read after the commit that widens what `is_committed` asks. The only change inside the section is the argument that call takes. an act is still checked against the target's current status.
+
 
 ## References
 

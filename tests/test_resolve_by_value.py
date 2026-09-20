@@ -208,9 +208,14 @@ def test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure(
 ):
     """The branch between `fail, recompute the digest` and `look in history` is whether
     git holds the entry, and a git that could not say is neither answer. `run()`'s own
-    gate asks `rev-parse --git-dir` and nothing more, so a git broken only in `--verify`
-    passes it; read as `not committed`, that git would tell a person to recompute an
-    anchor on an entry whose frozen region a commit already names."""
+    gate asks `rev-parse --git-dir` and nothing more, so a git broken only in the walk
+    that lists what the repository holds passes it; read as `not committed`, that git
+    would tell a person to recompute an anchor on an entry whose frozen region a commit
+    already names.
+
+    The shim breaks `--all`, which is the reach `committed_paths` asks over: every ref
+    and every operation in progress. It used to break `--verify`, which is what the
+    question was asked with while it was asked of HEAD alone."""
     import os
 
     from test_git_degradation import _shim_git_that_cannot
@@ -222,7 +227,7 @@ def test_a_git_that_cannot_say_whether_the_entry_is_committed_is_a_failure(
         NOTE.replace("0.04", "0.09"), encoding="utf-8"
     )
     assert reports(project) == []
-    shim = _shim_git_that_cannot(tmp_path, "--verify")
+    shim = _shim_git_that_cannot(tmp_path, "--all")
     monkeypatch.setenv("PATH", f"{shim}{os.pathsep}{os.environ['PATH']}")
     ((outcome, part, message),) = reports(project)
     assert (outcome, part) == ("fail", "Grounds 1")
