@@ -211,6 +211,30 @@ def test_the_configuration_init_writes_is_parseable_toml(tmp_path):
     assert not [c for c in written.decode("utf-8") if c < " " and c not in "\n\t"]
 
 
+def test_uncommenting_the_section_patterns_table_where_it_stands_moves_no_other_key(tmp_path):
+    """The first edit any project pinning claims to source has to make, and it used to be a
+    trap. A TOML table header takes every key below it, and the commented table sat above
+    four of them, so uncommenting it in place moved `verdict-authors`,
+    `propagation-author`, `roster` and `archived-prefixes` inside `section-patterns` — and
+    what the user saw was `section-patterns.archived-prefixes is list, expected a string`,
+    naming a key they had never touched. Issue #52.
+    """
+    root = tmp_path / "project"
+    root.mkdir()
+    assert cli.main(["--root", str(root), "init"]) == 0
+    written = (root / "claims-ledger.toml").read_text(encoding="utf-8")
+    live = "\n".join(
+        ln[2:]
+        if ln.startswith("# [tool.claims-ledger.section-patterns]") or ln.startswith("# code = ")
+        else ln
+        for ln in written.splitlines()
+    )
+    table = tomllib.loads(live)["tool"]["claims-ledger"]
+    assert set(table["section-patterns"]) == {"code"}, table["section-patterns"]
+    for key in ("verdict-authors", "propagation-author", "roster", "archived-prefixes"):
+        assert key in table, f"{key} was swallowed by the section-patterns table"
+
+
 def test_the_installed_hook_asks_freshness_about_the_index():
     """Fixed. The defect, as this pass wrote it: MEDIUM-33 gave `freshness` a --cached flag and
     gave `check` the wiring, but HOOK_TEMPLATE still runs bare `freshness`, so the installed

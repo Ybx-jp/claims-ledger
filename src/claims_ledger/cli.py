@@ -207,13 +207,9 @@ documents = ["*.md", "docs/*.md"]
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
-# How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
-# Markdown heading. A section runs from its own header to the next one, so anchor the
-# pattern at the granularity the section really has. A pattern that can nest says so with
-# a group named `depth`: a match whose `depth` is longer than the header's is a
-# subsection of it, not the start of the next one.
-# [tool.claims-ledger.section-patterns]
-# code = {code}
+# How a sectioned type finds its section is the `section-patterns` table, which is at the
+# end of this file and not here: a TOML table header takes every key below it, so a table
+# written among these would swallow them the moment it is uncommented.
 
 # Who may write a verdict, and which of those names the machinery writes under.
 verdict-authors = ["main", "propagation"]
@@ -224,7 +220,22 @@ roster = "ROSTER.md"
 
 # Id series quarantined by an earlier ledger, which no document may cite.
 archived-prefixes = []
+
+# How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
+# Markdown heading. A section runs from its own header to the next one, so anchor the
+# pattern at the granularity the section really has. A pattern that can nest says so with
+# a group named `depth`: a match whose `depth` is longer than the header's is a
+# subsection of it, not the start of the next one. Last in the file, so that uncommenting
+# these two lines where they stand is the whole of the edit.
+# [tool.claims-ledger.section-patterns]
+# code = {code}
 """
+# Written last and commented out so that uncommenting it where it stands is the whole
+# of the edit: a TOML table header takes every key below it, and this table used to sit
+# above four of them
+# (L0283-the-commented-table-init-writes-is-the-last-one, cites-as-live). The comment is
+# here rather than inside the template because a citation written there would be copied
+# into every project the scaffold touches.
 
 CACHE_IGNORE = """# Source bytes, keyed by sha256. The registry row is committed and
 # the bytes are not: they are regenerated from the row's url and extraction method.
