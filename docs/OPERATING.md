@@ -349,10 +349,19 @@ matched over the whole artifact rather than line by line
 Measured over this repository's own ledger — 391 `code:` grounds, 382 of them resolvable
 in the working tree — that recipe resolves all 382, leaves 376 spans byte-identical and
 moves 6 onto the declaration the prefix belongs to
-(L0281-the-documented-recipe-starts-a-section-at-the-prefix, cites-as-live). In a ledger
-that already exists each
-moved span is a `has moved` flag discharged by a re-read verdict, so adopting it is a
-change to make on purpose, in one commit, and not a silent improvement.
+(L0281-the-documented-recipe-starts-a-section-at-the-prefix, cites-as-live).
+
+**Adopting it here cost three of those six, and which three is the useful part.** A
+pattern change is invisible to a ground whose most recent reading is stated *by reference*:
+both sides of the comparison are re-derived under the new pattern, so the commit and the
+tree still agree and nothing is reported
+(L0195-the-latest-corroboration-is-where-a-ground-was-last-read, cites-as-live). A ground
+last read *by value* is the opposite. Its anchor froze the digest of a span the old pattern
+produced, and no version of the file digests to that under the new one — so `freshness`
+says the ground moved and `resolve` says the text the claim was established on can no
+longer be shown at all. One re-read verdict discharges both, and the flag says so. Change a
+pattern in a commit that does nothing else, and read the by-value grounds it moves in that
+same commit.
 
 `claims-ledger references` prints what it read; comparing a ground's span against the
 claim before committing the entry is the whole of the check, and it takes a minute.

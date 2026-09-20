@@ -50,6 +50,14 @@ none
 - 2026-09-11T03:09:46-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "GitAnswer" =sha256:a7440329bcef4608350e605e347143074db7422b4becaf4972ac3478137e7620
   note: read against the working tree after one comment in the section began naming the audit file by its docs/audits path, since the reading at 2a76453: the dataclass, its fields and the exit status carried beside the output are unchanged; the assertion holds as written.
+- 2026-09-20T12:09:30-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "GitAnswer" =sha256:a7440329bcef4608350e605e347143074db7422b4becaf4972ac3478137e7620
+  artifact: sha256:0c83e365bf0d6d97d285afd20a63754de18d516ac39298b62e6c3da9d457cfdd
+  note: propagated from a moved ground
+
+- 2026-09-20T12:09:32-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "GitAnswer" =sha256:0c83e365bf0d6d97d285afd20a63754de18d516ac39298b62e6c3da9d457cfdd
+  note: this repository adopted the decorator-aware `code` pattern it documents, so the section now starts at the @dataclasses.dataclass(frozen=True) line above the class rather than after it; the class and what it keeps are unchanged
 
 ## References
 

@@ -122,9 +122,13 @@ each start position, so at a decorator line the decorator branch is tried before
 assignment branch and the accidental `=` no longer wins. A claim whose ground *is* a
 decorator — `@pytest.mark.skipif`, `@app.get(...)` — has no section to rest on without it.
 
-Adopting it in a ledger that already has grounds moves some spans: every one that moves is
-a `has moved` flag, discharged by a re-read verdict, so do it in one commit rather than
-alongside other work.
+Adopting it in a ledger that already has grounds moves some spans, and what that costs
+depends on how each was last read. A ground last read *by reference* re-derives both sides
+under the new pattern and reports nothing. A ground last read *by value* froze the digest
+of a span the old pattern produced: `freshness` says it moved and `resolve` says no version
+of the file digests to it any more, so the text the claim rests on cannot be shown until a
+reading of the section as it now stands moves the ground past it. One re-read verdict
+discharges both. Change a pattern in its own commit and read those grounds in it.
 
 **The module docstring is for a claim about the file as a whole**, which is the case where
 no section is the right ground — the module has no single definition that keeps the claim

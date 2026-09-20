@@ -453,6 +453,9 @@ def documented_recipes():
 
     from claims_ledger.cli import CODE_RECIPE, CONFIG_TEMPLATE
 
+    if not (PROJECT / "README.md").is_file():
+        pytest.skip("not a checkout; these read the repository's own files")
+
     sources = {
         "README.md": (PROJECT / "README.md").read_text(encoding="utf-8"),
         "docs/OPERATING.md": (PROJECT / "docs" / "OPERATING.md").read_text(encoding="utf-8"),
@@ -534,3 +537,16 @@ def test_the_documented_recipe_does_not_make_a_nested_definition_a_section():
     the function holding it, not the start of the next section."""
     pattern = next(iter(documented_recipes().values()))
     assert spans(pattern, DECORATED, "nested") is None
+
+
+def test_this_repository_uses_the_code_recipe_it_documents():
+    """A ledger that documents one pattern and runs another is arguing against itself, and
+    this is the repository whose own ledger is the argument that the checkers work. The
+    two were different until 2026-09-20 — the documented recipe could not reach an
+    assignment, and the one here could not reach a decorator."""
+    import tomllib
+
+    table = tomllib.loads((PROJECT / "pyproject.toml").read_text(encoding="utf-8"))
+    mine = table["tool"]["claims-ledger"]["section-patterns"]["code"]
+    documented = documented_recipes()
+    assert mine in set(documented.values()), {"pyproject.toml": mine, **documented}

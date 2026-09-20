@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T12:09:31-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "anchor_digest" =sha256:092387637d51b82ca6a044fd946f230a7b9f0fe3efe86e32a8d44cceaf0f3093
+  artifact: sha256:48618c3d60bc94838fa0ae169e665adfcce74e496314214b6ba47bee341626ae
+  note: propagated from a moved ground
+
+- 2026-09-20T12:09:32-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "anchor_digest" =sha256:48618c3d60bc94838fa0ae169e665adfcce74e496314214b6ba47bee341626ae
+  note: this repository adopted the decorator-aware `code` pattern it documents, so the section no longer runs on to the decorator of the definition below it; anchor_digest itself is unchanged
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live
