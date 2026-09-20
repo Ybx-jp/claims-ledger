@@ -26,6 +26,7 @@ told:
 | what you are holding | skill |
 | --- | --- |
 | prose that promises something and cites nothing | `tagging-prose-with-claims` |
+| a marker that clutters a page readers see, or a document in some other file format | `tagging-prose-with-claims` |
 | `<act> against <id>, whose status is …` | `choosing-a-citation-act` |
 | `is shaped like a citation but … is not a citation act` | `choosing-a-citation-act` |
 | `cites … from outside § "…"` | `choosing-a-citation-act`, then `repair-a-drifted-pin` for the flags moving it causes |
@@ -37,7 +38,7 @@ told:
 
 | skill | what it covers |
 | --- | --- |
-| `tagging-prose-with-claims` | Turning a sentence that promises something into an entry: where the citation sits and what that costs, landing it in one commit, choosing a ground, asking which entries are already about it, and the rules `validate` applies to the wording. |
+| `tagging-prose-with-claims` | Turning a sentence that promises something into an entry: where the citation sits and what that costs — including a marker hidden from a rendered page, and the comment syntax of whatever format the document is in — landing it in one commit, choosing a ground, asking which entries are already about it, and the rules `validate` applies to the wording. |
 | `choosing-a-citation-act` | Matching an act to a status, the repairs available when a status moves, and relating two entries that turn out to be about the same artifact. |
 | `repair-a-drifted-pin` | The findings `freshness` reports, which of them are drift, and how each is discharged — including the supersessions no checker asks for. |
 
