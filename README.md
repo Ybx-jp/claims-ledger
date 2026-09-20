@@ -319,13 +319,20 @@ evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
 # How a sectioned type finds its section. `{name}` is the only substitution; the rest is
-# an ordinary regex, matched line by line. Omitted, a type gets the Markdown heading that
-# `§` always meant. A section runs from its own header to the next one, so anchor the
-# pattern at the granularity the section really has — allowing leading whitespace in the
-# Python pattern below would end a function at its first nested definition and leave the
-# rest of it uncompared.
+# an ordinary regex, compiled with `re.MULTILINE` and matched over the whole file, so `^`
+# anchors at a line start and a pattern may span lines
+# (L0280-a-section-pattern-is-matched-over-the-whole-artifact, cites-as-live). Omitted, a
+# type gets the Markdown heading that `§` always meant. A section runs from its own header
+# to the next one, so anchor the pattern at the granularity the section really has —
+# allowing leading whitespace in the Python pattern below would end a function at its
+# first nested definition and leave the rest of it uncompared.
 [tool.claims-ledger.section-patterns]
-code = '^(?:def|class)[ \t]+{name}\b'
+code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
+# A top-level def, class or assignment, and the decorators above it. The leading group is
+# what the spanning is for: a decorator belongs to the definition it modifies, and a
+# pattern anchored on `def` alone leaves it in the section of whatever came before —
+# where editing it flags a claim about something else — or, if it carries a keyword
+# argument, in no section at all.
 
 # A pattern is how narrow a ground can be, and narrowness is what keeps a claim from
 # going stale for a reason it does not care about. A claim about one setting should not

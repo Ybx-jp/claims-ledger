@@ -36,6 +36,7 @@ they carry citations of ids that live in other ledgers, or show the syntax to a 
 and a glob that reached them would turn fixtures and examples into failures. Widening
 one is a change to run before it is committed.
 
+<<<<<<< HEAD
 **Which spelling a marker uses here is decided per path, and both directions are held.**
 `citation-slug` names three files — `pyproject.toml`, `src/claims_ledger/__init__.py` and
 `docs/FRESHNESS.md`, one of each kind this project writes citations in — where a marker
@@ -45,6 +46,16 @@ names the entry in full and the comment in `pyproject.toml` that it is about doe
 neither is a matter of taste. Converting another file is two edits: its markers, and the
 path list. What it costs is a re-read verdict for every entry pinned to a section a marker
 sits in, which is why the sample was seven markers and not four hundred.
+=======
+The `code` pattern here is the recipe the package documents, character for character —
+README §Configuration, `docs/OPERATING.md`, the `tagging-prose-with-claims` skill and the
+table `claims-ledger init` writes — and a test holds all of them to one string
+(L0282-this-repository-uses-the-recipe-it-documents, cites-as-live). A ledger whose entries
+are the argument that the checkers work cannot run a pattern it tells everyone else not to
+use. Changing it is a commit of its own: it moves the span of every ground whose most recent
+reading is stated by value, and each of those needs a reading of the section as it now
+stands before `resolve` can show the text the claim was established on.
+>>>>>>> origin/main
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
 does, so a citation written here is checked. `RELEASING.md` is one for the same reason: it

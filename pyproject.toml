@@ -177,6 +177,6 @@ evidence-plain = []
 # claim about a single setting: the whole `[project]` table was the finest ground the
 # dependency claim could take, so adding a classifier moved a claim about `dependencies`.
 # The space before `=` is what keeps the boundary off a `>=` inside an array element.
-code = '^(?![ \t])(?:(?:def|class)[ \t]+{name}\b|{name}[ \t]*=)'
+code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
 toml = '^\[{name}\]'
 toml-key = '^{name} = '

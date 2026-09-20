@@ -52,6 +52,14 @@ none
 - 2026-09-08T14:40:00-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "CITATION_RE" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
   note: read against commit ee234ed, which moved the comment above MISCITATION_RE below it and so out of this section; the pattern is still built by joining ACTS and so still cannot match the act
+- 2026-09-20T10:46:49-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "CITATION_RE" @ee234ed85969dcc0c8400721f9a16162d6cee9f5
+  artifact: sha256:2b42a3fc5cbf3e14892515516ce6eea36249e1425001c84cd77928d08e8b13d9
+  note: propagated from a moved ground
+
+- 2026-09-20T10:47:03-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "CITATION_RE" =sha256:2b42a3fc5cbf3e14892515516ce6eea36249e1425001c84cd77928d08e8b13d9
+  note: read against the commit that writes a citing comment into this section, for the claim that a citation is read wherever a document's text holds it; the pattern is still built by joining ACTS, so distinguishes is still not a word any document may cite with
 
 ## References
 

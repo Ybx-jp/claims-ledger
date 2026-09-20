@@ -173,6 +173,18 @@ def hook_text(python=None):
     return HOOK_TEMPLATE.format(python=shlex.quote(python or sys.executable))
 
 
+CODE_RECIPE = (
+    r"'^(?:@[^\n]*\n)*(?![ \t])"
+    r"(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'"
+)
+# The `code` pattern `init` writes out commented, and the one README.md,
+# docs/OPERATING.md and the `tagging-prose-with-claims` skill document; a test holds
+# the four identical. It is a value substituted into the template rather than a line
+# inside it because a backslash in that template is a Python escape before it is ever
+# a regex one, and the recipe is mostly backslashes. Written below the assignment so
+# the comment belongs to this name rather than to the section above it.
+
+
 CONFIG_TEMPLATE = """# The claims ledger's layout and this project's local vocabulary.
 # Every path is relative to the directory holding this file.
 [tool.claims-ledger]
@@ -204,13 +216,9 @@ documents = ["*.md", "docs/*.md"]
 evidence-sectioned = ["lab"]
 evidence-plain = ["experiment"]
 
-# How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
-# Markdown heading. A section runs from its own header to the next one, so anchor the
-# pattern at the granularity the section really has. A pattern that can nest says so with
-# a group named `depth`: a match whose `depth` is longer than the header's is a
-# subsection of it, not the start of the next one.
-# [tool.claims-ledger.section-patterns]
-# code = '^(?:def|class) +{{name}}'
+# How a sectioned type finds its section is the `section-patterns` table, which is at the
+# end of this file and not here: a TOML table header takes every key below it, so a table
+# written among these would swallow them the moment it is uncommented.
 
 # Who may write a verdict, and which of those names the machinery writes under.
 verdict-authors = ["main", "propagation"]
@@ -221,7 +229,22 @@ roster = "ROSTER.md"
 
 # Id series quarantined by an earlier ledger, which no document may cite.
 archived-prefixes = []
+
+# How a sectioned type finds its section: a regex with a `{{name}}` slot, defaulting to a
+# Markdown heading. A section runs from its own header to the next one, so anchor the
+# pattern at the granularity the section really has. A pattern that can nest says so with
+# a group named `depth`: a match whose `depth` is longer than the header's is a
+# subsection of it, not the start of the next one. Last in the file, so that uncommenting
+# these two lines where they stand is the whole of the edit.
+# [tool.claims-ledger.section-patterns]
+# code = {code}
 """
+# Written last and commented out so that uncommenting it where it stands is the whole
+# of the edit: a TOML table header takes every key below it, and this table used to sit
+# above four of them
+# (L0283-the-commented-table-init-writes-is-the-last-one, cites-as-live). The comment is
+# here rather than inside the template because a citation written there would be copied
+# into every project the scaffold touches.
 
 CACHE_IGNORE = """# Source bytes, keyed by sha256. The registry row is committed and
 # the bytes are not: they are regenerated from the row's url and extraction method.
@@ -1007,7 +1030,9 @@ def cmd_init(args, _ledger):
         write_text_atomically(ignore, CACHE_IGNORE)
         if not registry.exists():
             write_text_atomically(registry, "")
-        write_text_atomically(config_path, CONFIG_TEMPLATE.format(ledger=args.ledger))
+        write_text_atomically(
+            config_path, CONFIG_TEMPLATE.format(ledger=args.ledger, code=CODE_RECIPE)
+        )
     except OSError as exc:
         print(
             f"claims-ledger: cannot scaffold the ledger under {ledger_dir} "
