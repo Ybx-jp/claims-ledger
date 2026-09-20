@@ -55,6 +55,16 @@ none
 
 ## Verdicts
 
+- 2026-09-20T15:36:57-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:166a79c96b6b68db961e4aeb6e8a271e668650a3181d75583405ee4478808d6f
+  artifact: sha256:51cf8c55f336e8fd07780a8e4509a9f7645490b4096cd3531b71f499615e89d7
+  note: propagated from a moved ground
+
+- 2026-09-20T15:36:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/references.py § "run" =sha256:51cf8c55f336e8fd07780a8e4509a9f7645490b4096cd3531b71f499615e89d7
+  note: re-read after merging main into the branch that lets a marker name its entry by the number alone. Both sides edited this section: main wrote the claim this entry states, and the branch changed how each marker is resolved and collected. Neither touches what this one asserts — the pattern still runs over the document's text as it was read, with nothing parsing it, so a marker inside a comment of whatever kind the format hides text in is read exactly as one in running prose is. The document loop it sits in now resolves the id before using it, which is a question about which entry a marker names and not about where a marker may be written.
+
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live
