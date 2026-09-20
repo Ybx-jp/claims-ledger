@@ -513,7 +513,7 @@ def test_a_lift_leaves_a_citation_where_the_prose_was(lifted):
     after = (lifted.root / "pkg" / "mod.py").read_text(encoding="utf-8")
     assert "    (A0001-first, cites-as-live)\n" in after, after
     ast.parse(after)
-    assert ast.get_docstring(ast.parse(after).body[-1]).startswith("Write the harness")
+    assert (ast.get_docstring(ast.parse(after).body[-1]) or "").startswith("Write the harness")
 
 
 def test_a_section_that_already_cites_the_entry_gets_no_second_marker(lifted):
