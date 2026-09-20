@@ -105,6 +105,27 @@ indented key; a pattern written for one language and used on another can close a
 line after it opens. Anchor at the left margin where the format allows it — `^(?![ \t])` —
 and check the span rather than reading the regex.
 
+**A declaration's prefix belongs to the declaration**, and a pattern anchored on the line
+that names it gives the prefix away. In Python `@dataclass` above a class falls inside the
+section of whatever was defined before it — editing the decorator then flags a claim about
+something else — and `@dataclass(frozen=True)` ends that previous section instead, because
+the widened name slot matches `@dataclass(frozen` before its `=`, leaving the decorator in
+no section at all. One keyword argument decides which, and the same is true of any prefixed
+declaration: an attribute, an annotation, an export modifier. A pattern is matched over the
+whole artifact and not line by line, so it can take the prefix in:
+
+    [tool.claims-ledger.section-patterns]
+    code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
+
+The leading group takes any run of decorator lines, and alternation is leftmost-first at
+each start position, so at a decorator line the decorator branch is tried before the
+assignment branch and the accidental `=` no longer wins. A claim whose ground *is* a
+decorator — `@pytest.mark.skipif`, `@app.get(...)` — has no section to rest on without it.
+
+Adopting it in a ledger that already has grounds moves some spans: every one that moves is
+a `has moved` flag, discharged by a re-read verdict, so do it in one commit rather than
+alongside other work.
+
 **The module docstring is for a claim about the file as a whole**, which is the case where
 no section is the right ground — the module has no single definition that keeps the claim
 true. It is not the place to put a claim about one function because that function's

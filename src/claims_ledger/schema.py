@@ -836,7 +836,15 @@ def fingerprint(scope_text, backing_blocks):
 
 
 def section_header_re(config, type_name, section):
-    """Where the named section of an artifact of this type begins."""
+    """Where the named section of an artifact of this type begins.
+
+    Compiled with `re.MULTILINE` and matched over the whole artifact rather than line by
+    line: `^` and `$` anchor at line boundaries and a pattern is free to span them. That
+    is what lets a section begin above the line that names it — a run of Python
+    decorators, or whatever other prefix a language puts in front of a declaration — and
+    `section_span` looks for the next header from the end of this match, so the lines a
+    multi-line header consumes cannot start the section after it
+    (L0280-a-section-pattern-is-matched-over-the-whole-artifact, cites-as-live)."""
     pattern = config.section_pattern(type_name).replace(NAME_SLOT, re.escape(section))
     return re.compile(pattern, re.MULTILINE)
 

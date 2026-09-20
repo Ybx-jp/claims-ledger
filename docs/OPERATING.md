@@ -330,6 +330,30 @@ whatever that line is. Two consequences, and the first is the dangerous one:
   cannot say *which* table, so a Scope that says "the project table" is asserting
   something its ground cannot check. Say it in the Warrant if you rely on it.
 
+**A declaration's prefix belongs to the declaration.** Where a language writes something
+in front of the line that names a thing — a Python decorator, an attribute, an annotation
+— a pattern anchored on the naming line alone leaves that prefix in the *previous*
+section, or in none at all. `@dataclass` above a class sits inside the section of whatever
+was defined before it, so an edit to it flags a claim it has nothing to do with;
+`@dataclass(frozen=True)` *ends* the previous section instead, because the same pattern
+with the name slot widened matches `@dataclass(frozen` before its `=`, and the decorator
+is then in no section and an edit to it flags nothing. One keyword argument decides which.
+
+The repair is to take the prefix into the pattern, which a pattern may do because it is
+matched over the whole artifact rather than line by line
+(L0280-a-section-pattern-is-matched-over-the-whole-artifact, cites-as-live):
+
+    [tool.claims-ledger.section-patterns]
+    code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
+
+Measured over this repository's own ledger — 391 `code:` grounds, 382 of them resolvable
+in the working tree — that recipe resolves all 382, leaves 376 spans byte-identical and
+moves 6 onto the declaration the prefix belongs to
+(L0281-the-documented-recipe-starts-a-section-at-the-prefix, cites-as-live). In a ledger
+that already exists each
+moved span is a `has moved` flag discharged by a re-read verdict, so adopting it is a
+change to make on purpose, in one commit, and not a silent improvement.
+
 `claims-ledger references` prints what it read; comparing a ground's span against the
 claim before committing the entry is the whole of the check, and it takes a minute.
 

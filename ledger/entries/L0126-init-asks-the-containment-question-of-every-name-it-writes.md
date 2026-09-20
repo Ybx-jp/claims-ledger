@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T11:38:45-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_init" @a3df5b5b0d1ea7ec0d3cd95ba40a2aaa3d716395
+  artifact: sha256:495e4593ec7e2f4039b52648b71a0f3cb9c39669dcfd9b9e0b35ce122596e5a3
+  note: propagated from a moved ground
+
+- 2026-09-20T11:38:47-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_init" =sha256:495e4593ec7e2f4039b52648b71a0f3cb9c39669dcfd9b9e0b35ce122596e5a3
+  note: cmd_init passes the `code` recipe into the config template as a value instead of carrying it inside the template text; what init writes onto which files, and the containment question it asks of each name, are untouched
+
 ## References
 
 - src/claims_ledger/cli.py · standing · cites-as-live
