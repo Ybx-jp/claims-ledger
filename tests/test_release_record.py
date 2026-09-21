@@ -12,6 +12,7 @@ one are in `tests/` rather than in the corpus.
 from __future__ import annotations
 
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -358,3 +359,48 @@ def test_the_tag_that_publishes_also_gets_a_github_release():
         if "contents: write" in ln and not ln.lstrip().startswith("#")
     ]
     assert len(granted) == 1, granted
+
+
+CONFLICT_MARKERS = re.compile(r"^(?:<{7}|={7}|>{7})(?:[ \t]|$)", re.MULTILINE)
+# A conflict marker is what git writes into a file it could not merge, at column zero, and
+# what a person is expected to delete before committing. Anchored and width-exact so a
+# Markdown `=======` underline and a seven-arrow rule in prose are not mistaken for one.
+
+
+def test_no_tracked_file_carries_an_unresolved_conflict_marker():
+    """A merge conflict settled by hand and committed half-settled passes every checker.
+
+    Measured, not imagined: `3151bbc` landed `CLAUDE.md` with all three markers in it and
+    both sides of the conflict still there. `check` reported 0 failures and 0 flags over
+    it — five checkers, one of which reads `CLAUDE.md` as a configured document — because
+    the markers sit between two citations and break neither. The suite was green too.
+
+    It got in because the merge commit was made with `--no-verify`: the pre-commit hook
+    had refused it over the bug that is now #59, and the bypass took the markers along
+    with the fix. That is the whole argument for this test — the hook is the gate, and a
+    commit that goes around it has nothing else looking at it.
+
+    Tracked files only, and asked of git rather than walked, so a conflict a person is
+    resolving in the working tree right now is not a failure while they work.
+    """
+    listed = subprocess.run(
+        ["git", "-C", str(PROJECT), "ls-files", "-z"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if listed.returncode != 0:
+        pytest.skip("not a git checkout")
+    carrying = []
+    for name in listed.stdout.split("\0"):
+        if not name:
+            continue
+        path = PROJECT / name
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue  # a binary file, or one this checkout does not materialise
+        found = CONFLICT_MARKERS.search(text)
+        if found is not None:
+            carrying.append(f"{name}:{text[: found.start()].count(chr(10)) + 1}")
+    assert not carrying, f"unresolved conflict markers are committed in: {carrying}"
