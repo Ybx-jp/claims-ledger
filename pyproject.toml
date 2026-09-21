@@ -58,6 +58,25 @@ packages = ["src/claims_ledger"]
 
 # The corpus sits inside src/claims_ledger so the wheel carries it: `claims-ledger corpus`
 # is how an installed copy proves itself. See QUALITY.md.
+#
+# `docs/` cannot sit there: it is read from the repository by README links, by CI and by
+# the tests, and a symlink into `src/` is the one shortcut this project has measured as
+# silently emptying both distributions. Force-included instead, at the path
+# `claims_ledger.DOCS` resolves — the wheel carried none of it while three shipped strings
+# told the reader to go and read it. The two heavy subtrees stay out: `videos` is 11 MB of
+# rendered GIFs and `figures` is served to the README from the repository, and no module
+# names either — and `exclude` is no help there, measured: force-included files are not
+# subject to it, and `"docs" = "claims_ledger/docs"` with the two named in `exclude` built
+# an 11 MB wheel with both of them in it. So the subtrees are named one at a time, and a
+# document added beside them is a document the wheel does not carry until this list says
+# so. That is what `test_the_wheel_carries_every_document_a_shipped_string_names` is for.
+
+[tool.hatch.build.targets.wheel.force-include]
+"docs/OPERATING.md" = "claims_ledger/docs/OPERATING.md"
+"docs/SCHEMA.md" = "claims_ledger/docs/SCHEMA.md"
+"docs/FRESHNESS.md" = "claims_ledger/docs/FRESHNESS.md"
+"docs/audits" = "claims_ledger/docs/audits"
+"docs/design" = "claims_ledger/docs/design"
 
 [tool.hatch.build.targets.sdist]
 # Anchored with a leading `/`: an unanchored `README.md` is a gitignore-style pattern that

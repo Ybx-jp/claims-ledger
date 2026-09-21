@@ -9,7 +9,9 @@ a checker has a `--cached` of its own; `claims-ledger check` runs them again in 
 **Read `docs/OPERATING.md` first.** It is the authority on running a ledger that pins
 claims to code — what a rewritten history costs a ground stated by reference, the
 one-commit shape for landing an entry stated by value, and the order in which a drifted
-claim is repaired. It ships with the package, so it is written
+claim is repaired. It ships inside the wheel and not only in the sdist, so an installed
+copy has it and the messages that name it name the copy that reader has
+(L0302-a-document-a-shipped-string-names-is-in-the-wheel, cites-as-live). It is written
 for any project, not just this one. What follows is only what is specific to this
 repository.
 

@@ -36,6 +36,7 @@ from .config import ConfigError, leaves_root
 from .schema import (
     LedgerError,
     by_id,
+    doc_path,
     entries_dir_listing_error,
     entries_for,
     exit_code,
@@ -736,9 +737,10 @@ def cmd_new(args, ledger):
     )
     # Said here as well as in the scaffold because this is the sentence that carries the
     # cost, and the cost is what makes the rule worth following.
+    where = doc_path("OPERATING.md") or "docs/OPERATING.md"
     print(
         "A ground wider than the claim goes stale for edits the claim does not name, and "
-        "repairing that costs a supersession. See docs/OPERATING.md."
+        f"repairing that costs a supersession. See {where}."
     )
     # Named here because this is the moment the grounds are about to be chosen, and that
     # is the only moment the question has: nothing downstream asks it, by design
