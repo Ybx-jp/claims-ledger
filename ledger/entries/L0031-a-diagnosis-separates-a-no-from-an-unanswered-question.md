@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T18:08:44-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "why_not" @ec82c16045421ce5a6cb71befe8ddbe6067489ae
+  artifact: sha256:c83756cbb8de1bd35d7b459aad0f1ed0181c70be336d0a51754135b6a73b9368
+  note: propagated from a moved ground
+
+- 2026-09-20T18:08:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "why_not" =sha256:c83756cbb8de1bd35d7b459aad0f1ed0181c70be336d0a51754135b6a73b9368
+  note: `why_not` gained nothing and lost nothing in its reasoning: the branch this entry is about still distinguishes the commit git has never heard of from the one it cannot read. What moved is the sentence that ends the squashed-history message, which now names the installed copy of `docs/OPERATING.md` where there is one instead of a relative path an installed reader has no root for.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T18:08:44-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "why_not" @ec82c16045421ce5a6cb71befe8ddbe6067489ae
+  artifact: sha256:c83756cbb8de1bd35d7b459aad0f1ed0181c70be336d0a51754135b6a73b9368
+  note: propagated from a moved ground
+
+- 2026-09-20T18:08:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "why_not" =sha256:c83756cbb8de1bd35d7b459aad0f1ed0181c70be336d0a51754135b6a73b9368
+  note: Same edit, read against a different claim: the diagnosis this entry is about is unchanged, and only the document path at the end of one message became a resolved one. Nothing here decides a diagnosis from it.
+
 ## References
 
 - src/claims_ledger/resolve.py · standing · cites-as-live

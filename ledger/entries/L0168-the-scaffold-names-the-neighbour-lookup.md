@@ -41,6 +41,14 @@ none
 - 2026-09-11T02:58:18-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:4505141153fe847a2c68432ae71e1cd075e326561bd9a7f35bd71be3d022e563
   note: read against the working tree after the scaffold's next-step sentence began saying a ground's anchor may be left as `=?` and that sha --write fills it: the neighbours command is still printed for the entry by name, in the same place; the assertion holds as written.
+- 2026-09-20T18:08:45-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:4505141153fe847a2c68432ae71e1cd075e326561bd9a7f35bd71be3d022e563
+  artifact: sha256:bc6681eec4301fd3e1269fa799c2450a2da90722cafe73ba5ece500ca57626e7
+  note: propagated from a moved ground
+
+- 2026-09-20T18:08:58-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:bc6681eec4301fd3e1269fa799c2450a2da90722cafe73ba5ece500ca57626e7
+  note: The scaffold still names the neighbour lookup, on the same line and in the same words — `claims-ledger neighbours <id>` is printed after the grounds advice as before. The lines above it changed: the ground-width warning binds the document's path first so it can name the installed copy.
 
 ## References
 

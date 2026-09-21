@@ -337,13 +337,14 @@ code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{
 # A pattern is how narrow a ground can be, and narrowness is what keeps a claim from
 # going stale for a reason it does not care about. A claim about one setting should not
 # rest on the table holding it:
-#   toml     = '^\[{name}\]'    # the whole table
-#   toml-key = '^{name} = '      # one key of it, single-line values only
+#   toml     = '^\[{name}\]'              # the whole table
+#   toml-key = '^(?![ \t]){name} = '      # one key of it, value and all
 #
-# One pattern decides both ends of a section, so a key's section runs to the next line
-# the same pattern matches. Over a value written across several lines that is the key's
-# own first line and nothing else — a ground that can never go stale, which is worse than
-# one that goes stale too often. And a key name that is not unique in the file matches
+# One pattern decides both ends of a section — the same pattern with the name widened is
+# what finds the end — and the widened name matches leading whitespace, so an `^` stops
+# being an `^`. The `(?![ \t])` is what keeps it one: without it a key whose value is a
+# multi-line array of inline tables ends at the first indented `{ key = ...` and the
+# ground holds none of the value. A key name that is not unique in the file still matches
 # the first one, whichever table it is in.
 
 verdict-authors = ["main", "propagation"]

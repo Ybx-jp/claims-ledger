@@ -28,6 +28,7 @@ from .schema import (
     blob_text,
     by_id,
     digest_of,
+    doc_path,
     git,
     git_blobs,
     git_call,
@@ -39,6 +40,7 @@ from .schema import (
     normalize,
     normalize_with_map,
     parse_quote,
+    prospective_revs,
     read_document,
     section_span,
     section_text,
@@ -183,7 +185,8 @@ def why_not(ledger, p):
     return (
         "this repository has no such commit; a squashed, rebased or force-pushed history "
         "drops the commit a pin names, and every ground pinned into it fails at once — "
-        "docs/OPERATING.md says what that costs and how it is repaired"
+        f"{doc_path('OPERATING.md') or 'docs/OPERATING.md'} says what that costs and how "
+        "it is repaired"
     )
 
 
@@ -719,6 +722,10 @@ def run(ledger, entries=None, cached=False):
     unasked = None
     if any(pinned_evidence(e, ledger.config) for e in entries):
         unasked = git_problem(ledger.repo or ledger.tree)
+    # The reach `effective_pointer` holds a reading to, asked once for the run. Left to
+    # itself it asks per ground, and a ledger of any size then pays four git processes a
+    # ground for an answer that cannot change while the run lasts.
+    revs = prospective_revs(ledger, ledger.repo) if ledger.repo is not None else ("HEAD",)
     if unasked:
         reports.append(
             Report(
@@ -743,7 +750,7 @@ def run(ledger, entries=None, cached=False):
                 # known whether the entry is committed, which is asked once per entry.
                 if committed is None:
                     committed = is_committed(ledger, e.path)
-                q, _ = effective_pointer(e, p, ledger.config, ledger.repo)
+                q, _ = effective_pointer(e, p, ledger.config, ledger.repo, revs=revs)
                 reports += resolve_by_value(
                     q, e, f"Grounds {i}", ledger, committed, unasked, cached=cached
                 )

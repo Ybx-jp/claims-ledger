@@ -58,6 +58,30 @@ packages = ["src/claims_ledger"]
 
 # The corpus sits inside src/claims_ledger so the wheel carries it: `claims-ledger corpus`
 # is how an installed copy proves itself. See QUALITY.md.
+#
+# `docs/` cannot sit there: it is read from the repository by README links, by CI and by
+# the tests, and a symlink into `src/` is the one shortcut this project has measured as
+# silently emptying both distributions. Force-included instead, at the path
+# `claims_ledger.DOCS` resolves — the wheel carried none of it while three shipped strings
+# told the reader to go and read it. The two heavy subtrees stay out: `videos` is 11 MB of
+# rendered GIFs and `figures` is served to the README from the repository, and no module
+# names either — and `exclude` is no help there, measured: force-included files are not
+# subject to it, and `"docs" = "claims_ledger/docs"` with the two named in `exclude` built
+# an 11 MB wheel with both of them in it. So the subtrees are named one at a time, and a
+# document added beside them is a document the wheel does not carry until this list says
+# so. That is what `test_the_wheel_carries_every_document_a_shipped_string_names` is for.
+
+[tool.hatch.build.targets.wheel.force-include]
+# Every path below has to be one git tracks. A force-include naming a path the checkout
+# does not have is a `FileNotFoundError` out of the build backend, raised while metadata
+# is prepared — so it breaks `pip install -e .` and not just the wheel. `docs/design/` is
+# gitignored, and naming it here took all nine CI jobs down at the install step while
+# every local gate passed, because the working tree it was written in had the directory
+# (L0304, cites-as-live).
+"docs/OPERATING.md" = "claims_ledger/docs/OPERATING.md"
+"docs/SCHEMA.md" = "claims_ledger/docs/SCHEMA.md"
+"docs/FRESHNESS.md" = "claims_ledger/docs/FRESHNESS.md"
+"docs/audits" = "claims_ledger/docs/audits"
 
 [tool.hatch.build.targets.sdist]
 # Anchored with a leading `/`: an unanchored `README.md` is a gitignore-style pattern that
@@ -172,11 +196,18 @@ evidence-plain = []
 
 [tool.claims-ledger.section-patterns]
 # A section of a source file is a top-level def, class or assignment, and runs to the next
-# one. The lookahead keeps an indented assignment from ending a function at its first
-# local. A section of a TOML file is a table — and `toml-key` is one key of one, for a
+# one. A section of a TOML file is a table — and `toml-key` is one key of one, for a
 # claim about a single setting: the whole `[project]` table was the finest ground the
 # dependency claim could take, so adding a classifier moved a claim about `dependencies`.
 # The space before `=` is what keeps the boundary off a `>=` inside an array element.
+#
+# Both key patterns carry `(?![ \t])`, and they carry it for one reason. The same pattern
+# with the name widened to `[^\n]+?` is what finds a section's end, and `[^\n]+?` matches
+# leading whitespace — so any `^`-anchored pattern stops being anchored the moment it is
+# widened. In `code` the lookahead keeps an indented assignment from ending a function at
+# its first local. In `toml-key` it keeps an indented `{ key = ... }` inside a multi-line
+# array from ending the key at the first element
+# (L0300, cites-as-live).
 code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
 toml = '^\[{name}\]'
-toml-key = '^{name} = '
+toml-key = '^(?![ \t]){name} = '

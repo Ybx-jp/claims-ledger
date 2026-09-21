@@ -54,6 +54,7 @@ from .schema import (
     git_env,
     git_problem,
     index_spec,
+    prospective_revs,
     read_artifact,
     section_text,
 )
@@ -138,7 +139,7 @@ def checked_pointers(entry, config):
     return out
 
 
-def readings(entry, pointer, config, repo=None, placed=None):
+def readings(entry, pointer, config, repo=None, placed=None, revs=None):
     """The corroborating verdicts that re-read this ground, in file order: each names the
     ground's type, path and section, anchored by value or at a commit. A corroboration at
     an unpinned reference is a reading nothing here can hold to anything, and is passed
@@ -160,6 +161,22 @@ def readings(entry, pointer, config, repo=None, placed=None):
     or from the last reading that is in the history. `placed` memoises that question for
     a run: the same reading is asked about by `run` and again by `orphans`, and a
     ledger's readings cluster on a few commits.
+
+    **In this history, not on this branch.** The reading has to sit in the history the
+    commit about to be made will have, and mid-merge that is HEAD *and* the side being
+    merged in. Asked of HEAD alone it was wrong in the ordinary case: two branches both
+    touch a pinned section, the incoming one records the re-read, and while the merge is
+    open that reading is dropped, the effective pin reverts to the founding ground, and
+    the ground is compared against the text it was established on rather than the text the
+    reading moved it past. Same tree, same entry, same verdict — only reachability changed,
+    and it changed back the moment the merge was committed
+    (L0299-a-reading-is-in-hand-on-a-parent-of-the-commit-being-made, cites-as-live).
+
+    `prospective_revs` decides that set, and it is the narrow reach on purpose: widened to
+    every ref, a reading on a branch nobody merged — an abandoned draft still sitting on a
+    remote-tracking ref — would move the effective pin of an entry that branch never
+    landed. The reading has to be on a commit the one being made will have as a parent,
+    which is exactly what makes it about to be true rather than merely written down.
     """
     out = []
     placed = {} if placed is None else placed
@@ -178,6 +195,11 @@ def readings(entry, pointer, config, repo=None, placed=None):
         if not q.by_value and repo is not None:
             key = (pointer.pin, q.pin)
             if key not in placed:
+                # Asked here rather than above the loop, and only once this branch is
+                # reached: `prospective_revs` runs a git process, and `repo` is None for
+                # every caller that has no repository to ask — computing it up front sent
+                # one at the process's own working directory, which is some other project.
+                revs = prospective_revs(None, repo) if revs is None else revs
                 after_the_pin = pointer.by_value or (
                     git_call(repo, "merge-base", "--is-ancestor", pointer.pin, q.pin).code == 0
                     and git_call(repo, "merge-base", "--is-ancestor", q.pin, pointer.pin).code != 0
@@ -185,7 +207,10 @@ def readings(entry, pointer, config, repo=None, placed=None):
                 placed[key] = (
                     is_object_name(repo, q.pin)[0] is True
                     and after_the_pin
-                    and git_call(repo, "merge-base", "--is-ancestor", q.pin, "HEAD").code == 0
+                    and any(
+                        git_call(repo, "merge-base", "--is-ancestor", q.pin, rev).code == 0
+                        for rev in revs
+                    )
                 )
             if not placed[key]:
                 continue
@@ -193,7 +218,7 @@ def readings(entry, pointer, config, repo=None, placed=None):
     return out
 
 
-def effective_pointer(entry, pointer, config, repo=None, placed=None):
+def effective_pointer(entry, pointer, config, repo=None, placed=None, revs=None):
     """(the pointer this checker compares against, the corroborating verdict that set it).
 
     A ground's pin is frozen, and a drift against it, once recorded, is recorded for good:
@@ -212,7 +237,7 @@ def effective_pointer(entry, pointer, config, repo=None, placed=None):
     The Ground itself when no verdict re-reads it, so an entry that was never acknowledged
     is compared exactly as before.
     """
-    found = readings(entry, pointer, config, repo, placed)
+    found = readings(entry, pointer, config, repo, placed, revs)
     if not found:
         return pointer, None
     return found[-1].pointer, found[-1]
@@ -581,7 +606,11 @@ def run(ledger, write=False, cached=False, entries=None):
 
     asked = {}
     anchors = {}  # (pin, path, section) -> the digest an anchor at a commit names
-    placed = {}  # (pin, reading) -> whether the reading sits between the pin and HEAD
+    placed = {}  # (pin, reading) -> whether the reading sits between the pin and here
+    # The commits the one about to be made will have as parents, asked once for the run
+    # rather than per pair: mid-merge this is HEAD and the incoming side, and `readings`
+    # falls back to asking for itself when it is handed nothing.
+    revs = prospective_revs(ledger, repo) if repo is not None else ("HEAD",)
 
     def drifted(pointer):
         """`drift()` for one pointer, computed once for the whole run.
@@ -619,7 +648,7 @@ def run(ledger, write=False, cached=False, entries=None):
         part = f"Grounds {i}"
         # Compared from where the ground was last read, which is the Ground itself until
         # a corroborating verdict re-reads it.
-        p, reading = effective_pointer(e, ground, config, repo, placed)
+        p, reading = effective_pointer(e, ground, config, repo, placed, revs)
         found = drifted(p)
         if found.finding is None:
             continue
@@ -686,7 +715,7 @@ def run(ledger, write=False, cached=False, entries=None):
         if write:
             pending.append((e, verdict_block(e.grade, p, note, author, found.seen)))
 
-    reports += orphans(entries, config, repo, author, drifted, anchors, placed)
+    reports += orphans(entries, config, repo, author, drifted, anchors, placed, revs)
 
     if write:
         for e, block in grouped(pending):
@@ -726,7 +755,7 @@ def naming(verdicts):
     return "verdicts " + ", ".join(str(v.index) for v in verdicts)
 
 
-def orphans(entries, config, repo, author, drifted, anchors, placed=None):
+def orphans(entries, config, repo, author, drifted, anchors, placed=None, revs=None):
     """A ground whose acknowledgement states a cause that did not happen. Without this the
     discharge is forgeable: write the verdict first and the ground never has to be looked
     at again.
@@ -772,7 +801,7 @@ def orphans(entries, config, repo, author, drifted, anchors, placed=None):
             # is, for each of those pointers, the index of the latest reading of the
             # ground; a record with a lower index was written before someone looked.
             pointers[p.raw] = p
-            found = readings(e, p, config, repo, placed)
+            found = readings(e, p, config, repo, placed, revs)
             for v in found:
                 pointers.setdefault(v.pointer.raw, v.pointer)
             latest = found[-1].index if found else 0

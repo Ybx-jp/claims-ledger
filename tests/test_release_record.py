@@ -11,8 +11,12 @@ one are in `tests/` rather than in the corpus.
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import tempfile
 import tomllib
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -358,3 +362,127 @@ def test_the_tag_that_publishes_also_gets_a_github_release():
         if "contents: write" in ln and not ln.lstrip().startswith("#")
     ]
     assert len(granted) == 1, granted
+
+
+DOCS_NAMED = re.compile(r"docs/[A-Za-z0-9_./-]+\.md")
+# The shape a module writes when it sends a reader to a document. Fixture paths in
+# docstrings — `docs/bad.md`, `docs/note1.md` — match it too and are filtered by asking
+# the repository whether the file is really there, which is the honest filter: a path that
+# names nothing cannot be a promise to anyone.
+
+
+def test_the_wheel_carries_every_document_a_shipped_string_names():
+    """`pip install claims-ledger` resolves the `py3-none-any` wheel, and the wheel is
+    built from `packages = ["src/claims_ledger"]` — so `docs/` was in the sdist include
+    list and in no wheel at all, while `claims-ledger new` told every new project to read
+    `docs/OPERATING.md` and a checker failure named it again. Measured against 0.0.3 from
+    PyPI: no `docs` directory anywhere in the installed package.
+
+    Built rather than read off the config, because the config is what was wrong. An
+    `exclude` beside the force-include looks like it would keep the 11 MB of rendered
+    videos out and does not — force-included files are not subject to it, measured: the
+    wheel came to 11 MB with the videos in it. The subtrees are named one at a time now,
+    and this is what says a document added beside them was added to that list too.
+    """
+    build = pytest.importorskip("hatchling.build")
+    if not (PROJECT / "pyproject.toml").is_file():
+        pytest.skip("not a checkout; this builds the distribution from it")
+
+    named = set()
+    for module in sorted((PROJECT / "src" / "claims_ledger").glob("*.py")):
+        named |= set(DOCS_NAMED.findall(module.read_text(encoding="utf-8")))
+    real = sorted(p for p in named if (PROJECT / p).is_file())
+    assert real, "no module names a document; this test has stopped asking anything"
+
+    cwd = os.getcwd()
+    os.chdir(PROJECT)
+    try:
+        with tempfile.TemporaryDirectory() as out:
+            name = build.build_wheel(out)
+            with zipfile.ZipFile(Path(out) / name) as wheel:
+                carried = set(wheel.namelist())
+    finally:
+        os.chdir(cwd)
+
+    missing = [p for p in real if f"claims_ledger/{p}" not in carried]
+    assert not missing, f"named by a shipped string and absent from the wheel: {missing}"
+
+    # And the two heavy subtrees stay out, so the wheel does not grow by 11 MB of GIFs the
+    # moment somebody widens the list above.
+    heavy = sorted(n for n in carried if "/docs/videos/" in n or "/docs/figures/" in n)
+    assert not heavy, f"the wheel carries what is served from the repository: {heavy[:4]}"
+
+
+def test_every_force_included_path_is_one_git_tracks():
+    """A force-include naming a path the checkout does not have is a `FileNotFoundError`
+    out of the build backend, so it breaks `pip install -e .` and not merely the wheel.
+
+    Measured: `docs/design/` is gitignored, and naming it took all nine CI jobs down at
+    the install step while every local gate passed — the working tree it was written in
+    had the directory, and no checkout does. Asked of git rather than of the filesystem,
+    because the filesystem is what agreed with the mistake.
+    """
+    config = tomllib.loads((PROJECT / "pyproject.toml").read_text(encoding="utf-8"))
+    forced = config["tool"]["hatch"]["build"]["targets"]["wheel"].get("force-include", {})
+    assert forced, "nothing is force-included; this test has stopped asking anything"
+
+    listed = subprocess.run(
+        ["git", "-C", str(PROJECT), "ls-files", "--", *forced],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if listed.returncode != 0:
+        pytest.skip("not a git checkout")
+    tracked = {line for line in listed.stdout.splitlines() if line}
+    untracked = [
+        source
+        for source in forced
+        if source not in tracked and not any(t.startswith(f"{source}/") for t in tracked)
+    ]
+    assert not untracked, f"force-included and not tracked by git: {untracked}"
+
+
+CONFLICT_MARKERS = re.compile(r"^(?:<{7}|={7}|>{7})(?:[ \t]|$)", re.MULTILINE)
+# A conflict marker is what git writes into a file it could not merge, at column zero, and
+# what a person is expected to delete before committing. Anchored and width-exact so a
+# Markdown `=======` underline and a seven-arrow rule in prose are not mistaken for one.
+
+
+def test_no_tracked_file_carries_an_unresolved_conflict_marker():
+    """A merge conflict settled by hand and committed half-settled passes every checker.
+
+    Measured, not imagined: `3151bbc` landed `CLAUDE.md` with all three markers in it and
+    both sides of the conflict still there. `check` reported 0 failures and 0 flags over
+    it — five checkers, one of which reads `CLAUDE.md` as a configured document — because
+    the markers sit between two citations and break neither. The suite was green too.
+
+    It got in because the merge commit was made with `--no-verify`: the pre-commit hook
+    had refused it over the bug that is now #59, and the bypass took the markers along
+    with the fix. That is the whole argument for this test — the hook is the gate, and a
+    commit that goes around it has nothing else looking at it.
+
+    Tracked files only, and asked of git rather than walked, so a conflict a person is
+    resolving in the working tree right now is not a failure while they work.
+    """
+    listed = subprocess.run(
+        ["git", "-C", str(PROJECT), "ls-files", "-z"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if listed.returncode != 0:
+        pytest.skip("not a git checkout")
+    carrying = []
+    for name in listed.stdout.split("\0"):
+        if not name:
+            continue
+        path = PROJECT / name
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue  # a binary file, or one this checkout does not materialise
+        found = CONFLICT_MARKERS.search(text)
+        if found is not None:
+            carrying.append(f"{name}:{text[: found.start()].count(chr(10)) + 1}")
+    assert not carrying, f"unresolved conflict markers are committed in: {carrying}"
