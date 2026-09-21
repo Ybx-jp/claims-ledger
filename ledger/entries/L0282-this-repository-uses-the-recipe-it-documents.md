@@ -42,7 +42,14 @@ none
 - 2026-09-20T15:36:58-07:00 · corroborated · grade: measured · author: main
   evidence: code: tests/test_section_scoping.py § "test_this_repository_uses_the_code_recipe_it_documents" =sha256:1cb7a1208b462221a238fe4f7e7bdedf129af5640b6735a0daee965192e8a174
   note: re-read after merging main into the branch that lets a marker name its entry by the number alone. The test is untouched; its section is what moved, because the branch appends a second test after it and a section ends at the next line the pattern matches. The code recipe is still read out of each place that writes it and held to one string, and the four places still agree. The test appended below it is about the toml-key recipe, which this entry does not speak for — that one is held to nothing, and issue #57 has the measurement.
+- 2026-09-20T17:56:51-07:00 · contested · grade: measured · author: propagation
+  evidence: code: tests/test_section_scoping.py § "test_this_repository_uses_the_code_recipe_it_documents" =sha256:1cb7a1208b462221a238fe4f7e7bdedf129af5640b6735a0daee965192e8a174
+  artifact: sha256:b090fe28b149bfccc2e79c7b8718813fb30bca6a47594c82480b47cba62dc64c
+  note: propagated from a moved ground
 
+- 2026-09-20T17:57:04-07:00 · corroborated · grade: measured · author: main
+  evidence: code: tests/test_section_scoping.py § "test_this_repository_uses_the_code_recipe_it_documents" =sha256:b090fe28b149bfccc2e79c7b8718813fb30bca6a47594c82480b47cba62dc64c
+  note: The test body is unchanged — it still reads `pyproject.toml`'s live `code` pattern and holds it to the four documented copies. What moved is the section's end: a comment block that used to sit below this test, above a `TOML_KEY_RECIPE` assignment, belonged to this section under the `code` pattern and went with the assignment when `toml-key`'s recipe stopped being written a second time in the tests. The claim is about the `code` recipe and is untouched; the neighbour that moved is `toml-key`'s.
 
 ## References
 

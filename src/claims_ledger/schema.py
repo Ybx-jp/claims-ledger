@@ -2038,7 +2038,14 @@ def git_history(repo, pathspec, revs=()):
 
 
 def heads_in_progress(ledger, repo):
-    """`operation_heads`, asked once per repository per run and kept on the ledger."""
+    """`operation_heads`, asked once per repository per run and kept on the ledger.
+
+    `ledger` may be None, and then the question is simply asked: a caller that has no run
+    to hang a memo on — a probe, a test driving one function — gets the right answer and
+    pays for it, rather than being handed a narrower reach because it had nowhere to cache.
+    """
+    if ledger is None:
+        return operation_heads(repo)
     key = str(repo)
     if key not in ledger.heads_in_progress:
         ledger.heads_in_progress[key] = operation_heads(repo)
@@ -2219,6 +2226,13 @@ def enclosing_repository(root, entries_dir):
     `sha --write` rewrote a committed entry's frozen region and exited 0 again. The reason
     comes back, and the callers report it.
 
+    **The reach is every ref, not the branch that happens to be out.** The walk looks wide
+    across repositories and used to look at one commit inside each of them. Measured: a
+    ledger vendored in a subdirectory and committed on a branch that is not checked out
+    read as a ledger no repository holds, `is_committed` answered no before it reached any
+    walk, and `sha --write` rewrote the frozen region of an entry a commit already names
+    and exited 0 — the same failure this function exists to prevent, one ref over.
+
     Nothing here *adopts* that repository for the evidence pointers. Every evidence path
     is written relative to the ledger root and `git show <pin>:<path>` reads its path from
     the repository's top, so adopting one would mean rebasing every git path in the
@@ -2240,16 +2254,30 @@ def enclosing_repository(root, entries_dir):
             # could not be holding them, and asking it would be `git log` on a path
             # outside it.
             continue
-        # A repository with no commits in it at all fails `git log` the way a repository
-        # nobody can read does, and it is the ordinary state of a project being started
-        # around a ledger. Separated here rather than collapsed into the reason string.
-        head = git_call(parent, "rev-parse", "--verify", "--quiet", "HEAD")
-        if head.code == 1:
-            continue
-        if not head.ok:
-            return None, f"git cannot read the repository at {parent} ({head.why})"
         rel = os.path.relpath(entries_dir, parent).replace(os.sep, "/")
-        answer = git_call(parent, "log", "-1", "--format=%H", "--", f":(literal){rel}")
+        # Every ref, and the sides of an operation in progress — the same wide reach
+        # `committed_paths` asks for, for the same reason: a `no` here is what lets
+        # `sha --write` rewrite a frozen region, so it is only honest once every commit
+        # the repository can reach has been looked at
+        # (L0298-a-vendored-ledgers-history-is-found-wherever-it-is, cites-as-live).
+        #
+        # A repository with no commits at all used to be separated out above this with its
+        # own `rev-parse --verify HEAD`, because a bare walk exits 128 there and cannot be
+        # told from a git that could not be read. `--all` over one walks nothing and exits
+        # clean, so the answer arrives as an answer, and the guard that is gone was wrong
+        # on its own terms: an unborn HEAD over refs that do hold the ledger skipped a
+        # repository that plainly holds it.
+        answer = git_call(
+            parent,
+            "log",
+            "-1",
+            "--format=%H",
+            "--full-history",
+            "--all",
+            *operation_heads(parent),
+            "--",
+            f":(literal){rel}",
+        )
         if not answer.ok:
             return None, f"git cannot read the repository at {parent} ({answer.why})"
         if answer.out.strip():

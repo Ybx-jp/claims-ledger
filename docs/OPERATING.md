@@ -323,7 +323,7 @@ patterns ship it is a whole table or a whole top-level definition. A claim about
 setting resting on the table holding it goes stale when an unrelated key beside it
 changes. `section-patterns` is the instrument: a pattern can name something narrower
 than the type's default. A `toml` ground on a table is the whole table; a type configured
-as `'^{name} = '` is one key of it, and a claim about two settings then rests on four
+as `'^(?![ \t]){name} = '` is one key of it, and a claim about two settings then rests on four
 lines rather than on the thirty around them.
 
 **Check what the narrower pattern actually spans before you rest a claim on it.** One
@@ -331,10 +331,13 @@ pattern decides both ends of a section — the same pattern with the name widene
 finds the end — so a key pattern's section runs to the next line that pattern matches,
 whatever that line is. Two consequences, and the first is the dangerous one:
 
-- **Over a value written across several lines it spans the key's own first line and
-  nothing else.** `authors = [` followed by three lines of names is `authors = [` before
-  and after any of those names change: a ground that can never go stale, which is worse
-  than one that goes stale too often, because nothing will ever tell you.
+- **Anchor it at the left margin, in both directions.** The widened name is `[^\n]+?`,
+  which matches leading whitespace, so the `^` that anchors a key pattern stops anchoring
+  it the moment it is widened to find the end. `'^{name} = '` over a value written as an
+  array of inline tables ends at the first indented `{ key = ...`, and the ground then
+  spans the key's own line and whatever comment precedes that element — a span that
+  resolves, stays fresh, and holds none of the value it is about. `'^(?![ \t]){name} = '`
+  is the same pattern anchored in both directions, and it is what the recipe above ships.
 - **A key name is matched wherever it first appears**, in whichever table. `toml-key`
   cannot say *which* table, so a Scope that says "the project table" is asserting
   something its ground cannot check. Say it in the Warrant if you rely on it.

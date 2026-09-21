@@ -70,6 +70,14 @@ none
 - 2026-09-11T03:58:17-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:95d53991b186a3f20d33f2f9a16b06da68d7d68547d9cb4505b87d0d767b2158
   note: read against the working tree after orphans began keying moved-past records on the index of the latest reading rather than on the pointer's text, holding only the records after it: the rule is still applied per ground over all the propagated verdicts naming it, and a second verdict beside a truthful one is still not called a forgery; the assertion holds as written.
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:95d53991b186a3f20d33f2f9a16b06da68d7d68547d9cb4505b87d0d767b2158
+  artifact: sha256:23bd318b95519eea9850d24313e9a7925ea2512e2cbc9f38640123d7328553d2
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:23bd318b95519eea9850d24313e9a7925ea2512e2cbc9f38640123d7328553d2
+  note: The signature gained a `revs` parameter that is handed straight to `readings`. The question is still asked of the ground and not of each verdict: the loop and the lookup it walks are unchanged.
 
 ## References
 

@@ -60,7 +60,14 @@ none
 - 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "is_committed" =sha256:fd9312e13d08a2331bf9b6f92ef38c0968083bbc03d702926ff16ccc9b045807
   note: re-read after the commit that stops asking this question of HEAD alone. The answer now comes from a walk over every ref and every operation in progress, instead of `rev-parse --verify --quiet HEAD:<rel>`. What this claim asserts is unchanged: a ledger inside another repository still has its history asked of that repository; the enclosing walk is untouched.
+- 2026-09-20T17:44:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  artifact: sha256:ff1b426b724685b6855288918cfe86ae6345e3fa69961d5fee1cc4423875de3c
+  note: propagated from a moved ground
 
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" =sha256:ff1b426b724685b6855288918cfe86ae6345e3fa69961d5fee1cc4423875de3c
+  note: The probe widened from `HEAD` to every ref plus the heads of an operation in progress. A ledger inside another repository still has a history, and this now finds it when the commit that vendored it is on a branch nobody has checked out — the claim is reached in more cases, not changed.
 
 ## References
 
