@@ -196,11 +196,18 @@ evidence-plain = []
 
 [tool.claims-ledger.section-patterns]
 # A section of a source file is a top-level def, class or assignment, and runs to the next
-# one. The lookahead keeps an indented assignment from ending a function at its first
-# local. A section of a TOML file is a table — and `toml-key` is one key of one, for a
+# one. A section of a TOML file is a table — and `toml-key` is one key of one, for a
 # claim about a single setting: the whole `[project]` table was the finest ground the
 # dependency claim could take, so adding a classifier moved a claim about `dependencies`.
 # The space before `=` is what keeps the boundary off a `>=` inside an array element.
+#
+# Both key patterns carry `(?![ \t])`, and they carry it for one reason. The same pattern
+# with the name widened to `[^\n]+?` is what finds a section's end, and `[^\n]+?` matches
+# leading whitespace — so any `^`-anchored pattern stops being anchored the moment it is
+# widened. In `code` the lookahead keeps an indented assignment from ending a function at
+# its first local. In `toml-key` it keeps an indented `{ key = ... }` inside a multi-line
+# array from ending the key at the first element
+# (L0300, cites-as-live).
 code = '^(?:@[^\n]*\n)*(?![ \t])(?:(?:async[ \t]+)?(?:def|class)[ \t]+{name}\b|{name}[ \t]*(?::[^=\n]+)?=)'
 toml = '^\[{name}\]'
-toml-key = '^{name} = '
+toml-key = '^(?![ \t]){name} = '

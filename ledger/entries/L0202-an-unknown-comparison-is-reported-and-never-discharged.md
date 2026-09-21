@@ -41,6 +41,14 @@ none
 - 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "run" =sha256:9b25e634a8f1b63fa4fdcf8d7f11ce70d7110ce3e78cf93ad24d03ee23c3efa7
   note: acknowledged: the run threads the ledger into `drift` for the cached reads. This claim is untouched by that (L0232).
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:9b25e634a8f1b63fa4fdcf8d7f11ce70d7110ce3e78cf93ad24d03ee23c3efa7
+  artifact: sha256:52b08359937b4d1b390b0c2a0f9b6861f9d188c23cd83fbc9b16ebbcdf6b8faf
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:52b08359937b4d1b390b0c2a0f9b6861f9d188c23cd83fbc9b16ebbcdf6b8faf
+  note: The `unknown` branch — reported, never discharged, nothing appended — is byte-identical. What moved is above it: the reach handed to `effective_pointer`, which decides where a ground is compared from and not whether a comparison could be made.
 
 ## References
 

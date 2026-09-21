@@ -552,11 +552,50 @@ def test_this_repository_uses_the_code_recipe_it_documents():
     assert mine in set(documented.values()), {"pyproject.toml": mine, **documented}
 
 
-# The `toml-key` recipe README.md publishes, character for character, and the multi-line
-# value that breaks it. `code` beside it in the same table carries a `(?![ \t])` guard and
-# the comment above them says why — "the lookahead keeps an indented assignment from ending
-# a function at its first local". `toml-key` is the same failure mode without the guard.
-TOML_KEY_RECIPE = "^{name} = "
+def documented_toml_key_recipe():
+    """The `toml-key` recipe as each place the package writes it has it, keyed by place.
+
+    Read out of the files for the reason `documented_recipes()` gives: a copy of the
+    string in the test is one more place for it to drift. Three places rather than four —
+    `toml-key` is not in the shipped skill and `claims-ledger init` does not scaffold it,
+    because it is an example of configuring a narrower ground rather than a default.
+    """
+    import tomllib
+
+    if not (PROJECT / "README.md").is_file():
+        pytest.skip("not a checkout; these read the repository's own files")
+
+    out = {}
+    for where, path in (
+        ("pyproject.toml", PROJECT / "pyproject.toml"),
+        ("README.md", PROJECT / "README.md"),
+    ):
+        text = path.read_text(encoding="utf-8")
+        rows = [
+            ln.strip().lstrip("# ").split("#")[0].strip()
+            for ln in text.splitlines()
+            if ln.strip().lstrip("# ").startswith("toml-key = ")
+        ]
+        assert len(rows) == 1, f"{where} writes {len(rows)} `toml-key =` lines, expected 1"
+        out[where] = tomllib.loads("[x]\n" + rows[0])["x"]["toml-key"]
+    return out
+
+
+def test_the_documented_toml_key_recipe_is_the_same_string_in_every_place_it_is_written():
+    """`toml-key` had no test like the one `code` has, and the three copies went out of
+    step for exactly as long as that was true: the recipe was fixed in `pyproject.toml`
+    and the README went on publishing the unguarded one. `docs/OPERATING.md` writes it
+    inline in a sentence rather than as a TOML line, so it is checked by containment."""
+    got = documented_toml_key_recipe()
+    assert len(set(got.values())) == 1, got
+    (recipe,) = set(got.values())
+    operating = (PROJECT / "docs" / "OPERATING.md").read_text(encoding="utf-8")
+    # Quoted as the TOML it is, inside backticks — the shape a sentence writes it in.
+    assert f"`'{recipe}'`" in operating, (
+        f"docs/OPERATING.md does not write the recipe the other two publish: {recipe!r}"
+    )
+
+
 TOML_WITH_INLINE_TABLES = """\
 before = "x"
 rules = [
@@ -568,31 +607,29 @@ after = "y"
 """
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG (issue #57): `toml-key = '^{name} = '` has no `(?![ \\t])` guard, so the "
-    "pattern widened to find the next section matches the indented `{ paths = ` of the "
-    "first inline table and the section stops there",
-)
 def test_a_toml_key_section_runs_to_the_end_of_a_multi_line_value(tmp_path):
     """A `toml-key` ground names one key of a table, and the span it names is that key's
-    value. README.md § Configuration publishes the pattern and says what it costs over a
-    multi-line value; measured, the cost is not what it says. An array of plain strings
-    gets its whole value, because the pattern finds no `=` inside it. An array of inline
-    tables gets the key's own line and whatever comment precedes the first element, and
-    none of the rules — a span that resolves, stays fresh, and holds nothing the claim is
-    about.
+    value. This was issue #57, and it was a strict xfail from b919c5a until the recipe
+    grew the `(?![ \t])` its sibling already had.
 
-    Strict, so that it fails the moment the recipe grows the guard its sibling already has
-    and this stops being a bug."""
+    The recipe is read out of `pyproject.toml` rather than written here, so this drives
+    the string the package actually publishes: an array of inline tables is the shape that
+    broke, because the widened name matches the indented `{ paths = ` of the first element
+    and ends the section there. README.md § Configuration described that cost as the key's
+    own line and nothing else, and measured it was neither — the span carried the key's
+    line plus whatever comment preceded the first element, and none of the rules."""
     from claims_ledger.config import from_table
 
+    (recipe,) = set(documented_toml_key_recipe().values())
     config = from_table(
-        {"section-patterns": {"toml-key": TOML_KEY_RECIPE}, "evidence-sectioned": ["toml-key"]},
+        {"section-patterns": {"toml-key": recipe}, "evidence-sectioned": ["toml-key"]},
         tmp_path,
     )
     span = section_text(TOML_WITH_INLINE_TABLES, config, "toml-key", "rules")
     assert span is not None
     assert 'slug = "require"' in span, (
         f"the section stopped at the first inline table; the compared span was {span!r}"
+    )
+    assert "after = " not in span, (
+        f"the section ran past the end of the value into the next key: {span!r}"
     )

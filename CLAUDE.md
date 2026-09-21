@@ -30,6 +30,15 @@ and survive a rewrite, so the guard defends the by-reference grounds that remain
 many there are is a matter of reading the Grounds, and is not tallied here, because a
 count in prose is one more thing that goes stale every time an entry lands.
 
+**A merge commit is not an exception to the hook.** `--no-verify` on a merge is how
+`3151bbc` landed `CLAUDE.md` with all three conflict markers still in it and both sides of
+the conflict present: the hook had refused the merge over what is now issue #59, the
+refusal was worked around rather than fixed, and the markers went in with the fix. All five
+checkers read that tree at 0 failures and 0 flags, because the markers sat between two
+citations and broke neither. The suite reads what git tracks for them now
+(L0297-no-commit-carries-an-unresolved-conflict, cites-as-live), which is a floor and not a
+substitute: when the hook refuses a merge, the thing to repair is the hook's complaint.
+
 ## What the checkers read here
 
 `documents` in `[tool.claims-ledger]` is a list of single-level globs. It deliberately
@@ -38,7 +47,15 @@ they carry citations of ids that live in other ledgers, or show the syntax to a 
 and a glob that reached them would turn fixtures and examples into failures. Widening
 one is a change to run before it is committed.
 
-<<<<<<< HEAD
+The `code` pattern here is the recipe the package documents, character for character —
+README §Configuration, `docs/OPERATING.md`, the `tagging-prose-with-claims` skill and the
+table `claims-ledger init` writes — and a test holds all of them to one string
+(L0282-this-repository-uses-the-recipe-it-documents, cites-as-live). A ledger whose entries
+are the argument that the checkers work cannot run a pattern it tells everyone else not to
+use. Changing it is a commit of its own: it moves the span of every ground whose most recent
+reading is stated by value, and each of those needs a reading of the section as it now
+stands before `resolve` can show the text the claim was established on.
+
 **Which spelling a marker uses here is decided per path, and both directions are held.**
 `citation-slug` names three files — `pyproject.toml`, `src/claims_ledger/__init__.py` and
 `docs/FRESHNESS.md`, one of each kind this project writes citations in — where a marker
@@ -48,16 +65,6 @@ names the entry in full and the comment in `pyproject.toml` that it is about doe
 neither is a matter of taste. Converting another file is two edits: its markers, and the
 path list. What it costs is a re-read verdict for every entry pinned to a section a marker
 sits in, which is why the sample was seven markers and not four hundred.
-=======
-The `code` pattern here is the recipe the package documents, character for character —
-README §Configuration, `docs/OPERATING.md`, the `tagging-prose-with-claims` skill and the
-table `claims-ledger init` writes — and a test holds all of them to one string
-(L0282-this-repository-uses-the-recipe-it-documents, cites-as-live). A ledger whose entries
-are the argument that the checkers work cannot run a pattern it tells everyone else not to
-use. Changing it is a commit of its own: it moves the span of every ground whose most recent
-reading is stated by value, and each of those needs a reading of the section as it now
-stands before `resolve` can show the text the claim was established on.
->>>>>>> origin/main
 
 `CLAUDE.md` is a configured document — it states commitments in the same voice the README
 does, so a citation written here is checked. `RELEASING.md` is one for the same reason: it
