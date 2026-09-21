@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:95d53991b186a3f20d33f2f9a16b06da68d7d68547d9cb4505b87d0d767b2158
+  artifact: sha256:23bd318b95519eea9850d24313e9a7925ea2512e2cbc9f38640123d7328553d2
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "orphans" =sha256:23bd318b95519eea9850d24313e9a7925ea2512e2cbc9f38640123d7328553d2
+  note: The set of readings this consults can now include one committed on the incoming side of an open operation, which is what makes a record before a later reading moved past mid-merge as well as after it. The rule is the same rule; it reaches the case it was already about.
+
 ## References
 
 - src/claims_ledger/freshness.py · standing · cites-as-live

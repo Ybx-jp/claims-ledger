@@ -9,8 +9,10 @@ whole history if the branch that committed it is not the one checked out.
 Every fixture here drives real git rather than simulating it, because what is being tested
 is which revisions git is asked about, and a fixture that stood in for the branch topology
 would be asserting the thing it replaced. The preconditions are asserted in the fixtures
-rather than in the tests: two of the tests below are `xfail(strict=True)`, and an xfail
-swallows a broken fixture as readily as it swallows the defect it is there for.
+rather than in the tests. Two of these were `xfail(strict=True)` while #60 and #61 stood,
+and the preconditions stayed in the fixtures when the markers came off: an xfail swallows
+a broken fixture as readily as it swallows the defect it is there for, and a fixture that
+has stopped building the state it names is no more use green than red.
 """
 
 import subprocess
@@ -217,12 +219,6 @@ def reading_on_the_incoming_side(project):
     return founding, reading, effective
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG (issue #61): `corroborations` gates a reading on `merge-base --is-ancestor "
-    "<pin> HEAD`, so a reading the incoming side committed is dropped while the merge is "
-    "open and the effective pin reverts to the founding ground",
-)
 def test_a_reading_the_incoming_side_committed_still_sets_the_effective_pin(
     reading_on_the_incoming_side, project
 ):
@@ -302,12 +298,6 @@ def vendored_on_another_ref(project, tmp_path):
     return path
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG (issue #60): `enclosing_repository` asks `git log -1 -- <entries>` of HEAD "
-    "only, so a vendored ledger committed on another ref reads as held by no repository, "
-    "`is_committed` answers no, and `sha --write` rewrites a frozen region a commit names",
-)
 def test_sha_write_refuses_a_vendored_entry_committed_on_another_ref(
     vendored_on_another_ref, project
 ):

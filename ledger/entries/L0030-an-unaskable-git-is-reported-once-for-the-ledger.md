@@ -96,7 +96,14 @@ none
 - 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/resolve.py § "run" =sha256:6174cdacc1864c2cbb4b6e9c87ebfa0125f4553476f8b1c981269fb73e78636b
   note: re-read after the commit that widens what `is_committed` asks. The only change inside the section is the argument that call takes. every pointer is still resolved and a source still read once.
+- 2026-09-20T17:44:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:6174cdacc1864c2cbb4b6e9c87ebfa0125f4553476f8b1c981269fb73e78636b
+  artifact: sha256:5d6ce8d6b0de9d60202f47fdb33e743ea031cd0a0d38469595ce8d861beb8150
+  note: propagated from a moved ground
 
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/resolve.py § "run" =sha256:5d6ce8d6b0de9d60202f47fdb33e743ea031cd0a0d38469595ce8d861beb8150
+  note: The `unasked` probe and the single report built from it are byte-identical and still asked once for the ledger. The line added after them binds the reach handed to `effective_pointer`, for the same once-per-run reason.
 
 ## References
 

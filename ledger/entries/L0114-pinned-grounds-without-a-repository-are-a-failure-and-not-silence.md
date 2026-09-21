@@ -71,6 +71,14 @@ none
 - 2026-09-12T15:32:58-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "run" =sha256:9b25e634a8f1b63fa4fdcf8d7f11ce70d7110ce3e78cf93ad24d03ee23c3efa7
   note: acknowledged: the run threads the ledger into `drift` for the cached reads. This claim is untouched by that (L0232).
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:9b25e634a8f1b63fa4fdcf8d7f11ce70d7110ce3e78cf93ad24d03ee23c3efa7
+  artifact: sha256:52b08359937b4d1b390b0c2a0f9b6861f9d188c23cd83fbc9b16ebbcdf6b8faf
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "run" =sha256:52b08359937b4d1b390b0c2a0f9b6861f9d188c23cd83fbc9b16ebbcdf6b8faf
+  note: The no-repository branch above is untouched — pinned grounds with no repository still report a failure by name. The line added below it is guarded on the same condition and falls back to `("HEAD",)` where there is no repository to ask, so it cannot be reached in the state this claim is about.
 
 ## References
 
