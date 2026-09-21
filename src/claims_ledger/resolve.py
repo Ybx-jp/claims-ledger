@@ -28,6 +28,7 @@ from .schema import (
     blob_text,
     by_id,
     digest_of,
+    doc_path,
     git,
     git_blobs,
     git_call,
@@ -184,7 +185,8 @@ def why_not(ledger, p):
     return (
         "this repository has no such commit; a squashed, rebased or force-pushed history "
         "drops the commit a pin names, and every ground pinned into it fails at once — "
-        "docs/OPERATING.md says what that costs and how it is repaired"
+        f"{doc_path('OPERATING.md') or 'docs/OPERATING.md'} says what that costs and how "
+        "it is repaired"
     )
 
 

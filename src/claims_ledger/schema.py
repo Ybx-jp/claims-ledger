@@ -179,6 +179,34 @@ PENDING_ANCHOR = "?"
 # what lets an entry land in the same commit as the code and the citation. `=?` is the
 # placeholder `sha --write` fills from the tree, and `validate` refuses it until then.
 
+DOCS = Path(__file__).resolve().parent / "docs"
+# Where a built distribution carries the documents the package tells a reader to go and
+# read. A checkout has no such directory — `docs/` is at the repository root, where the
+# README links, CI and the tests read it — so this is present in an installed copy and
+# absent here, which is why `doc_path` answers None rather than a path that is not there
+# (L0302-a-document-a-shipped-string-names-is-in-the-wheel, cites-as-live).
+
+
+def doc_path(name):
+    """The installed copy of `docs/<name>`, or None where there is none.
+
+    `claims-ledger new` tells the reader that a ground wider than the claim costs a
+    supersession and to see `docs/OPERATING.md`; a checker failure says the same document
+    describes what a rewritten history costs. Both named a relative path, and the wheel
+    carried no `docs/` at all — `packages = ["src/claims_ledger"]` takes what is under the
+    package, and the documents are not. So the first command a new project runs after
+    `init` pointed at a file that exists neither in that project nor in the package it had
+    just installed.
+
+    None rather than a path that is not there, because the two readers want different
+    things from the answer. In a checkout `docs/OPERATING.md` is exactly right and is what
+    the reader already has; in an installed copy the relative path means nothing and the
+    absolute one is the only thing that can be opened. The caller writes whichever it got.
+    """
+    candidate = DOCS / name
+    return candidate if candidate.is_file() else None
+
+
 ELISIONS = ("[…]", "[...]")
 QUOTE_MARKS = '"“”„«»'
 
