@@ -592,3 +592,81 @@ def test_a_repository_that_signs_its_commits_is_refused(collision):
     assert any("unsigned" in r for r in refused), refused
     assert collision.cl("renumber", "--onto", "main", "--write") == 2
     assert (collision.entries / "A0002-beta-claim.md").exists()
+
+
+def test_force_rewrites_past_a_refusal_and_lands_what_it_said_it_would(collision):
+    """`--force` is the one flag that disarms `refusals()`, and `renumber` is the only
+    command in the package that rewrites commits and moves a ref. Every one of the
+    refusals had a test; the branch past them had none.
+
+    Signing is the refusal driven here because it is orthogonal to the rewrite: `commit`
+    `-tree` writes unsigned commits whatever `commit.gpgsign` says, so the rewrite can
+    proceed and be checked while the refusal is live. The conjunction is what is unheld —
+    that a rewrite which goes ahead over a printed refusal still produces the ids it said
+    it would, remaps parents, re-pins anchors, and leaves the ref and the checkout where
+    the unforced path would have left them.
+
+    The negative control is the assertion above it: the same command without `--force`
+    exits 2 and leaves `A0002` where it was, so this is testing the flag and not the
+    fixture.
+    """
+    collision.git("config", "commit.gpgsign", "true")
+    ledger = open_ledger(root=collision.root)
+    planned = renumber.plan(ledger, "main", "HEAD")
+    refused = renumber.refusals(ledger, planned)
+    assert any("unsigned" in r for r in refused), refused
+    before = head(collision, "rev-parse", "side")
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 2
+    assert (collision.entries / "A0002-beta-claim.md").exists()
+    assert head(collision, "rev-parse", "side") == before, "the refused run moved the ref"
+
+    assert collision.cl("renumber", "--onto", "main", "--write", "--force") == 0
+
+    # The ids it said it would: the plan is read before the rewrite, and what landed is
+    # compared against it rather than against a number written here.
+    assert planned.mapping == {"A0002-beta-claim": "A0003-beta-claim"}, planned.mapping
+    assert (collision.entries / "A0003-beta-claim.md").exists()
+    assert not (collision.entries / "A0002-beta-claim.md").exists()
+
+    # The ref moved and the checkout came with it.
+    after = head(collision, "rev-parse", "side")
+    assert after != before
+    assert head(collision, "rev-parse", "HEAD") == after
+    assert head(collision, "status", "--porcelain") == ""
+
+    # Parents remapped rather than grafted: the rewritten commit sits on the base the plan
+    # named, and the commits it replaced are on no ref.
+    assert head(collision, "rev-parse", f"{after}^") == planned.base
+    assert head(collision, "for-each-ref", "--format=%(refname)", "--contains", before) == ""
+
+    # The citation moved with the id and the anchor was re-pinned, which is what makes the
+    # forced rewrite a rewrite and not a rename.
+    note = (collision.root / "docs" / "note-001.md").read_text(encoding="utf-8")
+    assert "(A0003-beta-claim, cites-as-live)" in note and "A0002-beta-claim" not in note
+    assert collision.cl("check") == 0
+
+
+def test_force_does_not_reach_the_refusals_that_protect_uncommitted_work(collision):
+    """`--force` disarms `refusals()` and nothing else, and the difference is the whole
+    reason it is safe to have.
+
+    `refusals()` holds judgements the tool cannot always make correctly — a by-reference
+    pin it could not recognise is named in `renumber.py` as a commit the rewrite drops in
+    silence — so an operator who has checked by hand needs a way past. The three raised
+    after it are not judgements: a dirty tree and a branch another checkout holds are ways
+    to lose work that was never committed, and a detached HEAD is a rewrite with no ref to
+    land on. Nothing is gained by letting a flag through those, so nothing does.
+
+    `docs/OPERATING.md` lists all six in one sentence and then says to check what the
+    command reports before reaching for `--force`, which reads as though the flag covered
+    them all. It says which three it covers now, and this is what holds that.
+    """
+    collision.git("config", "commit.gpgsign", "true")  # a refusal `--force` does cover
+    (collision.root / "docs" / "note-001.md").write_text("uncommitted\n", encoding="utf-8")
+
+    assert collision.cl("renumber", "--onto", "main", "--write", "--force") == 2
+    assert (collision.entries / "A0002-beta-claim.md").exists(), "the rewrite went ahead"
+    assert (collision.root / "docs" / "note-001.md").read_text(encoding="utf-8") == (
+        "uncommitted\n"
+    ), "the uncommitted edit `--force` was refused over did not survive"

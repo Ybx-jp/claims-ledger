@@ -146,6 +146,15 @@ commits another ref also holds, a configuration that changes mid-branch, a dirty
 tree, and a branch another checkout has out. Check what it says before reaching for
 `--force`.
 
+`--force` covers three of those — the by-reference pin, the shared ref, and the
+configuration that changes mid-branch — plus the refusal over a repository that signs its
+commits. Those are judgements the command cannot always make correctly, and an operator
+who has checked by hand needs a way past. It does not cover a dirty working tree, a branch
+another checkout has out, a detached HEAD, or a branch that is already merged: those are
+not judgements, they are ways to lose work that was never committed or to land a rewrite
+on no ref at all, and no flag reaches them
+(L0301-force-covers-the-judgements-and-not-the-ways-to-lose-work, cites-as-live).
+
 Citations move with the ids, and an anchor is re-pinned only where undoing the
 substitution reproduces the anchor the entry already carries — a proof that the id was the
 whole of the change. Where it was not, the anchor stands and `freshness` flags it for
