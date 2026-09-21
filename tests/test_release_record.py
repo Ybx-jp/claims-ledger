@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import tempfile
 import tomllib
 import zipfile
@@ -410,3 +411,33 @@ def test_the_wheel_carries_every_document_a_shipped_string_names():
     # moment somebody widens the list above.
     heavy = sorted(n for n in carried if "/docs/videos/" in n or "/docs/figures/" in n)
     assert not heavy, f"the wheel carries what is served from the repository: {heavy[:4]}"
+
+
+def test_every_force_included_path_is_one_git_tracks():
+    """A force-include naming a path the checkout does not have is a `FileNotFoundError`
+    out of the build backend, so it breaks `pip install -e .` and not merely the wheel.
+
+    Measured: `docs/design/` is gitignored, and naming it took all nine CI jobs down at
+    the install step while every local gate passed — the working tree it was written in
+    had the directory, and no checkout does. Asked of git rather than of the filesystem,
+    because the filesystem is what agreed with the mistake.
+    """
+    config = tomllib.loads((PROJECT / "pyproject.toml").read_text(encoding="utf-8"))
+    forced = config["tool"]["hatch"]["build"]["targets"]["wheel"].get("force-include", {})
+    assert forced, "nothing is force-included; this test has stopped asking anything"
+
+    listed = subprocess.run(
+        ["git", "-C", str(PROJECT), "ls-files", "--", *forced],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if listed.returncode != 0:
+        pytest.skip("not a git checkout")
+    tracked = {line for line in listed.stdout.splitlines() if line}
+    untracked = [
+        source
+        for source in forced
+        if source not in tracked and not any(t.startswith(f"{source}/") for t in tracked)
+    ]
+    assert not untracked, f"force-included and not tracked by git: {untracked}"

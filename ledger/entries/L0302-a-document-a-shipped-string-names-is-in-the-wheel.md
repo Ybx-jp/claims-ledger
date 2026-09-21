@@ -42,6 +42,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T18:22:12-07:00 · contested · grade: measured · author: propagation
+  evidence: toml: pyproject.toml § "tool.hatch.build.targets.wheel.force-include" =sha256:84d22de0d0a69a39123c31eb00364c4e8aec7910efda817fdaa37096eae2ca21
+  artifact: sha256:91441450c81d66f32692f4b0a2951fa366946af7dfd040dea22f5d3c7356fc46
+  note: propagated from a moved ground
+
+- 2026-09-20T18:22:13-07:00 · corroborated · grade: measured · author: main
+  evidence: toml: pyproject.toml § "tool.hatch.build.targets.wheel.force-include" =sha256:91441450c81d66f32692f4b0a2951fa366946af7dfd040dea22f5d3c7356fc46
+  note: `docs/design` came off the list and a comment went on it. The removal is not a narrowing of this claim: `docs/design/` is gitignored, so no shipped string could name a file in it and this entry's own test — every real `docs/` path a module names — passes over the list without it. The path had to go for a different reason, which L0304 now states: force-including a path the checkout does not have is a `FileNotFoundError` from the build backend at `pip install -e .` time. The three documents a shipped string names are on the list as before.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

@@ -72,11 +72,16 @@ packages = ["src/claims_ledger"]
 # so. That is what `test_the_wheel_carries_every_document_a_shipped_string_names` is for.
 
 [tool.hatch.build.targets.wheel.force-include]
+# Every path below has to be one git tracks. A force-include naming a path the checkout
+# does not have is a `FileNotFoundError` out of the build backend, raised while metadata
+# is prepared — so it breaks `pip install -e .` and not just the wheel. `docs/design/` is
+# gitignored, and naming it here took all nine CI jobs down at the install step while
+# every local gate passed, because the working tree it was written in had the directory
+# (L0304, cites-as-live).
 "docs/OPERATING.md" = "claims_ledger/docs/OPERATING.md"
 "docs/SCHEMA.md" = "claims_ledger/docs/SCHEMA.md"
 "docs/FRESHNESS.md" = "claims_ledger/docs/FRESHNESS.md"
 "docs/audits" = "claims_ledger/docs/audits"
-"docs/design" = "claims_ledger/docs/design"
 
 [tool.hatch.build.targets.sdist]
 # Anchored with a leading `/`: an unanchored `README.md` is a gitignore-style pattern that
