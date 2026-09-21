@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T18:15:12-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "register_source" @c9f052af09e01b65a2adde51e941ebf24671dcaa
+  artifact: sha256:4e030e5d464c017078e96f9c2d6c78bb8d17f9181d63d82776584d1ab4a91e6a
+  note: propagated from a moved ground
+
+- 2026-09-20T18:15:26-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "register_source" =sha256:4e030e5d464c017078e96f9c2d6c78bb8d17f9181d63d82776584d1ab4a91e6a
+  note: A branch was added that appends nothing, and the claim is untouched in both directions. Where a row is written it is still written in the same call that puts the bytes where the resolver looks — `append_registry_row` is reached only on the `restoring is None` path, after the same cache limb as before. The new path writes bytes for a row that already exists, which is the opposite of the state this refuses: a row without its bytes is exactly what it repairs.
+
 ## References
 
 - src/claims_ledger/authoring.py · standing · cites-as-live

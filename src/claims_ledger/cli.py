@@ -391,8 +391,10 @@ def build_parser():
     add.add_argument(
         "--id", dest="source_id", required=True, help="the id entries cite this source by"
     )
-    add.add_argument("--type", dest="source_type", required=True, help="paper, consultation, …")
-    add.add_argument("--citation", required=True, help="how the source is cited in prose")
+    add.add_argument(
+        "--type", dest="source_type", help="paper, consultation, …; a new source needs one"
+    )
+    add.add_argument("--citation", help="how the source is cited in prose; a new source needs one")
     add.add_argument("--authors", nargs="*", help="surnames, for the relayed-material flag")
     add.add_argument("--speaker", help="required for a consultation-type source")
     add.add_argument("--retrieved", help="ISO date; default today")
@@ -957,7 +959,7 @@ def cmd_source(args, ledger):
             print(f"{source_id}  {row.get('type', '?')}  {state}")
             worst = max(worst, 1 if problem else 0)
         return worst
-    row, stored = authoring.register_source(
+    row, stored, restored = authoring.register_source(
         ledger,
         args.source_id,
         args.path,
@@ -970,10 +972,15 @@ def cmd_source(args, ledger):
         extraction=args.extraction,
         keep_path=args.keep_path,
     )
-    print(
-        f"registered {row['id']} ({row['sha256'][:12]}…) in "
-        f"{ledger.config.relative(ledger.registry)}"
-    )
+    if restored:
+        # Not "registered": nothing was appended, and saying so over an unchanged registry
+        # is how a fresh-clone recovery reads as a second registration to whoever runs it.
+        print(f"restored the bytes for {row['id']} ({row['sha256'][:12]}…); the row stands")
+    else:
+        print(
+            f"registered {row['id']} ({row['sha256'][:12]}…) in "
+            f"{ledger.config.relative(ledger.registry)}"
+        )
     print(f"bytes at {ledger.config.relative(stored)}")
     return 0
 

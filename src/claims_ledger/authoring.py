@@ -567,6 +567,14 @@ def register_source(
     are copied into the cache under their sha256, which is what a real source gets:
     the row is committed and the bytes are not.
 
+    That split is why an id already in the registry is not simply refused. A fresh clone
+    has every row and none of the bytes, and `check` then fails per quotation until they
+    are back; the recovery README.md documents is to re-run this on the bytes each row's
+    url and extraction name. The duplicate-id refusal made that impossible, so the
+    documented repair could not be performed by any command. The bytes decide now —
+    offered the ones the row names, this restores the cache slot and appends nothing, and
+    offered any others it refuses as before. Returns `(row, stored, restored)`.
+
     The registry has to be a regular file, and that is settled before anything is
     written (L0074-the-registry-must-be-a-regular-file, cites-as-live). The bytes have to
     decode as UTF-8, because a quotation resolves in text and a source nothing can read
@@ -586,8 +594,6 @@ def register_source(
             "the source registry is a JSON-lines file this command appends to"
         )
     rows = load_registry(ledger.registry)
-    if source_id in rows:
-        raise AuthoringError(f"source id `{source_id}` is already registered")
     data = bytes_path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     try:
@@ -595,18 +601,56 @@ def register_source(
     except UnicodeDecodeError as exc:
         raise AuthoringError(f"{bytes_path} is not UTF-8 text; quotations resolve in text") from exc
 
-    row = {"id": source_id, "type": source_type}
-    if authors:
-        row["authors"] = list(authors)
-    if speaker:
-        row["speaker"] = speaker
-    row["citation"] = citation
-    row["retrieved"] = retrieved or datetime.now().astimezone().date().isoformat()
-    if url:
-        row["url"] = url
-    if extraction:
-        row["extraction"] = extraction
-    row["sha256"] = digest
+    # The bytes decide, because the registry is content-addressed and the row already says
+    # which bytes it is about. Offered the bytes the row names, this is the fresh-clone
+    # recovery README.md documents — the rows are committed, `ledger/cache/` is not, and
+    # `source add` on the bytes each row's url and extraction name is how they come back.
+    # Offered anything else it is a second registration under a taken id, which is what the
+    # refusal was always for
+    # (L0303-a-registered-source-restores-its-own-bytes, cites-as-live).
+    restoring = rows.get(source_id)
+    if restoring is not None:
+        if restoring.get("sha256") != digest:
+            raise AuthoringError(
+                f"source id `{source_id}` is already registered, and these are not its "
+                f"bytes: the row names sha256:{str(restoring.get('sha256'))[:12]}… and "
+                f"{bytes_path} is sha256:{digest[:12]}…"
+            )
+        if "bytes" in restoring:
+            raise AuthoringError(
+                f"source id `{source_id}` names {restoring['bytes']} in the tree rather "
+                "than the cache; there is nothing to restore, and a file the row names is "
+                "committed with it"
+            )
+        if keep_path:
+            raise AuthoringError(
+                f"source id `{source_id}` is registered against the cache; restoring it "
+                "cannot also move it into the tree"
+            )
+        for field, given in (("type", source_type), ("citation", citation)):
+            if given is not None and given != restoring.get(field):
+                raise AuthoringError(
+                    f"source id `{source_id}` is already registered with {field} "
+                    f"{restoring.get(field)!r}; restoring its bytes cannot restate it as "
+                    f"{given!r}"
+                )
+        row = restoring
+    else:
+        for field, given in (("--type", source_type), ("--citation", citation)):
+            if given is None:
+                raise AuthoringError(f"{field} is required to register a new source")
+        row = {"id": source_id, "type": source_type}
+        if authors:
+            row["authors"] = list(authors)
+        if speaker:
+            row["speaker"] = speaker
+        row["citation"] = citation
+        row["retrieved"] = retrieved or datetime.now().astimezone().date().isoformat()
+        if url:
+            row["url"] = url
+        if extraction:
+            row["extraction"] = extraction
+        row["sha256"] = digest
     if keep_path:
         row["bytes"] = ledger.config.relative(bytes_path)
         stored = bytes_path
@@ -639,8 +683,9 @@ def register_source(
                 f"({exc.strerror or exc})"
             ) from exc
 
-    append_registry_row(ledger, row)
-    return row, stored
+    if restoring is None:
+        append_registry_row(ledger, row)
+    return row, stored, restoring is not None
 
 
 def append_registry_row(ledger, row):
