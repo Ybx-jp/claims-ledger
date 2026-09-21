@@ -35,6 +35,15 @@ none
 
 ## Verdicts
 
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "heads_in_progress" =sha256:9779a326ae670a1e6419a44734a968cead7b88808057bafaf7b0639da9b9edcb
+  artifact: sha256:29f1cbe99e951845307c3eb1aec0f7b1ef712b3ca29f12f551a467d2795d4f35
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "heads_in_progress" =sha256:29f1cbe99e951845307c3eb1aec0f7b1ef712b3ca29f12f551a467d2795d4f35
+  note: A branch added for `ledger is None`. Inside a run there is a ledger, so the memo and its lifetime are exactly as claimed; the new branch serves a caller that has no run to keep an answer for and therefore keeps none, which is the same rule rather than an exception to it.
+
 ## References
 
 - src/claims_ledger/schema.py · standing · cites-as-live

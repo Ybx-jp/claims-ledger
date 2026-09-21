@@ -48,6 +48,14 @@ none
 - 2026-09-09T14:03:35-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/freshness.py § "effective_pointer" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
   note: read against commit 54aa2e4, which passes the ancestry memo through to readings and still takes the last reading; the Ground is still compared from its pin until one exists; the assertion holds as written.
+- 2026-09-20T17:44:02-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/freshness.py § "effective_pointer" @54aa2e467954028f16a77e1a3d15d9d4b37a40ff
+  artifact: sha256:59d7e335bac51b11e81b7e4579e9dbf19cfb57db33a8f1b3c3d88c1996a8e446
+  note: propagated from a moved ground
+
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/freshness.py § "effective_pointer" =sha256:59d7e335bac51b11e81b7e4579e9dbf19cfb57db33a8f1b3c3d88c1996a8e446
+  note: A `revs` parameter added and passed through to `readings`. The latest corroboration is still what sets the pointer, and which corroborations count is `readings`' question, not this one.
 
 ## References
 

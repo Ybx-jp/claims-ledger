@@ -78,7 +78,14 @@ none
 - 2026-09-20T15:29:43-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/validate.py § "check_history" =sha256:a8dc0b278ba056161297d7bfb4a6899f044b8da899aa83d7a8b9599271e9d6f6
   note: re-read after the commit that widens the reach of the history walk. The section now passes `prospective_revs` — HEAD and the other side of an operation in progress — where it passed nothing and got HEAD. With no operation under way the walk is the one it was, and the rules this section carries are untouched: the history is still read with one batch of blobs.
+- 2026-09-20T17:44:01-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" @225f5867b2591ffc5b3020dfe20ca407d81ee06f
+  artifact: sha256:ff1b426b724685b6855288918cfe86ae6345e3fa69961d5fee1cc4423875de3c
+  note: propagated from a moved ground
 
+- 2026-09-20T17:45:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/schema.py § "enclosing_repository" =sha256:ff1b426b724685b6855288918cfe86ae6345e3fa69961d5fee1cc4423875de3c
+  note: What `validate` says about such a ledger is untouched; this section only decides which repository is found. Widening the probe narrows the set of ledgers reported as having no repository at all, and every one that is still reported that way is reported the same way.
 
 ## References
 
