@@ -11,6 +11,80 @@ change to what it expects would dissolve the argument.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.4] — 2026-09-20
+
+A merge is the moment a ledger is most likely to be wrong about itself, and until this
+release every checker asked git about `HEAD` and nothing else. Mid-merge that is half a
+ledger: an entry the incoming side committed read as uncommitted, `resolve` hard-failed,
+the pre-commit hook refused the merge commit, and the advice it printed would have
+rewritten the frozen region of an entry already in history. The bypass that unblocked
+one such merge in this repository committed three conflict markers into a configured
+document, and all five checkers read that tree at 0 failures and 0 flags.
+
+So this release is about the questions the checkers ask git, and about the three places
+the package told a reader something that was not true of the artifact they had installed.
+
+No schema change: an entry written under any earlier version is read unchanged here.
+`0.1.0` is still kept back for the public release.
+
+### The reach of a history question
+
+Two questions, two reaches, and they had been one. *Can this text be shown* is asked of
+every commit the repository can reach — every ref, and the heads of an operation in
+progress — because a `no` is the destructive answer, the one that lets `sha --write`
+recompute an anchor. *Which commit fixed this region* is asked of `HEAD` and the sides of
+the commit about to be made, and no wider: a reading on a branch nobody merged must not
+move the effective pin of an entry that branch never landed.
+
+- **`resolve` and `validate` mid-merge.** An entry on `MERGE_HEAD` and not on `HEAD` read
+  as uncommitted, and `validate`'s frozen-region and append-only checks were skipped for
+  it without a word.
+- **`enclosing_repository`.** A ledger vendored inside another project and committed on a
+  branch that is not checked out read as a ledger no repository holds, so `sha --write`
+  rewrote its frozen region and exited 0.
+- **`freshness`.** A corroborating verdict the incoming side committed was dropped while
+  the merge was open, so the ground was compared against the text it was established on
+  rather than the text the reading had moved it past.
+
+An operation in progress is discovered by listing the git directory rather than by
+matching a list of names this package carries, so an operation git grows next does not
+read as none.
+
+### A key pattern is anchored at both ends
+
+`toml-key` shipped as `'^{name} = '` and its sibling `code` carried a `(?![ \t])` guard.
+One pattern decides both ends of a section — the end is found by the same pattern with
+the name widened to `[^\n]+?`, which matches leading whitespace — so an `^`-anchored
+pattern stops being anchored the moment it is widened. Measured on this repository's own
+`pyproject.toml`, a seventeen-line key got five lines and stopped inside its own value,
+silently: `resolve` and `freshness` both compare the span the pattern returns.
+
+The recipe is `'^(?![ \t]){name} = '` now, in all three places that publish it, and a
+test holds them to one string. README.md and `docs/OPERATING.md` described the old cost
+as "the key's own first line and nothing else"; measured, that was wrong in both
+directions, and both are rewritten rather than amended.
+
+### What an installed copy has
+
+- **`docs/` is in the wheel.** `claims-ledger new` told every new project to read
+  `docs/OPERATING.md` and the wheel carried no `docs/` at all. It carries the three
+  documents and the audit record now, and the messages name the copy the reader has.
+- **`source add` restores a registered source's bytes.** A fresh clone has every registry
+  row and none of the cached bytes; the recovery README.md documents was refused by the
+  duplicate-id guard, so no command could perform it. The bytes decide: those that hash to
+  the row's digest restore the cache slot and append nothing, and any others are still
+  refused under a taken id.
+
+### Held rather than assumed
+
+- `renumber --force` — the only untested branch on the one path that rewrites commits and
+  moves a ref — is driven past a live refusal and checked against the plan, and held to
+  reaching none of the refusals that protect work no commit holds.
+- No tracked file carries an unresolved conflict marker.
+- Every path the wheel force-includes is one git tracks. A force-include naming a
+  gitignored path is a `FileNotFoundError` while metadata is prepared, so it breaks
+  `pip install -e .` and not merely the wheel.
+
 ## [0.0.3] — 2026-09-19
 
 Prose lifted onto the entry. An entry may now hold the narrative that was taken out of
@@ -1361,6 +1435,7 @@ they are *near* each other, and near is not inconsistent.
   which is what lets the same file run from inside the package and from `.claude/hooks/`.
   They still need `jq` when they run, which the package does not.
 
+[0.0.4]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.4
 [0.0.3]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.3
 [0.0.2]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.2
 [0.0.1]: https://github.com/Ybx-jp/claims-ledger/releases/tag/v0.0.1

@@ -71,7 +71,14 @@ none
 - 2026-09-20T13:23:13-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:339493d03184eb0567c2bc98fc211c89d6ea1d3e231b75f177f6276e5e6730a5
   note: re-read after the commit that converts this file's markers to the short form. The only change inside the section is the citation itself, which lost the entry's slug and now names the id alone; it resolves to the same entry, under the same act, and the References row is unchanged. The assignment is untouched and pyproject.toml still reads the version from here, so it is still written in one place.
+- 2026-09-20T19:46:11-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:339493d03184eb0567c2bc98fc211c89d6ea1d3e231b75f177f6276e5e6730a5
+  artifact: sha256:903c01e2bbf4b4abcf345e6f8bcb039f36f496a2b5b81f34129625169b169b4d
+  note: propagated from a moved ground
 
+- 2026-09-20T19:46:13-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:903c01e2bbf4b4abcf345e6f8bcb039f36f496a2b5b81f34129625169b169b4d
+  note: re-read after the commit that bumps the version from 0.0.3 to 0.0.4. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; `pyproject.toml` still reads `[tool.hatch.version]` out of this file, no second copy was added, and the only thing that moved is the literal a release is supposed to move. Measured after the bump: `claims_ledger.__version__` and `importlib.metadata.version('claims-ledger')` both read 0.0.4 from a fresh editable install.
 
 ## References
 
