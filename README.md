@@ -458,10 +458,15 @@ bytes are not — `ledger/cache/.gitignore` is written by `init` — so the row 
 sha256, and the `--url` and `--extraction` that regenerate them.
 
 That means a fresh clone of a project's ledger has rows without bytes, and `check` fails
-loudly, per quotation, until they are back: re-run `claims-ledger source add` on the
-bytes named by each row's url and extraction, and `claims-ledger source list` will say
-`bytes present`. There is no command that fetches them for you, because how a source's
-bytes were produced from its url is a decision with a record, not a download.
+loudly, per quotation, until they are back: re-run `claims-ledger source add --id <id>` on
+the bytes named by each row's url and extraction, and `claims-ledger source list` will say
+`bytes present`. The id and the bytes are the whole of what that needs — the registry is
+content-addressed, so bytes that hash to the row's digest are that row's bytes, and the
+type and citation it already holds are not retyped. Bytes that hash to anything else are a
+second source under a taken id and are refused, which is the same refusal as before
+(L0303-a-registered-source-restores-its-own-bytes, cites-as-live). There is no command
+that fetches them for you, because how a source's bytes were produced from its url is a
+decision with a record, not a download.
 
 `neighbours` is the one command here that is not a check. Two entries about the same
 function, written months apart by people who never read each other, name nothing of each

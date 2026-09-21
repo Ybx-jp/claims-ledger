@@ -142,12 +142,72 @@ def test_registering_a_source_stores_the_bytes_the_quote_is_checked_against(proj
     assert "bytes" not in row  # a real source's bytes live in the cache, uncommitted
 
 
-def test_a_duplicate_source_id_is_refused(project, tmp_path):
+def test_a_duplicate_source_id_with_different_bytes_is_refused(project, tmp_path):
     ledger = open_ledger(root=project.root)
     other = tmp_path / "other.txt"
     other.write_text("different bytes entirely.\n", encoding="utf-8")
-    with pytest.raises(AuthoringError, match="already registered"):
+    with pytest.raises(AuthoringError, match="are not its bytes"):
         register_source(ledger, "fx-source", other, "paper", "A second registration")
+
+
+def test_a_registered_source_restores_its_own_bytes(project, tmp_path, capsys):
+    """The fresh-clone recovery README.md documents: the rows are committed, the cache is
+    gitignored, and `source add` on the bytes each row's url and extraction name is how
+    they come back. It was refused by the duplicate-id guard, which ran before anything
+    was read — so the documented repair could not be performed by any command, and the
+    clone stayed red with `check` failing per quotation.
+
+    The id and the bytes are the whole of what a restore needs: `--type` and `--citation`
+    are in the row already, and the registry is content-addressed, so bytes that hash to
+    the row's digest are that row's bytes by definition.
+    """
+    ledger = open_ledger(root=project.root)
+    row = json.loads(ledger.registry.read_text(encoding="utf-8").splitlines()[0])
+    before = ledger.registry.read_text(encoding="utf-8")
+
+    (ledger.cache / row["sha256"]).unlink()  # the state a fresh clone is in
+    assert project.cl("source", "list") == 1
+    capsys.readouterr()
+
+    assert project.cl("source", "add", str(tmp_path / "source.txt"), "--id", "fx-source") == 0
+    out = capsys.readouterr().out
+    assert "restored" in out and "registered" not in out, out
+
+    assert (ledger.cache / row["sha256"]).is_file()
+    assert project.cl("source", "list") == 0
+    assert "bytes present" in capsys.readouterr().out
+    assert ledger.registry.read_text(encoding="utf-8") == before, "the registry was appended to"
+
+
+def test_a_restore_cannot_restate_the_row(project, tmp_path):
+    """Restoring bytes and re-registering a source are different acts, and the second is
+    still refused. A row is the record; if these really are a different paper they need an
+    id of their own, and if they are not then the row already says what it says."""
+    ledger = open_ledger(root=project.root)
+    row = json.loads(ledger.registry.read_text(encoding="utf-8").splitlines()[0])
+    (ledger.cache / row["sha256"]).unlink()
+
+    with pytest.raises(AuthoringError, match="cannot restate it"):
+        register_source(
+            ledger, "fx-source", tmp_path / "source.txt", "paper", "A different citation"
+        )
+    assert not (ledger.cache / row["sha256"]).exists(), "it wrote the bytes before refusing"
+
+
+def test_registering_a_new_source_still_needs_its_type_and_citation(project, tmp_path):
+    """`--type` and `--citation` stopped being argparse-required so a restore need not
+    retype what the row already holds. A new id still cannot be registered without them,
+    and the refusal names the flag rather than writing a row with `type: None` in it."""
+    other = tmp_path / "other.txt"
+    other.write_text("different bytes entirely.\n", encoding="utf-8")
+    with pytest.raises(AuthoringError, match="--type is required"):
+        register_source(
+            ledger=open_ledger(root=project.root),
+            source_id="fx-new",
+            bytes_path=other,
+            source_type=None,
+            citation=None,
+        )
 
 
 def test_source_list_reports_bytes_that_are_missing(project, capsys):
