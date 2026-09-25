@@ -43,6 +43,14 @@ none
 - 2026-09-14T21:14:19-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "ids_in_the_repository" =sha256:b922f0946f1de283ffd0e0399bb5cba7e28545659c0bddfd9b19540a3e57af58
   note: re-read after the commit that answers the gate's remaining findings. The section gained `-m` on the walk and a separated OSError. Both make this claim more nearly true rather than less: the walk now also sees an entry created by a merge commit, which git prints no diff for otherwise, and a sibling directory that refuses to be read is reported instead of passed over. What the claim asserts about where ids are looked for — this checkout, every ref, every sibling worktree — is unchanged.
+- 2026-09-24T21:52:04-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "ids_in_the_repository" =sha256:b922f0946f1de283ffd0e0399bb5cba7e28545659c0bddfd9b19540a3e57af58
+  artifact: sha256:e8bd12eee15aef4bd16f5323b62282716ca5fd8a675b02a2b3c815fe8b059498
+  note: propagated from a moved ground
+
+- 2026-09-24T21:52:23-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "ids_in_the_repository" =sha256:e8bd12eee15aef4bd16f5323b62282716ca5fd8a675b02a2b3c815fe8b059498
+  note: re-read after #69. The section now returns each id with where it was found, the walk naming the ref with --source; the places asked — this checkout, every ref, every sibling worktree — are the same, so the allocation this claim describes is unchanged.
 
 ## References
 

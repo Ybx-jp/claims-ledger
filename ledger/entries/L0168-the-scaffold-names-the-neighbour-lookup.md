@@ -49,6 +49,14 @@ none
 - 2026-09-20T18:08:58-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:bc6681eec4301fd3e1269fa799c2450a2da90722cafe73ba5ece500ca57626e7
   note: The scaffold still names the neighbour lookup, on the same line and in the same words — `claims-ledger neighbours <id>` is printed after the grounds advice as before. The lines above it changed: the ground-width warning binds the document's path first so it can name the installed copy.
+- 2026-09-24T21:52:04-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:bc6681eec4301fd3e1269fa799c2450a2da90722cafe73ba5ece500ca57626e7
+  artifact: sha256:6950899fc527b69fffa7d8343ea0aab0fc297acf5bbee801b3eee5cb39f15d9d
+  note: propagated from a moved ground
+
+- 2026-09-24T21:52:23-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/cli.py § "cmd_new" =sha256:6950899fc527b69fffa7d8343ea0aab0fc297acf5bbee801b3eee5cb39f15d9d
+  note: re-read after #69. cmd_new passes --force and a notes list through and prints the notes to stderr; the neighbours line printed after the write is unchanged.
 
 ## References
 

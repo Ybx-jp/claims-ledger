@@ -107,7 +107,7 @@ class AuthoringError(Exception):
 
 
 def ids_in_the_repository(ledger):
-    """(every entry id this repository holds anywhere, what could not be asked).
+    """({every entry id this repository holds anywhere: where}, what could not be asked).
 
     Allocation used to be max+1 over the entries directory of one checkout, and two
     branches off one base were therefore allocated the same number. Measured on git
@@ -129,8 +129,13 @@ def ids_in_the_repository(ledger):
     allocated over a repository that could not be read is exactly the collision this
     exists to prevent, and a caller that cannot ask has to say so rather than mint on the
     strength of the one directory it could see.
+
+    Each id comes back with where it was found — the ref the walk reached it on, or the
+    sibling worktree it was listed in — because a number named by hand is refused by
+    saying where it is held, and "somewhere in this repository" is a search handed back
+    to the person who asked.
     """
-    ids, unasked = set(), []
+    ids, unasked = {}, []
     if not ledger.repo:
         return ids, None  # nothing to ask: the tree is the whole of what there is
     rel = os.path.relpath(ledger.entries_dir, ledger.repo)
@@ -146,12 +151,20 @@ def ids_in_the_repository(ledger):
         "-m",
         "--diff-filter=A",
         "--name-only",
-        "--pretty=format:",
+        # `--source` names the ref each commit was reached on, behind a NUL no path under
+        # the entries directory can begin with.
+        "--source",
+        "--pretty=format:%x00%S",
         "--",
         f":(literal){rel}",
     )
     if ever.ok:
-        ids |= {Path(line).stem for line in ever.out.splitlines() if line.strip()}
+        ref = "a ref of this repository"
+        for line in ever.out.splitlines():
+            if line.startswith("\0"):
+                ref = line[1:] or ref
+            elif line.strip():
+                ids.setdefault(Path(line).stem, f"on {ref}")
     else:
         unasked.append(f"which ids the refs of this repository carry ({ever.why})")
     listed = git_call(ledger.repo, "worktree", "list", "--porcelain")
@@ -164,7 +177,10 @@ def ids_in_the_repository(ledger):
             try:
                 if directory.resolve() == here:
                     continue  # this checkout, whose entries the caller already has
-                ids |= {p.stem for p in directory.iterdir() if p.suffix == ".md"}
+                where = f"in the worktree at {line[len('worktree ') :]}"
+                for p in directory.iterdir():
+                    if p.suffix == ".md":
+                        ids.setdefault(p.stem, where)
             except (FileNotFoundError, NotADirectoryError):
                 continue  # a checkout that does not hold the ledger: nothing to report
             except OSError as exc:
@@ -274,11 +290,24 @@ def create_entry(ledger, slug, **kwargs):
     through a dangling symlink at the entry's path: a dangling link is not `exists()`,
     so the refusal steps aside and the entry lands wherever the link leads
     (L0067-a-new-entry-lands-on-neither-an-existing-path-nor-a-link, cites-as-live).
+
+    An id named by hand is refused when its number is already held — in this checkout,
+    on any ref, or in a sibling worktree — naming the entry that holds it and where,
+    unless `force`. It used to be asked only whether the file was there, which compares
+    the whole filename, so the same number under another slug was written and the
+    collision surfaced at merge, when repairing it rewrites published commits. Where the
+    repository could not be read, what could be read is still asked and the rest is
+    added to `notes` rather than refused, because naming the id is the way past an
+    unread repository
+    (L0305-a-number-named-by-hand-is-refused-where-the-repository-holds-it, cites-as-live).
     """
     if not SLUG_RE.match(slug or ""):
         raise AuthoringError(f"`{slug}` is not a lowercase-and-hyphens slug")
     entries = load_entries(ledger)
     ident = kwargs.pop("ident", None)
+    force = kwargs.pop("force", False)
+    notes = kwargs.pop("notes", None)
+    named = ident is not None
     if ident is None:
         reserved, unasked = ids_in_the_repository(ledger)
         if unasked is not None:
@@ -295,6 +324,8 @@ def create_entry(ledger, slug, **kwargs):
     name = f"{ident}-{slug}"
     if not ID_RE.match(name):
         raise AuthoringError(f"`{name}` is not <letter><four digits>-<slug>")
+    if named and not force:
+        refuse_a_number_already_held(ledger, name, entries, notes)
     filename = f"{name}.md"
     if len(filename.encode("utf-8")) > NAME_MAX:
         raise AuthoringError(
@@ -318,6 +349,34 @@ def create_entry(ledger, slug, **kwargs):
     except OSError as exc:
         raise AuthoringError(f"cannot write {path} ({exc.strerror or exc})") from exc
     return path
+
+
+def refuse_a_number_already_held(ledger, name, entries, notes=None):
+    """Raise AuthoringError naming where `name`'s number is held, if anywhere is.
+
+    The number is the `A####` prefix and not the whole id, because a number names one
+    entry — a citation may name it without the slug, and `validate` fails two entries
+    that share one. This checkout is read first, so an entry both here and on a ref is
+    named where the author can open it.
+    """
+    number = name.split("-", 1)[0]
+    held, unasked = ids_in_the_repository(ledger)
+    held.update({e.id or e.path.stem: "in this checkout" for e in entries})
+    holders = sorted(
+        (ident, where) for ident, where in held.items() if ident.split("-", 1)[0] == number
+    )
+    if unasked is not None and notes is not None:
+        notes.append(
+            f"cannot ask {unasked}, so whether the repository holds {number} there was not "
+            "established; it was checked against what could be read"
+        )
+    if holders:
+        named = "; ".join(f"{ident} {where}" for ident, where in holders)
+        raise AuthoringError(
+            f"{number} is already held: {named}. A number names one entry, and two that "
+            "share one are a collision `validate` fails and `renumber` has to move. Leave "
+            "--id off to be allocated a free one, or pass --force if the reuse is deliberate."
+        )
 
 
 def refuse_to_write_outside_the_root(ledger, path):
