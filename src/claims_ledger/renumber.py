@@ -213,30 +213,34 @@ def anchored_pointers(entry):
     return out
 
 
-def reanchor(text, before, after, config, decided, decide=False):
-    """An entry's text with every by-value anchor re-pinned that moved by the renumber
-    alone, and no other.
+def reanchor(text, config, decided, versions=None):
+    """An entry's text with every by-value anchor re-pinned to the rewritten version of the
+    text it names, and to nothing else.
 
-    The proof, rather than a re-pin on trust: the anchor is recomputed over the section
-    as the rewritten tree has it, *with the substitution undone*. When that reproduces the
-    anchor the entry already carries, the only thing that changed inside the section was
-    the id, and the new digest is the same reading of the same text. When it does not,
-    something else in the span moved too, the anchor is left exactly as written, and
-    `freshness` flags it for a person to read — which is the report this package exists to
-    make rather than one to absorb
-    (L0238-an-anchor-is-re-pinned-only-where-the-id-is-proved-to-be-the-whole-change,
-    cites-as-live).
+    The proof, rather than a re-pin on trust: a version of the artifact the branch holds
+    is found whose section, as the commit had it, digests to the anchor — the text the
+    anchor names — and the anchor is re-pinned to that same section with the substitution
+    applied, which is the text the rewritten commit will hold in its place. The id is the
+    whole of the difference between the two by construction, so the new digest is the
+    same reading of the same text. Where the span has also changed for another reason
+    since, that change is between the rewritten text and the tip, exactly as it was
+    between the original text and the tip, and `freshness` flags it for a person to read
+    — the report this package exists to make rather than one to absorb. Re-pinning only
+    where the tip itself proved the id was the whole change left a drifted anchor naming
+    text the rewrite had replaced in every commit that held it, and once the old commits
+    were unreachable `resolve` could show it nowhere
+    (L0307-an-anchor-is-re-pinned-to-the-rewritten-text-it-names, cites-as-live).
 
-    `before` and `after` are `{path: text}` for the artifacts this entry may rest on, as
-    the tree held them and as the rewrite leaves them.
+    `versions(target)` is `[(text, rewritten)]` for every version of `target` the branch
+    holds, newest first; `decide_anchors` supplies it.
 
     `decided` is where the answers live, and this function does not take them unless it
-    is asked to: `decide_anchors` fills the map once from the branch tip, and every
-    commit of the rewrite is then given the same answers. An entry's frozen region has to
-    be byte-identical in every commit that holds it, and the span an anchor names is not
-    the same at every commit — a citation landing in it is one of the commits being
-    rewritten — so a per-commit answer writes one frozen region at the creating commit
-    and another after it, which is what `validate` refuses.
+    is given `versions`: `decide_anchors` fills the map once, before any commit is
+    rebuilt, and every commit of the rewrite is then given the same answers. An entry's
+    frozen region has to be byte-identical in every commit that holds it, and the span an
+    anchor names is not the same at every commit — a citation landing in it is one of the
+    commits being rewritten — so a per-commit answer writes one frozen region at the
+    creating commit and another after it, which is what `validate` refuses.
     """
     entry = parse_entry(Path("in-memory.md"), text)
     out = text
@@ -254,21 +258,56 @@ def reanchor(text, before, after, config, decided, decide=False):
             if settled is not None:
                 out = out.replace(raw, settled, 1)
             continue
-        if not decide:
-            continue
-        if not config.is_sectioned(pointer.type) or pointer.target not in after:
+        if versions is None or not config.is_sectioned(pointer.type):
             continue
         anchored = pointer.anchor.lstrip("=")
-        now = section_digest(after[pointer.target], config, pointer.type, pointer.section)
-        was = section_digest(before[pointer.target], config, pointer.type, pointer.section)
         settled = None
-        if now is not None and now != anchored and was == anchored:
-            # the section as the rewrite leaves it, with the substitution undone, is the
-            # text the anchor already names: the id was the whole of the change
-            settled = raw.replace(pointer.anchor, f"={now}")
-            out = out.replace(raw, settled, 1)
+        for was, rewritten in versions(pointer.target):
+            if section_digest(was, config, pointer.type, pointer.section) != anchored:
+                continue
+            # this version holds the text the anchor names, and `rewritten` is what the
+            # rewritten commit holds in its place: the id is the whole of the change
+            now = section_digest(rewritten, config, pointer.type, pointer.section)
+            if now is not None and now != anchored:
+                settled = raw.replace(pointer.anchor, f"={now}")
+                out = out.replace(raw, settled, 1)
+            break
         decided[key] = settled
     return out
+
+
+def refingerprint(before, after):
+    """`after` with its `verbatim_sha` recomputed, where the substitution changed what the
+    fingerprint covers and the one the entry carried was right.
+
+    An id is as likely to be named in Scope or Backing as anywhere else — a condition
+    stated against another entry's measurement — and the fingerprint covers both, so a
+    renumber that moved such an id used to leave a sha over text no commit holds any more,
+    and `validate` failed the entry at every rewritten commit from the one that created
+    it. A fix-up on top cannot repair that, because the creating commit keeps the wrong
+    sha. It is recomputed only where the declared sha matched the text before the
+    substitution: an entry that was already wrong is left wrong, so a renumber does not
+    launder it
+    (L0306-a-renumber-recomputes-a-fingerprint-the-substitution-moved, cites-as-live).
+
+    Per commit rather than decided once at the tip, as anchors are, because nothing here
+    reads outside the entry: Scope and Backing are frozen, so the same text is substituted
+    the same way in every commit that holds it.
+    """
+    was = parse_entry(Path("in-memory.md"), before)
+    declared = was.front.get("verbatim_sha", "")
+    if not declared or declared != was.computed_sha():
+        return after
+    computed = parse_entry(Path("in-memory.md"), after).computed_sha()
+    if computed == declared:
+        return after
+    return re.sub(
+        rf"^verbatim_sha: {re.escape(declared)}(?=\r?$)",
+        f"verbatim_sha: {computed}",
+        after,
+        count=1,
+        flags=re.MULTILINE,
+    )
 
 
 def commit_texts(repo, commit, subs, rel_entries, config):
@@ -293,29 +332,57 @@ def commit_texts(repo, commit, subs, rel_entries, config):
             continue
         modes[path] = mode
         before[path] = text
-        after[path] = substitute(
-            text, subs, path.startswith(rel_entries) or selects_document(path, config)
-        )
+        after[path] = substitute(text, subs, reads_ids(path, rel_entries, config))
     return modes, before, after
 
 
-def decide_anchors(repo, renumbering, subs, rel_entries, config):
-    """Every anchor decision this rewrite will make, taken once, from the branch tip.
+def reads_ids(path, rel_entries, config):
+    """Whether a bare number in `path` is read as an id, and is therefore substituted."""
+    return path.startswith(rel_entries) or selects_document(path, config)
 
-    From the tip rather than from each commit in turn, and that is the whole of it. An
-    entry's frozen region has to be byte-identical in every commit that holds it, so the
-    answer cannot depend on which commit is being rebuilt — and the span an anchor names
-    is not the same at every commit, because a citation landing in it is itself one of the
-    commits being rewritten. Deciding per commit wrote one frozen region at the creating
-    commit and another later, which is what `validate` refuses; deciding at the tip asks
-    the question once, of the state the branch will actually merge in
-    (L0253-an-anchor-is-decided-once-from-the-branch-tip, cites-as-live).
+
+def decide_anchors(repo, renumbering, subs, rel_entries, config):
+    """Every anchor decision this rewrite will make, taken once, before any commit is
+    rebuilt.
+
+    Once, and that is the whole of it. An entry's frozen region has to be byte-identical
+    in every commit that holds it, so the answer cannot depend on which commit is being
+    rebuilt — and the span an anchor names is not the same at every commit, because a
+    citation landing in it is itself one of the commits being rewritten. Deciding per
+    commit wrote one frozen region at the creating commit and another later, which is
+    what `validate` refuses. The entries are read at the tip, and each anchor is looked
+    for in every version of its artifact the branch holds, because the text an anchor
+    names need not be the text the tip holds
+    (L0308-an-anchor-is-decided-once-from-every-version-the-branch-holds, cites-as-live).
     """
-    _modes, before, after = commit_texts(repo, renumbering.branch, subs, rel_entries, config)
+    _modes, _before, after = commit_texts(repo, renumbering.branch, subs, rel_entries, config)
+    held = {}
+
+    def versions(target):
+        if target not in held:
+            specs = [f"{commit}:{target}" for commit in reversed(renumbering.commits)]
+            # A commit that does not hold the path is the ordinary answer for most of them,
+            # so what git could not hand over is passed over: a version missed here leaves
+            # its anchor as written, which `resolve` reports, rather than re-pinning it.
+            blobs, _absent = git_blobs(repo, specs, env=git_env())
+            pairs, seen = [], set()
+            for spec in specs:
+                try:
+                    text = blobs[spec].decode("utf-8")
+                except (KeyError, UnicodeDecodeError):
+                    continue
+                if text not in seen:
+                    seen.add(text)
+                    pairs.append(
+                        (text, substitute(text, subs, reads_ids(target, rel_entries, config)))
+                    )
+            held[target] = pairs
+        return held[target]
+
     decided = {}
     for path, text in sorted(after.items()):
         if path.startswith(rel_entries):
-            reanchor(text, before, after, config, decided, decide=True)
+            reanchor(text, config, decided, versions)
     return decided
 
 
@@ -544,7 +611,7 @@ def rewrite(ledger, renumbering, index_path):
         modes, before, after = commit_texts(repo, commit, subs, rel_entries, config)
         for path, text in list(after.items()):
             if path.startswith(rel_entries):
-                after[path] = reanchor(text, before, after, config, decided)
+                after[path] = refingerprint(before[path], reanchor(text, config, decided))
 
         env = git_env(index=True) | {"GIT_INDEX_FILE": str(index_path)}
         read = git_call(repo, "read-tree", commit, env=env)

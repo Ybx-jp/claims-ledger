@@ -51,6 +51,9 @@ none
   evidence: code: src/claims_ledger/renumber.py § "reanchor" =sha256:c40357926e15956d99757a22b89aeca18a1b2a5cde911552cd1f9473bf25767b
   note: re-read after the commit that answers the gate's second round. The proof is unchanged — an anchor moves only where undoing the substitution reproduces the anchor already written — and what moved around it is when the question is asked and where the answer is kept.
 
+- 2026-09-24T22:16:06-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0307-an-anchor-is-re-pinned-to-the-rewritten-text-it-names · supersedes
+  note: issue #70's comment: a span that drifted after the reading left the anchor as written, naming text the rewrite replaced in every commit that held it, so resolve could show it nowhere once the old commits went. The re-pin now comes from the version that holds the named text rather than from the tip alone. What is unchanged is the proof — the id is the whole of the difference between the old text and the new — and that drift since the reading is left for freshness.
+
 ## References
 
-- src/claims_ledger/renumber.py · standing · cites-as-live
