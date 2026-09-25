@@ -177,10 +177,64 @@ def test_an_anchor_moved_by_the_id_alone_is_re_pinned(collision):
     assert collision.cl("freshness") == 0
 
 
+def names_a_moving_id_in_scope(project):
+    """A second branch entry whose Scope is stated against the one that is about to move,
+    by its bare number as a person writes it, committed with a correct fingerprint."""
+    path = entry(project, "A0005", "delta-claim", "Observation Beta", cite=False)
+    text = path.read_text(encoding="utf-8")
+    text = text.replace("condition: as written", "condition: as measured for A0002")
+    text = text.replace("\n- docs/note-001.md · standing · cites-as-live\n", "\n")
+    path.write_text(text, encoding="utf-8")
+    assert project.cl("sha", "--write", str(path)) == 0
+    project.git("add", "-A")
+    project.git("commit", "-m", "the delta claim, scoped against the beta one")
+    return path
+
+
+def test_a_fingerprint_the_substitution_moved_is_recomputed(collision):
+    """Issue #70. The fingerprint covers Scope, so an id moved inside it left a sha over
+    text no commit holds, and `validate` failed the entry at every rewritten commit from
+    the one that created it — a failure no fix-up on top could reach."""
+    before = names_a_moving_id_in_scope(collision).read_text(encoding="utf-8")
+    assert collision.cl("check") == 0
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 0
+
+    after = (collision.entries / "A0005-delta-claim.md").read_text(encoding="utf-8")
+    [moved] = collision.entries.glob("*-beta-claim.md")
+    assert moved.name.startswith("A0006")
+    assert "condition: as measured for A0006" in after
+    sha = lambda text: re.findall(r"^verbatim_sha: (\S+)", text, re.MULTILINE)  # noqa: E731
+    assert sha(after) != sha(before)
+    assert collision.cl("check") == 0
+
+
+def test_a_fingerprint_that_was_already_wrong_is_not_laundered(collision):
+    """The other half: a sha that did not match before the rewrite is left as it was, so
+    the renumber cannot turn an entry whose frozen region was edited into a clean one."""
+    path = names_a_moving_id_in_scope(collision)
+    wrong = "0" * 64
+    text = path.read_text(encoding="utf-8")
+    path.write_text(
+        re.sub(r"^verbatim_sha: \S+", f"verbatim_sha: {wrong}", text, flags=re.MULTILINE),
+        encoding="utf-8",
+    )
+    collision.git("commit", "-a", "-m", "a fingerprint nobody recomputed")
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 0
+
+    after = (collision.entries / "A0005-delta-claim.md").read_text(encoding="utf-8")
+    [moved] = collision.entries.glob("*-beta-claim.md")
+    assert moved.name.startswith("A0006")
+    assert "condition: as measured for A0006" in after
+    assert f"verbatim_sha: {wrong}" in after
+
+
 def test_an_anchor_whose_span_changed_otherwise_is_left_for_freshness(collision):
     """The other half of the same rule. When the span moved for a reason the renumber
-    cannot account for, the anchor stands as written and the drift is reported — a
-    checker that absorbed it would be answering for a reading nobody made."""
+    cannot account for, the anchor is re-pinned only to the rewritten version of the text
+    it named, never to the tip, and the drift is still reported — a checker that absorbed
+    it would be answering for a reading nobody made."""
     note = collision.root / "docs" / "note-001.md"
     note.write_text(
         note.read_text(encoding="utf-8").replace(
@@ -200,6 +254,42 @@ def test_an_anchor_whose_span_changed_otherwise_is_left_for_freshness(collision)
         r for r in _freshness_reports(collision) if r.entry == "A0003" and "has moved" in r.message
     ]
     assert adrift, "a span that changed for another reason was silently re-pinned"
+
+
+def test_a_drifted_anchor_still_names_text_the_rewritten_history_holds(collision):
+    """The comment on issue #70. The anchor names the span as the entry's commit had it,
+    and the span drifted after. Left as written, it named text the rewrite had replaced
+    in every commit that held it, so once the old commits were unreachable `resolve`
+    could show it nowhere: "no version … digests to the anchor". Re-pinned to the
+    rewritten version of that same text, it resolves, and the drift since is still the
+    tip's to report."""
+    from claims_ledger import resolve
+
+    note = collision.root / "docs" / "note-001.md"
+    note.write_text(
+        note.read_text(encoding="utf-8").replace(
+            "At a stale fraction of 0.3 the measured error was 0.12.",
+            "At a stale fraction of 0.3 the measured error was 0.99.",
+        ),
+        encoding="utf-8",
+    )
+    collision.git("commit", "-a", "-m", "the beta reading is corrected")
+    before = (collision.entries / "A0002-beta-claim.md").read_text(encoding="utf-8")
+
+    assert collision.cl("renumber", "--onto", "main", "--write") == 0
+
+    after = (collision.entries / "A0003-beta-claim.md").read_text(encoding="utf-8")
+    anchors = lambda text: re.findall(r"=sha256:[0-9a-f]{64}", text)  # noqa: E731
+    assert anchors(after) != anchors(before), "the anchor still names the replaced text"
+    unresolved = [
+        r.message
+        for r in resolve.run(open_ledger(root=collision.root))
+        if r.entry == "A0003" and r.outcome != "pass"
+    ]
+    assert unresolved == []
+    assert [r for r in _freshness_reports(collision) if r.entry == "A0003"], (
+        "the drift since the reading was absorbed"
+    )
 
 
 def _freshness_reports(project):

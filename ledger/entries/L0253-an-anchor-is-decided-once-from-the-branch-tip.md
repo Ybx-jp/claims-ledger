@@ -34,6 +34,9 @@ none
 
 ## Verdicts
 
+- 2026-09-24T22:16:06-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0308-an-anchor-is-decided-once-from-every-version-the-branch-holds · supersedes
+  note: the answer is now looked for in every version of the artifact the branch holds, not only the tree at the tip, because the text an anchor names need not be the tip's. What is unchanged is that each anchor is decided once and the same answer goes into every commit.
+
 ## References
 
-- src/claims_ledger/renumber.py · standing · cites-as-live

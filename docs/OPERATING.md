@@ -155,10 +155,18 @@ not judgements, they are ways to lose work that was never committed or to land a
 on no ref at all, and no flag reaches them
 (L0301-force-covers-the-judgements-and-not-the-ways-to-lose-work, cites-as-live).
 
-Citations move with the ids, and an anchor is re-pinned only where undoing the
-substitution reproduces the anchor the entry already carries — a proof that the id was the
-whole of the change. Where it was not, the anchor stands and `freshness` flags it for
-someone to read.
+Citations move with the ids, and an anchor is re-pinned only to the rewritten version of
+the text it names — a version the branch holds whose section digests to the anchor, with
+the substitution applied, so the id is the whole of the difference by construction
+(L0307-an-anchor-is-re-pinned-to-the-rewritten-text-it-names, cites-as-live). A span that
+changed for another reason since the reading still differs from the new anchor, and
+`freshness` flags it for someone to read; what the re-pin prevents is an anchor naming text
+the rewrite replaced in every commit that held it, which `resolve` can show nowhere once
+the old commits are gone.
+An id named in an entry's Scope or Backing moves the text its `verbatim_sha` covers, so the
+fingerprint is recomputed in every rewritten commit — but only where it matched before the
+substitution, so an entry that was already wrong comes out wrong
+(L0306-a-renumber-recomputes-a-fingerprint-the-substitution-moved, cites-as-live).
 
 ### At merge time
 
