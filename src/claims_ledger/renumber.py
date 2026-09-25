@@ -408,7 +408,9 @@ def plan(ledger, onto, branch="HEAD"):
                 "allocates over a repository it could not read moves one collision onto "
                 "another"
             )
-        taken = [_Stem(name) for name in held | introduced | entry_ids_at(repo, tip, rel_entries)]
+        taken = [
+            _Stem(name) for name in held.keys() | introduced | entry_ids_at(repo, tip, rel_entries)
+        ]
         for old in colliding:
             fresh = next_id(taken, ledger.config.archived_prefixes)
             mapping[old] = f"{fresh}-{old.split('-', 1)[1]}"

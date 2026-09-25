@@ -318,7 +318,17 @@ def build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     n.add_argument("slug", help="lowercase-and-hyphens slug; the id is allocated for you")
-    n.add_argument("--id", dest="ident", help="use this id instead of the next free one")
+    n.add_argument(
+        "--id",
+        dest="ident",
+        help="use this id instead of the next free one; refused if the repository already "
+        "holds its number",
+    )
+    n.add_argument(
+        "--force",
+        action="store_true",
+        help="write the --id even though its number is held elsewhere in the repository",
+    )
     n.add_argument(
         "--kind",
         default="claim",
@@ -720,10 +730,13 @@ def cmd_neighbours(args, ledger):
 
 
 def cmd_new(args, ledger):
+    notes = []
     path = authoring.create_entry(
         ledger,
         args.slug,
         ident=args.ident,
+        force=args.force,
+        notes=notes,
         kind=args.kind,
         grade=args.grade,
         author=args.author,
@@ -731,6 +744,8 @@ def cmd_new(args, ledger):
         credence=args.credence,
         resolves_when=args.resolves_when,
     )
+    for note in notes:
+        print(f"claims-ledger: {note}", file=sys.stderr)
     print(f"wrote {ledger.config.relative(path)}")
     print(
         "Fill in Assertion, Scope, Grounds, Warrant and Backing, then "

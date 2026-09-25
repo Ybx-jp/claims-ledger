@@ -43,6 +43,14 @@ none
 - 2026-09-14T19:02:42-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
   note: re-read after the commit that allocates above the whole repository. The guards this claim is about are untouched: the write is still funnelled through the same try, `path.exists()` still refuses an entry that is already there, and refuse_to_write_outside_the_root is still asked before the write so a dangling link the exists() check cannot see does not carry the entry out of the root.
+- 2026-09-24T21:52:03-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
+  artifact: sha256:4ee432b2278cfd856df56c28cadecc4c61abcc2ff92731782ddf4493b74a7ddd
+  note: propagated from a moved ground
+
+- 2026-09-24T21:52:23-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:4ee432b2278cfd856df56c28cadecc4c61abcc2ff92731782ddf4493b74a7ddd
+  note: re-read after #69. The held-number refusal is new and sits before the write; the exists() refusal and the root guard on the write are unchanged, and --force does not reach them, so nothing is written over an existing path or through a link.
 
 ## References
 

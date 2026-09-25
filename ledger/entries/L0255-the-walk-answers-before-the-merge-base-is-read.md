@@ -34,6 +34,15 @@ none
 
 ## Verdicts
 
+- 2026-09-24T21:52:04-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:6441d5a08eff4d46321df05ea98f1c6758ffb830f2bb2919338b9fc80a4bc7cc
+  artifact: sha256:493077a221cfedbea478a8c4482ee70878f3c2d5631a1c66db160d9743ff58f9
+  note: propagated from a moved ground
+
+- 2026-09-24T21:52:23-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "plan" =sha256:493077a221cfedbea478a8c4482ee70878f3c2d5631a1c66db160d9743ff58f9
+  note: re-read after #69. ids_in_the_repository returns a dict now, so the one line folding it into the taken ids reads held.keys(); the walk is still read before the merge base.
+
 ## References
 
 - src/claims_ledger/renumber.py · standing · cites-as-live
