@@ -50,6 +50,14 @@ none
 - 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
   note: re-read after the commit that answers the gate's second round. The section now reads each commit's tree through a shared reader and takes the anchor decisions from a map computed before the loop. What this claim asserts is untouched: every commit is still rebuilt from its own tree with the entries renamed, so each renumbered entry is still added at the path it ends under.
+- 2026-09-24T22:16:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  artifact: sha256:9b3dc8e9d4b8136dec2db1f8d76ed7c7cb3ba8213843f7a178127308c528dd01
+  note: propagated from a moved ground
+
+- 2026-09-24T22:16:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:9b3dc8e9d4b8136dec2db1f8d76ed7c7cb3ba8213843f7a178127308c528dd01
+  note: re-read after #70. Each entry file is now also passed through refingerprint after it is re-anchored, which recomputes verbatim_sha where the substitution moved Scope or Backing, and reanchor is called with the decisions alone; which branch is rewritten, and that a moved entry is created under its new id rather than renamed, are unchanged.
 
 ## References
 

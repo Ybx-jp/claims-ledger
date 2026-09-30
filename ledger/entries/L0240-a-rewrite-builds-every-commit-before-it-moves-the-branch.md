@@ -50,6 +50,14 @@ none
 - 2026-09-14T21:05:02-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
   note: re-read after the commit that answers the gate's second round. The section still returns the new tip and still moves nothing; move_branch remains the only caller that touches a ref.
+- 2026-09-24T22:16:46-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:6cd425bf812e4e09ddcf364613942acceb419796dd3905cb185315335de957e1
+  artifact: sha256:9b3dc8e9d4b8136dec2db1f8d76ed7c7cb3ba8213843f7a178127308c528dd01
+  note: propagated from a moved ground
+
+- 2026-09-24T22:16:48-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/renumber.py § "rewrite" =sha256:9b3dc8e9d4b8136dec2db1f8d76ed7c7cb3ba8213843f7a178127308c528dd01
+  note: re-read after #70. Each entry's text now passes through refingerprint before it is hashed into the index, and reanchor is called with the decisions alone; every commit is still written before the caller moves any ref.
 
 ## References
 
