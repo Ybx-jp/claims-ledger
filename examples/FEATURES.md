@@ -604,14 +604,16 @@ separate repository rather than a fifth member of the portfolio: `concurrent-ids
 `materialize.py` creates after the four are verified.
 
 An id is allocated above the whole repository, refs included, so ordinary authoring does
-not collide. `--id` is what makes the collision reproducible — it names a number instead of
-asking for one.
+not collide, and a number named with `--id` is refused where the repository already holds
+it. `--id --force` is what makes the collision reproducible — it names a number instead of
+asking for one, and writes it anyway, as a second clone that cannot see the branch would.
 
 <!-- snippet: materialize.py -->
 ```python
-    # The second line of work allocates the same number. `--id` is what makes that possible:
-    # `new` with no id asks the whole repository, refs included, and would have stepped past
-    # the number the branch is already holding.
+    # The second line of work allocates the same number. `--id --force` is what makes that
+    # possible: `new` asks the whole repository, refs included, and would have stepped past
+    # the number the branch is already holding, or refused it named by hand. A second clone,
+    # which cannot see the branch, is what `--force` stands in for.
 ```
 <!-- /snippet -->
 

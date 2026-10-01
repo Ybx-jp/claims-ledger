@@ -44,6 +44,14 @@ none
 - 2026-09-14T19:02:42-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
   note: re-read after the commit that allocates above the whole repository. What changed in this section is how the id is chosen when none was given; both slug refusals are untouched — a slug that is not lowercase-and-hyphens is still refused by SLUG_RE before anything is read, and a filename that would overrun NAME_MAX is still refused by its byte length with the name it would have had.
+- 2026-09-30T23:24:59-07:00 · contested · grade: measured · author: propagation
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:9fd1548f22c2ddd0db37c5760efc60c442f2a918faf9fb364f3d118bb35b1bf3
+  artifact: sha256:4b1adf6290657ebbe69a40bd6d2cad7d1545a9c3a919df3f3bd2f1e78a6ff886
+  note: propagated from a moved ground
+
+- 2026-09-30T23:24:59-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/authoring.py § "create_entry" =sha256:4b1adf6290657ebbe69a40bd6d2cad7d1545a9c3a919df3f3bd2f1e78a6ff886
+  note: re-read after #69. create_entry now refuses an --id whose number the repository already holds, and takes force and notes. The slug checks run first and are unchanged, so a bad slug is still refused as a slug before anything else is asked.
 
 ## References
 

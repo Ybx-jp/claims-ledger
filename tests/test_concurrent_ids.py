@@ -119,13 +119,169 @@ def test_an_id_named_by_hand_is_written_when_the_repository_cannot_be_read(proje
     assert (project.root / "ledger" / "entries" / "A0404-alpha.md").exists()
 
 
+def test_an_id_named_by_hand_is_refused_when_this_checkout_holds_its_number(project, capsys):
+    """Issue #69, as it was reported: the only question the `--id` path asked was whether
+    the file existed, which compares the whole filename, so the same number under another
+    slug was written and the duplicate surfaced at merge. Refused now, naming the holder."""
+    committed(project)
+    held = mint(project.root, "alpha")
+    capsys.readouterr()
+
+    assert project.cl("new", "some-other-slug", "--id", held) == 2
+    err = capsys.readouterr().err
+    assert f"{held} is already taken" in err
+    assert f"{held}-alpha in this checkout" in err
+    assert not list(project.entries.glob("*-some-other-slug.md"))
+
+
+def test_an_id_named_by_hand_is_refused_when_only_a_ref_holds_its_number(project, capsys):
+    """The downstream case: the colliding entries were on refs pushed from the same
+    repository minutes earlier, and not in the checkout doing the minting."""
+    committed(project)
+    project.git("checkout", "-q", "-b", "side")
+    held = mint(project.root, "alpha")
+    project.git("add", "-A")
+    project.git("commit", "-m", "alpha")
+    project.git("checkout", "-q", "-")
+    assert not list(project.entries.glob("*-alpha.md"))
+    capsys.readouterr()
+
+    assert project.cl("new", "beta", "--id", held) == 2
+    assert f"{held}-alpha added on refs/heads/side" in capsys.readouterr().err
+    assert not list(project.entries.glob("*-beta.md"))
+
+
+def test_a_number_a_ref_added_and_deleted_is_named_as_added_there(project, capsys):
+    """The walk reads history, so a number a ref once added is still taken after the
+    file is deleted there: a citation written by number before the deletion still names
+    it. The refusal says where it was added rather than that the tip holds it, which it
+    does not, so the author is not sent to look for a file that is not there."""
+    committed(project)
+    project.git("checkout", "-q", "-b", "trunk")
+    held = mint(project.root, "alpha")
+    project.git("add", "-A")
+    project.git("commit", "-m", "alpha")
+    project.git("rm", "-q", str(project.entries / f"{held}-alpha.md"))
+    project.git("commit", "-m", "retire alpha")
+    capsys.readouterr()
+
+    assert project.cl("new", "gamma", "--id", held) == 2
+    err = capsys.readouterr().err
+    assert f"{held} is already taken: {held}-alpha added on refs/heads/trunk" in err
+    assert "in this checkout" not in err
+
+
+def test_an_entry_both_here_and_on_a_ref_is_named_in_this_checkout(project, capsys):
+    """An entry committed and still present is on a ref and in this checkout at once, and
+    it is named where the author can open it. Every other test of this checkout's half
+    mints without committing, so a ref never competes with it there."""
+    committed(project)
+    held = mint(project.root, "alpha")
+    project.git("add", "-A")
+    project.git("commit", "-m", "alpha")
+    capsys.readouterr()
+
+    assert project.cl("new", "beta", "--id", held) == 2
+    err = capsys.readouterr().err
+    assert f"{held}-alpha in this checkout" in err
+    assert "added on" not in err
+
+
+def test_an_id_named_by_hand_is_refused_when_a_sibling_worktree_holds_its_number(project, capsys):
+    """A mint a sibling has written and not committed, which no ref can show."""
+    committed(project)
+    other = worktree(project, "side", "side")
+    held = mint(other, "alpha")
+    capsys.readouterr()
+
+    assert project.cl("new", "beta", "--id", held) == 2
+    assert f"{held}-alpha in the worktree at {other}" in capsys.readouterr().err
+    assert not list(project.entries.glob("*-beta.md"))
+
+
+def test_an_id_named_by_hand_whose_number_is_free_is_written(project):
+    """The refusal is about the number, so a free one named by hand is written as asked,
+    in whatever part of the series the author chose — B0001 beside a held A0001, because
+    the number is the whole prefix and not its digits."""
+    committed(project)
+    mint(project.root, "alpha")
+    assert project.cl("new", "beta", "--id", "B0001") == 0
+    assert (project.entries / "B0001-beta.md").exists()
+
+
+def test_force_writes_an_id_whose_number_is_held(project):
+    """A deliberate reuse is the author's to make: a collision reproduced on purpose, or
+    one two clones will reconcile with `renumber`."""
+    committed(project)
+    held = mint(project.root, "alpha")
+    assert project.cl("new", "beta", "--id", held, "--force") == 0
+    assert (project.entries / f"{held}-beta.md").exists()
+
+
+def test_every_holder_of_a_number_is_named(project, capsys):
+    """A number already reused with --force has two holders, and the refusal lists each
+    with where it is, rather than the first it came to."""
+    committed(project)
+    held = mint(project.root, "alpha")
+    project.git("add", "-A")
+    project.git("commit", "-m", "alpha")
+    project.git("checkout", "-q", "-b", "side")
+    assert project.cl("new", "beta", "--id", held, "--force") == 0
+    project.git("add", "-A")
+    project.git("commit", "-m", "beta")
+    project.git("checkout", "-q", "-")
+    capsys.readouterr()
+
+    assert project.cl("new", "gamma", "--id", held) == 2
+    err = capsys.readouterr().err
+    assert f"{held}-alpha in this checkout; {held}-beta added on refs/heads/side" in err
+
+
+def test_an_unread_repository_still_refuses_a_number_a_sibling_holds(project, capsys):
+    """Where one question git declined, the others are still asked: a ref that cannot be
+    read does not reduce the check to this checkout, and a number a sibling worktree
+    holds is still refused there."""
+    committed(project)
+    other = worktree(project, "side", "side")
+    held = mint(other, "alpha")
+    (project.root / ".git" / "refs" / "heads" / "ghost").write_text(
+        "0000000000000000000000000000000000000001\n", encoding="utf-8"
+    )
+    capsys.readouterr()
+
+    assert project.cl("new", "beta", "--id", held) == 2
+    assert f"{held}-alpha in the worktree at {other}" in capsys.readouterr().err
+    assert not list(project.entries.glob("*-beta.md"))
+
+
+def test_an_unread_repository_still_refuses_a_number_this_checkout_holds(project, capsys):
+    """Where git cannot be asked the check is partial rather than skipped: this checkout's
+    own entries can always be read, and a number held there is a failure `validate` will
+    report whatever git says. What could not be asked is said on stderr."""
+    committed(project)
+    held = mint(project.root, "alpha")
+    (project.root / ".git" / "refs" / "heads" / "ghost").write_text(
+        "0000000000000000000000000000000000000001\n", encoding="utf-8"
+    )
+    capsys.readouterr()
+
+    assert project.cl("new", "beta", "--id", held) == 2
+    assert f"{held}-alpha in this checkout" in capsys.readouterr().err
+
+    assert project.cl("new", "gamma", "--id", "A0404") == 0
+    err = capsys.readouterr().err
+    assert "cannot ask which ids the refs of this repository carry" in err
+    assert "A0404 there was not established" in err
+    assert (project.entries / "A0404-gamma.md").exists()
+
+
 def test_a_ledger_with_no_repository_still_mints(project):
     """Nothing to ask is not a question that failed. A ledger outside version control has
     one directory and that directory is the whole of what there is."""
     assert not (project.root / ".git").exists()
     ledger = open_ledger(root=project.root)
     ids, unasked = ids_in_the_repository(ledger)
-    assert (ids, unasked) == (set(), None)
+    assert (ids, unasked) == ({}, None)
     assert mint(project.root, "alpha")
 
 
@@ -155,7 +311,7 @@ def test_two_entries_carrying_one_number_are_a_failure(project):
     both entries, because the repair is one act on the pair."""
     committed(project)
     assert project.cl("new", "alpha", "--id", "A0002") == 0
-    assert project.cl("new", "beta", "--id", "A0002") == 0
+    assert project.cl("new", "beta", "--id", "A0002", "--force") == 0
 
     from claims_ledger import validate
     from claims_ledger.schema import load_entries

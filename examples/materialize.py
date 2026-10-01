@@ -329,7 +329,7 @@ def mint(
     repo: Path, slug: str, section: str, assertion: str, metric: str, ident: str | None
 ) -> str:
     """Mint one claim and leave the tree green. Returns the id it ended up with."""
-    args = ["new", slug] + (["--id", ident] if ident else [])
+    args = ["new", slug] + (["--id", ident, "--force"] if ident else [])
     ledger(repo, *args)
     entry = next(iter(sorted((repo / "ledger" / "entries").glob(f"*-{slug}.md"))))
     full_id = entry.stem
@@ -384,9 +384,10 @@ def demonstrate_concurrent_ids(destination: Path) -> tuple[Path, str, str]:
     moved = mint(repo, slug, section, assertion, metric, None)
     check_clean(repo)  # green on its own, which is the premise
 
-    # The second line of work allocates the same number. `--id` is what makes that possible:
-    # `new` with no id asks the whole repository, refs included, and would have stepped past
-    # the number the branch is already holding.
+    # The second line of work allocates the same number. `--id --force` is what makes that
+    # possible: `new` asks the whole repository, refs included, and would have stepped past
+    # the number the branch is already holding, or refused it named by hand. A second clone,
+    # which cannot see the branch, is what `--force` stands in for.
     _, slug, section, assertion, metric = CONCURRENT_CLAIMS[1]
     run("git", "checkout", "-q", "main", cwd=repo)
     held = mint(repo, slug, section, assertion, metric, moved.split("-", 1)[0])

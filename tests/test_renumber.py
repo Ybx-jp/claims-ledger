@@ -41,9 +41,10 @@ def entry(project, ident, slug, section, pin="=?", cite=True):
 
     Inside it, because that is where this project's own citations sit and because it is
     what makes a renumber move the digest the entry is anchored to — the case the
-    re-pinning has to get right.
+    re-pinning has to get right. `--force`, because a collision is what these tests build
+    on purpose, and `new` refuses a number the repository already holds.
     """
-    assert project.cl("new", slug, "--id", ident) == 0
+    assert project.cl("new", slug, "--id", ident, "--force") == 0
     path = project.entry(f"{ident}-{slug}.md")
     text = path.read_text(encoding="utf-8")
     text = text.replace(
@@ -445,7 +446,7 @@ def test_an_anchor_is_decided_from_the_tip_not_from_where_it_first_could_be(proj
 
     note = project.root / "docs" / "note-002.md"
     note.write_text(SECOND_NOTE, encoding="utf-8")
-    assert project.cl("new", "late-claim", "--id", "A0002") == 0
+    assert project.cl("new", "late-claim", "--id", "A0002", "--force") == 0
     path = project.entry("A0002-late-claim.md")
     text = path.read_text(encoding="utf-8")
     text = text.replace(
@@ -478,7 +479,7 @@ def test_an_anchor_is_decided_from_the_tip_not_from_where_it_first_could_be(proj
     assert project.cl("check") == 0, "the branch is green before the renumber"
 
     project.git("checkout", "-q", "main")
-    assert project.cl("new", "other-claim", "--id", "A0002", "--grade", "asserted") == 0
+    assert project.cl("new", "other-claim", "--id", "A0002", "--force", "--grade", "asserted") == 0
     other = project.entry("A0002-other-claim.md")
     body = other.read_text(encoding="utf-8")
     body = body.replace(
