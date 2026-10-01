@@ -114,6 +114,16 @@ their refs, so none of that costs a fetch. **A mint over a repository git could 
 is refused rather than allocated from the one directory it could see**; `--id` names one
 by hand when the repository is broken for other reasons.
 
+A number named by hand is asked the same question. **An `--id` whose number this checkout
+or a sibling worktree holds, or any ref ever added, is refused, naming the entry that took
+it and where**
+(L0305-a-number-named-by-hand-is-refused-where-the-repository-holds-it, cites-as-live) —
+the number and not the whole filename, because the same number under another slug is the
+collision. A ref is named as where the entry was added, since it may have been deleted
+there since and a citation by number still names it. Where git could not be asked, the
+number is checked against what could be read and the rest is said rather than refused.
+`--force` writes it anyway, for a reuse that is deliberate.
+
 **If two entries end up carrying one number anyway, `validate` fails**
 (L0242-two-entries-may-not-carry-one-number, cites-as-live). It did not, and that is worth
 knowing about ledgers written before this: two branches that each minted a number produce
