@@ -10,6 +10,7 @@ import contextlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import stat
 import subprocess
@@ -308,6 +309,271 @@ def test_a_guard_answers_in_the_dialect_it_was_called_in():
     assert cursor["user_message"] == cursor["agent_message"]
 
     assert answer({"conversation_id": "c1", "command": "git merge --no-ff x"}) == {}
+
+
+def test_a_guard_reads_the_whole_command_however_much_follows_the_match():
+    """`printf | grep -q` under `pipefail` reads as no match whenever more than a pipe
+    buffer follows the matching line: `grep` exits at the match, the writer dies of SIGPIPE,
+    and the pipeline's status is the writer's. Measured before the fix, both rewriting
+    merges below were allowed with 200 KB of further lines behind them."""
+    if shutil.which("jq") is None:
+        pytest.skip("the hooks parse their payload with jq")
+    guard = str(harness.HOOKS / "merge-guard.sh")
+    tail = "echo a line after the merge\n" * 8000
+    assert len(tail) > 200_000
+
+    for merge in ("gh pr merge 13 --squash", "git merge --squash feature"):
+        payload = {"hook_event_name": "PreToolUse", "tool_input": {"command": f"{merge}\n{tail}"}}
+        done = subprocess.run(
+            ["bash", guard], input=json.dumps(payload), text=True, capture_output=True, check=False
+        )
+        assert done.stdout.strip(), f"{merge} was allowed with {len(tail)} bytes behind it"
+        assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_a_merge_the_package_refuses_is_refused_however_much_follows_it(tmp_path):
+    """The guard's third test, the one that hands an ordinary `git merge <branch>` to
+    `renumber --on-merge`, went through the same pipe as the other two and nothing drove it
+    with bulk behind the match: put back on the pipe, the merge was allowed with 200 KB
+    behind it while the suite stayed green. The interpreter here is a stand-in whose
+    `renumber` refuses, so the verdict is the guard's reading of the command alone."""
+    if shutil.which("jq") is None or shutil.which("git") is None:
+        pytest.skip("the guard parses its payload with jq and asks git for the branch")
+    guard = str(harness.HOOKS / "merge-guard.sh")
+    tail = "echo a line after the merge\n" * 8000
+    assert len(tail) > 200_000
+
+    root = tmp_path / "project"
+    (root / ".venv" / "bin").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
+    identity = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
+    subprocess.run(
+        ["git", "-C", str(root), *identity, "commit", "-q", "--allow-empty", "-m", "root"],
+        check=True,
+    )
+    interpreter = root / ".venv" / "bin" / "python"
+    # `-c 'import claims_ledger'` is how the guard picks an interpreter; `-m` is the run.
+    interpreter.write_text(
+        '#!/bin/bash\n[ "$1" = -m ] && { echo "the stand-in refuses this merge"; exit 1; }\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    interpreter.chmod(0o755)
+    env = {**os.environ, "CLAIMS_LEDGER_PROJECT_DIR": str(root)}
+
+    for command in ("git merge feature", f"git merge feature\n{tail}"):
+        payload = {"hook_event_name": "PreToolUse", "tool_input": {"command": command}}
+        done = subprocess.run(
+            ["bash", guard],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+        )
+        behind = len(command) - len("git merge feature")
+        assert done.stdout.strip(), f"the merge was allowed with {behind} bytes behind it"
+        answer = json.loads(done.stdout)["hookSpecificOutput"]
+        assert answer["permissionDecision"] == "deny"
+        assert "the stand-in refuses" in answer["permissionDecisionReason"]
+
+
+def test_no_shipped_script_tests_its_input_through_a_pipe_into_a_quiet_grep():
+    """Each of the four sites #73 changed has a test that drives it with bulk behind the
+    match, and a fifth written tomorrow would have none, so the shape itself is refused
+    wherever the package ships shell. The matcher is shown every spelling of the shape
+    first, the two that shipped among them, so a clean scan cannot come from a pattern that
+    sees nothing: the first version of this scan missed `egrep -q`, a pipe at the end of a
+    line, `LC_ALL=C grep -q` and `grep -m1`, measured by the `qe` fix-review round. `grep -c`
+    and `grep >/dev/null` read their whole input and are not the shape; nor is a pipe into
+    `head`, `awk … exit` or `sed q`, which stop early too and which this scan does not read.
+    A comment or a quoted string that spells the shape after code on the same line is read as
+    the shape; that errs toward a refusal, which a reword answers. The second round found
+    the scan blind to the grep behind a wrapper — `{ grep -q; }`, `( grep -q )`, `\\grep`,
+    `"grep"`, `env`, `timeout 5`, the hooks' own `bounded` — to `--qui`, which getopt takes
+    for `--quiet`, and to `grep -l`, which stops at the first match as well; and a comment
+    ending in `|` or `\\` swallowed the line under it. The fourth found it blind to `--si`,
+    `--m=1`, a quoted `"-q"` and `-5q`. So whatever is between the pipe and
+    the grep is allowed, short of an operator, and comments are dropped before lines are
+    joined. A comment *between* the pipe and the grep, on a line of its own, is not read.
+    """
+    # Written inside the test so that the rule and the span an entry pins are the same text.
+    grep_word = r"""(?:'[^']*'|"(?:\\.|[^"\\])*"|[^|;&\n'"])"""
+    # A word of the grep's arguments: a quoted string, which may hold `|` or `;`, or anything
+    # that is not an operator. Between the pipe, which may be `|&`, and the grep, which may be
+    # `egrep`/`fgrep`, a path to one, quoted or escaped, anything that is not an operator: an
+    # assignment, `command`, `env`, `timeout 5`, a brace or a subshell. What makes it stop
+    # early is `-q`, `-l` or `-L` in any cluster, digits included and quoted or not, a match
+    # count `-m1`, or any abbreviation of `--quiet`, `--silent`, `--max-count` or
+    # `--files-with(out)-matches`. GNU grep has no other long option that begins with `s` or
+    # `m`, so `--s` and `--m` are read as the abbreviations they are.
+    stops_at_a_match = re.compile(
+        r"\|&?[^|;&\n]*?(?<![\w-])\\?[\"']?(?:\S*/)?[ef]?grep\b[\"']?"
+        + grep_word
+        + r"*?\s[\"']?(?:-[a-zA-Z0-9]*[qmlL][a-zA-Z0-9]*|--(?:q|s|m|files-with)[a-z-]*)(?:\b|=)"
+    )
+
+    def piped_quiet_greps(text):
+        """The lines of a shell script that pipe into a `grep` that stops at its first match,
+        continuations joined and comments dropped, so a wrapped command is read as the one
+        command it is. A line ending in `|` continues without a backslash, so it is joined too."""
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+        joined = re.sub(r"\\\n\s*", " ", code)
+        joined = re.sub(r"(\|&?)[ \t]*\n\s*", r"\1 ", joined)
+        return [line.strip() for line in joined.splitlines() if stops_at_a_match.search(line)]
+
+    stops_early = [
+        """if ! printf '%s' "$x" | grep -q 'clean'; then""",
+        """if printf '%s' "$cmd" | grep -qE \\\n  "pattern"; then""",
+        """if printf '%s' "$x" | grep -Eq 'a'; then""",
+        """if printf '%s' "$x" | grep --quiet a; then""",
+        """if printf '%s' "$x" | grep --silent a; then""",
+        """if printf '%s' "$x" | egrep -q a; then""",
+        """if printf '%s' "$x" | fgrep -q a; then""",
+        """if printf '%s' "$x" \\\n  | grep -q a; then""",
+        """if printf '%s' "$x" |\n  grep -q a; then""",
+        """if printf '%s' "$x" |& grep -q a; then""",
+        """if printf '%s' "$x" | LC_ALL=C grep -q a; then""",
+        """if printf '%s' "$x" | command grep -q a; then""",
+        """if printf '%s' "$x" | /usr/bin/grep -q a; then""",
+        """if printf '%s' "$x" | grep -E 'a|b' -q; then""",
+        """if printf '%s' "$x" | grep -e 'a;b' -q; then""",
+        """if [ -n "$(printf '%s' "$x" | grep -m1 a)" ]; then""",
+        """hit=$(printf '%s' "$x" | grep --max-count=1 a) || exit 0""",
+        """if printf '%s' "$x" | { grep -qF a; }; then""",
+        """if printf '%s' "$x" | ( grep -qF a ); then""",
+        """if printf '%s' "$x" | \\grep -qF a; then""",
+        """if printf '%s' "$x" | "grep" -qF a; then""",
+        """if printf '%s' "$x" | timeout 5 grep -qF a; then""",
+        """if printf '%s' "$x" | bounded grep -qF a; then""",
+        """if printf '%s' "$x" | env grep -q a; then""",
+        """if printf '%s' "$x" | grep --qui a; then""",
+        """hit=$(printf '%s' "$x" | grep -l a)""",
+        """# a comment ending in a pipe |\nif printf '%s' "$x" | grep -qF a; then""",
+        """# a comment ending in a backslash \\\nif printf '%s' "$x" | grep -qF a; then""",
+        """if printf '%s' "$x" | grep --si a; then""",
+        """if printf '%s' "$x" | grep --s a; then""",
+        """hit=$(printf '%s' "$x" | grep --m=1 a)""",
+        """hit=$(printf '%s' "$x" | grep --ma=1 a)""",
+        """if printf '%s' "$x" | grep "-q" a; then""",
+        """if printf '%s' "$x" | grep '-qF' a; then""",
+        """if printf '%s' "$x" | grep -5q a; then""",
+    ]
+    reads_it_all = [
+        """if grep -qE "pattern" <<< "$cmd"; then""",
+        """hit=$(printf '%s\\n' "$x" | grep -F 'word' || true)""",
+        """n=$(printf '%s' "$x" | grep -c a)""",
+        """if printf '%s' "$x" | grep a >/dev/null; then""",
+        """grep -qxF "$k" "$f" """,
+    ]
+    assert [shape for shape in stops_early if not piped_quiet_greps(shape)] == []
+    assert [shape for shape in reads_it_all if piped_quiet_greps(shape)] == []
+
+    scripts = sorted(harness.RESOURCES.rglob("*.sh"))
+    assert {p.name for p in scripts} >= {"merge-guard.sh", "pin-guard.sh", "status-guard.sh"}
+    found = {p.name: piped_quiet_greps(p.read_text(encoding="utf-8")) for p in scripts}
+    found["HOOK_TEMPLATE"] = piped_quiet_greps(cli.HOOK_TEMPLATE)
+    assert {name: lines for name, lines in found.items() if lines} == {}
+
+
+def test_the_pin_guard_reads_the_whole_report_however_much_follows_the_summary(tmp_path):
+    """The pin guard's test runs the other way round from the merge guard's: it asks whether
+    the report is clean, so a pipe that loses the match turns a clean report into drift.
+    `freshness` prints its summary last, so nothing it writes today puts a pipe buffer behind
+    it, and the interpreter here is a stand-in that does. Measured before the fix, a clean
+    summary with 100 KB behind it was reported as a drifted pin."""
+    if shutil.which("jq") is None:
+        pytest.skip("the hooks parse their payload with jq")
+    guard = str(harness.HOOKS / "pin-guard.sh")
+    # More than a pipe buffer, and less than the 128 KB Linux takes as one argument: the guard
+    # hands its report to `jq --arg`, and past that it says nothing at all (#77).
+    tail = "a line after the summary\n" * 4000
+    assert 65_536 < len(tail) < 120_000
+
+    root = tmp_path / "project"
+    (root / ".venv" / "bin").mkdir(parents=True)
+    interpreter = root / ".venv" / "bin" / "python"
+    # `-c 'import claims_ledger'` is how the guard picks an interpreter; `-m` is the run.
+    interpreter.write_text(
+        '#!/bin/bash\n[ "$1" = -m ] && cat "$(dirname "$0")/../../report"\nexit 0\n',
+        encoding="utf-8",
+    )
+    interpreter.chmod(0o755)
+    env = {
+        **os.environ,
+        "CLAIMS_LEDGER_PROJECT_DIR": str(root),
+        "XDG_STATE_HOME": str(tmp_path / "state"),
+    }
+
+    def answer(session, report):
+        (root / "report").write_text(report, encoding="utf-8")
+        payload = {"hook_event_name": "PostToolUse", "session_id": session, "tool_input": {}}
+        done = subprocess.run(
+            ["bash", guard],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+        )
+        return done.stdout.strip()
+
+    clean = "freshness (3 entries): 0 failure(s), 0 flag(s)\n"
+    assert answer("clean", clean + tail) == "", "a clean report was read as drift"
+
+    # The other half, so a guard that says nothing at all cannot pass: the same bulk behind a
+    # report that is not clean still speaks.
+    drifted = "L0001 has moved\nfreshness (3 entries): 0 failure(s), 1 flag(s)\n"
+    spoken = answer("drifted", drifted + tail)
+    assert spoken, "a drifted report was not reported"
+    assert "has moved" in json.loads(spoken)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_the_pin_guard_reads_the_whole_count_and_not_a_substring_of_it(tmp_path):
+    """`10 failure(s), 0 flag(s)` holds `0 failure(s), 0 flag(s)` as a substring, and a guard
+    that looked for the substring said nothing about ten failures. Measured before the fix:
+    silent on 10 and on 20 failures, speaking on 9. The interpreter is a stand-in whose
+    `freshness` prints the report it is given, so each count is the only thing that varies."""
+    if shutil.which("jq") is None:
+        pytest.skip("the hooks parse their payload with jq")
+    guard = str(harness.HOOKS / "pin-guard.sh")
+    root = tmp_path / "project"
+    (root / ".venv" / "bin").mkdir(parents=True)
+    interpreter = root / ".venv" / "bin" / "python"
+    interpreter.write_text(
+        '#!/bin/bash\n[ "$1" = -m ] && cat "$(dirname "$0")/../../report"\nexit 0\n',
+        encoding="utf-8",
+    )
+    interpreter.chmod(0o755)
+    env = {
+        **os.environ,
+        "CLAIMS_LEDGER_PROJECT_DIR": str(root),
+        "XDG_STATE_HOME": str(tmp_path / "state"),
+    }
+
+    def spoken(counts):
+        (root / "report").write_text(f"freshness (30 entries): {counts}\n", encoding="utf-8")
+        payload = {"hook_event_name": "PostToolUse", "session_id": counts, "tool_input": {}}
+        done = subprocess.run(
+            ["bash", guard],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+        )
+        return bool(done.stdout.strip())
+
+    assert not spoken("0 failure(s), 0 flag(s)"), "a clean report was read as drift"
+    assert not spoken("0 failure(s), 0 flag(s)\r"), "a clean report ending CRLF was read as drift"
+    for counts in (
+        "10 failure(s), 0 flag(s)",
+        "20 failure(s), 0 flag(s)",
+        "0 failure(s), 10 flag(s)",
+        "100 failure(s), 100 flag(s)",
+        "9 failure(s), 0 flag(s)",
+    ):
+        assert spoken(counts), f"{counts} was read as clean"
 
 
 def path_without(tool, tmp_path):

@@ -67,9 +67,16 @@ reason="claims-ledger: this repository's ledger pins claims to commit ids, so a 
 # A command position: the start of a line, or just past a shell operator.
 at='(^|[;&|(){}])[[:space:]]*'
 
+# Every test below hands `grep` the command as a here-string and never through a pipe.
+# `grep -q` exits at its first match, and under `pipefail` a writer still holding more than
+# a pipe buffer of input dies of SIGPIPE and turns the whole test false: measured in a
+# sibling project's copy of this guard, a squash merge followed by 200 KB of further lines
+# in the same command was allowed in 2000 runs of 2000.
+
 # The GitHub CLI merging a pull request with a rewriting strategy, long or short flag.
-if printf '%s' "$cmd" | grep -qE \
-  "${at}(sudo[[:space:]]+)?gh[[:space:]]+pr[[:space:]]+merge\b[^|;&]*(--squash|--rebase|[[:space:]]-[a-zA-Z]*[sr]([[:space:]]|\$))"; then
+if grep -qE \
+  "${at}(sudo[[:space:]]+)?gh[[:space:]]+pr[[:space:]]+merge\b[^|;&]*(--squash|--rebase|[[:space:]]-[a-zA-Z]*[sr]([[:space:]]|\$))" \
+  <<< "$cmd"; then
   deny "$reason"
 fi
 
@@ -77,8 +84,7 @@ fi
 # git's own global options may sit in front of it — or the pattern reads the word out of
 # a quoted argument: `git commit -m "never gh pr merge --squash here"` matched, once.
 opts="(-[cC][[:space:]]+[^[:space:]]+[[:space:]]+|--[a-z-]+=[^[:space:]]+[[:space:]]+)*"
-if printf '%s' "$cmd" | grep -qE \
-  "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b[^|;&]*--squash"; then
+if grep -qE "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b[^|;&]*--squash" <<< "$cmd"; then
   deny "$reason"
 fi
 
@@ -98,7 +104,7 @@ fi
 #
 # `git merge <branch>` only. `gh pr merge` merges on the server, where nothing local can
 # rewrite the branch first and the branch has been pushed by then anyway.
-if printf '%s' "$cmd" | grep -qE "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b"; then
+if grep -qE "${at}(sudo[[:space:]]+)?git[[:space:]]+${opts}merge\b" <<< "$cmd"; then
   # The FIRST thing after `merge` that is not an option and is not an option's value.
   # Taking the last one reads `git merge topic -m "a message"` as a merge of `msg`, and a
   # branch nobody has is answered with an allow — so the guard went quiet on exactly the

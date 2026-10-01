@@ -126,7 +126,13 @@ emit() {
 # are the evidence. `--write` is a judgement about the ledger and belongs to the session,
 # never to a hook firing behind the author's back.
 finding=$(cd "$root" && bounded "$python" -m claims_ledger freshness 2>&1) || true
-if [ -n "$finding" ] && ! printf '%s' "$finding" | grep -q '0 failure(s), 0 flag(s)'; then
+# A here-string and not a pipe: `grep -q` stops at its first match, and under `pipefail` the
+# writer it leaves behind can die of SIGPIPE and make a clean report read as a drifted one.
+# And the whole count, not a substring of it: `10 failure(s), 0 flag(s)` holds
+# `0 failure(s), 0 flag(s)`, and the guard said nothing about ten failures. The summary is
+# `freshness (N entries): F failure(s), G flag(s)`, so the count is read from the colon
+# to the end of the line, a carriage return allowed before it.
+if [ -n "$finding" ] && ! grep -qE ': 0 failure\(s\), 0 flag\(s\)'$'\r''?$' <<< "$finding"; then
   key="drift:$(printf '%s' "$finding" | cksum | tr -d ' ')"
   if ! fired "$key"; then
     remember "$key"

@@ -120,7 +120,13 @@ platform-specific either, and that is the one a reviewer will miss: a hook that 
 silent instead (L0276-a-hook-holds-its-verdict-where-there-is-no-timeout, cites-as-live). A path counted in `..` is the one
 that would break: the same script runs from `src/claims_ledger/resources/agent-harness/`
 here and from `.claude/hooks/` where it is installed, so every script discovers its root
-instead (L0189-a-hook-script-discovers-the-project-root, cites-as-live).
+instead (L0189-a-hook-script-discovers-the-project-root, cites-as-live). And no script tests
+its input through a pipe into `grep -q`
+(L0312-no-shipped-script-tests-its-input-through-a-pipe-into-a-quiet-grep, cites-as-live): under `pipefail` the writer it leaves holding more
+than a pipe buffer dies of SIGPIPE and the match reads as none, which let a squash merge
+through the guard with enough lines behind it (L0309-a-guard-reads-the-whole-command,
+cites-as-live) and read a clean freshness report as drift in the pin guard
+(L0311-the-pin-guard-reads-the-whole-report, cites-as-live).
 
 The hooks name the skills and the skills name each other. `merge-guard.sh` has committed
 expected verdicts; the others do not, so a change to one is checked by running it, and

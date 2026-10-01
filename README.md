@@ -539,7 +539,8 @@ same scripts under its own directory, wired in the file that agent really reads 
 `.claude/settings.json`, `.cursor/hooks.json`, and for codex `$CODEX_HOME/hooks.json`,
 which is the only file it loads hooks from; `claims-ledger harness list` prints the table.
 The scripts read both payload dialects and answer in the one they were called in. The
-hooks report drift at edit time, refuse the squash and
+hooks report drift at edit time
+(L0313-the-pin-guard-is-silent-only-on-a-zero-count, cites-as-live), refuse the squash and
 rebase merges that would destroy every ground stated by reference, and lay out the four repairs when a
 citation's act stops matching its target's status; the skills carry the procedures behind
 them. Nothing already in the project is written over — a file that differs is left alone
