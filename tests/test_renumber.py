@@ -340,6 +340,22 @@ def test_a_merge_is_not_allowed_over_a_repository_that_could_not_be_read(collisi
     assert collision.cl("renumber", "--onto", "no-such-branch", "--on-merge") == 0
 
 
+def test_an_id_is_not_substituted_where_it_is_the_front_of_a_longer_one():
+    """The boundary L0246 states, driven directly. The test below builds the same prefix
+    pair, but its renumber moves the longer id, and nothing ever runs into the front of that
+    one — so with the lookahead replaced by `\\b` the whole suite stayed green (#35). Here the
+    shorter id moves, which is the direction a `\\b` gets wrong."""
+    text = "see A0002-beta-claim and A0002-beta, and A0002 and A0002-gamma\n"
+    subs = renumber.substitutions({"A0002-beta": "A0003-beta"})
+
+    assert renumber.substitute(text, subs, ids_are_read_here=True) == (
+        "see A0002-beta-claim and A0003-beta, and A0003 and A0002-gamma\n"
+    )
+    assert renumber.substitute(text, subs, ids_are_read_here=False) == (
+        "see A0002-beta-claim and A0003-beta, and A0002 and A0002-gamma\n"
+    )
+
+
 def test_a_number_the_branch_holds_twice_is_moved_and_a_prefix_id_is_not_touched(project):
     """Two sessions that both minted into one branch. `check_numbers` names this command
     for that too, so it answers for it — and the pair is the shape that catches a
