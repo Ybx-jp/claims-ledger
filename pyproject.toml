@@ -52,6 +52,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/claims_ledger/__init__.py"
+# The one place the version is written, and a test reads the package's source files, apart
+# from the corpus's data, for a second copy of it (L0310, cites-as-live).
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claims_ledger"]

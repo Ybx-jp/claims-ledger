@@ -11,6 +11,7 @@ one are in `tests/` rather than in the corpus.
 
 from __future__ import annotations
 
+import ast
 import os
 import re
 import subprocess
@@ -161,6 +162,98 @@ def test_the_version_is_the_same_in_every_place_it_is_written():
     changelog = project_file("CHANGELOG.md").read_text(encoding="utf-8")
     assert f"## [{claims_ledger.__version__}]" in changelog
     assert f"[{claims_ledger.__version__}]: https://" in changelog
+
+
+def test_the_version_is_written_once_in_what_ships():
+    """No file under the package's source directory holds a second copy of the version,
+    and the packaging metadata carries none of its own. The source tree is read and not
+    the imported package, on purpose: an installed copy also holds the documents the wheel
+    force-includes from `docs/`, and the audits among them name versions as history.
+    release.yml runs this suite against the installed sdist, where the two differ.
+
+    The test above compares the installed metadata to `__version__`, and both halves read
+    the same line, so it cannot see a third copy written anywhere else. Measured before this
+    test existed: `version="claims-ledger 0.0.1"` in place of the f-string in `cli.py` left
+    every checker at 0/0 and the suite green (#36). In a module, a copy is a string or bytes
+    constant that is a version of any value, names one beside the package, `%(prog)s` or the
+    word version, or holds this one's; a docstring is prose, and is not a place the version
+    is written. In any other file under it, a copy is a line that is a version, names one
+    the same way or holds this one's. A copy of any value is refused and not only one of
+    this value, because a stale copy of the version just released matches nothing after the
+    next bump.
+    """
+    pyproject = tomllib.loads(project_file("pyproject.toml").read_text(encoding="utf-8"))
+    assert "version" not in pyproject["project"]
+    assert "version" in pyproject["project"]["dynamic"]
+    assert pyproject["tool"]["hatch"]["version"]["path"] == "src/claims_ledger/__init__.py"
+
+    # A string that is a version and nothing else, named or bare: `0.0.4`, `v0.0.4`,
+    # `claims-ledger 0.0.4`, `claims_ledger/0.0.4`. Prose holding a version-shaped number is
+    # not one — the hook template `cli.py` writes says `measured on git 2.43.0` — unless the
+    # number is this version or is named as a version: `%(prog)s 0.0.3`, `claims-ledger
+    # version 0.0.3`, `claims-ledger/0.0.4.dev0`. A bound on a version — `>=`, `<`, `~=` —
+    # states a range and not the version, and is not a copy. Written inside the test so
+    # that the rule and the span an entry pins are the same text.
+    a_version = re.compile(r"\s*(claims[-_]ledger[\s/=]*)?v?\d+\.\d+\.\d+\s*")
+    named = re.compile(
+        r"(claims[-_]ledger|%\(prog\)s|\bversion\b)([^\n\d<>~]{0,12}?)v?\d+\.\d+\.\d+",
+        re.IGNORECASE,
+    )
+    # This version as a whole number: `0.0.5` is not in `10.0.0.5` or `0.0.50`, and is in
+    # `for 0.0.5.` at the end of a sentence.
+    current = re.compile(rf"(?<!\d)(?<!\d\.){re.escape(claims_ledger.__version__)}(?!\d)(?!\.\d)")
+
+    def is_a_copy(text):
+        return bool(a_version.fullmatch(text) or named.search(text) or current.search(text))
+
+    root = project_file("src", "claims_ledger", "__init__.py")
+    package = root.parent
+    shipped = [
+        path
+        for path in sorted(package.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    ]
+    assert root in shipped and any(path.suffix == ".sh" for path in shipped)
+    copies = []
+    for path in shipped:
+        where = path.relative_to(package)
+        if path.suffix != ".py":
+            if where.parts[:2] in {("corpus", "seeds"), ("corpus", "fixtures")}:
+                continue  # other projects' ledgers and third-party text, not this package's
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue  # a fixture that is deliberately not text
+            for number, line in enumerate(text.splitlines(), 1):
+                if is_a_copy(line):
+                    copies.append(f"{where}:{number}: {line.strip()!r}")
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        nodes = list(ast.walk(tree))
+        exempt = {
+            id(node.body[0].value)
+            for node in nodes
+            if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+            and node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+        }
+        if path == root:
+            exempt |= {  # the one place, which is not a copy of itself
+                id(node.value)
+                for node in nodes
+                if isinstance(node, ast.Assign)
+                and [t.id for t in node.targets if isinstance(t, ast.Name)] == ["__version__"]
+            }
+        for node in nodes:
+            if not isinstance(node, ast.Constant) or id(node) in exempt:
+                continue
+            value = node.value
+            if isinstance(value, bytes):
+                value = value.decode("utf-8", errors="replace")
+            if isinstance(value, str) and is_a_copy(value):
+                copies.append(f"{where}:{node.lineno}: {node.value!r}")
+    assert not copies, f"the version is written again outside __init__.py: {copies}"
 
 
 def test_the_changelog_has_no_unreleased_section_at_the_current_version():

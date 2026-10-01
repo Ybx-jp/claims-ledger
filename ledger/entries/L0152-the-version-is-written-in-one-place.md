@@ -80,6 +80,8 @@ none
   evidence: code: src/claims_ledger/__init__.py § "__version__" =sha256:903c01e2bbf4b4abcf345e6f8bcb039f36f496a2b5b81f34129625169b169b4d
   note: re-read after the commit that bumps the version from 0.0.3 to 0.0.4. The claim is about the number being written in one place and read from there by the build backend, not about which number it is; `pyproject.toml` still reads `[tool.hatch.version]` out of this file, no second copy was added, and the only thing that moved is the literal a release is supposed to move. Measured after the bump: `claims_ledger.__version__` and `importlib.metadata.version('claims-ledger')` both read 0.0.4 from a fresh editable install.
 
-## References
+- 2026-10-01T00:46:54-07:00 · superseded · grade: measured · author: main
+  evidence: entry: L0310-a-second-version-literal-is-found · supersedes
+  note: the claim stands and its ground did not witness it. A ground on the one place the version is written cannot see a second: a literal written into cli.py left every checker at 0/0 and the suite green (#36), while every release drifted this pin for a change the claim is not about. L0310 keeps the pyproject.toml ground and replaces this one with a test that reads the package's source files, apart from the corpus's data, for a second copy.
 
-- src/claims_ledger/__init__.py · standing · cites-as-live
+## References

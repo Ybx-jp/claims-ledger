@@ -32,7 +32,7 @@ __version__ = "0.0.4"
 # The single source of truth for the version: pyproject.toml reads it from here
 # (`[tool.hatch.version] path`), so `claims_ledger.__version__`, `pip show` and the
 # PyPI release can never disagree
-# (L0152, cites-as-live). Below the assignment rather
+# (L0310, cites-as-live). Below the assignment rather
 # than above it: a section starts at its own line, so a comment above this one belongs to
 # whatever is defined before it.
 
