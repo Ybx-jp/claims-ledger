@@ -58,6 +58,9 @@ none
 - 2026-09-11T19:30:01-07:00 · corroborated · grade: measured · author: main
   evidence: code: src/claims_ledger/schema.py § "OBJECT_ID_RE" =sha256:839f612a1927030849314c6a1fc1edeac16800b4e55ae033fb73889b32521948
   note: re-read after the same commit. This pattern now admits sixty-four hex characters as well as forty, because a hash width belongs to the repository and not to the ledger. The claim is about the artifact line being held to a shape, and it is still held to one.
+- 2026-10-27T11:37:09-07:00 · corroborated · grade: measured · author: main
+  evidence: code: src/claims_ledger/validate.py § "check_verdicts" =sha256:89515a1cf788ae4277e45576763746557c7cdc50479c90c4bb9284a2ebe5b301
+  note: re-read after the refuted-grade flag was narrowed to a refutation that rests on no measurement against a measured entry (issue #83), which is the only place this section moved. The artifact line of a propagated verdict is still held to a shape on every verdict, before git is asked anything.
 
 ## References
 
