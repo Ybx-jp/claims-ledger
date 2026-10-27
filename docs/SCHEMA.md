@@ -290,9 +290,15 @@ history, so a commit that bypassed the check is caught by the next run anywhere.
 `corroborated`, `contested`, `refuted`, `superseded`, `retracted`, `non-comparable`. The
 last four are terminal, with one exception: `refuted` or `non-comparable` may be
 followed by exactly one `superseded`, because reinstatement is supersession. A
-corroborating verdict must point at a ground the entry does not already cite. A
-`refuted` verdict whose evidence grade differs from the entry's is flagged for a
-human, since evidence types are not ranked. `non-comparable` is legal only at
+corroborating verdict must point at a ground the entry does not already cite. A grade
+is an evidence type and carries no quality ranking, so a `refuted` verdict at a grade
+other than the entry's is not flagged for that alone — a hypothesis graded `argued`
+before its run and refuted by the run's measurement is preregistration working. What is
+flagged for a human is a refutation that rests on no measurement, against an entry
+graded `measured` or above: an argument against a measurement is usually `contested`
+until a measurement exists
+(L0314-only-an-unmeasured-refutation-of-a-measured-claim-is-flagged, cites-as-live).
+`non-comparable` is legal only at
 `measured` and above. `retracted` here means a defect in the making, not obsolescence
 without a successor as in nanopublication usage. On a retracted entry the defective
 quote is not re-reported; instead the `defect:` the verdict states must reproduce, and

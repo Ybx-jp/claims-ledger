@@ -404,3 +404,43 @@ def test_timestamps_carry_their_offset_including_a_bare_z(value, offset_hours):
 @pytest.mark.parametrize("value", ["", "not a time", "2026-09-05", "2026-09-05T12:00:00"])
 def test_a_timestamp_without_an_offset_is_not_a_timestamp(value):
     assert parse_timestamp(value) is None
+
+
+@pytest.mark.parametrize(
+    ("entry_grade", "verdict_grade", "flagged"),
+    [
+        ("measured", "argued", True),
+        ("controlled", "asserted", True),
+        ("argued", "measured", False),
+        ("argued", "preregistered", False),
+        ("controlled", "measured", False),
+        ("measured", "preregistered", False),
+        ("argued", "asserted", False),
+        ("measured", "measured", False),
+    ],
+)
+def test_only_an_unmeasured_refutation_of_a_measured_claim_is_flagged(
+    tmp_path, entry_grade, verdict_grade, flagged
+):
+    """Issue #83: a hypothesis graded argued before its run and refuted by the run's
+    measurement drew a flag nothing could discharge, on every such refutation, while the
+    same hypothesis corroborated the same way drew none. Grades carry no quality ranking,
+    so what is left for review is the line the schema already draws — whether the
+    evidence is a measurement — crossed downward: D12's shape, and only that."""
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    text = path.read_text(encoding="utf-8").replace("grade: measured", f"grade: {entry_grade}", 1)
+    path.write_text(
+        text.replace(
+            "## Verdicts\n",
+            "## Verdicts\n\n"
+            f"- 2026-09-05T12:00:00+00:00 · refuted · grade: {verdict_grade} · author: main\n"
+            '  evidence: lab: notes/002.md § "Observation" @working\n',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    ledger = ledger_named(tmp_path)
+    flags = [
+        r.message for r in validate_run(ledger) if r.outcome == "flag" and r.part == "verdict 1"
+    ]
+    assert bool(flags) is flagged, flags
