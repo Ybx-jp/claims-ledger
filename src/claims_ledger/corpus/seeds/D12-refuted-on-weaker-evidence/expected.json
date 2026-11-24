@@ -6,7 +6,7 @@
       "checker": "validate",
       "outcome": "flag",
       "where": "A0001 verdict 1",
-      "why": "a refuted verdict whose evidence type (argued) differs from the entry's (measured) is flagged for review, not rejected; the types are not ranked"
+      "why": "a refuted verdict that rests on no measurement (argued) against an entry graded measured is flagged for review, not rejected; a differing grade alone is not flagged, since grades are not ranked"
     },
     {
       "checker": "review",

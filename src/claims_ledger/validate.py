@@ -639,11 +639,26 @@ def check_verdicts(e, entries, config):
             fail(
                 part, f"non-comparable is legal only at measured and above; this entry is {e.grade}"
             )
-        if v.status == "refuted" and v.grade != e.grade and v.grade in GRADES:
+        # Grades are evidence types and carry no quality ranking, so a refutation at a grade
+        # other than the entry's is not suspect for that alone: a hypothesis graded argued
+        # before its run and refuted by the run's measurement is preregistration working,
+        # and a flag nothing can discharge on every one of those teaches a reader to skim
+        # `check`. The line the schema does draw is whether the evidence is a measurement —
+        # measured and above require an evidence ground — and a fall that rests on none, of
+        # a claim that rests on one, is the case a person has to look at: an argument
+        # against a measurement is usually `contested` until a measurement exists
+        # (L0314-only-an-unmeasured-refutation-of-a-measured-claim-is-flagged, cites-as-live).
+        if (
+            v.status == "refuted"
+            and e.grade in MEASURED_AND_ABOVE
+            and v.grade in GRADES
+            and v.grade not in MEASURED_AND_ABOVE
+        ):
             flag(
                 part,
-                f"refuted on {v.grade} evidence against a {e.grade} entry; evidence types are "
-                "not ranked, so this is for review",
+                f"refuted at grade {v.grade}, which is not a measurement, against an entry "
+                f"graded {e.grade}; an argument against a measurement is usually contested "
+                "until a measurement exists, so this is for review",
             )
         if v.status == "superseded":
             superseded_seen += 1
