@@ -935,3 +935,29 @@ def test_a_checkout_interpreter_without_the_package_is_not_used(project, tmp_pat
     )
 
     assert "the install recorded" in _fire_hook(hook, project.root)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #89: README: Nothing is written through a link that leaves the project "
+        "root — the write funnel opens its predictable temporary name following a symlink, "
+        "and then renames that link over the entry"
+    ),
+)
+def test_a_link_planted_at_the_temporary_name_does_not_carry_the_write_out(tmp_path):
+    from claims_ledger import schema
+
+    entries = tmp_path / "project" / "ledger" / "entries"
+    entries.mkdir(parents=True)
+    target = entries / "A0001-victim.md"
+    target.write_text("original\n", encoding="utf-8")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("not the project's\n", encoding="utf-8")
+    (entries / f".{target.name}.claims-ledger-{os.getpid()}").symlink_to(outside)
+    try:
+        schema.write_text_atomically(target, "rewritten\n")
+    except OSError:
+        pass  # refusing the write is an answer; writing outside the root is not
+    assert outside.read_text(encoding="utf-8") == "not the project's\n"
+    assert not target.is_symlink()
