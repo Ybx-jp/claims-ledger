@@ -935,3 +935,23 @@ def test_a_checkout_interpreter_without_the_package_is_not_used(project, tmp_pat
     )
 
     assert "the install recorded" in _fire_hook(hook, project.root)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="BUG (issue #91): `cmd_hook` asks `leaves_root(hooks, path)`, which follows "
+    "the hooks directory before comparing, so a `.git/hooks` link out of the repository is "
+    "its own boundary and the hook is written through it; L0130 holds the code to `The hook "
+    "is not written through a link that leaves the hooks directory, including when the hooks "
+    "directory is itself the link.`",
+)
+def test_hook_install_refuses_a_hooks_directory_that_is_itself_an_escaping_link(project):
+    project.git("init", "-q")
+    outside = Path(project.root).parent / "outside-hooks"
+    outside.mkdir(exist_ok=True)
+    hooks = Path(project.root) / ".git" / "hooks"
+    subprocess.run(["rm", "-rf", str(hooks)], check=True)
+    hooks.symlink_to(outside)
+
+    assert project.cl("hook", "--install") != 0
+    assert not (outside / "pre-commit").exists(), f"`hook --install` wrote a hook into {outside}"
