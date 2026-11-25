@@ -1538,3 +1538,27 @@ def _scaffold(project):
     before = {p.name for p in project.entries.glob("*.md")}
     assert project.cl("new", "a-law-these-tests-state") == 0
     return {p.name for p in project.entries.glob("*.md")} - before
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #87: README: A file the user maintains that cannot be read or parsed — an "
+        "entry that is not UTF-8, a `sources.jsonl` line that is not JSON — raises "
+        "`LedgerError`, naming the file and the line. ... nothing reaches a user as a traceback"
+    ),
+)
+@pytest.mark.parametrize(
+    "row",
+    ['{"id": "a"}', '{"id": "a", "bytes": 5}', '{"id": "a", "bytes": null}', '{"id": ["x"]}'],
+)
+def test_a_registry_row_of_the_wrong_shape_is_reported_not_raised(tmp_path, capsys, row):
+    root = tmp_path / "project"
+    root.mkdir()
+    assert cli.main(["--root", str(root), "init"]) == 0
+    (root / "ledger" / "sources.jsonl").write_text(row + "\n", encoding="utf-8")
+    capsys.readouterr()
+    rc = cli.main(["--root", str(root), "source", "list"])
+    err = capsys.readouterr().err
+    assert "unexpected" not in err, err
+    assert rc != 0
