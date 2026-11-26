@@ -12,6 +12,8 @@ import os
 import subprocess
 from datetime import datetime
 
+import pytest
+
 from test_git_degradation import _shim_git_that_cannot
 
 from claims_ledger import freshness, resolve, validate
@@ -306,3 +308,29 @@ def test_sha_write_fills_a_pointer_line_and_not_prose_that_ends_the_same_way(pro
     assert prose in after
     assert f"  evidence: {ground(project)[2:]}" in after
     assert [r for r in reports(project, validate) if r[0] == "fail"] == []
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #93: the fill is a regex over the whole file, and a Warrant line written "
+        "as a `- ` bullet matches it. Held to restamp's own comment: \"only a Grounds line "
+        "or a verdict's evidence line is a pointer\"."
+    ),
+)
+def test_sha_write_fills_no_warrant_bullet_that_reads_as_the_pointer(project):
+    """The prose case above, written as a markdown bullet: the `- ` prefix the fill
+    requires of a Grounds line is one a bullet in the Warrant carries too, so a verdict's
+    pending anchor rewrote the frozen region of a committed entry at exit 0."""
+    project.git("init", "-q")
+    path = entry_with(project)
+    text = path.read_text(encoding="utf-8")
+    prose = '- lab: docs/note-001.md § "Observation" =?'
+    path.write_text(text.replace("## Warrant\n\n", f"## Warrant\n\n{prose}\n\n", 1), encoding="utf-8")
+    commit_all(project, "claim, with a pending-looking bullet in the Warrant")
+    frozen = path.read_text(encoding="utf-8").partition("<!-- APPEND")[0]
+    append(project, reading("?"))
+    assert project.cl("sha", "--write", str(path)) == 0
+    after = path.read_text(encoding="utf-8")
+    assert after.partition("<!-- APPEND")[0] == frozen
+    assert f"  evidence: {ground(project)[2:]}" in after
