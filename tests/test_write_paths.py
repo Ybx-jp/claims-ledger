@@ -935,3 +935,30 @@ def test_a_checkout_interpreter_without_the_package_is_not_used(project, tmp_pat
     )
 
     assert "the install recorded" in _fire_hook(hook, project.root)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #95: render_entry hashes its own Scope text and an empty Backing rather "
+        "than what it wrote. Held to its docstring: \"The text of an entry, with "
+        "`verbatim_sha` computed from the Scope and Backing it is written with.\""
+    ),
+)
+def test_a_rendered_entry_declares_the_fingerprint_of_its_own_backing(tmp_path):
+    from claims_ledger.authoring import render_entry
+    from claims_ledger.schema import parse_entry
+
+    backing = (
+        "- source: fx-source · whole text\n"
+        "  speaker: Okafor\n"
+        '  quote: "The error under mean aggregation scales with the stale fraction."'
+    )
+    path = tmp_path / "A0001-x.md"
+    path.write_text(
+        render_entry("A0001", "x", stated="2026-11-26T00:00:00+00:00", backing=backing),
+        encoding="utf-8",
+    )
+    entry = parse_entry(path)
+    assert len(entry.backing) == 1
+    assert entry.front["verbatim_sha"] == entry.computed_sha()
