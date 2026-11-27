@@ -444,3 +444,29 @@ def test_only_an_unmeasured_refutation_of_a_measured_claim_is_flagged(
         r.message for r in validate_run(ledger) if r.outcome == "flag" and r.part == "verdict 1"
     ]
     assert bool(flags) is flagged, flags
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #99: docs/SCHEMA.md says supersession is a chain, not a tree, and "
+        "OPERATING.md that every edit that changes what a claim rests on is a supersession: "
+        "a new entry file; an entry whose supersedes: names itself, carrying a superseded "
+        "verdict naming itself, validates with no failure"
+    ),
+)
+def test_an_entry_does_not_supersede_itself(tmp_path):
+    path = write_entry(tmp_path, 'lab: notes/001.md § "Observation" @working')
+    text = path.read_text(encoding="utf-8")
+    path.write_text(
+        text.replace("supersedes: none", "supersedes: A0001-a-renamed-evidence-type", 1).replace(
+            "## Verdicts\n",
+            "## Verdicts\n\n"
+            "- 2026-09-05T12:00:00+00:00 · superseded · grade: measured · author: main\n"
+            "  evidence: entry: A0001-a-renamed-evidence-type · supersedes\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    fails = [r for r in validate_run(ledger_named(tmp_path)) if r.outcome == "fail"]
+    assert fails, "an entry naming itself as its own successor validated clean"
