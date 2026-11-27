@@ -444,3 +444,19 @@ def test_only_an_unmeasured_refutation_of_a_measured_claim_is_flagged(
         r.message for r in validate_run(ledger) if r.outcome == "flag" and r.part == "verdict 1"
     ]
     assert bool(flags) is flagged, flags
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "issue #97: corpus/README.md says an Assertion is an absence claim when it "
+        "contains one of the standalone words `nobody`, `no one`, `neither`, `first`, "
+        "`novel`, `unique`, `unprecedented`; validate.is_absence_claim strips edge "
+        "punctuation but not the markdown emphasis markers, so *first* is not read as one"
+    ),
+)
+@pytest.mark.parametrize(
+    "text", ["This is the *first* report of the effect.", "**Nobody** has measured this before."]
+)
+def test_an_emphasised_trigger_word_is_still_an_absence_claim(text):
+    assert is_absence_claim(text) is True
